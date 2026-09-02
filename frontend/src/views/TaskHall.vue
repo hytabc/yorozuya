@@ -8,6 +8,7 @@ import { useToast } from '../composables/toast'
 import TaskCard from '../components/TaskCard.vue'
 import TaskDialog from '../components/TaskDialog.vue'
 import CreateTaskDialog from '../components/CreateTaskDialog.vue'
+import { CATEGORIES } from '../constants'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -18,7 +19,7 @@ const selected = ref(null)
 const showCreate = ref(false)
 const busy = ref(false)
 const filters = reactive({ search: '', category: '', status: '' })
-const categories = ['跑腿', '设计', '技术', '学习', '生活', '其他']
+const categories = CATEGORIES
 const statuses = [{ value: '', label: '全部状态' }, { value: 'published', label: '招募中' }, { value: 'accepted', label: '处理中' }, { value: 'awaiting', label: '待确认' }, { value: 'completed', label: '已完成' }, { value: 'expired', label: '已过期' }]
 
 const stats = computed(() => ({

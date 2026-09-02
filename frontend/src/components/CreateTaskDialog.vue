@@ -3,18 +3,19 @@ import { reactive, ref, onMounted, onUnmounted } from 'vue'
 import { X } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
+import { CATEGORIES } from '../constants'
 
 const emit = defineEmits(['close', 'created'])
 const toast = useToast()
 const busy = ref(false)
 const unlimited = ref(false)
-const categories = ['跑腿', '设计', '技术', '学习', '生活', '其他']
+const categories = CATEGORIES
 const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000)
 tomorrow.setMinutes(tomorrow.getMinutes() - tomorrow.getTimezoneOffset())
 const form = reactive({
   title: '',
   description: '',
-  category: '生活',
+  category: '',
   reward: '',
   accept_password: '',
   required_takers: 1,
@@ -49,7 +50,7 @@ onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeE
         <label>委托标题<input v-model.trim="form.title" required minlength="2" maxlength="80" placeholder="一句话说明需要什么" /></label>
         <label>详细说明<textarea v-model.trim="form.description" required minlength="10" maxlength="3000" rows="6" placeholder="说明背景、具体要求和交付方式"></textarea><small>{{ form.description.length }}/3000</small></label>
         <div class="form-row">
-          <label>委托分类<select v-model="form.category"><option v-for="item in categories" :key="item">{{ item }}</option></select></label>
+          <label>委托分类<select v-model="form.category" required><option value="" disabled>请选择委托类型</option><option v-for="item in categories" :key="item">{{ item }}</option></select></label>
           <label>报酬说明<input v-model.trim="form.reward" maxlength="60" placeholder="如：50 元 / 一杯奶茶" /></label>
         </div>
         <div class="taker-field">
