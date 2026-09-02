@@ -20,8 +20,13 @@ const selected = ref(null)
 const showCreate = ref(false)
 const showFeedback = ref(false)
 const busy = ref(false)
-const filters = reactive({ search: '', category: '', status: '' })
+const filters = reactive({ search: '', category: '', status: '', pay_type: '' })
 const categories = CATEGORIES
+const payOptions = [
+  { value: '', label: '全部报酬' },
+  { value: 'paid', label: '有偿' },
+  { value: 'free', label: '无偿' },
+]
 const statuses = [{ value: '', label: '全部状态' }, { value: 'published', label: '招募中' }, { value: 'accepted', label: '处理中' }, { value: 'awaiting', label: '待确认' }, { value: 'completed', label: '已完成' }, { value: 'expired', label: '已过期' }]
 
 const stats = computed(() => ({
@@ -34,7 +39,9 @@ let timer
 async function load() {
   loading.value = true
   try {
-    const { data } = await api.get('/tasks', { params: { ...filters } })
+    const params = { search: filters.search, category: filters.category, status: filters.status }
+    if (filters.pay_type) params.pay_type = filters.pay_type
+    const { data } = await api.get('/tasks', { params })
     tasks.value = data
   } catch (error) { toast.error(errorMessage(error, '委托加载失败')) } finally { loading.value = false }
 }
@@ -95,6 +102,7 @@ onMounted(load)
       <div class="filterbar">
         <label class="search-field"><Search :size="18" /><input v-model="filters.search" placeholder="搜索委托标题或内容" aria-label="搜索委托" @input="search" /></label>
         <label class="select-field"><SlidersHorizontal :size="17" /><select v-model="filters.status" aria-label="状态筛选" @change="load"><option v-for="item in statuses" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
+        <select v-model="filters.pay_type" aria-label="报酬筛选" @change="load"><option v-for="item in payOptions" :key="item.value" :value="item.value">{{ item.label }}</option></select>
         <select v-model="filters.category" aria-label="分类筛选" @change="load"><option value="">全部分类</option><option v-for="item in categories" :key="item">{{ item }}</option></select>
       </div>
 

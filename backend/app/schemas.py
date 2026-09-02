@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
@@ -91,6 +92,8 @@ class TaskCreate(RequestModel):
     title: str = Field(min_length=2, max_length=80)
     description: str = Field(min_length=10, max_length=3000)
     category: str = Field(min_length=1, max_length=24)
+    # paid=有偿 free=无偿
+    pay_type: Literal["paid", "free"] = "paid"
     reward: str | None = Field(default=None, max_length=60)
     accept_password: str = Field(min_length=4, max_length=32)
     # 需要几人接取；null / 缺省表示人数不限（只能由委托人手动开始）
@@ -127,6 +130,7 @@ class TaskOut(ApiModel):
     description: str
     category: str
     reward: str | None
+    pay_type: str = "paid"
     status: TaskStatus
     is_visible: bool
     admin_note: str | None = None

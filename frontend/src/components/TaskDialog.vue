@@ -78,7 +78,7 @@ function resetPassword() {
         <div><dt><UserRound :size="16" />委托人</dt><dd><button class="name-link" type="button" @click="openProfile(task.publisher_id)">{{ task.publisher.nickname }}</button></dd></div>
         <div><dt><CalendarClock :size="16" />有效期至</dt><dd>{{ format(task.expires_at) }}</dd></div>
         <div><dt><UsersRound :size="16" />需要接取人数</dt><dd>{{ requiredText }}<span class="muted">（已 {{ joinedCount }} 人）</span></dd></div>
-        <div v-if="task.reward"><dt><Coins :size="16" />委托报酬</dt><dd>{{ task.reward }}</dd></div>
+        <div><dt><Coins :size="16" />是否付费</dt><dd><span class="pay-tag" :class="`pay-${task.pay_type || 'paid'}`">{{ task.pay_type === 'free' ? '无偿' : '有偿' }}</span><template v-if="task.pay_type !== 'free' && task.reward"> · {{ task.reward }}</template><span v-if="task.pay_type !== 'free' && !task.reward" class="muted"> · 报酬待协商</span></dd></div>
         <div v-if="task.contact_qq"><dt><MessageCircle :size="16" />委托人 QQ</dt><dd>{{ task.contact_qq }}</dd></div>
       </dl>
 

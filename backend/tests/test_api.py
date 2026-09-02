@@ -424,6 +424,44 @@ def test_list_tasks_without_status_filter():
         assert invalid_status.status_code == 422
 
 
+def test_pay_type_create_and_filter():
+    with TestClient(app) as client:
+        publisher = auth(client, "pay_publisher")
+        # 有偿（默认）
+        paid = create_task(client, publisher, title="付费委托", required=1)
+        paid_task_id = paid["id"]
+        assert paid["pay_type"] == "paid"
+        # 无偿
+        free_resp = client.post(
+            "/api/tasks",
+            headers=publisher,
+            json={
+                "title": "无偿互助委托",
+                "description": "需要有人帮忙翻译一段英文说明",
+                "category": "学习",
+                "pay_type": "free",
+                "reward": None,
+                "accept_password": "pw-free-1",
+                "required_takers": 1,
+                "expires_at": (datetime.utcnow() + timedelta(days=2)).isoformat() + "Z",
+            },
+        )
+        assert free_resp.status_code == 201, free_resp.text
+        free_task_id = free_resp.json()["id"]
+        assert free_resp.json()["pay_type"] == "free"
+
+        paid_list = client.get("/api/tasks", params={"pay_type": "paid"}).json()
+        assert {task["id"] for task in paid_list} >= {paid_task_id}
+        assert free_task_id not in {task["id"] for task in paid_list}
+
+        free_list = client.get("/api/tasks", params={"pay_type": "free"}).json()
+        assert {task["id"] for task in free_list} == {free_task_id}
+
+        # 非法 pay_type 直接返回空
+        weird = client.get("/api/tasks", params={"pay_type": "banana"}).json()
+        assert all(task["pay_type"] in ("paid", "free") for task in weird)
+
+
 def test_user_task_limit_and_admin_control():
     with TestClient(app) as client:
         publishers = [auth(client, f"limit_pub_{index}") for index in range(4)]

@@ -60,6 +60,8 @@ class Task(Base):
     title: Mapped[str] = mapped_column(String(80), index=True)
     description: Mapped[str] = mapped_column(Text)
     category: Mapped[str] = mapped_column(String(24), default="其他")
+    # 是否有偿：paid=有偿, free=无偿
+    pay_type: Mapped[str] = mapped_column(String(8), default="paid", index=True)
     reward: Mapped[str | None] = mapped_column(String(60), nullable=True)
     status: Mapped[TaskStatus] = mapped_column(
         SqlEnum(TaskStatus, values_callable=lambda values: [item.value for item in values]),

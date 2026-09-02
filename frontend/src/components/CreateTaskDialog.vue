@@ -16,6 +16,7 @@ const form = reactive({
   title: '',
   description: '',
   category: '',
+  pay_type: 'paid',
   reward: '',
   accept_password: '',
   required_takers: 1,
@@ -29,7 +30,8 @@ async function submit() {
       ...form,
       required_takers: unlimited.value ? null : form.required_takers,
       expires_at: new Date(form.expires_at).toISOString(),
-      reward: form.reward || null,
+      pay_type: form.pay_type,
+      reward: form.pay_type === 'paid' ? (form.reward || null) : null,
     }
     const { data } = await api.post('/tasks', payload)
     toast.success(unlimited.value || form.required_takers === 1 ? '委托已发布' : '委托已发布，凑齐人数后自动开始')
@@ -51,8 +53,15 @@ onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeE
         <label>详细说明<textarea v-model.trim="form.description" required minlength="10" maxlength="3000" rows="6" placeholder="说明背景、具体要求和交付方式"></textarea><small>{{ form.description.length }}/3000</small></label>
         <div class="form-row">
           <label>委托分类<select v-model="form.category" required><option value="" disabled>请选择委托类型</option><option v-for="item in categories" :key="item">{{ item }}</option></select></label>
-          <label>报酬说明<input v-model.trim="form.reward" maxlength="60" placeholder="如：50 元 / 一杯奶茶" /></label>
+          <div class="pay-field">
+            <span class="taker-label">是否付费</span>
+            <div class="pay-toggle" role="radiogroup" aria-label="是否付费">
+              <button type="button" role="radio" :aria-checked="form.pay_type === 'paid'" :class="{ active: form.pay_type === 'paid' }" @click="form.pay_type = 'paid'">有偿</button>
+              <button type="button" role="radio" :aria-checked="form.pay_type === 'free'" :class="{ active: form.pay_type === 'free' }" @click="form.pay_type = 'free'">无偿</button>
+            </div>
+          </div>
         </div>
+        <label v-if="form.pay_type === 'paid'">报酬说明<input v-model.trim="form.reward" maxlength="60" placeholder="如：50 元 / 一杯奶茶" /></label>
         <div class="taker-field">
           <span class="taker-label">需要几人接取</span>
           <div class="taker-row">

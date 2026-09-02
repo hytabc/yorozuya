@@ -81,6 +81,15 @@ def migrate_schema() -> None:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN required_takers INTEGER"))
         if "started_at" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN started_at DATETIME"))
+        if "pay_type" not in task_columns:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN pay_type VARCHAR(8)"))
+            # 旧委托回填：填了报酬说明视为有偿，否则视为无偿
+            connection.execute(
+                text("UPDATE tasks SET pay_type = 'paid' WHERE pay_type IS NULL AND reward IS NOT NULL AND reward <> ''")
+            )
+            connection.execute(
+                text("UPDATE tasks SET pay_type = 'free' WHERE pay_type IS NULL")
+            )
         # 旧版单接单人数据升级：
         # 1) submitted(已提交待验收) -> awaiting(待确认)，以提交时间作为接单人确认时间
         # 2) 有 assignee_id 的任务，把接单人搬进 task_members
@@ -371,6 +380,7 @@ def list_tasks(
     search: str = Query(default="", max_length=80),
     category: str = Query(default=""),
     task_status: Annotated[TaskStatusFilter, Query(alias="status")] = None,
+    pay_type: str = Query(default=""),
     viewer: User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
@@ -382,6 +392,8 @@ def list_tasks(
         query = query.where(Task.category == category)
     if task_status:
         query = query.where(Task.status == task_status)
+    if pay_type in ("paid", "free"):
+        query = query.where(Task.pay_type == pay_type)
     tasks = db.scalars(query.order_by(Task.created_at.desc()).limit(200)).unique().all()
     return [present_task(task, viewer) for task in tasks]
 
@@ -422,6 +434,7 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
         title=payload.title.strip(),
         description=payload.description.strip(),
         category=payload.category,
+        pay_type=payload.pay_type,
         reward=payload.reward.strip() if payload.reward else None,
         expires_at=payload.expires_at,
         publisher_id=user.id,

@@ -92,7 +92,7 @@ main { min-height: calc(100vh - 72px); }
 .section-heading h2 { margin: 0; font-family: Georgia, "Songti SC", serif; font-size: 28px; }
 .section-heading p { grid-column: 2; margin: 7px 0 0; color: var(--muted); font-size: 13px; }
 .section-index { color: var(--red); font-family: Georgia, serif; font-size: 12px; font-weight: 700; }
-.filterbar { display: grid; grid-template-columns: minmax(260px, 1fr) 160px 140px; gap: 10px; margin: 27px 0 22px; }
+.filterbar { display: grid; grid-template-columns: minmax(260px, 1fr) 150px 110px 130px; gap: 10px; margin: 27px 0 22px; }
 .search-field, .select-field { display: flex; align-items: center; gap: 9px; min-height: 44px; padding: 0 13px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); background: white; }
 .search-field:focus-within, .select-field:focus-within { border-color: #87928c; box-shadow: 0 0 0 3px rgba(35, 122, 87, .09); }
 .search-field input, .select-field select { width: 100%; padding: 0; border: 0; outline: 0; background: transparent; }
@@ -118,6 +118,9 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .status-completed { color: var(--blue); background: var(--blue-soft); }
 .status-cancelled { color: #69736e; background: #eceeed; }
 .category-tag { color: #5a625f; }
+.pay-tag { display: inline-flex; align-items: center; min-height: 24px; padding: 0 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.pay-tag.pay-paid { color: #9a4f17; background: #fdf0e3; }
+.pay-tag.pay-free { color: var(--green); background: var(--green-soft); }
 .role-tag { color: #805066; background: #f4eaf0; }
 .confirm-hint { color: var(--red); background: var(--red-soft); }
 .task-card h3 { margin: 18px 0 10px; overflow-wrap: anywhere; font-size: 18px; line-height: 1.45; }
@@ -189,6 +192,12 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .field-hint { align-self: flex-start; color: #87908c; font-size: 11px; font-weight: 400; line-height: 1.6; }
 .taker-field { display: flex; flex-direction: column; gap: 8px; color: #46504b; font-size: 12px; font-weight: 650; }
+.taker-label { color: #46504b; font-size: 12px; font-weight: 650; }
+.pay-field { display: flex; flex-direction: column; gap: 8px; }
+.pay-toggle { display: grid; grid-template-columns: 1fr 1fr; height: 44px; border: 1px solid #ccd2ce; border-radius: 4px; overflow: hidden; }
+.pay-toggle button { border: 0; background: white; color: var(--muted); font-size: 13px; font-weight: 650; }
+.pay-toggle button + button { border-left: 1px solid #ccd2ce; }
+.pay-toggle button.active { color: white; background: var(--ink); }
 .taker-row { display: flex; align-items: center; gap: 14px; }
 .taker-row > input { flex: 1; min-width: 0; }
 .checkbox-inline { display: flex !important; flex-direction: row !important; align-items: center; gap: 7px; margin: 0; color: #46504b; font-size: 12px; font-weight: 650; white-space: nowrap; cursor: pointer; }

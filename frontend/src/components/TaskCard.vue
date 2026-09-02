@@ -27,6 +27,7 @@ const joined = computed(() => props.task.members?.length || 0)
     <div class="task-card-top">
       <div class="task-tags">
         <StatusBadge :status="task.status" />
+        <span class="pay-tag" :class="`pay-${task.pay_type || 'paid'}`">{{ task.pay_type === 'free' ? '无偿' : '有偿' }}</span>
         <span class="category-tag">{{ task.category }}</span>
         <span v-if="showRole && role" class="role-tag">{{ role }}</span>
         <span v-if="hint" class="role-tag confirm-hint">{{ hint }}</span>
