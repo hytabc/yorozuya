@@ -149,6 +149,21 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .crew-list li.confirmed em { display: inline; }
 .crew-list em { margin-left: auto; color: var(--green); font-size: 11px; font-style: normal; font-weight: 650; }
 .crew-qq { margin-left: auto; font-size: 11px; }
+.name-link { padding: 0 2px; border: 0; color: inherit; background: none; font: inherit; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; cursor: pointer; }
+.name-link:hover { color: var(--green); }
+
+.user-card { position: relative; margin-top: 24px; padding: 22px; border: 1px solid #dde3df; border-radius: 6px; background: #fafbfa; }
+.user-card-close { position: absolute; top: 14px; right: 14px; }
+.user-card-head { display: flex; align-items: center; gap: 14px; }
+.user-card-head h4 { display: flex; align-items: center; gap: 9px; margin: 0 0 6px; font-size: 18px; }
+.user-avatar-lg { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%; color: white; background: var(--blue); font-family: Georgia, serif; font-size: 24px; flex-shrink: 0; }
+.user-card-since { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+.user-card-bio { margin: 16px 0 0; padding: 13px 0 0; border-top: 1px solid #e6eae7; color: #3e4944; font-size: 13px; line-height: 1.8; white-space: pre-wrap; }
+.user-card-qq { display: flex; align-items: center; gap: 9px; margin-top: 13px; }
+.user-card-qq strong { display: block; font-size: 13px; }
+.user-card-qq small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+.user-card .user-card-close + .user-card-head { padding-right: 30px; }
+.user-card-body { padding: 14px 2px; font-size: 13px; }
 .crew-tag { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: white; background: var(--blue); font-size: 11px; font-weight: 700; flex-shrink: 0; }
 .crew-tag.role-owner { background: var(--green); }
 .crew-progress { margin: 12px 0 0; font-size: 12px; }

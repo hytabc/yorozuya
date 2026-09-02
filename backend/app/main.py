@@ -27,6 +27,7 @@ from .schemas import (
     TaskMemberOut,
     TaskOut,
     TokenResponse,
+    UserProfileOut,
     UserSelf,
     UserUpdate,
 )
@@ -189,6 +190,35 @@ def member_of(db: Session, task_id: int, user_id: int) -> TaskMember | None:
     return db.scalar(select(TaskMember).where(TaskMember.task_id == task_id, TaskMember.user_id == user_id))
 
 
+def shares_task_with(db: Session, viewer_id: int, target_id: int) -> bool:
+    """两人是否在同一委托中共事过（一个委托人发布、另一个成员接取，或同为成员）。"""
+    if viewer_id == target_id:
+        return True
+    viewer_tasks = set(db.scalars(select(Task.id).where(Task.publisher_id == viewer_id)))
+    viewer_tasks |= set(db.scalars(select(TaskMember.task_id).where(TaskMember.user_id == viewer_id)))
+    target_tasks = set(db.scalars(select(Task.id).where(Task.publisher_id == target_id)))
+    target_tasks |= set(db.scalars(select(TaskMember.task_id).where(TaskMember.user_id == target_id)))
+    return bool(viewer_tasks & target_tasks)
+
+
+def can_view_user_qq(db: Session, viewer: User, target: User) -> bool:
+    """能否看到该用户的 QQ：本人/管理员/共同协作双方可见；此外对方有正在招募的公开委托时也开放（洽谈用）。"""
+    if viewer.is_admin or viewer.id == target.id:
+        return True
+    if shares_task_with(db, viewer.id, target.id):
+        return True
+    recruiting = db.scalar(
+        select(Task.id)
+        .where(
+            Task.publisher_id == target.id,
+            Task.status == TaskStatus.PUBLISHED,
+            Task.is_visible.is_(True),
+        )
+        .limit(1)
+    )
+    return recruiting is not None
+
+
 ACTIVE_TAKEN_STATUSES = (TaskStatus.PUBLISHED, TaskStatus.ACCEPTED, TaskStatus.AWAITING)
 
 
@@ -257,6 +287,18 @@ def update_profile(payload: UserUpdate, user: User = Depends(get_current_user), 
     db.commit()
     db.refresh(user)
     return user
+
+
+@app.get("/api/users/{user_id}", response_model=UserProfileOut)
+def user_profile(user_id: int, viewer: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """查看用户个人资料：昵称/简介/加入时间公开；QQ 仅在可协作洽谈范围内可见。"""
+    target = db.get(User, user_id)
+    if target is None or not target.is_active:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    data = UserProfileOut.model_validate(target)
+    if not can_view_user_qq(db, viewer, target):
+        data.qq = None
+    return data
 
 
 @app.get("/api/tasks", response_model=list[TaskOut])

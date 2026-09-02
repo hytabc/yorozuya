@@ -293,6 +293,44 @@ def test_reset_password_before_start():
         assert ok.status_code == 200
 
 
+def test_profile_visibility_rules():
+    with TestClient(app) as client:
+        pub = auth(client, "pro_pub")
+        taker = auth(client, "pro_taker")
+        stranger = auth(client, "pro_stranger")
+        set_qq(client, pub, "8888888888")
+
+        pub_id = client.get("/api/auth/me", headers=pub).json()["id"]
+        taker_id = client.get("/api/auth/me", headers=taker).json()["id"]
+
+        # 未登录不可访问
+        assert client.get(f"/api/users/{pub_id}").status_code == 401
+
+        # 陌生人只能看到公开资料，看不到 QQ
+        as_stranger = client.get(f"/api/users/{pub_id}", headers=stranger).json()
+        assert as_stranger["qq"] is None
+        assert as_stranger["nickname"] == "用户pro_pub"
+
+        # 发布人有招募中的公开委托：登录用户可见其 QQ（洽谈用）
+        task = create_task(client, pub, password="pw-profile-1", required=2)
+        tid = task["id"]
+        open_view = client.get(f"/api/users/{pub_id}", headers=taker).json()
+        assert open_view["qq"] == "8888888888"
+
+        # 同为该委托成员后可见
+        client.post(f"/api/tasks/{tid}/accept", headers=taker, json={"password": "pw-profile-1"})
+        member_view = client.get(f"/api/users/{pub_id}", headers=taker).json()
+        assert member_view["qq"] == "8888888888"
+
+        # 委托人可看到成员资料（成员未填 QQ → null）
+        as_pub = client.get(f"/api/users/{taker_id}", headers=pub).json()
+        assert as_pub["qq"] is None
+        assert as_pub["bio"] is None
+
+        # 不存在的用户 404
+        assert client.get("/api/users/999999", headers=taker).status_code == 404
+
+
 def test_expired_task_is_updated_when_listed():
     with TestClient(app) as client:
         publisher = auth(client, "expirer")

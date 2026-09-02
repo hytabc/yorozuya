@@ -3,11 +3,18 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { CalendarClock, Coins, KeyRound, MessageCircle, UserRound, UsersRound, X } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import StatusBadge from './StatusBadge.vue'
+import UserProfileCard from './UserProfileCard.vue'
 
 const props = defineProps({ task: { type: Object, required: true }, busy: Boolean })
 const emit = defineEmits(['close', 'action'])
 const auth = useAuthStore()
 const password = ref('')
+const profileUserId = ref(null)
+
+function openProfile(userId) {
+  if (!auth.isLoggedIn) return emit('action', 'login')
+  profileUserId.value = userId
+}
 
 const isPublisher = computed(() => auth.user?.id === props.task.publisher_id)
 const meMember = computed(() => props.task.members?.find((m) => m.user.id === auth.user?.id))
@@ -68,23 +75,26 @@ function resetPassword() {
       </div>
       <p class="task-description">{{ task.description }}</p>
       <dl class="task-detail-grid">
-        <div><dt><UserRound :size="16" />委托人</dt><dd>{{ task.publisher.nickname }}</dd></div>
+        <div><dt><UserRound :size="16" />委托人</dt><dd><button class="name-link" type="button" @click="openProfile(task.publisher_id)">{{ task.publisher.nickname }}</button></dd></div>
         <div><dt><CalendarClock :size="16" />有效期至</dt><dd>{{ format(task.expires_at) }}</dd></div>
         <div><dt><UsersRound :size="16" />需要接取人数</dt><dd>{{ requiredText }}<span class="muted">（已 {{ joinedCount }} 人）</span></dd></div>
         <div v-if="task.reward"><dt><Coins :size="16" />委托报酬</dt><dd>{{ task.reward }}</dd></div>
         <div v-if="task.contact_qq"><dt><MessageCircle :size="16" />委托人 QQ</dt><dd>{{ task.contact_qq }}</dd></div>
       </dl>
 
+      <!-- 点击成员名称查看个人资料 -->
+      <UserProfileCard v-if="profileUserId" :user-id="profileUserId" @close="profileUserId = null" />
+
       <!-- 协作成员与完成进度 -->
       <div v-if="isParticipant || task.members?.length" class="crew-block">
         <h4>协作成员（{{ totalPeople }} 人<template v-if="canSeeProgress">，完成需全员确认</template>）</h4>
         <ul class="crew-list">
           <li :class="{ confirmed: canSeeProgress && task.publisher_confirmed_at }">
-            <span class="crew-tag role-owner">委</span><span>{{ task.publisher.nickname }}</span><em v-if="canSeeProgress && task.publisher_confirmed_at">已确认</em>
+            <span class="crew-tag role-owner">委</span><button class="name-link" type="button" @click="openProfile(task.publisher_id)">{{ task.publisher.nickname }}</button><em v-if="canSeeProgress && task.publisher_confirmed_at">已确认</em>
           </li>
           <li v-for="m in task.members" :key="m.user.id" :class="{ confirmed: canSeeProgress && m.confirmed_at }">
             <span class="crew-tag">{{ m.user.id === auth.user?.id ? '我' : '接' }}</span>
-            <span>{{ m.user.nickname }}</span><span v-if="m.qq && canSeeProgress" class="crew-qq muted">QQ {{ m.qq }}</span><em v-if="canSeeProgress && m.confirmed_at">已确认</em>
+            <button class="name-link" type="button" @click="openProfile(m.user.id)">{{ m.user.nickname }}</button><span v-if="m.qq && canSeeProgress" class="crew-qq muted">QQ {{ m.qq }}</span><em v-if="canSeeProgress && m.confirmed_at">已确认</em>
           </li>
         </ul>
         <p v-if="canSeeProgress && (working || finished)" class="crew-progress muted">确认进度 {{ confirmedCount }} / {{ totalPeople }}<template v-if="!everyoneConfirmed"> · 还差 {{ totalPeople - confirmedCount }} 人确认</template></p>

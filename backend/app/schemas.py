@@ -50,6 +50,16 @@ class UserPublic(ApiModel):
     bio: str | None = None
 
 
+class UserProfileOut(ApiModel):
+    """他人视角看到的用户资料：qq 仅对本人、管理员、共同协作双方可见，否则为 None。"""
+    id: int
+    nickname: str
+    bio: str | None = None
+    qq: str | None = None
+    is_admin: bool = False
+    created_at: datetime
+
+
 class UserSelf(UserPublic):
     username: str
     qq: str | None = None
