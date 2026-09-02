@@ -18,12 +18,16 @@
 - 管理员统计、委托隐藏与恢复；隐藏原因对相关用户可见
 - Docker Compose 一键部署与 FRP TCP 内网穿透
 
-## Docker Compose 部署
+## Docker Compose 部署（开发部署一体）
+
+`docker-compose.yml` 采用**源码挂载 + 热重载**形态：后端以 `uvicorn --reload` 运行、
+前端跑 Vite 开发服务器（HMR），并把本地源码直接挂载进容器。本地改代码即时生效，
+重新部署只需一条命令。
 
 1. 创建环境配置：
 
    ```bash
-   cp .env.example .env
+   cp env.example .env
    ```
 
 2. 修改 `.env` 中的 `SECRET_KEY` 和 `ADMIN_PASSWORD`。推荐生成密钥：
@@ -32,47 +36,36 @@
    openssl rand -hex 32
    ```
 
-3. 启动网站：
+3. 启动（首次或重新部署）：
 
    ```bash
    docker compose up -d --build
    ```
 
-   浏览器访问 `http://localhost:8080`。首次启动会自动创建 `.env` 中配置的管理员账号。
+   浏览器访问 `http://localhost:<WEB_PORT>`（默认 `8080`）。首次启动会自动创建 `.env` 中配置的管理员账号。
 
-   > 数据库不再保存在 Docker 命名卷中，而是通过绑定挂载存放在宿主机
-   > `backend/data/wsw.db`（该目录已被 `.gitignore` 忽略）。详情见下方「数据存储与备份」。
+   - 后端源码热同步：`./backend/app` → 容器 `/app/app`，`.py` 改动自动重载；
+   - 前端源码热同步：只把 `./frontend/src`、`index.html`、`vite.config.js` 挂载进容器，
+     Vite HMR 即时刷新；`/api` 由 Vite 代理到 compose 内的 `backend`
+     （`VITE_PROXY_TARGET=http://backend:8000`）；
+   - 前端 `node_modules` **保留在镜像内**（Linux 下 `npm ci` 生成，含 `vite` 可执行文件），
+     不从宿主机挂载——避免把 Windows/Mac 等平台编译的 node_modules 带进容器导致
+     `vite: not found` / 不可执行；
+   - 数据持久化：数据库通过绑定挂载保存在宿主机 `backend/data/wsw.db`
+     （该目录已被 `.gitignore` 忽略）。详情见下方「数据存储与备份」；
+   - 新增 Python / Node 依赖（改 package.json / requirements.txt）需重新构建：
+     `docker compose up -d --build`；仅改 `frontend/src`、`backend/app` 源码无需重建。
 
-4. 启用 FRP 穿透：先在 `.env` 填写 `FRP_SERVER_ADDR`、`FRP_TOKEN` 和远端端口，再运行：
+4. 启用 FRP 内网穿透（可选）：先在 `.env` 填写 `FRP_SERVER_ADDR`、`FRP_TOKEN` 和远端端口，再运行：
 
    ```bash
-   docker compose --profile tunnel up -d --build
+   docker compose --profile tunnel up -d
    ```
 
-   `frpc` 会将远端 `FRP_REMOTE_PORT` 转发到前端容器的 80 端口。对应的 `frps` 服务端需允许该 TCP 端口。
+   `frpc`（仅该 profile 启动）会把远端 `FRP_REMOTE_PORT` 转发到前端容器的 8889 端口。
+   对应的 `frps` 服务端需允许该 TCP 端口。
 
-## 本地开发
-
-### 方式一：容器内开发（本地源码与容器同步）
-
-新增 `docker-compose.dev.yml`，把本地代码直接挂载进容器并开启热重载：
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
-```
-
-- 后端：`./backend/app` 挂载到容器 `/app/app`，`uvicorn` 以 `--reload` 运行，
-  本地改动 `.py` 后容器自动重启生效；
-- 前端：镜像 `frontend` 使用 `target: dev`（Vite 开发服务器），源码与本地同步、
-  开启 HMR 即时刷新；`/api` 由 Vite 代理到 compose 内的 `backend` 服务
-  （`VITE_PROXY_TARGET=http://backend:8000`）；
-- 访问地址仍为 `http://localhost:<WEB_PORT>`（默认 8080）；
-- `node_modules` 使用匿名卷，避免把宿主机不同平台编译的依赖带入容器；
-- 新增 Python/Node 依赖时需要重新构建：`docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build`。
-
-> `docker-compose.yml` 本身保持纯生产配置不变；开发覆盖仅在同时指定两个文件时生效。
-
-### 方式二：本机直接运行
+## 本地开发（不经 Docker）
 
 后端：
 
@@ -92,9 +85,8 @@ npm install
 npm run dev
 ```
 
-Vite 开发环境默认把 `/api` 代理到 `http://localhost:8000`，也可用
-`VITE_API_BASE=http://localhost:8000/api` 指向本地后端；生产容器由 Nginx 同源代理 `/api`。
-容器内开发如需改代理目标，设置环境变量 `VITE_PROXY_TARGET`。
+Vite 开发环境默认把 `/api` 代理到 `http://localhost:8000`；如需改代理目标，
+设置环境变量 `VITE_PROXY_TARGET`。
 
 ## 状态流转
 

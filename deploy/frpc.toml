@@ -7,6 +7,5 @@ auth.token = "{{ .Envs.FRP_TOKEN }}"
 name = "yorozuya-web"
 type = "tcp"
 localIP = "frontend"
-localPort = 80
+localPort = 8889
 remotePort = {{ .Envs.FRP_REMOTE_PORT }}
-

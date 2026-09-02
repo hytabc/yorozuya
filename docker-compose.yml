@@ -1,7 +1,21 @@
+# 万事屋委托站 —— 开发部署一体配置
+#
+# 形态：后端 uvicorn --reload、前端 Vite 开发服务器（HMR），并把本地源码直接挂载进容器：
+#   本地修改 backend/app 或 frontend/src 等源码后，容器内即时同步生效，
+#   重新部署只需 docker compose up -d --build。
+#
+# 首次/重新部署：
+#   cp env.example .env           （并修改 SECRET_KEY / ADMIN_PASSWORD）
+#   docker compose up -d --build
+#   浏览器访问 http://localhost:<WEB_PORT>（默认 8080）
+#
+# 注意：新增后端 pip / 前端 npm 依赖后需要 --build 重新构建镜像；仅改源码无需重建。
+
 services:
   backend:
     build: ./backend
     restart: unless-stopped
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--reload"]
     environment:
       DATABASE_URL: sqlite:////data/wsw.db
       SECRET_KEY: ${SECRET_KEY:?请在 .env 中设置 SECRET_KEY}
@@ -10,7 +24,9 @@ services:
       ADMIN_NICKNAME: ${ADMIN_NICKNAME:-万事屋管理员}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
     volumes:
-      # 绑定宿主机目录，数据库文件可直接在 backend/data/wsw.db 打开，且不随容器重建丢失
+      # 后端源码热同步：容器 /app/app 与本地 backend/app 保持一致
+      - ./backend/app:/app/app
+      # 数据库持久化：宿主机 backend/data 与容器 /data 一致，可直接打开 wsw.db
       - ./backend/data:/data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
@@ -20,14 +36,30 @@ services:
       start_period: 10s
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      target: dev
     restart: unless-stopped
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "8889"]
+    environment:
+      # Vite 开发服务器把 /api 代理到 compose 网络内的 backend 服务
+      VITE_PROXY_TARGET: http://backend:8000
+      # 允许通过 FRP/反代域名访问（vite 的 Host 校验白名单，逗号分隔可加多个）
+      VITE_ALLOWED_HOSTS: ${FRP_SERVER_ADDR:-}
     ports:
       - "${WEB_PORT:-8080}:8889"
+    volumes:
+      # 只挂载源码子路径用于热更新；node_modules 保留在镜像内（Linux 版依赖），
+      # 避免把宿主机/其他平台的 node_modules 挂进容器导致 vite 缺失或不可执行
+      - ./frontend/src:/app/src
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.js:/app/vite.config.js
     depends_on:
       backend:
         condition: service_healthy
 
+  # 内网穿透（可选）：仅当显式指定 profile 启动
+  #   docker compose --profile tunnel up -d --build
   frpc:
     image: snowdreamtech/frpc:0.61.1
     restart: unless-stopped
@@ -41,4 +73,3 @@ services:
       - ./deploy/frpc.toml:/etc/frp/frpc.toml:ro
     depends_on:
       - frontend
-
