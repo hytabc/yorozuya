@@ -124,6 +124,14 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .pay-tag.pay-paid { color: #9a4f17; background: #fdf0e3; }
 .pay-tag.pay-free { color: var(--green); background: var(--green-soft); }
 .role-tag { color: #805066; background: #f4eaf0; }
+.role-tag.role-volunteer { color: #1d6649; background: var(--green-soft); }
+.role-tag.role-user { color: #52605a; background: #eef0ee; }
+.profile-role-tags { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 5px; flex-wrap: wrap; }
+.profile-role-tags .role-tag, .profile-role-tags .admin-tag { border-radius: 4px; padding: 6px 10px; font-size: 12px; }
+.role-hint { margin: 12px 0 0; font-size: 11px; line-height: 1.7; }
+.user-card-head h4 { gap: 8px; }
+.user-card-head .role-tag { padding: 3px 8px; border-radius: 3px; }
+.admin-tag + .role-tag { margin-left: 8px; }
 .confirm-hint { color: var(--red); background: var(--red-soft); }
 .task-card h3 { margin: 18px 0 10px; overflow-wrap: anywhere; font-size: 18px; line-height: 1.45; }
 .task-summary { display: -webkit-box; margin-bottom: 20px; overflow: hidden; color: var(--muted); font-size: 13px; line-height: 1.7; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
@@ -274,6 +282,9 @@ tr.dimmed td { color: #89918d; background: #fafafa; }
 .limit-input { width: 92px; height: 38px; }
 .limit-usage { display: inline-flex; min-width: 54px; color: var(--green); font-weight: 700; }
 .limit-usage.full { color: var(--red); }
+.user-row-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.user-row-actions .button { min-height: 34px; padding: 0 11px; font-size: 12px; white-space: nowrap; }
+.admin-table-section .admin-tag, .admin-table-section .role-tag { min-height: 24px; padding: 4px 9px; font-size: 12px; }
 .admin-table-section .icon-button:disabled { cursor: default; opacity: .35; }
 .table-loading { height: 180px; color: var(--muted); text-align: center; }
 .feedback-admin-list { margin: 0; padding: 0; list-style: none; }

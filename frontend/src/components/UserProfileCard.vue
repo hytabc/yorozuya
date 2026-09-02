@@ -1,7 +1,8 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-import { CalendarDays, KeyRound, MessageCircle, ShieldCheck, X } from 'lucide-vue-next'
+import { CalendarDays, Heart, KeyRound, MessageCircle, ShieldCheck, UserRound, X } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
+import { roleLabel } from '../constants'
 
 const props = defineProps({ userId: { type: Number, required: true } })
 const emit = defineEmits(['close'])
@@ -32,7 +33,7 @@ onMounted(async () => {
       <div class="user-card-head">
         <span class="user-avatar-lg">{{ user.nickname.slice(0, 1) }}</span>
         <div>
-          <h4>{{ user.nickname }}<span v-if="user.is_admin" class="admin-tag"><ShieldCheck :size="13" />管理员</span></h4>
+          <h4>{{ user.nickname }}<span v-if="user.is_admin" class="admin-tag"><ShieldCheck :size="13" />管理员</span><span v-else class="role-tag" :class="`role-${user.role}`"><Heart v-if="user.role === 'volunteer'" :size="13" /><UserRound v-else :size="13" />{{ roleLabel(user) }}</span></h4>
           <span class="user-card-since muted"><CalendarDays :size="14" />{{ joined(user.created_at) }} 加入</span>
         </div>
       </div>

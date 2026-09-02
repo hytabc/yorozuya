@@ -4,6 +4,7 @@ import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, MessageCircle, 
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
 import StatusBadge from '../components/StatusBadge.vue'
+import { roleLabel } from '../constants'
 
 const toast = useToast()
 const tasks = ref([])
@@ -59,6 +60,18 @@ async function saveUserLimit(user) {
     toast.error(errorMessage(error))
   } finally {
     savingUserId.value = null
+  }
+}
+
+async function changeUserRole(user) {
+  if (user.is_admin) return
+  const targetRole = user.role === 'volunteer' ? 'user' : 'volunteer'
+  try {
+    const { data } = await api.patch(`/admin/users/${user.id}/role`, { role: targetRole })
+    users.value[users.value.findIndex((item) => item.id === user.id)] = data
+    toast.success(`${data.nickname} 已${targetRole === 'volunteer' ? '升级为志愿者' : '降为普通用户'}`)
+  } catch (error) {
+    toast.error(errorMessage(error))
   }
 }
 async function toggle(task) {
@@ -127,18 +140,23 @@ onMounted(load)
     </section>
 
     <section v-else-if="activeTab === 'users'" class="admin-table-section">
-      <div class="admin-toolbar"><div><h2>用户额度</h2><span>共 {{ users.length }} 人</span></div><label class="search-field"><Search :size="17" /><input v-model="userSearch" placeholder="搜索账号或昵称" /></label></div>
+      <div class="admin-toolbar"><div><h2>用户管理</h2><span>共 {{ users.length }} 人</span></div><label class="search-field"><Search :size="17" /><input v-model="userSearch" placeholder="搜索账号或昵称" /></label></div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>用户</th><th>身份</th><th>当前接单</th><th>接单上限</th><th><span class="sr-only">保存</span></th></tr></thead>
+          <thead><tr><th>用户</th><th>权限等级</th><th>当前接单</th><th>接单上限</th><th><span class="sr-only">操作</span></th></tr></thead>
           <tbody>
             <tr v-if="loading"><td colspan="5" class="table-loading">正在加载…</td></tr>
             <tr v-for="user in filteredUsers" v-else :key="user.id">
               <td><strong>{{ user.nickname }}</strong><small>@{{ user.username }} · #{{ user.id }}</small></td>
-              <td>{{ user.is_admin ? '管理员' : '普通用户' }}</td>
+              <td><span v-if="user.is_admin" class="admin-tag"><ShieldCheck :size="13" />管理员</span><span v-else class="role-tag" :class="`role-${user.role}`">{{ roleLabel(user) }}</span></td>
               <td><span class="limit-usage" :class="{ full: user.active_task_count >= user.max_concurrent_tasks }">{{ user.active_task_count }} / {{ user.max_concurrent_tasks }}</span></td>
               <td><input v-model.number="userLimits[user.id]" class="limit-input" type="number" min="0" max="999" :aria-label="`${user.nickname} 的接单上限`" /></td>
-              <td><button class="icon-button" title="保存接单上限" aria-label="保存接单上限" :disabled="savingUserId === user.id || userLimits[user.id] === user.max_concurrent_tasks" @click="saveUserLimit(user)"><Save :size="17" /></button></td>
+              <td>
+                <div class="user-row-actions">
+                  <button class="button secondary small" title="保存接单上限" aria-label="保存接单上限" :disabled="savingUserId === user.id || userLimits[user.id] === user.max_concurrent_tasks" @click="saveUserLimit(user)"><Save :size="15" /></button>
+                  <button v-if="!user.is_admin" class="button small" :class="{ secondary: user.role === 'volunteer' }" :disabled="user.role === 'volunteer' && user.active_task_count > 0" @click="changeUserRole(user)">{{ user.role === 'volunteer' ? '降为普通用户' : '升级为志愿者' }}</button>
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>

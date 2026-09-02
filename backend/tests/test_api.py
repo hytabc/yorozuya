@@ -35,13 +35,26 @@ def setup_function():
         db.commit()
 
 
-def auth(client, username, password="Password123!"):
+def auth(client, username, password="Password123!", role="user"):
     response = client.post(
         "/api/auth/register",
         json={"username": username, "password": password, "nickname": f"用户{username}"},
     )
     assert response.status_code == 201, response.text
-    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+    headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
+    if role == "volunteer":
+        promote(client, headers)
+    return headers
+
+
+def promote(client, user_headers):
+    """管理员把某用户升级为志愿者（测试用，普通用户默认不能接取委托）。"""
+    user_id = client.get("/api/auth/me", headers=user_headers).json()["id"]
+    admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
+    admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+    r = client.patch(f"/api/admin/users/{user_id}/role", headers=admin, json={"role": "volunteer"})
+    assert r.status_code == 200, r.text
+    return user_headers
 
 
 def set_qq(client, headers, qq):
@@ -75,10 +88,10 @@ def member_ids(task):
 def test_accept_fills_up_until_auto_start():
     with TestClient(app) as client:
         pub = auth(client, "pub")
-        a = auth(client, "taker_a")
-        b = auth(client, "taker_b")
-        c = auth(client, "taker_c")
-        d = auth(client, "taker_d")
+        a = auth(client, "taker_a", role="volunteer")
+        b = auth(client, "taker_b", role="volunteer")
+        c = auth(client, "taker_c", role="volunteer")
+        d = auth(client, "taker_d", role="volunteer")
 
         task = create_task(client, pub, password="pw-abc-1", required=3)
         tid = task["id"]
@@ -126,8 +139,8 @@ def test_accept_fills_up_until_auto_start():
 def test_publisher_manual_start_and_leave():
     with TestClient(app) as client:
         pub = auth(client, "pub2")
-        a = auth(client, "taker_a2")
-        b = auth(client, "taker_b2")
+        a = auth(client, "taker_a2", role="volunteer")
+        b = auth(client, "taker_b2", role="volunteer")
 
         task = create_task(client, pub, password="pw-manual-1", required=5)
         tid = task["id"]
@@ -159,7 +172,7 @@ def test_publisher_manual_start_and_leave():
 def test_leave_before_start():
     with TestClient(app) as client:
         pub = auth(client, "pub3")
-        a = auth(client, "taker_a3")
+        a = auth(client, "taker_a3", role="volunteer")
         task = create_task(client, pub, password="pw-leave-1", required=2)
         tid = task["id"]
         client.post(f"/api/tasks/{tid}/accept", headers=a, json={"password": "pw-leave-1"})
@@ -178,8 +191,8 @@ def test_leave_before_start():
 def test_all_members_and_publisher_must_confirm():
     with TestClient(app) as client:
         pub = auth(client, "pub4")
-        a = auth(client, "taker_a4")
-        b = auth(client, "taker_b4")
+        a = auth(client, "taker_a4", role="volunteer")
+        b = auth(client, "taker_b4", role="volunteer")
         stranger = auth(client, "stranger4")
 
         task = create_task(client, pub, password="pw-confirm-1", required=2)
@@ -219,7 +232,7 @@ def test_all_members_and_publisher_must_confirm():
 def test_unlimited_task_needs_manual_start_and_publisher_confirm_only():
     with TestClient(app) as client:
         pub = auth(client, "pub5")
-        a = auth(client, "taker_a5")
+        a = auth(client, "taker_a5", role="volunteer")
         # required_takers 省略 = 不限
         task = create_task(client, pub, password="pw-unlimited-1", required=None)
         tid = task["id"]
@@ -243,7 +256,7 @@ def test_unlimited_task_needs_manual_start_and_publisher_confirm_only():
 def test_contacts_and_cancel():
     with TestClient(app) as client:
         pub = auth(client, "pub6")
-        a = auth(client, "taker_a6")
+        a = auth(client, "taker_a6", role="volunteer")
         guest = auth(client, "guest6")
         set_qq(client, pub, "1234567890")
         set_qq(client, a, "2222222222")
@@ -281,7 +294,7 @@ def test_contacts_and_cancel():
 def test_reset_password_before_start():
     with TestClient(app) as client:
         pub = auth(client, "pub7")
-        a = auth(client, "taker_a7")
+        a = auth(client, "taker_a7", role="volunteer")
         task = create_task(client, pub, password="old-pw-1234", required=1)
         tid = task["id"]
 
@@ -296,7 +309,7 @@ def test_reset_password_before_start():
 def test_profile_visibility_rules():
     with TestClient(app) as client:
         pub = auth(client, "pro_pub")
-        taker = auth(client, "pro_taker")
+        taker = auth(client, "pro_taker", role="volunteer")
         stranger = auth(client, "pro_stranger")
         set_qq(client, pub, "8888888888")
 
@@ -465,7 +478,7 @@ def test_pay_type_create_and_filter():
 def test_user_task_limit_and_admin_control():
     with TestClient(app) as client:
         publishers = [auth(client, f"limit_pub_{index}") for index in range(4)]
-        taker = auth(client, "limited_taker")
+        taker = auth(client, "limited_taker", role="volunteer")
         stranger = auth(client, "limit_stranger")
         admin_login = client.post(
             "/api/auth/login",
@@ -574,8 +587,8 @@ def test_admin_task_limit_validation():
 def test_mutual_cancel_flow_after_start():
     with TestClient(app) as client:
         pub = auth(client, "cancel_pub")
-        a = auth(client, "cancel_a")
-        b = auth(client, "cancel_b")
+        a = auth(client, "cancel_a", role="volunteer")
+        b = auth(client, "cancel_b", role="volunteer")
 
         task = create_task(client, pub, password="pw-cancel-2", required=2)
         tid = task["id"]
@@ -619,7 +632,7 @@ def test_mutual_cancel_flow_after_start():
 def test_cancel_continue_restores_task():
     with TestClient(app) as client:
         pub = auth(client, "cont_pub")
-        a = auth(client, "cont_a")
+        a = auth(client, "cont_a", role="volunteer")
         task = create_task(client, pub, password="pw-cont-1", required=1)
         tid = task["id"]
         accepted = client.post(f"/api/tasks/{tid}/accept", headers=a, json={"password": "pw-cont-1"})
@@ -659,3 +672,52 @@ def test_publisher_can_direct_cancel_when_no_member():
         task2 = create_task(client, pub, password="pw-direct-2", required=2)
         denied = client.post(f"/api/tasks/{task2['id']}/cancel", headers=stranger)
         assert denied.status_code == 403
+
+
+def test_user_role_permissions():
+    with TestClient(app) as client:
+        pub = auth(client, "role_pub")
+        regular = auth(client, "role_regular")
+        admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
+        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+        regular_id = client.get("/api/auth/me", headers=regular).json()["id"]
+
+        # 默认是普通用户
+        me = client.get("/api/auth/me", headers=regular).json()
+        assert me["role"] == "user"
+        assert me["is_admin"] is False
+
+        # 普通用户可以发布，但不能接取
+        task = create_task(client, pub, password="pw-role-1", required=1)
+        tid = task["id"]
+        denied = client.post(f"/api/tasks/{tid}/accept", headers=regular, json={"password": "pw-role-1"})
+        assert denied.status_code == 403
+        assert "志愿者" in denied.json()["detail"]
+
+        # 管理员升级该用户为志愿者
+        promoted = client.patch(f"/api/admin/users/{regular_id}/role", headers=admin, json={"role": "volunteer"})
+        assert promoted.status_code == 200
+        assert promoted.json()["role"] == "volunteer"
+        me_after = client.get("/api/auth/me", headers=regular).json()
+        assert me_after["role"] == "volunteer"
+
+        # 志愿者可正常接取
+        accepted = client.post(f"/api/tasks/{tid}/accept", headers=regular, json={"password": "pw-role-1"})
+        assert accepted.status_code == 200
+        assert accepted.json()["status"] == "accepted"
+
+        # 管理员账号不能修改自己的权限等级，也不可接取
+        admin_me = client.get("/api/auth/me", headers=admin).json()
+        admin_change = client.patch(
+            f"/api/admin/users/{admin_me['id']}/role", headers=admin, json={"role": "volunteer"}
+        )
+        assert admin_change.status_code == 409
+
+        # 降级回普通用户：另开新委托验证不能接取
+        demoted = client.patch(f"/api/admin/users/{regular_id}/role", headers=admin, json={"role": "user"})
+        assert demoted.status_code == 200
+        assert demoted.json()["role"] == "user"
+
+        task2 = create_task(client, pub, password="pw-role-2", required=1)
+        again_denied = client.post(f"/api/tasks/{task2['id']}/accept", headers=regular, json={"password": "pw-role-2"})
+        assert again_denied.status_code == 403

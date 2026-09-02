@@ -42,7 +42,8 @@ const totalPeople = computed(() => (props.task.members?.length || 0) + 1)
 const everyoneConfirmed = computed(() => finished.value || (working.value && confirmedCount.value >= totalPeople.value))
 const canSeeProgress = computed(() => isParticipant.value || auth.isAdmin)
 
-const canTakePanel = computed(() => published.value && auth.isLoggedIn && !isPublisher.value && !isMember.value && !auth.isAdmin)
+const canTakePanel = computed(() => published.value && auth.isLoggedIn && !isPublisher.value && !isMember.value && !auth.isAdmin && auth.user?.role === 'volunteer')
+const isRegularUser = computed(() => published.value && auth.isLoggedIn && !isPublisher.value && !isMember.value && !auth.isAdmin && auth.user?.role === 'user')
 
 const confirmCopy = computed(() => {
   if (!isParticipant.value || !working.value || viewerConfirmed.value) return null
@@ -142,6 +143,16 @@ function resetPassword() {
           <input v-model.trim="password" type="password" minlength="1" maxlength="72" autocomplete="off" placeholder="输入委托人提供的接取密码" aria-label="接取密码" @keydown.enter="emitAccept" />
           <button class="button" :disabled="busy || !password" @click="emitAccept">{{ busy ? '处理中…' : '凭密码接取' }}</button>
         </div>
+      </div>
+
+      <!-- 普通用户没有接取权限 -->
+      <div v-if="isRegularUser" class="notice info-notice">
+        <strong>你的权限等级是普通用户，仅可发布委托</strong>
+        <p>接取委托需要「志愿者」身份，请联系管理员升级后再来。</p>
+      </div>
+      <div v-if="published && auth.isLoggedIn && !isPublisher && !isMember && auth.isAdmin" class="notice info-notice">
+        <strong>管理员账号不接取委托</strong>
+        <p>管理员负责平台管理；如需测试接取流程，请使用志愿者账号。</p>
       </div>
 
       <!-- 进行中 / 待确认 -->

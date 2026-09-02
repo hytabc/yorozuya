@@ -32,6 +32,11 @@ class FeedbackStatus(str, Enum):
     HANDLED = "handled"  # 已处理
 
 
+class UserRole(str, Enum):
+    USER = "user"  # 普通用户：仅可发布委托
+    VOLUNTEER = "volunteer"  # 志愿者：可发布 + 接取委托（管理员账号可升级）
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -43,6 +48,11 @@ class User(Base):
     bio: Mapped[str | None] = mapped_column(String(300), nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    role: Mapped[UserRole] = mapped_column(
+        SqlEnum(UserRole, values_callable=lambda values: [item.value for item in values]),
+        default=UserRole.USER,
+        index=True,
+    )
     max_concurrent_tasks: Mapped[int] = mapped_column(default=2)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

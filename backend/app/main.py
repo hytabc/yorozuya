@@ -13,13 +13,14 @@ from sqlalchemy.orm import Session, joinedload
 from .config import settings
 from .database import Base, SessionLocal, engine, get_db
 from .dependencies import get_admin, get_current_user, get_optional_user
-from .models import Feedback, FeedbackStatus, Task, TaskMember, TaskStatus, User
+from .models import Feedback, FeedbackStatus, Task, TaskMember, TaskStatus, User, UserRole
 from .schemas import (
     AcceptRequest,
     AdminStats,
     AdminTaskUpdate,
     AdminUserLimitUpdate,
     AdminUserOut,
+    AdminUserRoleUpdate,
     FeedbackCreate,
     FeedbackOut,
     FeedbackUpdate,
@@ -74,6 +75,8 @@ def migrate_schema() -> None:
                 connection.execute(
                     text("ALTER TABLE users ADD COLUMN max_concurrent_tasks INTEGER NOT NULL DEFAULT 2")
                 )
+            if "role" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(16) NOT NULL DEFAULT 'user'"))
         if not inspector.has_table("tasks"):
             return
         task_columns = {column["name"] for column in inspector.get_columns("tasks")}
@@ -474,6 +477,10 @@ def accept_task(
         raise HTTPException(status_code=403, detail="该委托已被管理员隐藏")
     if task.publisher_id == user.id:
         raise HTTPException(status_code=400, detail="不能接取自己发布的委托")
+    if user.is_admin:
+        raise HTTPException(status_code=403, detail="管理员不接取委托")
+    if user.role != UserRole.VOLUNTEER:
+        raise HTTPException(status_code=403, detail="只有志愿者可以接取委托，请联系管理员升级")
     if task.status != TaskStatus.PUBLISHED:
         raise HTTPException(status_code=409, detail="委托已开始或不可接取")
     if member_of(db, task_id, user.id) is not None:
@@ -718,6 +725,27 @@ def update_user_task_limit(
     if user is None:
         raise HTTPException(status_code=404, detail="用户不存在")
     user.max_concurrent_tasks = payload.max_concurrent_tasks
+    db.commit()
+    db.refresh(user)
+    return AdminUserOut.model_validate(user).model_copy(
+        update={"active_task_count": active_task_count(db, user.id)}
+    )
+
+
+@app.patch("/api/admin/users/{user_id}/role", response_model=AdminUserOut)
+def update_user_role(
+    user_id: int,
+    payload: AdminUserRoleUpdate,
+    _: User = Depends(get_admin),
+    db: Session = Depends(get_db),
+):
+    """升级/降级权限：普通用户(user) <-> 志愿者(volunteer)。管理员账号不参与该设置。"""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    if user.is_admin:
+        raise HTTPException(status_code=409, detail="管理员账号的权限等级不可修改")
+    user.role = payload.role
     db.commit()
     db.refresh(user)
     return AdminUserOut.model_validate(user).model_copy(

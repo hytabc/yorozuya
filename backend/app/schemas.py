@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
-from .models import FeedbackStatus, TaskStatus
+from .models import FeedbackStatus, TaskStatus, UserRole
 
 
 class ApiModel(BaseModel):
@@ -62,6 +62,7 @@ class UserProfileOut(ApiModel):
     bio: str | None = None
     qq: str | None = None
     is_admin: bool = False
+    role: UserRole = UserRole.USER
     created_at: datetime
 
 
@@ -70,6 +71,7 @@ class UserSelf(UserPublic):
     qq: str | None = None
     is_admin: bool
     is_active: bool
+    role: UserRole = UserRole.USER
     max_concurrent_tasks: int
     created_at: datetime
 
@@ -166,9 +168,14 @@ class AdminUserOut(ApiModel):
     nickname: str
     is_admin: bool
     is_active: bool
+    role: UserRole = UserRole.USER
     max_concurrent_tasks: int
     active_task_count: int = 0
     created_at: datetime
+
+
+class AdminUserRoleUpdate(RequestModel):
+    role: Literal["user", "volunteer"]
 
 
 class AdminUserLimitUpdate(RequestModel):

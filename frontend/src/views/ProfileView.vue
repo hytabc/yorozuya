@@ -1,9 +1,10 @@
 <script setup>
 import { reactive, ref } from 'vue'
-import { CalendarDays, Save, ShieldCheck } from 'lucide-vue-next'
+import { CalendarDays, Heart, Save, ShieldCheck, UserRound } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
+import { roleLabel } from '../constants'
 
 const auth = useAuthStore()
 const toast = useToast()
@@ -19,12 +20,19 @@ async function save() {
 
 <template>
   <div class="page inner-page profile-page">
-    <div class="page-title"><div><span class="eyebrow">PERSONAL SETTINGS</span><h1>个人设置</h1><p>管理公开资料与协作联系方式。</p></div></div>
+    <div class="page-title"><div><span class="eyebrow">PERSONAL SETTINGS</span><h1>个人设置</h1><p>管理公开资料、权限等级与协作联系方式。</p></div></div>
     <div class="profile-layout">
       <aside class="profile-summary">
         <span class="profile-avatar">{{ auth.user.nickname.slice(0, 1) }}</span>
         <h2>{{ auth.user.nickname }}</h2><p>@{{ auth.user.username }}</p>
-        <span v-if="auth.isAdmin" class="admin-tag"><ShieldCheck :size="15" />管理员</span>
+        <div class="profile-role-tags">
+          <span v-if="auth.isAdmin" class="admin-tag"><ShieldCheck :size="15" />管理员</span>
+          <span v-else class="role-tag" :class="`role-${auth.user.role}`">
+            <Heart v-if="auth.user.role === 'volunteer'" :size="15" />
+            <UserRound v-else :size="15" />{{ roleLabel(auth.user) }}
+          </span>
+        </div>
+        <p v-if="!auth.isAdmin" class="role-hint muted">{{ auth.user.role === 'volunteer' ? '志愿者：可发布委托，也可接取委托' : '普通用户：可发布委托；接取委托需联系管理员升级为志愿者' }}</p>
         <div class="profile-divider" />
         <span class="profile-since"><CalendarDays :size="16" />{{ joined }} 加入</span>
       </aside>
