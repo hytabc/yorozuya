@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./data/wsw.db"
     secret_key: str = "change-this-secret-in-production"
     access_token_minutes: int = 60 * 24 * 7
+    # 每次数据库写入后自动快照，保留的最近备份份数
+    db_backup_keep: int = 100
     admin_username: str = "admin"
     admin_password: str = "Admin123!"
     admin_nickname: str = "万事屋管理员"

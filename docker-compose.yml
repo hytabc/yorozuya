@@ -10,7 +10,8 @@ services:
       ADMIN_NICKNAME: ${ADMIN_NICKNAME:-万事屋管理员}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
     volumes:
-      - wsw_data:/data
+      # 绑定宿主机目录，数据库文件可直接在 backend/data/wsw.db 打开，且不随容器重建丢失
+      - ./backend/data:/data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 15s
@@ -41,7 +42,4 @@ services:
       - ./deploy/frpc.toml:/etc/frp/frpc.toml:ro
     depends_on:
       - frontend
-
-volumes:
-  wsw_data:
 
