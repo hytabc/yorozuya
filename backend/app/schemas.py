@@ -10,7 +10,17 @@ from .models import TaskStatus
 class ApiModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    @field_serializer("created_at", "updated_at", "expires_at", "accepted_at", "submitted_at", "completed_at", "publisher_confirmed_at", "assignee_confirmed_at", check_fields=False)
+    @field_serializer(
+        "created_at",
+        "updated_at",
+        "expires_at",
+        "joined_at",
+        "confirmed_at",
+        "started_at",
+        "completed_at",
+        "publisher_confirmed_at",
+        check_fields=False,
+    )
     def serialize_datetime(self, value: datetime | None):
         if value is None:
             return None
@@ -71,6 +81,8 @@ class TaskCreate(RequestModel):
     category: str = Field(min_length=1, max_length=24)
     reward: str | None = Field(default=None, max_length=60)
     accept_password: str = Field(min_length=4, max_length=32)
+    # 需要几人接取；null / 缺省表示人数不限（只能由委托人手动开始）
+    required_takers: int | None = Field(default=None, ge=1, le=999)
     expires_at: datetime
 
     @field_validator("expires_at")
@@ -89,6 +101,14 @@ class PasswordUpdate(RequestModel):
     password: str = Field(min_length=4, max_length=32)
 
 
+class TaskMemberOut(ApiModel):
+    user: UserPublic
+    joined_at: datetime
+    confirmed_at: datetime | None = None
+    # 联系方式只在协作双方可见时由后端填充
+    qq: str | None = None
+
+
 class TaskOut(ApiModel):
     id: int
     title: str
@@ -99,18 +119,16 @@ class TaskOut(ApiModel):
     is_visible: bool
     admin_note: str | None = None
     publisher: UserPublic
-    assignee: UserPublic | None = None
+    required_takers: int | None = None
+    members: list[TaskMemberOut] = []
     publisher_id: int
-    assignee_id: int | None
-    contact_qq: str | None = None
     publisher_confirmed_at: datetime | None = None
-    assignee_confirmed_at: datetime | None = None
+    contact_qq: str | None = None
     created_at: datetime
     updated_at: datetime
     expires_at: datetime
-    accepted_at: datetime | None
-    submitted_at: datetime | None
-    completed_at: datetime | None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
 
 
 class AdminTaskUpdate(RequestModel):

@@ -40,147 +40,257 @@ def auth(client, username, password="Password123!"):
         "/api/auth/register",
         json={"username": username, "password": password, "nickname": f"用户{username}"},
     )
-    assert response.status_code == 201
+    assert response.status_code == 201, response.text
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
-def create_task(client, headers, title="帮忙整理一份资料", password="接取密码123"):
-    return client.post(
-        "/api/tasks",
-        headers=headers,
-        json={
-            "title": title,
-            "description": "需要将十条记录整理成清晰的表格文件",
-            "category": "学习",
-            "reward": "30 元",
-            "accept_password": password,
-            "expires_at": (datetime.utcnow() + timedelta(days=2)).isoformat() + "Z",
-        },
-    )
+def set_qq(client, headers, qq):
+    me = client.get("/api/auth/me", headers=headers)
+    nickname = me.json()["nickname"]
+    r = client.patch("/api/users/me", headers=headers, json={"nickname": nickname, "qq": qq, "bio": None})
+    assert r.status_code == 200, r.text
+    return r.json()
 
 
-def test_password_gated_accept_and_double_confirm():
+def create_task(client, headers, password="接取密码123", required=None, title="帮忙整理一份资料"):
+    payload = {
+        "title": title,
+        "description": "需要将十条记录整理成清晰的表格文件",
+        "category": "学习",
+        "reward": "30 元",
+        "accept_password": password,
+        "expires_at": (datetime.utcnow() + timedelta(days=2)).isoformat() + "Z",
+    }
+    if required is not None:
+        payload["required_takers"] = required
+    response = client.post("/api/tasks", headers=headers, json=payload)
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def member_ids(task):
+    return [m["user"]["id"] for m in task["members"]]
+
+
+def test_accept_fills_up_until_auto_start():
     with TestClient(app) as client:
-        publisher = auth(client, "publisher")
-        assignee_reg = client.post(
-            "/api/auth/register",
-            json={"username": "assignee", "password": "Password123!", "nickname": "用户assignee"},
-        )
-        assignee = {"Authorization": f"Bearer {assignee_reg.json()['access_token']}"}
-        assignee_id = assignee_reg.json()["user"]["id"]
-        stranger = auth(client, "stranger")
+        pub = auth(client, "pub")
+        a = auth(client, "taker_a")
+        b = auth(client, "taker_b")
+        c = auth(client, "taker_c")
+        d = auth(client, "taker_d")
 
-        created = create_task(client, publisher, password="correct-pw-1")
-        assert created.status_code == 201
-        assert "accept_password" not in created.json()
-        task_id = created.json()["id"]
+        task = create_task(client, pub, password="pw-abc-1", required=3)
+        tid = task["id"]
+        assert task["required_takers"] == 3
+        assert task["status"] == "published"
+        assert task["members"] == []
 
         # 委托人不能接取自己的委托
-        own_accept = client.post(
-            f"/api/tasks/{task_id}/accept", headers=publisher, json={"password": "correct-pw-1"}
-        )
-        assert own_accept.status_code == 400
+        own = client.post(f"/api/tasks/{tid}/accept", headers=pub, json={"password": "pw-abc-1"})
+        assert own.status_code == 400
 
-        # 错误密码无法接取
-        wrong = client.post(f"/api/tasks/{task_id}/accept", headers=assignee, json={"password": "wrong-password"})
+        # 错误密码不可接取
+        wrong = client.post(f"/api/tasks/{tid}/accept", headers=a, json={"password": "nope"})
         assert wrong.status_code == 403
 
-        # 委托人还未同意（提供密码）时，任何登录用户都看不到联系方式用于洽谈
-        assert created.json()["contact_qq"] is None
+        # 第一、二人加入，仍未开始
+        after_a = client.post(f"/api/tasks/{tid}/accept", headers=a, json={"password": "pw-abc-1"}).json()
+        assert after_a["status"] == "published"
+        assert len(after_a["members"]) == 1
+        after_b = client.post(f"/api/tasks/{tid}/accept", headers=b, json={"password": "pw-abc-1"}).json()
+        assert after_b["status"] == "published"
+        assert len(after_b["members"]) == 2
 
-        # 正确密码接取成功
-        accepted = client.post(
-            f"/api/tasks/{task_id}/accept", headers=assignee, json={"password": "correct-pw-1"}
-        )
-        assert accepted.status_code == 200
-        assert accepted.json()["status"] == "accepted"
-        assert accepted.json()["assignee"]["id"] == assignee_id
+        # 第三人加入，人数足够 → 自动开始
+        after_c = client.post(f"/api/tasks/{tid}/accept", headers=c, json={"password": "pw-abc-1"}).json()
+        assert after_c["status"] == "accepted"
+        assert after_c["started_at"] is not None
+        assert len(after_c["members"]) == 3
 
-        # 已被接取后其他人无法再接取
-        second = client.post(f"/api/tasks/{task_id}/accept", headers=stranger, json={"password": "correct-pw-1"})
-        assert second.status_code == 409
-
-        # 无关用户不能确认完成
-        denied = client.post(f"/api/tasks/{task_id}/confirm", headers=stranger)
-        assert denied.status_code == 403
-
-        # 接单人先确认完成 → 待确认（等待委托人）
-        first = client.post(f"/api/tasks/{task_id}/confirm", headers=assignee)
-        assert first.status_code == 200
-        assert first.json()["status"] == "awaiting"
-        assert first.json()["assignee_confirmed_at"] is not None
-        assert first.json()["publisher_confirmed_at"] is None
-
-        # 接单人重复确认被拒绝
-        dup = client.post(f"/api/tasks/{task_id}/confirm", headers=assignee)
+        # 重复加入被拒绝
+        dup = client.post(f"/api/tasks/{tid}/accept", headers=c, json={"password": "pw-abc-1"})
         assert dup.status_code == 409
 
-        # 委托人确认后完成
-        finished = client.post(f"/api/tasks/{task_id}/confirm", headers=publisher)
-        assert finished.status_code == 200
-        assert finished.json()["status"] == "completed"
-        assert finished.json()["completed_at"] is not None
+        # 已开始，第四人无法加入
+        extra = client.post(f"/api/tasks/{tid}/accept", headers=d, json={"password": "pw-abc-1"})
+        assert extra.status_code == 409
+
+        # 发布人可看到成员 QQ
+        set_qq(client, a, "1111111111")
+        listed = client.get(f"/api/tasks/{tid}", headers=pub).json()
+        assert len(listed["members"]) == 3
+        assert any(m["qq"] == "1111111111" for m in listed["members"])
 
 
-def test_publisher_can_confirm_first_then_assignee():
+def test_publisher_manual_start_and_leave():
     with TestClient(app) as client:
-        publisher = auth(client, "pub2")
-        assignee = auth(client, "asg2")
-        created = create_task(client, publisher, password="pw2-abcde")
-        task_id = created.json()["id"]
-        client.post(f"/api/tasks/{task_id}/accept", headers=assignee, json={"password": "pw2-abcde"})
+        pub = auth(client, "pub2")
+        a = auth(client, "taker_a2")
+        b = auth(client, "taker_b2")
 
-        # 委托人先确认完成 → 待确认
-        first = client.post(f"/api/tasks/{task_id}/confirm", headers=publisher)
-        assert first.json()["status"] == "awaiting"
-        assert first.json()["publisher_confirmed_at"] is not None
+        task = create_task(client, pub, password="pw-manual-1", required=5)
+        tid = task["id"]
 
-        # 接单人再确认 → 已完成
-        second = client.post(f"/api/tasks/{task_id}/confirm", headers=assignee)
-        assert second.json()["status"] == "completed"
+        # 无成员不能开始
+        empty_start = client.post(f"/api/tasks/{tid}/start", headers=pub)
+        assert empty_start.status_code == 409
+
+        a_member = client.post(f"/api/tasks/{tid}/accept", headers=a, json={"password": "pw-manual-1"}).json()
+        assert a_member["status"] == "published"
+
+        # 人数不足也可由委托人手动开始
+        started = client.post(f"/api/tasks/{tid}/start", headers=pub)
+        assert started.status_code == 200
+        assert started.json()["status"] == "accepted"
+        assert started.json()["started_at"] is not None
+
+        # 开始后不能再接取、不能退出
+        b_add = client.post(f"/api/tasks/{tid}/accept", headers=b, json={"password": "pw-manual-1"})
+        assert b_add.status_code == 409
+        leave = client.post(f"/api/tasks/{tid}/leave", headers=a)
+        assert leave.status_code == 409
+
+        # 只有委托人能开始
+        other_start = client.post(f"/api/tasks/{tid}/start", headers=a)
+        assert other_start.status_code == 403
 
 
-def test_published_task_contact_visible_to_logged_in_viewers():
+def test_leave_before_start():
     with TestClient(app) as client:
-        publisher = auth(client, "pub3")
-        taker = auth(client, "taker3")
-        # 发布人补充 QQ
-        updated = client.patch(
-            "/api/users/me", headers=publisher, json={"nickname": "用户pub3", "qq": "1234567890", "bio": None}
-        )
-        assert updated.status_code == 200
+        pub = auth(client, "pub3")
+        a = auth(client, "taker_a3")
+        task = create_task(client, pub, password="pw-leave-1", required=2)
+        tid = task["id"]
+        client.post(f"/api/tasks/{tid}/accept", headers=a, json={"password": "pw-leave-1"})
 
-        created = create_task(client, publisher, password="pw3-abcde")
-        task_id = created.json()["id"]
+        # 未开始时接单人可退出
+        left = client.post(f"/api/tasks/{tid}/leave", headers=a)
+        assert left.status_code == 200
+        assert left.json()["members"] == []
 
-        # 匿名浏览：不暴露联系方式
-        anonymous = client.get("/api/tasks").json()
-        assert anonymous[0]["contact_qq"] is None
-
-        # 登录后的接单人可看到委托人 QQ，便于洽谈
-        listed = client.get("/api/tasks", headers=taker).json()
-        assert listed[0]["contact_qq"] == "1234567890"
+        # 非成员不能退出
+        stranger = auth(client, "stranger3")
+        deny = client.post(f"/api/tasks/{tid}/leave", headers=stranger)
+        assert deny.status_code == 403
 
 
-def test_publisher_resets_password_before_accept():
+def test_all_members_and_publisher_must_confirm():
     with TestClient(app) as client:
-        publisher = auth(client, "pub4")
-        assignee = auth(client, "asg4")
-        created = create_task(client, publisher, password="old-pw-1234")
-        task_id = created.json()["id"]
+        pub = auth(client, "pub4")
+        a = auth(client, "taker_a4")
+        b = auth(client, "taker_b4")
+        stranger = auth(client, "stranger4")
 
-        # 更新密码
-        reset = client.patch(f"/api/tasks/{task_id}/password", headers=publisher, json={"password": "new-pw-5678"})
+        task = create_task(client, pub, password="pw-confirm-1", required=2)
+        tid = task["id"]
+        client.post(f"/api/tasks/{tid}/accept", headers=a, json={"password": "pw-confirm-1"})
+        accepted = client.post(f"/api/tasks/{tid}/accept", headers=b, json={"password": "pw-confirm-1"}).json()
+        assert accepted["status"] == "accepted"
+
+        # 无关人员不能确认
+        deny = client.post(f"/api/tasks/{tid}/confirm", headers=stranger)
+        assert deny.status_code == 403
+
+        # 接单人 a 先确认 → awaiting
+        c1 = client.post(f"/api/tasks/{tid}/confirm", headers=a).json()
+        assert c1["status"] == "awaiting"
+        assert c1["members"][0]["confirmed_at"] is not None
+        # a 重复确认被拒
+        dup = client.post(f"/api/tasks/{tid}/confirm", headers=a)
+        assert dup.status_code == 409
+
+        # 还差委托人 + b
+        still = client.get(f"/api/tasks/{tid}", headers=pub).json()
+        assert still["status"] == "awaiting" and still["publisher_confirmed_at"] is None
+
+        # 委托人确认，仍差 b
+        c2 = client.post(f"/api/tasks/{tid}/confirm", headers=pub).json()
+        assert c2["status"] == "awaiting"
+
+        # b 最后确认 → completed
+        c3 = client.post(f"/api/tasks/{tid}/confirm", headers=b).json()
+        assert c3["status"] == "completed"
+        assert c3["completed_at"] is not None
+        assert c3["publisher_confirmed_at"] is not None
+        assert all(m["confirmed_at"] is not None for m in c3["members"])
+
+
+def test_unlimited_task_needs_manual_start_and_publisher_confirm_only():
+    with TestClient(app) as client:
+        pub = auth(client, "pub5")
+        a = auth(client, "taker_a5")
+        # required_takers 省略 = 不限
+        task = create_task(client, pub, password="pw-unlimited-1", required=None)
+        tid = task["id"]
+        assert task["required_takers"] is None
+
+        joined = client.post(f"/api/tasks/{tid}/accept", headers=a, json={"password": "pw-unlimited-1"}).json()
+        # 不限人数：加入后不会自动开始
+        assert joined["status"] == "published"
+
+        # 委托人手动开始
+        started = client.post(f"/api/tasks/{tid}/start", headers=pub).json()
+        assert started["status"] == "accepted"
+
+        # 接单人 + 委托人都确认后完成
+        a_ok = client.post(f"/api/tasks/{tid}/confirm", headers=a).json()
+        assert a_ok["status"] == "awaiting"
+        final = client.post(f"/api/tasks/{tid}/confirm", headers=pub).json()
+        assert final["status"] == "completed"
+
+
+def test_contacts_and_cancel():
+    with TestClient(app) as client:
+        pub = auth(client, "pub6")
+        a = auth(client, "taker_a6")
+        guest = auth(client, "guest6")
+        set_qq(client, pub, "1234567890")
+        set_qq(client, a, "2222222222")
+
+        task = create_task(client, pub, password="pw-contact-1", required=1)
+        tid = task["id"]
+
+        # 匿名看不到联系方式
+        anon = client.get(f"/api/tasks/{tid}").json()
+        assert anon["contact_qq"] is None
+
+        # 登录的其他用户可看到委托人 QQ（洽谈用），但看不到成员 QQ
+        viewed = client.get(f"/api/tasks/{tid}", headers=guest).json()
+        assert viewed["contact_qq"] == "1234567890"
+
+        # 委托人可看到接单人的 QQ
+        joined = client.post(f"/api/tasks/{tid}/accept", headers=a, json={"password": "pw-contact-1"}).json()
+        assert joined["status"] == "accepted"
+        as_pub = client.get(f"/api/tasks/{tid}", headers=pub).json()
+        assert as_pub["members"][0]["qq"] == "2222222222"
+        assert as_pub["contact_qq"] is None
+
+        # 接单人可看到委托人 QQ
+        as_taker = client.get(f"/api/tasks/{tid}", headers=a).json()
+        assert as_taker["contact_qq"] == "1234567890"
+
+        # 未开始前委托人可取消
+        task2 = create_task(client, pub, password="pw-cancel-1", required=2)
+        tid2 = task2["id"]
+        cancelled = client.post(f"/api/tasks/{tid2}/cancel", headers=pub)
+        assert cancelled.status_code == 200
+        assert cancelled.json()["status"] == "cancelled"
+
+
+def test_reset_password_before_start():
+    with TestClient(app) as client:
+        pub = auth(client, "pub7")
+        a = auth(client, "taker_a7")
+        task = create_task(client, pub, password="old-pw-1234", required=1)
+        tid = task["id"]
+
+        reset = client.patch(f"/api/tasks/{tid}/password", headers=pub, json={"password": "new-pw-5678"})
         assert reset.status_code == 200
-
-        # 旧密码失效
-        old = client.post(f"/api/tasks/{task_id}/accept", headers=assignee, json={"password": "old-pw-1234"})
+        old = client.post(f"/api/tasks/{tid}/accept", headers=a, json={"password": "old-pw-1234"})
         assert old.status_code == 403
-
-        # 新密码可用
-        ok = client.post(f"/api/tasks/{task_id}/accept", headers=assignee, json={"password": "new-pw-5678"})
+        ok = client.post(f"/api/tasks/{tid}/accept", headers=a, json={"password": "new-pw-5678"})
         assert ok.status_code == 200
-        assert ok.json()["status"] == "accepted"
 
 
 def test_expired_task_is_updated_when_listed():
@@ -200,7 +310,6 @@ def test_expired_task_is_updated_when_listed():
                 )
             )
             db.commit()
-
         tasks = client.get("/api/tasks", headers=publisher).json()
         assert tasks[0]["status"] == "expired"
 
@@ -208,16 +317,15 @@ def test_expired_task_is_updated_when_listed():
 def test_list_tasks_without_status_filter():
     with TestClient(app) as client:
         publisher = auth(client, "list_publisher")
-        created = create_task(client, publisher, title="Listable task")
-        assert created.status_code == 201
+        created = create_task(client, publisher, title="Listable task", required=1)
+        assert created["id"] > 0
 
         without_status = client.get("/api/tasks")
         assert without_status.status_code == 200
-        assert [task["id"] for task in without_status.json()] == [created.json()["id"]]
+        assert [task["id"] for task in without_status.json()] == [created["id"]]
 
         empty_status = client.get("/api/tasks", params={"status": ""})
         assert empty_status.status_code == 200
-        assert [task["id"] for task in empty_status.json()] == [created.json()["id"]]
 
         invalid_status = client.get("/api/tasks", params={"status": "unknown"})
         assert invalid_status.status_code == 422

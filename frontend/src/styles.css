@@ -141,12 +141,28 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .accept-tools { display: flex; gap: 10px; margin-top: 14px; }
 .accept-tools input { flex: 1; }
 .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.crew-block { margin-top: 24px; padding: 16px 0; border-top: 1px dashed #dfe4e1; }
+.crew-block h4 { margin: 0 0 10px; color: var(--muted); font-size: 12px; font-weight: 650; }
+.crew-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.crew-list li { display: flex; align-items: center; gap: 9px; min-height: 30px; color: #3e4944; font-size: 13px; }
+.crew-list li.confirmed { color: var(--green); }
+.crew-list li.confirmed em { display: inline; }
+.crew-list em { margin-left: auto; color: var(--green); font-size: 11px; font-style: normal; font-weight: 650; }
+.crew-qq { margin-left: auto; font-size: 11px; }
+.crew-tag { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: white; background: var(--blue); font-size: 11px; font-weight: 700; flex-shrink: 0; }
+.crew-tag.role-owner { background: var(--green); }
+.crew-progress { margin: 12px 0 0; font-size: 12px; }
 
 .form-stack { display: flex; flex-direction: column; gap: 19px; }
 .form-stack label { display: flex; flex-direction: column; gap: 8px; color: #46504b; font-size: 12px; font-weight: 650; }
 .form-stack label small { align-self: flex-end; color: #87908c; font-size: 10px; font-weight: 400; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .field-hint { align-self: flex-start; color: #87908c; font-size: 11px; font-weight: 400; line-height: 1.6; }
+.taker-field { display: flex; flex-direction: column; gap: 8px; color: #46504b; font-size: 12px; font-weight: 650; }
+.taker-row { display: flex; align-items: center; gap: 14px; }
+.taker-row > input { flex: 1; min-width: 0; }
+.checkbox-inline { display: flex !important; flex-direction: row !important; align-items: center; gap: 7px; margin: 0; color: #46504b; font-size: 12px; font-weight: 650; white-space: nowrap; cursor: pointer; }
+.checkbox-inline input { width: 16px; height: 16px; margin: 0; accent-color: var(--green); }
 .create-dialog .form-stack { margin-top: 26px; }
 
 .auth-page { min-height: calc(100vh - 72px); display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(420px, .95fr); }

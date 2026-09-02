@@ -3,7 +3,7 @@ import { computed } from 'vue'
 
 const props = defineProps({ status: { type: String, required: true } })
 const labels = {
-  published: '待接取',
+  published: '招募中',
   accepted: '处理中',
   awaiting: '待确认',
   completed: '已完成',

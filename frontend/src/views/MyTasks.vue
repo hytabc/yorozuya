@@ -3,10 +3,12 @@ import { computed, onMounted, ref } from 'vue'
 import { ClipboardList, Plus } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
+import { useAuthStore } from '../stores/auth'
 import TaskCard from '../components/TaskCard.vue'
 import TaskDialog from '../components/TaskDialog.vue'
 import CreateTaskDialog from '../components/CreateTaskDialog.vue'
 
+const auth = useAuthStore()
 const toast = useToast()
 const tasks = ref([])
 const loading = ref(true)
@@ -15,39 +17,37 @@ const busy = ref(false)
 const showCreate = ref(false)
 const tab = ref('active')
 const tabs = [{ value: 'active', label: '进行中' }, { value: 'published', label: '我发布的' }, { value: 'accepted', label: '我接取的' }, { value: 'history', label: '历史记录' }]
-const me = JSON.parse(localStorage.getItem('wsw_user') || 'null')
 const activeStatuses = ['published', 'accepted', 'awaiting']
+const me = computed(() => auth.user)
+const isMyPublish = (task) => task.publisher_id === me.value?.id
+const isMyAccept = (task) => task.members?.some((m) => m.user.id === me.value?.id)
 const filtered = computed(() => tasks.value.filter((task) => {
   if (tab.value === 'active') return activeStatuses.includes(task.status)
-  if (tab.value === 'published') return task.publisher_id === me?.id
-  if (tab.value === 'accepted') return task.assignee_id === me?.id
+  if (tab.value === 'published') return isMyPublish(task)
+  if (tab.value === 'accepted') return isMyAccept(task)
   return ['completed', 'expired', 'cancelled'].includes(task.status)
 }))
 
-function attention(task) {
-  if (task.status !== 'awaiting' || !me) return ''
-  if (task.publisher_id === me.id) return task.publisher_confirmed_at ? '等待对方确认' : '待你确认'
-  if (task.assignee_id === me.id) return task.assignee_confirmed_at ? '等待对方确认' : '待你确认'
-  return ''
-}
 async function load() {
   loading.value = true
   try { tasks.value = (await api.get('/tasks/mine')).data } catch (error) { toast.error(errorMessage(error)) } finally { loading.value = false }
 }
+
 async function action(key, payload = {}) {
   busy.value = true
   try {
     const url = `/tasks/${selected.value.id}`
     let data
     if (key === 'accept') ({ data } = await api.post(`${url}/accept`, { password: payload.password }))
-    else if (key === 'confirm') ({ data } = await api.post(`${url}/confirm`))
     else if (key === 'password') ({ data } = await api.patch(`${url}/password`, { password: payload.password }))
     else ({ data } = await api.post(`${url}/${key}`))
     selected.value = data
     tasks.value[tasks.value.findIndex((item) => item.id === data.id)] = data
     const messages = {
-      accept: '已凭密码接取，委托进入处理中',
-      confirm: data.status === 'completed' ? '双方已确认，委托完成' : '已确认完成，等待对方确认',
+      accept: data.status === 'accepted' ? '人数已满，委托自动开始' : '已接取，等待委托人开始',
+      start: '委托已开始，进入处理中',
+      leave: '已退出接取',
+      confirm: data.status === 'completed' ? '全体确认，委托完成' : '已确认完成，等待其他人确认',
       password: '接取密码已更新，请把新密码告知接单人',
       cancel: '委托已取消',
     }
@@ -55,6 +55,15 @@ async function action(key, payload = {}) {
   } catch (error) { toast.error(errorMessage(error)) } finally { busy.value = false }
 }
 function created(task) { showCreate.value = false; tasks.value.unshift(task) }
+function attention(task) {
+  if (task.status !== 'awaiting' || !me.value) return ''
+  if (isMyPublish(task)) return task.publisher_confirmed_at ? '' : '待你确认'
+  if (isMyAccept(task)) {
+    const mine = task.members.find((m) => m.user.id === me.value.id)
+    return mine && !mine.confirmed_at ? '待你确认' : ''
+  }
+  return ''
+}
 onMounted(load)
 </script>
 
