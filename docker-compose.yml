@@ -22,7 +22,7 @@ services:
     build: ./frontend
     restart: unless-stopped
     ports:
-      - "${WEB_PORT:-8080}:80"
+      - "${WEB_PORT:-8080}:8889"
     depends_on:
       backend:
         condition: service_healthy
