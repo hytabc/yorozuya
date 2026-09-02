@@ -53,6 +53,27 @@
 
 ## 本地开发
 
+### 方式一：容器内开发（本地源码与容器同步）
+
+新增 `docker-compose.dev.yml`，把本地代码直接挂载进容器并开启热重载：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+- 后端：`./backend/app` 挂载到容器 `/app/app`，`uvicorn` 以 `--reload` 运行，
+  本地改动 `.py` 后容器自动重启生效；
+- 前端：镜像 `frontend` 使用 `target: dev`（Vite 开发服务器），源码与本地同步、
+  开启 HMR 即时刷新；`/api` 由 Vite 代理到 compose 内的 `backend` 服务
+  （`VITE_PROXY_TARGET=http://backend:8000`）；
+- 访问地址仍为 `http://localhost:<WEB_PORT>`（默认 8080）；
+- `node_modules` 使用匿名卷，避免把宿主机不同平台编译的依赖带入容器；
+- 新增 Python/Node 依赖时需要重新构建：`docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build`。
+
+> `docker-compose.yml` 本身保持纯生产配置不变；开发覆盖仅在同时指定两个文件时生效。
+
+### 方式二：本机直接运行
+
 后端：
 
 ```bash
@@ -71,7 +92,9 @@ npm install
 npm run dev
 ```
 
-Vite 开发环境可通过 `VITE_API_BASE=http://localhost:8000/api` 指向本地后端。生产容器由 Nginx 同源代理 `/api`。
+Vite 开发环境默认把 `/api` 代理到 `http://localhost:8000`，也可用
+`VITE_API_BASE=http://localhost:8000/api` 指向本地后端；生产容器由 Nginx 同源代理 `/api`。
+容器内开发如需改代理目标，设置环境变量 `VITE_PROXY_TARGET`。
 
 ## 状态流转
 

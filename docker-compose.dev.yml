@@ -1,0 +1,31 @@
+# 开发环境覆盖配置：把本地源码挂载进容器并开启热重载，
+# 本地改代码 → 后端 uvicorn --reload 自动重启 / 前端 Vite HMR 即时刷新。
+#
+# 启动：docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# 访问：http://localhost:<WEB_PORT>  （默认 8080，与生产一致）
+#
+# 说明：覆盖仅在命令行同时加载两个文件时生效，docker-compose.yml 本身仍是纯生产配置。
+name: yorozuya-dev
+
+services:
+  backend:
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --reload
+    volumes:
+      # 后端源码热同步：容器内 /app/app 与本地 backend/app 双向一致
+      - ./backend/app:/app/app
+    environment:
+      DATABASE_URL: sqlite:////data/wsw.db
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    command: npm run dev -- --host 0.0.0.0 --port 8889
+    environment:
+      # Vite 开发服务器把 /api 代理到 compose 网络内的 backend 服务
+      VITE_PROXY_TARGET: http://backend:8000
+    volumes:
+      # 前端源码热同步：容器内 /app 与本地 frontend 一致；node_modules 用匿名卷，
+      # 避免把宿主机（不同平台编译的）node_modules 挂进去
+      - ./frontend:/app
+      - /app/node_modules
