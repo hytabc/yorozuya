@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { CircleCheck, ClipboardList, Clock3, Eye, EyeOff, Save, Search, ShieldCheck, UsersRound } from 'lucide-vue-next'
+import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, MessageCircle, RotateCcw, Save, Search, ShieldCheck, UsersRound } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -8,6 +8,7 @@ import StatusBadge from '../components/StatusBadge.vue'
 const toast = useToast()
 const tasks = ref([])
 const users = ref([])
+const feedbacks = ref([])
 const userLimits = reactive({})
 const stats = ref({ users: 0, tasks: 0, processing: 0, completed: 0, hidden: 0 })
 const activeTab = ref('tasks')
@@ -17,6 +18,7 @@ const loading = ref(true)
 const savingUserId = ref(null)
 const filteredTasks = computed(() => tasks.value.filter((task) => `${task.title}${task.publisher.nickname}`.toLowerCase().includes(taskSearch.value.toLowerCase())))
 const filteredUsers = computed(() => users.value.filter((user) => `${user.username}${user.nickname}`.toLowerCase().includes(userSearch.value.toLowerCase())))
+const pendingFeedbacks = computed(() => feedbacks.value.filter((item) => item.status === 'pending').length)
 const statItems = computed(() => [
   { label: '注册用户', value: stats.value.users, icon: UsersRound },
   { label: '全部委托', value: stats.value.tasks, icon: ClipboardList },
@@ -26,14 +28,16 @@ const statItems = computed(() => [
 async function load() {
   loading.value = true
   try {
-    const [taskRes, userRes, statRes] = await Promise.all([
+    const [taskRes, userRes, statRes, feedbackRes] = await Promise.all([
       api.get('/admin/tasks'),
       api.get('/admin/users'),
       api.get('/admin/stats'),
+      api.get('/admin/feedback'),
     ])
     tasks.value = taskRes.data
     users.value = userRes.data
     stats.value = statRes.data
+    feedbacks.value = feedbackRes.data
     users.value.forEach((user) => { userLimits[user.id] = user.max_concurrent_tasks })
   } catch (error) {
     toast.error(errorMessage(error))
@@ -70,7 +74,26 @@ async function toggle(task) {
     toast.success(data.is_visible ? '委托已恢复公开' : '委托已隐藏')
   } catch (error) { toast.error(errorMessage(error)) }
 }
+async function handleFeedback(item) {
+  const reply = window.prompt('处理这条反馈（填写处理说明或回复，可留空直接标记为已处理）', item.reply || '')
+  if (reply === null) return
+  try {
+    const { data } = await api.patch(`/admin/feedback/${item.id}`, { status: 'handled', reply: reply.trim() || null })
+    feedbacks.value[feedbacks.value.findIndex((f) => f.id === item.id)] = data
+    toast.success('反馈已标记为处理完成')
+  } catch (error) { toast.error(errorMessage(error)) }
+}
+
+async function reopenFeedback(item) {
+  try {
+    const { data } = await api.patch(`/admin/feedback/${item.id}`, { status: 'pending' })
+    feedbacks.value[feedbacks.value.findIndex((f) => f.id === item.id)] = data
+    toast.success('已重新标记为待处理')
+  } catch (error) { toast.error(errorMessage(error)) }
+}
+
 const date = (value) => new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
+const authorOf = (item) => (item.user ? item.user.nickname : item.contact || '游客')
 onMounted(load)
 </script>
 
@@ -82,6 +105,7 @@ onMounted(load)
     <div class="tabs admin-tabs" role="tablist" aria-label="后台管理内容">
       <button :class="{ active: activeTab === 'tasks' }" role="tab" :aria-selected="activeTab === 'tasks'" @click="activeTab = 'tasks'">委托管理</button>
       <button :class="{ active: activeTab === 'users' }" role="tab" :aria-selected="activeTab === 'users'" @click="activeTab = 'users'">用户接单上限</button>
+      <button :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
     </div>
 
     <section v-if="activeTab === 'tasks'" class="admin-table-section">
@@ -102,7 +126,7 @@ onMounted(load)
       </div>
     </section>
 
-    <section v-else class="admin-table-section">
+    <section v-else-if="activeTab === 'users'" class="admin-table-section">
       <div class="admin-toolbar"><div><h2>用户额度</h2><span>共 {{ users.length }} 人</span></div><label class="search-field"><Search :size="17" /><input v-model="userSearch" placeholder="搜索账号或昵称" /></label></div>
       <div class="table-wrap">
         <table>
@@ -119,6 +143,28 @@ onMounted(load)
           </tbody>
         </table>
       </div>
+    </section>
+
+    <section v-else-if="activeTab === 'feedback'" class="admin-table-section">
+      <div class="admin-toolbar"><div><h2>用户反馈</h2><span>待处理 {{ pendingFeedbacks }} 条</span></div><span class="muted"><MessageCircle :size="15" /> 提交者会收到处理状态与回复</span></div>
+      <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
+      <ul v-else-if="feedbacks.length" class="feedback-admin-list">
+        <li v-for="item in feedbacks" :key="item.id" :class="{ handled: item.status === 'handled' }">
+          <div class="fb-head">
+            <span class="fb-state" :class="`state-${item.status}`">{{ item.status === 'pending' ? '待处理' : '已处理' }}</span>
+            <strong>{{ authorOf(item) }}</strong>
+            <span class="muted">{{ item.page || '未注明页面' }}</span>
+            <time class="muted">{{ date(item.created_at) }}</time>
+          </div>
+          <p class="fb-content">{{ item.content }}</p>
+          <div class="fb-actions">
+            <span v-if="item.status === 'handled' && item.reply" class="fb-reply-admin">回复：{{ item.reply }}</span>
+            <button v-if="item.status === 'pending'" class="button secondary small" @click="handleFeedback(item)"><Check :size="15" />标记处理</button>
+            <button v-else class="button secondary small" @click="reopenFeedback(item)"><RotateCcw :size="15" />重开</button>
+          </div>
+        </li>
+      </ul>
+      <div v-else class="feedback-admin-empty"><MessageCircle :size="28" />还没有收到任何反馈</div>
     </section>
   </div>
 </template>

@@ -26,6 +26,11 @@ class TaskStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
+class FeedbackStatus(str, Enum):
+    PENDING = "pending"  # 待处理
+    HANDLED = "handled"  # 已处理
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -108,3 +113,25 @@ class TaskMember(Base):
 
     task: Mapped[Task] = relationship(back_populates="members")
     user: Mapped[User] = relationship(foreign_keys=[user_id], back_populates="memberships")
+
+
+class Feedback(Base):
+    """用户反馈/建议。"""
+
+    __tablename__ = "feedback"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    page: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    content: Mapped[str] = mapped_column(Text)
+    contact: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    status: Mapped[FeedbackStatus] = mapped_column(
+        SqlEnum(FeedbackStatus, values_callable=lambda values: [item.value for item in values]),
+        default=FeedbackStatus.PENDING,
+        index=True,
+    )
+    reply: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    handled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    user: Mapped[User | None] = relationship(foreign_keys=[user_id])

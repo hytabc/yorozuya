@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
-from .models import TaskStatus
+from .models import FeedbackStatus, TaskStatus
 
 
 class ApiModel(BaseModel):
@@ -19,6 +19,7 @@ class ApiModel(BaseModel):
         "started_at",
         "completed_at",
         "publisher_confirmed_at",
+        "handled_at",
         check_fields=False,
     )
     def serialize_datetime(self, value: datetime | None):
@@ -160,6 +161,31 @@ class AdminUserOut(ApiModel):
 
 class AdminUserLimitUpdate(RequestModel):
     max_concurrent_tasks: int = Field(ge=0, le=999)
+
+
+class FeedbackCreate(RequestModel):
+    content: str = Field(min_length=5, max_length=2000)
+    page: str | None = Field(default=None, max_length=120)
+    # 游客填写联系方式便于管理员回复；登录用户可留空
+    contact: str | None = Field(default=None, max_length=80)
+
+
+class FeedbackUpdate(RequestModel):
+    """管理员处理反馈：status 为 pending/handled，reply 为处理回复（可空）。"""
+    status: FeedbackStatus | None = None
+    reply: str | None = Field(default=None, max_length=1000)
+
+
+class FeedbackOut(ApiModel):
+    id: int
+    page: str | None = None
+    content: str
+    contact: str | None = None
+    status: FeedbackStatus
+    reply: str | None = None
+    created_at: datetime
+    handled_at: datetime | None = None
+    user: UserPublic | None = None
 
 
 class AdminStats(BaseModel):

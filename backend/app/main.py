@@ -13,13 +13,16 @@ from sqlalchemy.orm import Session, joinedload
 from .config import settings
 from .database import Base, SessionLocal, engine, get_db
 from .dependencies import get_admin, get_current_user, get_optional_user
-from .models import Task, TaskMember, TaskStatus, User
+from .models import Feedback, FeedbackStatus, Task, TaskMember, TaskStatus, User
 from .schemas import (
     AcceptRequest,
     AdminStats,
     AdminTaskUpdate,
     AdminUserLimitUpdate,
     AdminUserOut,
+    FeedbackCreate,
+    FeedbackOut,
+    FeedbackUpdate,
     LoginRequest,
     PasswordUpdate,
     RegisterRequest,
@@ -186,6 +189,10 @@ def get_task_or_404(db: Session, task_id: int) -> Task:
     return task
 
 
+def present_feedback(feedback: Feedback) -> FeedbackOut:
+    return FeedbackOut.model_validate(feedback)
+
+
 def member_of(db: Session, task_id: int, user_id: int) -> TaskMember | None:
     return db.scalar(select(TaskMember).where(TaskMember.task_id == task_id, TaskMember.user_id == user_id))
 
@@ -299,6 +306,64 @@ def user_profile(user_id: int, viewer: User = Depends(get_current_user), db: Ses
     if not can_view_user_qq(db, viewer, target):
         data.qq = None
     return data
+
+
+@app.post("/api/feedback", response_model=FeedbackOut, status_code=status.HTTP_201_CREATED)
+def create_feedback(
+    payload: FeedbackCreate,
+    viewer: User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    """提交反馈/建议。登录用户可留空联系方式；游客需填写联系方式便于管理员回复。"""
+    if viewer is None and not payload.contact:
+        raise HTTPException(status_code=422, detail="请先登录，或填写联系方式以便管理员联系你")
+    if viewer is None and payload.contact and len(payload.contact) < 2:
+        raise HTTPException(status_code=422, detail="联系方式至少需要 2 个字符")
+    feedback = Feedback(
+        user_id=viewer.id if viewer else None,
+        page=payload.page.strip() if payload.page else None,
+        content=payload.content.strip(),
+        contact=payload.contact.strip() if payload.contact else None,
+    )
+    db.add(feedback)
+    db.commit()
+    return present_feedback(feedback)
+
+
+@app.get("/api/feedback/mine", response_model=list[FeedbackOut])
+def my_feedback(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """当前用户提交过的反馈及其处理状态。"""
+    feedback_list = db.scalars(
+        select(Feedback).where(Feedback.user_id == user.id).order_by(Feedback.created_at.desc())
+    ).all()
+    return [present_feedback(item) for item in feedback_list]
+
+
+@app.get("/api/admin/feedback", response_model=list[FeedbackOut])
+def admin_feedback(_: User = Depends(get_admin), db: Session = Depends(get_db)):
+    feedback_list = db.scalars(select(Feedback).order_by(Feedback.created_at.desc()).limit(500)).all()
+    return [present_feedback(item) for item in feedback_list]
+
+
+@app.patch("/api/admin/feedback/{feedback_id}", response_model=FeedbackOut)
+def handle_feedback(
+    feedback_id: int,
+    payload: FeedbackUpdate,
+    _: User = Depends(get_admin),
+    db: Session = Depends(get_db),
+):
+    """管理员处理反馈：标记状态并填写处理回复。"""
+    feedback = db.get(Feedback, feedback_id)
+    if feedback is None:
+        raise HTTPException(status_code=404, detail="反馈不存在")
+    if payload.status is not None:
+        feedback.status = payload.status
+        feedback.handled_at = datetime.utcnow() if payload.status == FeedbackStatus.HANDLED else None
+    if payload.reply is not None:
+        feedback.reply = payload.reply.strip() or None
+    feedback.handled_at = datetime.utcnow() if feedback.status == FeedbackStatus.HANDLED else feedback.handled_at
+    db.commit()
+    return present_feedback(feedback)
 
 
 @app.get("/api/tasks", response_model=list[TaskOut])

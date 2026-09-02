@@ -331,6 +331,61 @@ def test_profile_visibility_rules():
         assert client.get("/api/users/999999", headers=taker).status_code == 404
 
 
+def test_feedback_flow():
+    with TestClient(app) as client:
+        user = auth(client, "fb_user")
+        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+
+        # 登录用户提交反馈
+        created = client.post(
+            "/api/feedback",
+            headers=user,
+            json={"content": "建议增加深色模式，晚上看委托很刺眼", "page": "委托大厅"},
+        )
+        assert created.status_code == 201, created.text
+        fb_id = created.json()["id"]
+        assert created.json()["status"] == "pending"
+        assert created.json()["user"] is not None
+
+        # 游客未登录且无联系方式 → 422
+        guest_no_contact = client.post("/api/feedback", json={"content": "游客想留言但是没有联系方式"})
+        assert guest_no_contact.status_code == 422
+
+        # 游客带联系方式可提交
+        guest = client.post(
+            "/api/feedback",
+            json={"content": "游客留言，建议开个 Telegram 频道", "contact": "QQ 12345"},
+        )
+        assert guest.status_code == 201
+        assert guest.json()["user"] is None
+        assert guest.json()["contact"] == "QQ 12345"
+
+        # 用户可查看自己的反馈
+        mine = client.get("/api/feedback/mine", headers=user).json()
+        assert len(mine) == 1 and mine[0]["id"] == fb_id
+
+        # 普通用户不能访问管理反馈列表
+        assert client.get("/api/admin/feedback", headers=user).status_code == 403
+
+        # 管理员查看
+        admin_list = client.get("/api/admin/feedback", headers=admin).json()
+        assert len(admin_list) == 2
+
+        # 管理员处理
+        handled = client.patch(
+            f"/api/admin/feedback/{fb_id}",
+            headers=admin,
+            json={"status": "handled", "reply": "已记录，深色模式已在规划中"},
+        )
+        assert handled.status_code == 200
+        assert handled.json()["status"] == "handled"
+        assert handled.json()["handled_at"] is not None
+
+        # 用户端能看到处理结果
+        after = client.get("/api/feedback/mine", headers=user).json()
+        assert after[0]["reply"] == "已记录，深色模式已在规划中"
+
+
 def test_expired_task_is_updated_when_listed():
     with TestClient(app) as client:
         publisher = auth(client, "expirer")

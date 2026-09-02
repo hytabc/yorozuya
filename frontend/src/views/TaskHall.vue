@@ -1,13 +1,14 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Search, SlidersHorizontal, Sparkles } from 'lucide-vue-next'
+import { MessageCircle, Plus, Search, SlidersHorizontal, Sparkles } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import TaskCard from '../components/TaskCard.vue'
 import TaskDialog from '../components/TaskDialog.vue'
 import CreateTaskDialog from '../components/CreateTaskDialog.vue'
+import FeedbackDialog from '../components/FeedbackDialog.vue'
 import { CATEGORIES } from '../constants'
 
 const auth = useAuthStore()
@@ -17,6 +18,7 @@ const tasks = ref([])
 const loading = ref(true)
 const selected = ref(null)
 const showCreate = ref(false)
+const showFeedback = ref(false)
 const busy = ref(false)
 const filters = reactive({ search: '', category: '', status: '' })
 const categories = CATEGORIES
@@ -76,6 +78,7 @@ onMounted(load)
         <span class="eyebrow"><Sparkles :size="15" /> YOROZUYA REQUEST BOARD</span>
         <h1>总有一件事，<br />有人恰好擅长。</h1>
         <p>发布需要帮助的事情，或者接下一份你能完成的委托。</p>
+        <button class="text-link feedback-entry" type="button" @click="showFeedback = true"><MessageCircle :size="15" />有建议或遇到问题？告诉我们</button>
       </div>
       <div class="hall-stats" aria-label="委托统计">
         <div><strong>{{ stats.open }}</strong><span>正在招募</span></div>
@@ -101,6 +104,7 @@ onMounted(load)
     </section>
     <CreateTaskDialog v-if="showCreate" @close="showCreate = false" @created="created" />
     <TaskDialog v-if="selected" :task="selected" :busy="busy" @close="selected = null" @action="action" />
+    <FeedbackDialog v-if="showFeedback" @close="showFeedback = false" />
   </div>
 </template>
 
