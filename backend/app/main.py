@@ -90,6 +90,20 @@ def migrate_schema() -> None:
             connection.execute(
                 text("UPDATE tasks SET pay_type = 'free' WHERE pay_type IS NULL")
             )
+        if "cancelled_at" not in task_columns:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN cancelled_at DATETIME"))
+        if "cancel_requested_by" not in task_columns:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN cancel_requested_by INTEGER"))
+        if "cancel_requested_at" not in task_columns:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN cancel_requested_at DATETIME"))
+        if "cancel_resume_status" not in task_columns:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN cancel_resume_status VARCHAR(16)"))
+        if "publisher_cancel_confirmed_at" not in task_columns:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN publisher_cancel_confirmed_at DATETIME"))
+        if inspector.has_table("task_members"):
+            member_columns = {column["name"] for column in inspector.get_columns("task_members")}
+            if "cancel_confirmed_at" not in member_columns:
+                connection.execute(text("ALTER TABLE task_members ADD COLUMN cancel_confirmed_at DATETIME"))
         # 旧版单接单人数据升级：
         # 1) submitted(已提交待验收) -> awaiting(待确认)，以提交时间作为接单人确认时间
         # 2) 有 assignee_id 的任务，把接单人搬进 task_members
@@ -145,7 +159,7 @@ def expire_due_tasks(db: Session) -> None:
         update(Task)
         .where(
             Task.expires_at <= datetime.utcnow(),
-            Task.status.in_([TaskStatus.PUBLISHED, TaskStatus.ACCEPTED, TaskStatus.AWAITING]),
+            Task.status.in_([TaskStatus.PUBLISHED, TaskStatus.ACCEPTED, TaskStatus.AWAITING, TaskStatus.CANCELLING]),
         )
         .values(status=TaskStatus.EXPIRED, updated_at=datetime.utcnow())
     )
@@ -235,7 +249,7 @@ def can_view_user_qq(db: Session, viewer: User, target: User) -> bool:
     return recruiting is not None
 
 
-ACTIVE_TAKEN_STATUSES = (TaskStatus.PUBLISHED, TaskStatus.ACCEPTED, TaskStatus.AWAITING)
+ACTIVE_TAKEN_STATUSES = (TaskStatus.PUBLISHED, TaskStatus.ACCEPTED, TaskStatus.AWAITING, TaskStatus.CANCELLING)
 
 
 def active_task_count(db: Session, user_id: int) -> int:
@@ -572,12 +586,91 @@ def update_task_password(
 
 
 @app.post("/api/tasks/{task_id}/cancel", response_model=TaskOut)
-def cancel_task(task_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def request_cancel_task(task_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """发起取消委托：委托人或任一接单人都可在未完成阶段发起，进入取消确认(cancelling)。
+
+    委托仍无人接取（published 且无成员）时，委托人可直接取消；否则需委托人+全体接单人确认。
+    """
+    expire_due_tasks(db)
     task = get_task_or_404(db, task_id)
-    if task.publisher_id != user.id or task.status != TaskStatus.PUBLISHED:
-        raise HTTPException(status_code=403, detail="只能取消自己尚未开始的委托")
-    task.status = TaskStatus.CANCELLED
-    task.updated_at = datetime.utcnow()
+    if task.publisher_id != user.id and member_of(db, task_id, user.id) is None:
+        raise HTTPException(status_code=403, detail="只有委托人或接单人能发起取消")
+    if task.status == TaskStatus.CANCELLING:
+        raise HTTPException(status_code=409, detail="已发起取消，等待双方确认")
+    if task.status not in (TaskStatus.PUBLISHED, TaskStatus.ACCEPTED, TaskStatus.AWAITING):
+        raise HTTPException(status_code=409, detail="当前状态不能取消委托")
+    now = datetime.utcnow()
+    # 尚未有人接取：委托人直接取消
+    if task.publisher_id == user.id and not task.members:
+        task.status = TaskStatus.CANCELLED
+        task.cancelled_at = now
+        task.updated_at = now
+        db.commit()
+        return present_task(get_task_or_404(db, task_id), user)
+    # 进入取消确认：记录发起人与要恢复的状态，发起人视为已同意
+    original_status = task.status
+    task.status = TaskStatus.CANCELLING
+    task.cancel_requested_by = user.id
+    task.cancel_requested_at = now
+    task.cancel_resume_status = original_status
+    if task.publisher_id == user.id:
+        task.publisher_cancel_confirmed_at = now
+    else:
+        membership = member_of(db, task_id, user.id)
+        if membership is not None:
+            membership.cancel_confirmed_at = now
+    task.updated_at = now
+    db.commit()
+    return present_task(get_task_or_404(db, task_id), user)
+
+
+@app.post("/api/tasks/{task_id}/confirm-cancel", response_model=TaskOut)
+def confirm_cancel_task(task_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """同意取消：委托人或接单人各自确认，全部同意后委托才取消。"""
+    expire_due_tasks(db)
+    task = get_task_or_404(db, task_id)
+    if task.status != TaskStatus.CANCELLING:
+        raise HTTPException(status_code=409, detail="当前没有待确认的取消请求")
+    if task.publisher_id != user.id and member_of(db, task_id, user.id) is None:
+        raise HTTPException(status_code=403, detail="只有委托人或接单人可确认取消")
+    now = datetime.utcnow()
+    if task.publisher_id == user.id:
+        if task.publisher_cancel_confirmed_at is not None:
+            raise HTTPException(status_code=409, detail="你已同意取消")
+        task.publisher_cancel_confirmed_at = now
+    else:
+        membership = member_of(db, task_id, user.id)
+        if membership is None or membership.cancel_confirmed_at is not None:
+            raise HTTPException(status_code=409, detail="你已同意取消")
+        membership.cancel_confirmed_at = now
+    task = get_task_or_404(db, task_id)
+    if task.all_agree_to_cancel:
+        task.status = TaskStatus.CANCELLED
+        task.cancelled_at = now
+    task.updated_at = now
+    db.commit()
+    return present_task(get_task_or_404(db, task_id), user)
+
+
+@app.post("/api/tasks/{task_id}/cancel-continue", response_model=TaskOut)
+def reject_cancel_task(task_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """不同意取消 / 撤回取消请求：委托继续，恢复到发起取消前的状态。"""
+    expire_due_tasks(db)
+    task = get_task_or_404(db, task_id)
+    if task.status != TaskStatus.CANCELLING:
+        raise HTTPException(status_code=409, detail="当前没有可撤回的取消请求")
+    if task.publisher_id != user.id and member_of(db, task_id, user.id) is None:
+        raise HTTPException(status_code=403, detail="只有委托人或接单人可操作取消请求")
+    now = datetime.utcnow()
+    resume = task.cancel_resume_status or TaskStatus.ACCEPTED
+    task.status = resume
+    task.cancel_requested_by = None
+    task.cancel_requested_at = None
+    task.cancel_resume_status = None
+    task.publisher_cancel_confirmed_at = None
+    for member in task.members:
+        member.cancel_confirmed_at = None
+    task.updated_at = now
     db.commit()
     return present_task(get_task_or_404(db, task_id), user)
 

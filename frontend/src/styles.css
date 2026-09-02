@@ -106,6 +106,7 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .task-card:hover, .task-card:focus-visible { transform: translateY(-3px); border-color: #bdc5c0; box-shadow: var(--shadow); outline: none; }
 .task-card.edge-accepted, .task-card.edge-awaiting { border-top-color: #d0a632; }
 .task-card.edge-expired { border-top-color: var(--red); }
+.task-card.edge-cancelling { border-top-color: var(--red); }
 .task-card.edge-completed { border-top-color: var(--blue); }
 .task-card.edge-cancelled { border-top-color: #89918d; }
 .task-card-top { min-height: 27px; display: flex; justify-content: space-between; gap: 12px; }
@@ -117,6 +118,7 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .status-expired { color: var(--red); background: var(--red-soft); }
 .status-completed { color: var(--blue); background: var(--blue-soft); }
 .status-cancelled { color: #69736e; background: #eceeed; }
+.status-cancelling { color: var(--red); background: var(--red-soft); }
 .category-tag { color: #5a625f; }
 .pay-tag { display: inline-flex; align-items: center; min-height: 24px; padding: 0 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
 .pay-tag.pay-paid { color: #9a4f17; background: #fdf0e3; }

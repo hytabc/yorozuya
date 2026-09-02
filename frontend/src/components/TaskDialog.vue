@@ -50,6 +50,22 @@ const confirmCopy = computed(() => {
   return { label }
 })
 
+// ---- 取消流程 ----
+const cancelling = computed(() => props.task.status === 'cancelling')
+const cancellable = computed(() => isParticipant.value && !cancelling.value && ['published', 'accepted', 'awaiting'].includes(props.task.status))
+const cancelAgreedByMe = computed(() => (isPublisher.value ? Boolean(props.task.publisher_cancel_confirmed_at) : Boolean(meMember.value?.cancel_confirmed_at)))
+const cancelAgreedCount = computed(() => {
+  const publisher = props.task.publisher_cancel_confirmed_at ? 1 : 0
+  const members = props.task.members?.filter((m) => m.cancel_confirmed_at).length || 0
+  return publisher + members
+})
+const cancelRequesterName = computed(() => {
+  if (!props.task.cancel_requested_by) return ''
+  if (props.task.publisher_id === props.task.cancel_requested_by) return props.task.publisher.nickname
+  const requester = props.task.members?.find((m) => m.user.id === props.task.cancel_requested_by)
+  return requester?.user.nickname || ''
+})
+
 const format = (value) => new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(value))
 function onKey(event) { if (event.key === 'Escape') emit('close') }
 onMounted(() => { document.body.classList.add('modal-open'); window.addEventListener('keydown', onKey) })
@@ -148,14 +164,32 @@ function resetPassword() {
         <p>委托人与全体接单人（{{ totalPeople }} 人）均已确认，感谢这次协作。</p>
       </div>
 
+      <!-- 取消确认中 -->
+      <div v-if="cancelling && isParticipant" class="notice info-notice">
+        <strong>{{ cancelRequesterName }} 发起取消委托</strong>
+        <p>需委托人与全体接单人（{{ totalPeople }} 人）确认，全部同意后委托才会取消（已同意 {{ cancelAgreedCount }} / {{ totalPeople }}）。</p>
+      </div>
+      <div v-if="cancelling && isParticipant && cancelAgreedByMe" class="notice success-notice">
+        <strong>你已同意取消，等待其他人确认</strong>
+      </div>
+      <div v-else-if="cancelling && isParticipant" class="notice success-notice">
+        <strong>对方正在确认取消，等待你的决定</strong>
+        <p>可以同意取消，也可以选择继续委托。</p>
+      </div>
+
       <div v-if="!task.is_visible" class="notice error-notice">该委托已被管理员隐藏：{{ task.admin_note || '未填写原因' }}</div>
       <footer class="dialog-footer">
-        <span class="muted">发布于 {{ format(task.created_at) }}<template v-if="task.started_at"> · 开始于 {{ format(task.started_at) }}</template></span>
+        <span class="muted">发布于 {{ format(task.created_at) }}<template v-if="task.started_at"> · 开始于 {{ format(task.started_at) }}</template><template v-if="task.status === 'cancelling'"> · 取消请求发起于 {{ format(task.cancel_requested_at) }}</template></span>
         <div class="dialog-actions">
           <button v-if="published && isPublisher && !isMember" class="button" :disabled="busy || joinedCount === 0" @click="$emit('action', 'start')">{{ busy ? '处理中…' : '开始委托任务' }}</button>
           <button v-if="published && isPublisher && !isMember" class="button secondary small" :disabled="busy" @click="resetPassword">重设接取密码</button>
-          <button v-if="published && isPublisher && !isMember" class="button danger small" :disabled="busy" @click="$emit('action', 'cancel')">{{ busy ? '处理中…' : '取消委托' }}</button>
-          <button v-if="published && isMember && !isPublisher" class="button danger small" :disabled="busy" @click="$emit('action', 'leave')">{{ busy ? '处理中…' : '退出接取' }}</button>
+          <button v-if="published && isMember && !isPublisher && !cancelling" class="button danger small" :disabled="busy" @click="$emit('action', 'leave')">{{ busy ? '处理中…' : '退出接取' }}</button>
+          <button v-if="cancellable && !cancelling" class="button danger small" :disabled="busy" @click="$emit('action', 'cancel')">{{ busy ? '处理中…' : '取消委托' }}</button>
+          <button v-if="cancelling && isParticipant && cancelAgreedByMe" class="button secondary small" :disabled="busy" @click="$emit('action', 'cancel-continue')">{{ busy ? '处理中…' : '撤回，继续委托' }}</button>
+          <template v-if="cancelling && isParticipant && !cancelAgreedByMe">
+            <button class="button" :disabled="busy" @click="$emit('action', 'confirm-cancel')">{{ busy ? '处理中…' : '同意取消' }}</button>
+            <button class="button secondary small" :disabled="busy" @click="$emit('action', 'cancel-continue')">{{ busy ? '处理中…' : '继续委托' }}</button>
+          </template>
           <button v-if="confirmCopy && !viewerConfirmed" class="button" :disabled="busy" @click="$emit('action', 'confirm')">{{ busy ? '处理中…' : confirmCopy.label }}</button>
           <button v-if="published && !auth.isLoggedIn" class="button" @click="$emit('action', 'login')">登录后联系委托人</button>
         </div>

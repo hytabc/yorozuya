@@ -530,6 +530,15 @@ def test_user_task_limit_and_admin_control():
             headers=publishers[0],
         )
         assert cancelled.status_code == 200
+        # 发起取消后进入“取消确认中”，接单人同意后才会真正取消
+        assert cancelled.json()["status"] == "cancelling"
+        agreed = client.post(
+            f"/api/tasks/{tasks[0]['id']}/confirm-cancel",
+            headers=taker,
+        )
+        assert agreed.status_code == 200
+        assert agreed.json()["status"] == "cancelled"
+
         accepted_after_cancel = client.post(
             f"/api/tasks/{tasks[3]['id']}/accept",
             headers=taker,
@@ -560,3 +569,93 @@ def test_admin_task_limit_validation():
         )
         assert negative.status_code == 422
         assert too_large.status_code == 422
+
+
+def test_mutual_cancel_flow_after_start():
+    with TestClient(app) as client:
+        pub = auth(client, "cancel_pub")
+        a = auth(client, "cancel_a")
+        b = auth(client, "cancel_b")
+
+        task = create_task(client, pub, password="pw-cancel-2", required=2)
+        tid = task["id"]
+        client.post(f"/api/tasks/{tid}/accept", headers=a, json={"password": "pw-cancel-2"})
+        started = client.post(f"/api/tasks/{tid}/accept", headers=b, json={"password": "pw-cancel-2"})
+        assert started.status_code == 200 and started.json()["status"] == "accepted"
+
+        # 接单人 a 发起取消 → 取消确认中，发起者自动算已同意
+        req = client.post(f"/api/tasks/{tid}/cancel", headers=a)
+        assert req.status_code == 200
+        body = req.json()
+        assert body["status"] == "cancelling"
+        assert body["cancel_requested_by"] is not None
+        a_member = next(m for m in body["members"] if m["user"]["nickname"] == "用户cancel_a")
+        assert a_member["cancel_confirmed_at"] is not None
+
+        # 接单人 b 尚未同意，重复发起取消被拒
+        dup = client.post(f"/api/tasks/{tid}/cancel", headers=b)
+        assert dup.status_code == 409
+
+        # 无关用户不能确认
+        stranger = auth(client, "cancel_stranger")
+        deny = client.post(f"/api/tasks/{tid}/confirm-cancel", headers=stranger)
+        assert deny.status_code == 403
+
+        # b 同意 → 还差委托人
+        b_ok = client.post(f"/api/tasks/{tid}/confirm-cancel", headers=b)
+        assert b_ok.status_code == 200 and b_ok.json()["status"] == "cancelling"
+
+        # 委托人同意 → 全员同意，最终取消
+        final = client.post(f"/api/tasks/{tid}/confirm-cancel", headers=pub)
+        assert final.status_code == 200
+        assert final.json()["status"] == "cancelled"
+        assert final.json()["cancelled_at"] is not None
+
+        # 已取消后不能再确认/继续
+        assert client.post(f"/api/tasks/{tid}/confirm-cancel", headers=pub).status_code == 409
+        assert client.post(f"/api/tasks/{tid}/cancel-continue", headers=pub).status_code == 409
+
+
+def test_cancel_continue_restores_task():
+    with TestClient(app) as client:
+        pub = auth(client, "cont_pub")
+        a = auth(client, "cont_a")
+        task = create_task(client, pub, password="pw-cont-1", required=1)
+        tid = task["id"]
+        accepted = client.post(f"/api/tasks/{tid}/accept", headers=a, json={"password": "pw-cont-1"})
+        assert accepted.json()["status"] == "accepted"
+
+        # 委托人发起取消
+        req = client.post(f"/api/tasks/{tid}/cancel", headers=pub)
+        assert req.json()["status"] == "cancelling"
+
+        # 接单人不同意 → 继续委托，恢复为处理中
+        cont = client.post(f"/api/tasks/{tid}/cancel-continue", headers=a)
+        assert cont.status_code == 200
+        body = cont.json()
+        assert body["status"] == "accepted"
+        assert body["cancel_requested_by"] is None
+        assert all(m["cancel_confirmed_at"] is None for m in body["members"])
+        assert body["publisher_cancel_confirmed_at"] is None
+
+        # 委托可继续正常结束
+        a_ok = client.post(f"/api/tasks/{tid}/confirm", headers=a).json()
+        assert a_ok["status"] == "awaiting"
+        fin = client.post(f"/api/tasks/{tid}/confirm", headers=pub).json()
+        assert fin["status"] == "completed"
+
+
+def test_publisher_can_direct_cancel_when_no_member():
+    with TestClient(app) as client:
+        pub = auth(client, "direct_pub")
+        task = create_task(client, pub, password="pw-direct-1", required=2)
+        tid = task["id"]
+        # 无人接取时委托人直接取消（无需确认对象）
+        res = client.post(f"/api/tasks/{tid}/cancel", headers=pub)
+        assert res.status_code == 200
+        assert res.json()["status"] == "cancelled"
+        # 接单阶段外人不能取消
+        stranger = auth(client, "direct_stranger")
+        task2 = create_task(client, pub, password="pw-direct-2", required=2)
+        denied = client.post(f"/api/tasks/{task2['id']}/cancel", headers=stranger)
+        assert denied.status_code == 403

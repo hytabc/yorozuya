@@ -27,7 +27,7 @@ const payOptions = [
   { value: 'paid', label: '有偿' },
   { value: 'free', label: '无偿' },
 ]
-const statuses = [{ value: '', label: '全部状态' }, { value: 'published', label: '招募中' }, { value: 'accepted', label: '处理中' }, { value: 'awaiting', label: '待确认' }, { value: 'completed', label: '已完成' }, { value: 'expired', label: '已过期' }]
+const statuses = [{ value: '', label: '全部状态' }, { value: 'published', label: '招募中' }, { value: 'accepted', label: '处理中' }, { value: 'awaiting', label: '待确认' }, { value: 'cancelling', label: '取消确认中' }, { value: 'completed', label: '已完成' }, { value: 'expired', label: '已过期' }]
 
 const stats = computed(() => ({
   open: tasks.value.filter((item) => item.status === 'published').length,
@@ -69,8 +69,10 @@ async function action(key, payload = {}) {
       start: '委托已开始，进入处理中',
       leave: '已退出接取',
       confirm: data.status === 'completed' ? '全体确认，委托完成' : '已确认完成，等待其他人确认',
+      cancel: data.status === 'cancelled' ? '委托已取消' : '已发起取消，等待双方确认',
+      'confirm-cancel': data.status === 'cancelled' ? '双方已同意，委托已取消' : '你已同意取消，等待其他人确认',
+      'cancel-continue': '取消已撤销，委托继续',
       password: '接取密码已更新，请把新密码告知接单人',
-      cancel: '委托已取消',
     }
     toast.success(messages[key])
   } catch (error) { toast.error(errorMessage(error)) } finally { busy.value = false }

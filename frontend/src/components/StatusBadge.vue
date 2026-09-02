@@ -6,6 +6,7 @@ const labels = {
   published: '招募中',
   accepted: '处理中',
   awaiting: '待确认',
+  cancelling: '取消确认中',
   completed: '已完成',
   expired: '已过期',
   cancelled: '已取消',

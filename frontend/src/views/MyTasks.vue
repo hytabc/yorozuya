@@ -17,7 +17,7 @@ const busy = ref(false)
 const showCreate = ref(false)
 const tab = ref('active')
 const tabs = [{ value: 'active', label: '进行中' }, { value: 'published', label: '我发布的' }, { value: 'accepted', label: '我接取的' }, { value: 'history', label: '历史记录' }]
-const activeStatuses = ['published', 'accepted', 'awaiting']
+const activeStatuses = ['published', 'accepted', 'awaiting', 'cancelling']
 const me = computed(() => auth.user)
 const isMyPublish = (task) => task.publisher_id === me.value?.id
 const isMyAccept = (task) => task.members?.some((m) => m.user.id === me.value?.id)
@@ -48,8 +48,10 @@ async function action(key, payload = {}) {
       start: '委托已开始，进入处理中',
       leave: '已退出接取',
       confirm: data.status === 'completed' ? '全体确认，委托完成' : '已确认完成，等待其他人确认',
+      cancel: data.status === 'cancelled' ? '委托已取消' : '已发起取消，等待双方确认',
+      'confirm-cancel': data.status === 'cancelled' ? '双方已同意，委托已取消' : '你已同意取消，等待其他人确认',
+      'cancel-continue': '取消已撤销，委托继续',
       password: '接取密码已更新，请把新密码告知接单人',
-      cancel: '委托已取消',
     }
     toast.success(messages[key])
   } catch (error) { toast.error(errorMessage(error)) } finally { busy.value = false }

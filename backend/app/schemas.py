@@ -21,6 +21,9 @@ class ApiModel(BaseModel):
         "completed_at",
         "publisher_confirmed_at",
         "handled_at",
+        "cancelled_at",
+        "cancel_requested_at",
+        "publisher_cancel_confirmed_at",
         check_fields=False,
     )
     def serialize_datetime(self, value: datetime | None):
@@ -120,6 +123,7 @@ class TaskMemberOut(ApiModel):
     user: UserPublic
     joined_at: datetime
     confirmed_at: datetime | None = None
+    cancel_confirmed_at: datetime | None = None
     # 联系方式只在协作双方可见时由后端填充
     qq: str | None = None
 
@@ -139,12 +143,16 @@ class TaskOut(ApiModel):
     members: list[TaskMemberOut] = []
     publisher_id: int
     publisher_confirmed_at: datetime | None = None
+    publisher_cancel_confirmed_at: datetime | None = None
+    cancel_requested_by: int | None = None
+    cancel_requested_at: datetime | None = None
     contact_qq: str | None = None
     created_at: datetime
     updated_at: datetime
     expires_at: datetime
     started_at: datetime | None = None
     completed_at: datetime | None = None
+    cancelled_at: datetime | None = None
 
 
 class AdminTaskUpdate(RequestModel):

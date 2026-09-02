@@ -23,6 +23,7 @@ class TaskStatus(str, Enum):
     AWAITING = "awaiting"  # 待确认：有人已确认完成，等其余人
     COMPLETED = "completed"  # 已完成：委托人与全部接单人确认完成
     EXPIRED = "expired"
+    CANCELLING = "cancelling"  # 取消确认中：任一方已发起取消，等待其他人确认
     CANCELLED = "cancelled"
 
 
@@ -80,10 +81,21 @@ class Task(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # 完成确认：委托人（发布人）也需要确认
     publisher_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # 取消流程：任一方发起取消（cancelling），全员同意后转 cancelled
+    cancel_requested_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    cancel_requested_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # 取消发起前所处的状态，用于“不同意/继续委托”时恢复
+    cancel_resume_status: Mapped[TaskStatus | None] = mapped_column(
+        SqlEnum(TaskStatus, values_callable=lambda values: [item.value for item in values]),
+        nullable=True,
+    )
+    publisher_cancel_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     publisher: Mapped[User] = relationship(foreign_keys=[publisher_id], back_populates="published_tasks")
+    cancel_requester: Mapped[User | None] = relationship(foreign_keys=[cancel_requested_by])
     members: Mapped[list["TaskMember"]] = relationship(
         back_populates="task",
         cascade="all, delete-orphan",
@@ -100,6 +112,13 @@ class Task(Base):
             return False
         return all(member.confirmed_at is not None for member in self.members)
 
+    @property
+    def all_agree_to_cancel(self) -> bool:
+        """委托人与所有接单人都已同意取消。"""
+        if self.publisher_cancel_confirmed_at is None:
+            return False
+        return all(member.cancel_confirmed_at is not None for member in self.members)
+
 
 class TaskMember(Base):
     """委托的接单人（多人）。joined 表示已接取；confirmed_at 表示该成员确认完成。"""
@@ -112,6 +131,7 @@ class TaskMember(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     joined_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    cancel_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     task: Mapped[Task] = relationship(back_populates="members")
     user: Mapped[User] = relationship(foreign_keys=[user_id], back_populates="memberships")
