@@ -216,6 +216,7 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .admin-stats span { color: var(--muted); font-size: 12px; }
 .admin-stats strong { grid-column: 1 / -1; font-family: Georgia, serif; font-size: 27px; }
 .admin-table-section { border: 1px solid var(--line); background: white; }
+.admin-tabs { margin-bottom: 18px; }
 .admin-toolbar { min-height: 82px; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
 .admin-toolbar h2 { display: inline; margin: 0 10px 0 0; font-size: 18px; }
 .admin-toolbar > div span { color: var(--muted); font-size: 11px; }
@@ -229,6 +230,10 @@ td strong, td small { display: block; max-width: 300px; overflow: hidden; text-o
 td small { margin-top: 5px; color: var(--muted); }
 tr.dimmed td { color: #89918d; background: #fafafa; }
 .visibility { display: inline-flex; align-items: center; gap: 6px; }
+.limit-input { width: 92px; height: 38px; }
+.limit-usage { display: inline-flex; min-width: 54px; color: var(--green); font-weight: 700; }
+.limit-usage.full { color: var(--red); }
+.admin-table-section .icon-button:disabled { cursor: default; opacity: .35; }
 .table-loading { height: 180px; color: var(--muted); text-align: center; }
 
 .toast-host { position: fixed; z-index: 200; top: 88px; right: 20px; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }

@@ -18,6 +18,8 @@ from .schemas import (
     AcceptRequest,
     AdminStats,
     AdminTaskUpdate,
+    AdminUserLimitUpdate,
+    AdminUserOut,
     LoginRequest,
     PasswordUpdate,
     RegisterRequest,
@@ -61,18 +63,24 @@ def migrate_schema() -> None:
     from sqlalchemy import inspect as sa_inspect
 
     inspector = sa_inspect(engine)
-    if not inspector.has_table("tasks"):
-        return
-    columns = {column["name"] for column in inspector.get_columns("tasks")}
     with engine.begin() as connection:
-        if "required_takers" not in columns:
+        if inspector.has_table("users"):
+            user_columns = {column["name"] for column in inspector.get_columns("users")}
+            if "max_concurrent_tasks" not in user_columns:
+                connection.execute(
+                    text("ALTER TABLE users ADD COLUMN max_concurrent_tasks INTEGER NOT NULL DEFAULT 2")
+                )
+        if not inspector.has_table("tasks"):
+            return
+        task_columns = {column["name"] for column in inspector.get_columns("tasks")}
+        if "required_takers" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN required_takers INTEGER"))
-        if "started_at" not in columns:
+        if "started_at" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN started_at DATETIME"))
         # 旧版单接单人数据升级：
         # 1) submitted(已提交待验收) -> awaiting(待确认)，以提交时间作为接单人确认时间
         # 2) 有 assignee_id 的任务，把接单人搬进 task_members
-        if "assignee_id" in columns:
+        if "assignee_id" in task_columns:
             connection.execute(
                 text(
                     "UPDATE tasks SET status='awaiting', assignee_confirmed_at = COALESCE(assignee_confirmed_at, submitted_at)"
@@ -88,7 +96,7 @@ def migrate_schema() -> None:
                     "AND NOT EXISTS (SELECT 1 FROM task_members m WHERE m.task_id = t.id AND m.user_id = t.assignee_id)"
                 )
             )
-            if "accepted_at" in columns:
+            if "accepted_at" in task_columns:
                 connection.execute(
                     text(
                         "UPDATE tasks SET started_at = COALESCE(started_at, accepted_at) "
@@ -179,6 +187,18 @@ def get_task_or_404(db: Session, task_id: int) -> Task:
 
 def member_of(db: Session, task_id: int, user_id: int) -> TaskMember | None:
     return db.scalar(select(TaskMember).where(TaskMember.task_id == task_id, TaskMember.user_id == user_id))
+
+
+ACTIVE_TAKEN_STATUSES = (TaskStatus.PUBLISHED, TaskStatus.ACCEPTED, TaskStatus.AWAITING)
+
+
+def active_task_count(db: Session, user_id: int) -> int:
+    return db.scalar(
+        select(func.count())
+        .select_from(TaskMember)
+        .join(Task, Task.id == TaskMember.task_id)
+        .where(TaskMember.user_id == user_id, Task.status.in_(ACTIVE_TAKEN_STATUSES))
+    ) or 0
 
 
 def start_if_ready(db: Session, task: Task) -> None:
@@ -332,6 +352,13 @@ def accept_task(
         raise HTTPException(status_code=403, detail="该委托尚未设置接取密码，请联系委托人处理")
     if not verify_password(payload.password, task.accept_password_hash):
         raise HTTPException(status_code=403, detail="接取密码不正确，请联系委托人确认")
+    # 在支持行锁的数据库上串行化同一用户的接单操作，避免并发突破个人上限。
+    db.scalar(select(User).where(User.id == user.id).with_for_update())
+    if active_task_count(db, user.id) >= user.max_concurrent_tasks:
+        raise HTTPException(
+            status_code=409,
+            detail=f"你同时接取的委托已达上限（{user.max_concurrent_tasks} 个）",
+        )
     db.add(TaskMember(task_id=task.id, user_id=user.id))
     db.commit()
     task = get_task_or_404(db, task_id)
@@ -453,6 +480,36 @@ def admin_tasks(_: User = Depends(get_admin), db: Session = Depends(get_db)):
     expire_due_tasks(db)
     tasks = db.scalars(task_query().order_by(Task.updated_at.desc()).limit(500)).unique().all()
     return [present_task(task, _) for task in tasks]
+
+
+@app.get("/api/admin/users", response_model=list[AdminUserOut])
+def admin_users(_: User = Depends(get_admin), db: Session = Depends(get_db)):
+    expire_due_tasks(db)
+    users = db.scalars(select(User).order_by(User.created_at.desc())).all()
+    return [
+        AdminUserOut.model_validate(user).model_copy(
+            update={"active_task_count": active_task_count(db, user.id)}
+        )
+        for user in users
+    ]
+
+
+@app.patch("/api/admin/users/{user_id}/task-limit", response_model=AdminUserOut)
+def update_user_task_limit(
+    user_id: int,
+    payload: AdminUserLimitUpdate,
+    _: User = Depends(get_admin),
+    db: Session = Depends(get_db),
+):
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    user.max_concurrent_tasks = payload.max_concurrent_tasks
+    db.commit()
+    db.refresh(user)
+    return AdminUserOut.model_validate(user).model_copy(
+        update={"active_task_count": active_task_count(db, user.id)}
+    )
 
 
 @app.patch("/api/admin/tasks/{task_id}", response_model=TaskOut)

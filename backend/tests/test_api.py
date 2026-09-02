@@ -329,3 +329,103 @@ def test_list_tasks_without_status_filter():
 
         invalid_status = client.get("/api/tasks", params={"status": "unknown"})
         assert invalid_status.status_code == 422
+
+
+def test_user_task_limit_and_admin_control():
+    with TestClient(app) as client:
+        publishers = [auth(client, f"limit_pub_{index}") for index in range(4)]
+        taker = auth(client, "limited_taker")
+        stranger = auth(client, "limit_stranger")
+        admin_login = client.post(
+            "/api/auth/login",
+            json={"username": "admin", "password": "Admin123!"},
+        )
+        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        me = client.get("/api/auth/me", headers=taker)
+        assert me.status_code == 200
+        assert me.json()["max_concurrent_tasks"] == 2
+
+        tasks = [
+            create_task(client, publisher, password=f"limit-pw-{index}", required=5)
+            for index, publisher in enumerate(publishers)
+        ]
+        for index in range(2):
+            accepted = client.post(
+                f"/api/tasks/{tasks[index]['id']}/accept",
+                headers=taker,
+                json={"password": f"limit-pw-{index}"},
+            )
+            assert accepted.status_code == 200
+
+        over_limit = client.post(
+            f"/api/tasks/{tasks[2]['id']}/accept",
+            headers=taker,
+            json={"password": "limit-pw-2"},
+        )
+        assert over_limit.status_code == 409
+        assert "2 个" in over_limit.json()["detail"]
+
+        denied = client.patch(
+            f"/api/admin/users/{me.json()['id']}/task-limit",
+            headers=stranger,
+            json={"max_concurrent_tasks": 3},
+        )
+        assert denied.status_code == 403
+
+        users = client.get("/api/admin/users", headers=admin)
+        limited_user = next(user for user in users.json() if user["id"] == me.json()["id"])
+        assert limited_user["active_task_count"] == 2
+        assert limited_user["max_concurrent_tasks"] == 2
+
+        updated = client.patch(
+            f"/api/admin/users/{me.json()['id']}/task-limit",
+            headers=admin,
+            json={"max_concurrent_tasks": 3},
+        )
+        assert updated.status_code == 200
+        assert updated.json()["max_concurrent_tasks"] == 3
+        assert updated.json()["active_task_count"] == 2
+
+        accepted_third = client.post(
+            f"/api/tasks/{tasks[2]['id']}/accept",
+            headers=taker,
+            json={"password": "limit-pw-2"},
+        )
+        assert accepted_third.status_code == 200
+
+        cancelled = client.post(
+            f"/api/tasks/{tasks[0]['id']}/cancel",
+            headers=publishers[0],
+        )
+        assert cancelled.status_code == 200
+        accepted_after_cancel = client.post(
+            f"/api/tasks/{tasks[3]['id']}/accept",
+            headers=taker,
+            json={"password": "limit-pw-3"},
+        )
+        assert accepted_after_cancel.status_code == 200
+
+
+def test_admin_task_limit_validation():
+    with TestClient(app) as client:
+        taker = auth(client, "validation_taker")
+        user_id = client.get("/api/auth/me", headers=taker).json()["id"]
+        admin_login = client.post(
+            "/api/auth/login",
+            json={"username": "admin", "password": "Admin123!"},
+        )
+        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        negative = client.patch(
+            f"/api/admin/users/{user_id}/task-limit",
+            headers=admin,
+            json={"max_concurrent_tasks": -1},
+        )
+        too_large = client.patch(
+            f"/api/admin/users/{user_id}/task-limit",
+            headers=admin,
+            json={"max_concurrent_tasks": 1000},
+        )
+        assert negative.status_code == 422
+        assert too_large.status_code == 422

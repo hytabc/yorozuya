@@ -55,6 +55,7 @@ class UserSelf(UserPublic):
     qq: str | None = None
     is_admin: bool
     is_active: bool
+    max_concurrent_tasks: int
     created_at: datetime
 
 
@@ -134,6 +135,21 @@ class TaskOut(ApiModel):
 class AdminTaskUpdate(RequestModel):
     is_visible: bool
     admin_note: str | None = Field(default=None, max_length=200)
+
+
+class AdminUserOut(ApiModel):
+    id: int
+    username: str
+    nickname: str
+    is_admin: bool
+    is_active: bool
+    max_concurrent_tasks: int
+    active_task_count: int = 0
+    created_at: datetime
+
+
+class AdminUserLimitUpdate(RequestModel):
+    max_concurrent_tasks: int = Field(ge=0, le=999)
 
 
 class AdminStats(BaseModel):

@@ -37,6 +37,7 @@ class User(Base):
     bio: Mapped[str | None] = mapped_column(String(300), nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    max_concurrent_tasks: Mapped[int] = mapped_column(default=2)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     published_tasks: Mapped[list["Task"]] = relationship(
