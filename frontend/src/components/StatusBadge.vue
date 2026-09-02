@@ -3,9 +3,9 @@ import { computed } from 'vue'
 
 const props = defineProps({ status: { type: String, required: true } })
 const labels = {
-  published: '已发布',
+  published: '待接取',
   accepted: '处理中',
-  submitted: '待验收',
+  awaiting: '待确认',
   completed: '已完成',
   expired: '已过期',
   cancelled: '已取消',

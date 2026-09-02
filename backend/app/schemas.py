@@ -10,7 +10,7 @@ from .models import TaskStatus
 class ApiModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    @field_serializer("created_at", "updated_at", "expires_at", "accepted_at", "submitted_at", "completed_at", check_fields=False)
+    @field_serializer("created_at", "updated_at", "expires_at", "accepted_at", "submitted_at", "completed_at", "publisher_confirmed_at", "assignee_confirmed_at", check_fields=False)
     def serialize_datetime(self, value: datetime | None):
         if value is None:
             return None
@@ -70,6 +70,7 @@ class TaskCreate(RequestModel):
     description: str = Field(min_length=10, max_length=3000)
     category: str = Field(min_length=1, max_length=24)
     reward: str | None = Field(default=None, max_length=60)
+    accept_password: str = Field(min_length=4, max_length=32)
     expires_at: datetime
 
     @field_validator("expires_at")
@@ -78,6 +79,14 @@ class TaskCreate(RequestModel):
         if value.tzinfo is not None:
             value = value.astimezone(timezone.utc).replace(tzinfo=None)
         return value
+
+
+class AcceptRequest(RequestModel):
+    password: str = Field(min_length=1, max_length=72)
+
+
+class PasswordUpdate(RequestModel):
+    password: str = Field(min_length=4, max_length=32)
 
 
 class TaskOut(ApiModel):
@@ -94,6 +103,8 @@ class TaskOut(ApiModel):
     publisher_id: int
     assignee_id: int | None
     contact_qq: str | None = None
+    publisher_confirmed_at: datetime | None = None
+    assignee_confirmed_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
     expires_at: datetime

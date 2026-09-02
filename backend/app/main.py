@@ -12,12 +12,14 @@ from sqlalchemy.orm import Session, joinedload
 
 from .config import settings
 from .database import Base, SessionLocal, engine, get_db
-from .dependencies import get_admin, get_current_user
+from .dependencies import get_admin, get_current_user, get_optional_user
 from .models import Task, TaskStatus, User
 from .schemas import (
+    AcceptRequest,
     AdminStats,
     AdminTaskUpdate,
     LoginRequest,
+    PasswordUpdate,
     RegisterRequest,
     TaskCreate,
     TaskOut,
@@ -36,6 +38,7 @@ TaskStatusFilter = Annotated[
 
 def initialize_database() -> None:
     Base.metadata.create_all(bind=engine)
+    migrate_schema()
     with SessionLocal() as db:
         admin = db.scalar(select(User).where(User.username == settings.admin_username))
         if admin is None:
@@ -48,6 +51,37 @@ def initialize_database() -> None:
                 )
             )
             db.commit()
+
+
+def migrate_schema() -> None:
+    """把旧版数据库升级到当前模型（SQLite ALTER TABLE 轻量迁移）。"""
+    if not settings.database_url.startswith("sqlite"):
+        return
+    from sqlalchemy import inspect as sa_inspect, text
+
+    inspector = sa_inspect(engine)
+    if not inspector.has_table("tasks"):
+        return
+    existing = {column["name"] for column in inspector.get_columns("tasks")}
+    statements = []
+    if "accept_password_hash" not in existing:
+        statements.append("ALTER TABLE tasks ADD COLUMN accept_password_hash VARCHAR(255)")
+    if "publisher_confirmed_at" not in existing:
+        statements.append("ALTER TABLE tasks ADD COLUMN publisher_confirmed_at DATETIME")
+    if "assignee_confirmed_at" not in existing:
+        statements.append("ALTER TABLE tasks ADD COLUMN assignee_confirmed_at DATETIME")
+    if statements:
+        with engine.begin() as connection:
+            for statement in statements:
+                connection.execute(text(statement))
+    # 旧版“submitted(已提交待验收)”行升级为“awaiting(待确认)”，并把提交时间作为接单人确认时间
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "UPDATE tasks SET status='awaiting', assignee_confirmed_at = COALESCE(assignee_confirmed_at, submitted_at)"
+                " WHERE status='submitted'"
+            )
+        )
 
 
 @asynccontextmanager
@@ -71,7 +105,7 @@ def expire_due_tasks(db: Session) -> None:
         update(Task)
         .where(
             Task.expires_at <= datetime.utcnow(),
-            Task.status.in_([TaskStatus.PUBLISHED, TaskStatus.ACCEPTED, TaskStatus.SUBMITTED]),
+            Task.status.in_([TaskStatus.PUBLISHED, TaskStatus.ACCEPTED, TaskStatus.AWAITING]),
         )
         .values(status=TaskStatus.EXPIRED, updated_at=datetime.utcnow())
     )
@@ -85,9 +119,22 @@ def task_query():
 
 def present_task(task: Task, viewer: User | None = None) -> TaskOut:
     data = TaskOut.model_validate(task)
-    if viewer and (viewer.is_admin or viewer.id in {task.publisher_id, task.assignee_id}):
-        contact = task.assignee.qq if viewer.id == task.publisher_id and task.assignee else task.publisher.qq
-        data.contact_qq = contact
+    if viewer is None:
+        return data
+    if viewer.is_admin:
+        # 管理员可看到发布人联系方式，便于处理纠纷
+        data.contact_qq = task.publisher.qq
+        return data
+    if task.publisher_id == viewer.id:
+        # 委托人：接单人已接取时可见其联系方式，便于协作与交付
+        if task.assignee is not None:
+            data.contact_qq = task.assignee.qq
+    elif task.assignee_id == viewer.id:
+        # 接单人：可见委托人联系方式
+        data.contact_qq = task.publisher.qq
+    elif task.status == TaskStatus.PUBLISHED and task.is_visible:
+        # 待接取的委托：登录用户可看到委托人 QQ，用于联系洽谈
+        data.contact_qq = task.publisher.qq
     return data
 
 
@@ -148,6 +195,7 @@ def list_tasks(
     search: str = Query(default="", max_length=80),
     category: str = Query(default=""),
     task_status: Annotated[TaskStatusFilter, Query(alias="status")] = None,
+    viewer: User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
     expire_due_tasks(db)
@@ -159,7 +207,7 @@ def list_tasks(
     if task_status:
         query = query.where(Task.status == task_status)
     tasks = db.scalars(query.order_by(Task.created_at.desc()).limit(200)).unique().all()
-    return [present_task(task) for task in tasks]
+    return [present_task(task, viewer) for task in tasks]
 
 
 @app.get("/api/tasks/mine", response_model=list[TaskOut])
@@ -174,12 +222,12 @@ def my_tasks(user: User = Depends(get_current_user), db: Session = Depends(get_d
 
 
 @app.get("/api/tasks/{task_id}", response_model=TaskOut)
-def task_detail(task_id: int, db: Session = Depends(get_db)):
+def task_detail(task_id: int, viewer: User | None = Depends(get_optional_user), db: Session = Depends(get_db)):
     expire_due_tasks(db)
     task = get_task_or_404(db, task_id)
     if not task.is_visible:
         raise HTTPException(status_code=404, detail="委托不存在")
-    return present_task(task)
+    return present_task(task, viewer)
 
 
 @app.post("/api/tasks", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
@@ -189,59 +237,99 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
         raise HTTPException(status_code=422, detail="有效期至少需要 1 小时")
     if payload.expires_at > now + timedelta(days=90):
         raise HTTPException(status_code=422, detail="有效期最长为 90 天")
-    task_data = payload.model_dump()
-    task_data.update(
+    task = Task(
         title=payload.title.strip(),
         description=payload.description.strip(),
+        category=payload.category,
         reward=payload.reward.strip() if payload.reward else None,
+        expires_at=payload.expires_at,
         publisher_id=user.id,
+        accept_password_hash=hash_password(payload.accept_password),
     )
-    task = Task(**task_data)
     db.add(task)
     db.commit()
     return present_task(get_task_or_404(db, task.id), user)
 
 
 @app.post("/api/tasks/{task_id}/accept", response_model=TaskOut)
-def accept_task(task_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def accept_task(
+    task_id: int,
+    payload: AcceptRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     expire_due_tasks(db)
     task = get_task_or_404(db, task_id)
     if not task.is_visible:
         raise HTTPException(status_code=403, detail="该委托已被管理员隐藏")
     if task.publisher_id == user.id:
-        raise HTTPException(status_code=400, detail="不能接受自己发布的委托")
+        raise HTTPException(status_code=400, detail="不能接取自己发布的委托")
+    if task.status != TaskStatus.PUBLISHED or task.assignee_id is not None:
+        raise HTTPException(status_code=409, detail="该委托已不可接取")
+    if not task.accept_password_hash:
+        raise HTTPException(status_code=403, detail="该委托尚未设置接取密码，请联系委托人处理")
+    if not verify_password(payload.password, task.accept_password_hash):
+        raise HTTPException(status_code=403, detail="接取密码不正确，请联系委托人确认")
     result = db.execute(
         update(Task)
         .where(Task.id == task_id, Task.status == TaskStatus.PUBLISHED, Task.assignee_id.is_(None))
-        .values(status=TaskStatus.ACCEPTED, assignee_id=user.id, accepted_at=datetime.utcnow(), updated_at=datetime.utcnow())
+        .values(
+            status=TaskStatus.ACCEPTED,
+            assignee_id=user.id,
+            accepted_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
     )
     if result.rowcount != 1:
         db.rollback()
-        raise HTTPException(status_code=409, detail="该委托已被接受或不可处理")
-    db.commit()
-    return present_task(get_task_or_404(db, task_id), user)
-
-
-@app.post("/api/tasks/{task_id}/submit", response_model=TaskOut)
-def submit_task(task_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    expire_due_tasks(db)
-    task = get_task_or_404(db, task_id)
-    if task.assignee_id != user.id or task.status != TaskStatus.ACCEPTED:
-        raise HTTPException(status_code=403, detail="当前委托不可提交")
-    task.status = TaskStatus.SUBMITTED
-    task.submitted_at = datetime.utcnow()
+        raise HTTPException(status_code=409, detail="该委托已被接取或不可处理")
     db.commit()
     return present_task(get_task_or_404(db, task_id), user)
 
 
 @app.post("/api/tasks/{task_id}/confirm", response_model=TaskOut)
 def confirm_task(task_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """完成确认：委托人（发布人）或接单人任一方先确认，双方都确认后委托才算完成。"""
     expire_due_tasks(db)
     task = get_task_or_404(db, task_id)
-    if task.publisher_id != user.id or task.status != TaskStatus.SUBMITTED:
-        raise HTTPException(status_code=403, detail="当前委托不可验收")
-    task.status = TaskStatus.COMPLETED
-    task.completed_at = datetime.utcnow()
+    if task.publisher_id != user.id and task.assignee_id != user.id:
+        raise HTTPException(status_code=403, detail="只有委托人（发布人）和接单人可确认完成")
+    if task.status not in (TaskStatus.ACCEPTED, TaskStatus.AWAITING):
+        raise HTTPException(status_code=409, detail="当前状态不能确认完成")
+    now = datetime.utcnow()
+    if task.publisher_id == user.id:
+        if task.publisher_confirmed_at is not None:
+            raise HTTPException(status_code=409, detail="你已确认完成，等待对方确认")
+        task.publisher_confirmed_at = now
+    else:
+        if task.assignee_confirmed_at is not None:
+            raise HTTPException(status_code=409, detail="你已确认完成，等待对方确认")
+        task.assignee_confirmed_at = now
+    if task.publisher_confirmed_at is not None and task.assignee_confirmed_at is not None:
+        task.status = TaskStatus.COMPLETED
+        task.completed_at = now
+    else:
+        task.status = TaskStatus.AWAITING
+    task.updated_at = now
+    db.commit()
+    return present_task(get_task_or_404(db, task_id), user)
+
+
+@app.patch("/api/tasks/{task_id}/password", response_model=TaskOut)
+def update_task_password(
+    task_id: int,
+    payload: PasswordUpdate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """委托人重设接取密码：仅在委托尚未被接取时可用（例如忘记密码或想换一位接单人）。"""
+    task = get_task_or_404(db, task_id)
+    if task.publisher_id != user.id:
+        raise HTTPException(status_code=403, detail="只有委托人可以重设接取密码")
+    if task.status != TaskStatus.PUBLISHED or task.assignee_id is not None:
+        raise HTTPException(status_code=409, detail="委托被接取后不能重设密码")
+    task.accept_password_hash = hash_password(payload.password)
+    task.updated_at = datetime.utcnow()
     db.commit()
     return present_task(get_task_or_404(db, task_id), user)
 
@@ -250,8 +338,9 @@ def confirm_task(task_id: int, user: User = Depends(get_current_user), db: Sessi
 def cancel_task(task_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     task = get_task_or_404(db, task_id)
     if task.publisher_id != user.id or task.status != TaskStatus.PUBLISHED:
-        raise HTTPException(status_code=403, detail="只能取消自己尚未被接受的委托")
+        raise HTTPException(status_code=403, detail="只能取消自己尚未被接取的委托")
     task.status = TaskStatus.CANCELLED
+    task.updated_at = datetime.utcnow()
     db.commit()
     return present_task(get_task_or_404(db, task_id), user)
 
@@ -263,7 +352,7 @@ def admin_stats(_: User = Depends(get_admin), db: Session = Depends(get_db)):
         users=db.scalar(select(func.count()).select_from(User)) or 0,
         tasks=db.scalar(select(func.count()).select_from(Task)) or 0,
         published=db.scalar(select(func.count()).select_from(Task).where(Task.status == TaskStatus.PUBLISHED)) or 0,
-        processing=db.scalar(select(func.count()).select_from(Task).where(Task.status.in_([TaskStatus.ACCEPTED, TaskStatus.SUBMITTED]))) or 0,
+        processing=db.scalar(select(func.count()).select_from(Task).where(Task.status.in_([TaskStatus.ACCEPTED, TaskStatus.AWAITING]))) or 0,
         completed=db.scalar(select(func.count()).select_from(Task).where(Task.status == TaskStatus.COMPLETED)) or 0,
         hidden=db.scalar(select(func.count()).select_from(Task).where(Task.is_visible.is_(False))) or 0,
     )

@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { CalendarClock, Coins, UserRound, EyeOff } from 'lucide-vue-next'
 import StatusBadge from './StatusBadge.vue'
 
-const props = defineProps({ task: { type: Object, required: true }, showRole: Boolean })
+const props = defineProps({ task: { type: Object, required: true }, showRole: Boolean, hint: String })
 defineEmits(['select'])
 
 const deadline = computed(() => new Intl.DateTimeFormat('zh-CN', {
@@ -12,7 +12,7 @@ const deadline = computed(() => new Intl.DateTimeFormat('zh-CN', {
 
 const role = computed(() => {
   const me = JSON.parse(localStorage.getItem('wsw_user') || 'null')
-  return me?.id === props.task.publisher_id ? '我发布的' : '我接受的'
+  return me?.id === props.task.publisher_id ? '我发布的' : '我接取的'
 })
 </script>
 
@@ -23,6 +23,7 @@ const role = computed(() => {
         <StatusBadge :status="task.status" />
         <span class="category-tag">{{ task.category }}</span>
         <span v-if="showRole" class="role-tag">{{ role }}</span>
+        <span v-if="hint" class="role-tag confirm-hint">{{ hint }}</span>
       </div>
       <EyeOff v-if="!task.is_visible" :size="18" class="muted" aria-label="已隐藏" />
     </div>

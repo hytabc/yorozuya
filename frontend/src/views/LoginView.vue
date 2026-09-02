@@ -32,11 +32,11 @@ function switchMode(next) { mode.value = next; error.value = ''; router.replace(
     <section class="auth-story">
       <span class="eyebrow">YOROZUYA MEMBERSHIP</span>
       <h1>小事有人回应，<br />难事有人同行。</h1>
-      <p>一个账号即可发布委托、接受任务，并持续跟进每一次协作。</p>
+      <p>一个账号即可发布委托、凭密码接取，并持续跟进每一次协作。</p>
       <ul>
-        <li><Check :size="17" />清晰的委托状态与有效期</li>
-        <li><Check :size="17" />仅向协作双方展示联系方式</li>
-        <li><Check :size="17" />完整保留发布与接受记录</li>
+        <li><Check :size="17" />发布委托并设置接取密码，凭密码接单</li>
+        <li><Check :size="17" />委托完成需委托人、接单人双方确认</li>
+        <li><Check :size="17" />登录后可见委托人 QQ，直接联系洽谈</li>
       </ul>
       <div class="auth-monogram"><span>万</span><small>事事有回音</small></div>
     </section>

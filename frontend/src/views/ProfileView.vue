@@ -32,7 +32,7 @@ async function save() {
         <div class="section-heading compact"><div><span class="section-index">01</span><h2>公开资料</h2><p>昵称和简介会展示在委托中</p></div></div>
         <form class="form-stack" @submit.prevent="save">
           <label>昵称<input v-model.trim="form.nickname" required maxlength="32" /></label>
-          <label>QQ 号<input v-model.trim="form.qq" inputmode="numeric" pattern="[0-9]{5,20}" maxlength="20" placeholder="仅向与你协作的用户展示" /><small>管理员及委托协作双方可见</small></label>
+          <label>QQ 号<input v-model.trim="form.qq" inputmode="numeric" pattern="[0-9]{5,20}" maxlength="20" placeholder="接单人需要靠它联系你" /><small>发布委托后，登录用户可在委托详情看到该 QQ，用于洽谈接取</small></label>
           <label>个人简介<textarea v-model.trim="form.bio" maxlength="300" rows="6" placeholder="简单介绍你擅长的事情、空闲时间等"></textarea><small>{{ form.bio.length }}/300</small></label>
           <div><button class="button" :disabled="busy"><Save :size="17" />{{ busy ? '保存中…' : '保存更改' }}</button></div>
         </form>

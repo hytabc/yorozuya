@@ -10,10 +10,10 @@ from .database import Base
 
 
 class TaskStatus(str, Enum):
-    PUBLISHED = "published"
-    ACCEPTED = "accepted"
-    SUBMITTED = "submitted"
-    COMPLETED = "completed"
+    PUBLISHED = "published"  # 已发布：待有密码的人接取
+    ACCEPTED = "accepted"  # 处理中：接单人已凭密码接取，正在执行
+    AWAITING = "awaiting"  # 待确认：一方已确认完成，等待另一方
+    COMPLETED = "completed"  # 已完成：双方均确认完成
     EXPIRED = "expired"
     CANCELLED = "cancelled"
 
@@ -56,12 +56,17 @@ class Task(Base):
     admin_note: Mapped[str | None] = mapped_column(String(200), nullable=True)
     publisher_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     assignee_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    # 委托人设置的接取密码（只存哈希，任何接口都不会回传明文）
+    accept_password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # 完成确认：需要委托人（发布人）与接单人双方都确认后，委托才算完成
+    publisher_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    assignee_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     publisher: Mapped[User] = relationship(foreign_keys=[publisher_id], back_populates="published_tasks")
     assignee: Mapped[User | None] = relationship(foreign_keys=[assignee_id], back_populates="accepted_tasks")

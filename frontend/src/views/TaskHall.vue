@@ -19,11 +19,11 @@ const showCreate = ref(false)
 const busy = ref(false)
 const filters = reactive({ search: '', category: '', status: '' })
 const categories = ['跑腿', '设计', '技术', '学习', '生活', '其他']
-const statuses = [{ value: '', label: '全部状态' }, { value: 'published', label: '可接受' }, { value: 'accepted', label: '处理中' }, { value: 'submitted', label: '待验收' }, { value: 'completed', label: '已完成' }, { value: 'expired', label: '已过期' }]
+const statuses = [{ value: '', label: '全部状态' }, { value: 'published', label: '待接取' }, { value: 'accepted', label: '处理中' }, { value: 'awaiting', label: '待确认' }, { value: 'completed', label: '已完成' }, { value: 'expired', label: '已过期' }]
 
 const stats = computed(() => ({
   open: tasks.value.filter((item) => item.status === 'published').length,
-  active: tasks.value.filter((item) => ['accepted', 'submitted'].includes(item.status)).length,
+  active: tasks.value.filter((item) => ['accepted', 'awaiting'].includes(item.status)).length,
   done: tasks.value.filter((item) => item.status === 'completed').length,
 }))
 
@@ -42,15 +42,25 @@ function create() {
 function search() { clearTimeout(timer); timer = setTimeout(load, 280) }
 function created(task) { showCreate.value = false; tasks.value.unshift(task) }
 
-async function action(key) {
+async function action(key, payload = {}) {
   if (key === 'login') return router.push({ path: '/login', query: { redirect: '/' } })
   busy.value = true
   try {
-    const { data } = await api.post(`/tasks/${selected.value.id}/${key}`)
+    const url = `/tasks/${selected.value.id}`
+    let data
+    if (key === 'accept') ({ data } = await api.post(`${url}/accept`, { password: payload.password }))
+    else if (key === 'confirm') ({ data } = await api.post(`${url}/confirm`))
+    else if (key === 'password') ({ data } = await api.patch(`${url}/password`, { password: payload.password }))
+    else ({ data } = await api.post(`${url}/${key}`))
     selected.value = data
     const index = tasks.value.findIndex((item) => item.id === data.id)
     if (index !== -1) tasks.value[index] = data
-    const messages = { accept: '委托已接受，可在“我的委托”中跟进', submit: '已提交，等待发布者验收', confirm: '委托已验收完成', cancel: '委托已取消' }
+    const messages = {
+      accept: '已凭密码接取，可在“我的委托”中跟进',
+      confirm: data.status === 'completed' ? '双方已确认，委托完成' : '已确认完成，等待对方确认',
+      password: '接取密码已更新，请把新密码告知接单人',
+      cancel: '委托已取消',
+    }
     toast.success(messages[key])
   } catch (error) { toast.error(errorMessage(error)) } finally { busy.value = false }
 }

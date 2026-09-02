@@ -10,12 +10,23 @@ const busy = ref(false)
 const categories = ['跑腿', '设计', '技术', '学习', '生活', '其他']
 const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000)
 tomorrow.setMinutes(tomorrow.getMinutes() - tomorrow.getTimezoneOffset())
-const form = reactive({ title: '', description: '', category: '生活', reward: '', expires_at: tomorrow.toISOString().slice(0, 16) })
+const form = reactive({
+  title: '',
+  description: '',
+  category: '生活',
+  reward: '',
+  accept_password: '',
+  expires_at: tomorrow.toISOString().slice(0, 16),
+})
 
 async function submit() {
   busy.value = true
   try {
-    const { data } = await api.post('/tasks', { ...form, expires_at: new Date(form.expires_at).toISOString(), reward: form.reward || null })
+    const { data } = await api.post('/tasks', {
+      ...form,
+      expires_at: new Date(form.expires_at).toISOString(),
+      reward: form.reward || null,
+    })
     toast.success('委托已发布')
     emit('created', data)
   } catch (error) { toast.error(errorMessage(error)) } finally { busy.value = false }
@@ -37,6 +48,9 @@ onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeE
           <label>委托分类<select v-model="form.category"><option v-for="item in categories" :key="item">{{ item }}</option></select></label>
           <label>报酬说明<input v-model.trim="form.reward" maxlength="60" placeholder="如：50 元 / 一杯奶茶" /></label>
         </div>
+        <label>接取密码<input v-model="form.accept_password" type="password" required minlength="4" maxlength="32" autocomplete="new-password" placeholder="4-32 位，仅你和接单人之间约定" />
+          <small class="field-hint">接单人必须凭此密码才能接取委托。密码不会在站内展示给任何人，请通过 QQ 私下告知你选定的人。</small>
+        </label>
         <label>有效期<input v-model="form.expires_at" type="datetime-local" required /></label>
         <div class="dialog-footer"><button type="button" class="button secondary" @click="$emit('close')">暂不发布</button><button class="button" :disabled="busy">{{ busy ? '发布中…' : '确认发布' }}</button></div>
       </form>
