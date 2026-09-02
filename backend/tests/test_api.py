@@ -97,3 +97,30 @@ def test_expired_task_is_updated_when_listed():
         tasks = client.get("/api/tasks", headers=publisher).json()
         assert tasks[0]["status"] == "expired"
 
+
+def test_list_tasks_without_status_filter():
+    with TestClient(app) as client:
+        publisher = auth(client, "list_publisher")
+        created = client.post(
+            "/api/tasks",
+            headers=publisher,
+            json={
+                "title": "Listable task",
+                "description": "A task used to verify status filtering.",
+                "category": "Other",
+                "expires_at": (datetime.utcnow() + timedelta(days=2)).isoformat() + "Z",
+            },
+        )
+        assert created.status_code == 201
+
+        without_status = client.get("/api/tasks")
+        assert without_status.status_code == 200
+        assert [task["id"] for task in without_status.json()] == [created.json()["id"]]
+
+        empty_status = client.get("/api/tasks", params={"status": ""})
+        assert empty_status.status_code == 200
+        assert [task["id"] for task in empty_status.json()] == [created.json()["id"]]
+
+        invalid_status = client.get("/api/tasks", params={"status": "unknown"})
+        assert invalid_status.status_code == 422
+

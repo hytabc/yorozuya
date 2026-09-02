@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
+from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BeforeValidator
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session, joinedload
 
@@ -24,6 +26,12 @@ from .schemas import (
     UserUpdate,
 )
 from .security import create_access_token, hash_password, verify_password
+
+
+TaskStatusFilter = Annotated[
+    TaskStatus | None,
+    BeforeValidator(lambda value: None if value == "" else value),
+]
 
 
 def initialize_database() -> None:
@@ -139,7 +147,7 @@ def update_profile(payload: UserUpdate, user: User = Depends(get_current_user), 
 def list_tasks(
     search: str = Query(default="", max_length=80),
     category: str = Query(default=""),
-    task_status: TaskStatus | None = Query(default=None, alias="status"),
+    task_status: Annotated[TaskStatusFilter, Query(alias="status")] = None,
     db: Session = Depends(get_db),
 ):
     expire_due_tasks(db)
