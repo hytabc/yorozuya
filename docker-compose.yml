@@ -31,7 +31,6 @@ services:
   frpc:
     image: snowdreamtech/frpc:0.61.1
     restart: unless-stopped
-    profiles: ["tunnel"]
     command: ["-c", "/etc/frp/frpc.toml"]
     environment:
       FRP_SERVER_ADDR: ${FRP_SERVER_ADDR}
