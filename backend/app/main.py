@@ -894,14 +894,16 @@ def confirm_sugar_pair(
             raise HTTPException(status_code=409, detail="双方已有进行中的砂糖关系")
         existing.status = SugarPairStatus.ACTIVE
         existing.activated_at = now
-        # 发布人选定关系后，清理其余待确认请求，避免其他申请人长期停留在待确认状态。
-        selected_owner_id = user.id
+        # 关系激活后，双方档案都被锁定；清理涉及任一方的其他待确认请求。
+        locked_user_ids = [existing.first_user_id, existing.second_user_id]
         other_pending = db.scalars(
             select(SugarPair).where(
                 SugarPair.id != existing.id,
                 SugarPair.status == SugarPairStatus.PENDING,
-                SugarPair.initiated_by_id != selected_owner_id,
-                or_(SugarPair.first_user_id == selected_owner_id, SugarPair.second_user_id == selected_owner_id),
+                or_(
+                    SugarPair.first_user_id.in_(locked_user_ids),
+                    SugarPair.second_user_id.in_(locked_user_ids),
+                ),
             )
         ).all()
         for pending in other_pending:
