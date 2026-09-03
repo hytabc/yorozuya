@@ -1,0 +1,23 @@
+# 开发覆盖配置：本地源码变更后，后端自动重载，前端通过 Vite HMR 自动更新页面。
+# 启动：docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+services:
+  backend:
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--reload"]
+    volumes:
+      - ./backend/app:/app/app
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    # 与生产 Nginx 使用相同的容器端口，复用主配置中的端口映射和 FRP 配置。
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "80"]
+    environment:
+      VITE_PROXY_TARGET: http://backend:8000
+      VITE_ALLOWED_HOSTS: ${FRP_SERVER_ADDR:-}
+      # bind mount 在部分宿主机上不会可靠传递文件事件，轮询可保证 HMR 被触发。
+      VITE_USE_POLLING: "true"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules

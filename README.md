@@ -18,11 +18,10 @@
 - 管理员统计、委托隐藏与恢复；隐藏原因对相关用户可见
 - Docker Compose 一键部署与 FRP TCP 内网穿透
 
-## Docker Compose 部署（开发部署一体）
+## Docker Compose 部署
 
-`docker-compose.yml` 采用**源码挂载 + 热重载**形态：后端以 `uvicorn --reload` 运行、
-前端跑 Vite 开发服务器（HMR），并把本地源码直接挂载进容器。本地改代码即时生效，
-重新部署只需一条命令。
+默认部署会在构建镜像时将 Vue 前端编译为静态文件，并由 Nginx 提供服务及代理 `/api`。
+浏览器首次访问不再等待 Vite 实时转换模块，静态资源也可直接缓存。
 
 1. 创建环境配置：
 
@@ -44,17 +43,10 @@
 
    浏览器访问 `http://localhost:<WEB_PORT>`（默认 `8080`）。首次启动会自动创建 `.env` 中配置的管理员账号。
 
-   - 后端源码热同步：`./backend/app` → 容器 `/app/app`，`.py` 改动自动重载；
-   - 前端源码热同步：只把 `./frontend/src`、`index.html`、`vite.config.js` 挂载进容器，
-     Vite HMR 即时刷新；`/api` 由 Vite 代理到 compose 内的 `backend`
-     （`VITE_PROXY_TARGET=http://backend:8000`）；
-   - 前端 `node_modules` **保留在镜像内**（Linux 下 `npm ci` 生成，含 `vite` 可执行文件），
-     不从宿主机挂载——避免把 Windows/Mac 等平台编译的 node_modules 带进容器导致
-     `vite: not found` / 不可执行；
    - 数据持久化：数据库通过绑定挂载保存在宿主机 `backend/data/wsw.db`
      （该目录已被 `.gitignore` 忽略）。详情见下方「数据存储与备份」；
-   - 新增 Python / Node 依赖（改 package.json / requirements.txt）需重新构建：
-     `docker compose up -d --build`；仅改 `frontend/src`、`backend/app` 源码无需重建。
+   - 部署代码更新后，运行 `docker compose up -d --build` 重新生成静态文件和镜像；
+   - 前端入口不缓存，带内容哈希的 JS/CSS 长期缓存，更新部署后浏览器会加载新版本。
 
 4. 启用 FRP 内网穿透（可选）：先在 `.env` 填写 `FRP_SERVER_ADDR`、`FRP_TOKEN` 和远端端口，再运行：
 
@@ -62,8 +54,29 @@
    docker compose --profile tunnel up -d
    ```
 
-   `frpc`（仅该 profile 启动）会把远端 `FRP_REMOTE_PORT` 转发到前端容器的 8889 端口。
+   `frpc`（仅该 profile 启动）会把远端 `FRP_REMOTE_PORT` 转发到前端容器的 80 端口。
    对应的 `frps` 服务端需允许该 TCP 端口。
+
+## Docker Compose 热部署开发
+
+开发时叠加 `docker-compose.dev.yml`，即可保留原来的源码同步和页面自动刷新能力：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+- 后端挂载 `./backend/app` 并通过 `uvicorn --reload` 运行，Python 文件变化后自动重载；
+- 前端挂载 `./frontend` 并通过 Vite 运行，Vue、JavaScript、CSS 等文件变化后通过 HMR
+  自动更新页面；`/api` 代理到 Compose 网络内的后端；
+- 访问地址仍为 `http://localhost:<WEB_PORT>`（默认 `8080`）；
+- `node_modules` 保留在容器卷中，避免宿主机与 Linux 容器的依赖不兼容；
+- 修改依赖清单后需要再次加 `--build`，只改源码无需重建镜像。
+
+后台运行时可在命令末尾加 `-d`。停止该开发环境：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+```
 
 ## 本地开发（不经 Docker）
 
