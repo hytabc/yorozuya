@@ -908,3 +908,67 @@ def test_staff_role_management_and_public_directory(monkeypatch):
         assert public_profile.status_code == 200
         assert public_profile.json()["qq"] == "123456789"
         assert client.get(f"/api/users/{target_id}").status_code == 401
+
+
+def test_user_profile_photos_upload_limits_task_visibility_and_moderation(monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "sugar_upload_dir", str(tmp_path / "uploads"))
+    with TestClient(app) as client:
+        owner = auth(client, "photo_owner", role="volunteer")
+        viewer = auth(client, "photo_viewer")
+        owner_id = client.get("/api/auth/me", headers=owner).json()["id"]
+        admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
+        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        files = [("photos", (f"photo-{i}.png", TINY_PNG, "image/png")) for i in range(3)]
+        uploaded = client.post("/api/users/me/photos", headers=owner, files=files)
+        assert uploaded.status_code == 201, uploaded.text
+        assert len(uploaded.json()["photos"]) == 3
+        assert all(photo["image_url"].startswith("/uploads/users/") for photo in uploaded.json()["photos"])
+        assert len(list((tmp_path / "uploads" / "users" / str(owner_id)).iterdir())) == 3
+
+        over_count = client.post(
+            "/api/users/me/photos",
+            headers=owner,
+            files=[("photos", ("fourth.png", TINY_PNG, "image/png"))],
+        )
+        assert over_count.status_code == 422
+        too_large = client.post(
+            "/api/users/me/photos",
+            headers=viewer,
+            files=[("photos", ("large.png", b"\x89PNG\r\n\x1a\n" + b"0" * (5 * 1024 * 1024), "image/png"))],
+        )
+        assert too_large.status_code == 422
+
+        # 图片会随委托中的用户摘要返回，便于接取前查看委托人资料。
+        task = create_task(client, owner, password=None, required=1, title="带个人图片的委托")
+        task_detail = client.get(f"/api/tasks/{task['id']}", headers=viewer).json()
+        assert len(task_detail["publisher"]["photos"]) == 3
+
+        photo_id = uploaded.json()["photos"][0]["id"]
+        assert client.patch(
+            f"/api/admin/photos/{photo_id}", headers=viewer, json={"is_visible": False}
+        ).status_code == 403
+        hidden = client.patch(
+            f"/api/admin/photos/{photo_id}", headers=admin, json={"is_visible": False}
+        )
+        assert hidden.status_code == 200
+        assert next(photo for photo in hidden.json()["photos"] if photo["id"] == photo_id)["is_visible"] is False
+
+        # 名录资料对访客公开，但被屏蔽图片不会对普通访客返回；本人仍可管理它。
+        public_profile = client.get(f"/api/users/{owner_id}").json()
+        assert len(public_profile["photos"]) == 2
+        self_profile = client.get(f"/api/users/{owner_id}", headers=owner).json()
+        assert len(self_profile["photos"]) == 3
+
+        staff = auth(client, "photo_staff")
+        staff_id = client.get("/api/auth/me", headers=staff).json()["id"]
+        client.patch(f"/api/admin/users/{staff_id}/role", headers=admin, json={"role": "staff"})
+        restored = client.patch(
+            f"/api/admin/photos/{photo_id}", headers=staff, json={"is_visible": True}
+        )
+        assert restored.status_code == 200
+        assert all(photo["is_visible"] for photo in restored.json()["photos"])
+
+        deleted = client.delete(f"/api/users/me/photos/{photo_id}", headers=owner)
+        assert deleted.status_code == 200
+        assert len(deleted.json()["photos"]) == 2

@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { CalendarDays, Check, Copy, Heart, MessageCircle, Store } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
+import UserProfileCard from '../components/UserProfileCard.vue'
 
 const toast = useToast()
 const loading = ref(true)
@@ -11,6 +12,7 @@ const groupChatId = ref('')
 const staff = ref([])
 const volunteers = ref([])
 const copied = ref(false)
+const selectedUserId = ref(null)
 
 const joined = (value) =>
   new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' }).format(new Date(value))
@@ -61,7 +63,7 @@ onMounted(async () => {
         <div class="directory-heading"><Store :size="19" /><h2 id="staff-heading">店员</h2><span>{{ staff.length }} 人</span></div>
         <div v-if="!staff.length" class="staff-empty compact"><strong>暂时没有可联系的店员</strong></div>
         <div v-else class="staff-grid">
-          <article v-for="member in staff" :key="member.id" class="staff-card">
+          <button v-for="member in staff" :key="member.id" class="staff-card" type="button" @click="selectedUserId = member.id">
             <header>
               <span class="user-avatar-lg">{{ member.nickname.slice(0, 1) }}</span>
               <div><h3>{{ member.nickname }}</h3><span class="role-tag role-staff"><Store :size="13" />店员</span></div>
@@ -71,7 +73,7 @@ onMounted(async () => {
               <span><MessageCircle :size="15" />QQ：<strong>{{ member.qq || '未填写' }}</strong></span>
               <span><CalendarDays :size="15" />{{ joined(member.created_at) }} 加入</span>
             </footer>
-          </article>
+          </button>
         </div>
       </section>
 
@@ -79,7 +81,7 @@ onMounted(async () => {
         <div class="directory-heading"><Heart :size="19" /><h2 id="volunteer-heading">志愿者</h2><span>{{ volunteers.length }} 人</span></div>
         <div v-if="!volunteers.length" class="staff-empty compact"><strong>暂时没有志愿者</strong></div>
         <div v-else class="staff-grid">
-          <article v-for="member in volunteers" :key="member.id" class="staff-card volunteer-card">
+          <button v-for="member in volunteers" :key="member.id" class="staff-card volunteer-card" type="button" @click="selectedUserId = member.id">
             <header>
               <span class="user-avatar-lg">{{ member.nickname.slice(0, 1) }}</span>
               <div><h3>{{ member.nickname }}</h3><span class="role-tag role-volunteer"><Heart :size="13" />志愿者</span></div>
@@ -89,9 +91,12 @@ onMounted(async () => {
               <span><MessageCircle :size="15" />QQ：<strong>{{ member.qq || '未填写' }}</strong></span>
               <span><CalendarDays :size="15" />{{ joined(member.created_at) }} 加入</span>
             </footer>
-          </article>
+          </button>
         </div>
       </section>
     </template>
+    <div v-if="selectedUserId" class="modal-backdrop" @mousedown.self="selectedUserId = null">
+      <UserProfileCard :user-id="selectedUserId" class="directory-profile-dialog" @close="selectedUserId = null" />
+    </div>
   </div>
 </template>

@@ -70,6 +70,31 @@ class User(Base):
         foreign_keys="TaskMember.user_id", back_populates="user"
     )
     sugar_profile: Mapped["SugarProfile | None"] = relationship(back_populates="user", uselist=False)
+    photos: Mapped[list["UserPhoto"]] = relationship(
+        foreign_keys="UserPhoto.user_id",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        order_by="UserPhoto.created_at",
+    )
+
+
+class UserPhoto(Base):
+    __tablename__ = "user_photos"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    file_path: Mapped[str] = mapped_column(String(255), unique=True)
+    is_visible: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    moderated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    moderated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    user: Mapped[User] = relationship(foreign_keys=[user_id], back_populates="photos")
+    moderated_by: Mapped[User | None] = relationship(foreign_keys=[moderated_by_id])
+
+    @property
+    def image_url(self) -> str:
+        return f"/uploads/{self.file_path}"
 
 
 class Task(Base):

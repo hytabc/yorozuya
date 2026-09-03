@@ -27,6 +27,7 @@ from .models import (
     TaskMember,
     TaskStatus,
     User,
+    UserPhoto,
     UserRole,
 )
 from .schemas import (
@@ -36,6 +37,7 @@ from .schemas import (
     AdminUserLimitUpdate,
     AdminUserOut,
     AdminUserRoleUpdate,
+    AdminPhotoUpdate,
     FeedbackCreate,
     FeedbackOut,
     FeedbackUpdate,
@@ -51,7 +53,9 @@ from .schemas import (
     SugarProfileCardOut,
     SugarProfileDetailOut,
     TokenResponse,
+    UserPublic,
     UserProfileOut,
+    UserPhotoOut,
     UserSelf,
     UserUpdate,
 )
@@ -159,6 +163,15 @@ def migrate_schema() -> None:
                     "WHERE assignee_id IS NOT NULL AND required_takers IS NULL"
                 )
             )
+        # 用户介绍页图片使用独立表；文件仍统一落在 uploads 挂载目录。
+        if inspector.has_table("user_photos"):
+            photo_columns = {column["name"] for column in inspector.get_columns("user_photos")}
+            if "is_visible" not in photo_columns:
+                connection.execute(text("ALTER TABLE user_photos ADD COLUMN is_visible BOOLEAN NOT NULL DEFAULT 1"))
+            if "moderated_by_id" not in photo_columns:
+                connection.execute(text("ALTER TABLE user_photos ADD COLUMN moderated_by_id INTEGER"))
+            if "moderated_at" not in photo_columns:
+                connection.execute(text("ALTER TABLE user_photos ADD COLUMN moderated_at DATETIME"))
 
 
 @asynccontextmanager
@@ -192,7 +205,31 @@ def expire_due_tasks(db: Session) -> None:
 
 
 def task_query():
-    return select(Task).options(joinedload(Task.publisher), joinedload(Task.members).joinedload(TaskMember.user))
+    return select(Task).options(
+        joinedload(Task.publisher).joinedload(User.photos),
+        joinedload(Task.members).joinedload(TaskMember.user).joinedload(User.photos),
+    )
+
+
+def visible_user_photos(user: User, viewer: User | None = None) -> list[UserPhotoOut]:
+    """资料主人和审核人员可看全部；其他访问者只能看已通过展示的图片。"""
+    can_manage = viewer is not None and (viewer.id == user.id or viewer.is_admin or viewer.role == UserRole.STAFF)
+    return [
+        UserPhotoOut(id=photo.id, image_url=photo.image_url, is_visible=photo.is_visible)
+        for photo in user.photos
+        if can_manage or photo.is_visible
+    ]
+
+
+def present_user_public(user: User, viewer: User | None = None) -> UserPublic:
+    return UserPublic(id=user.id, nickname=user.nickname, bio=user.bio, photos=visible_user_photos(user, viewer))
+
+
+def present_user_profile(user: User, viewer: User | None = None) -> UserProfileOut:
+    return UserProfileOut(
+        id=user.id, nickname=user.nickname, bio=user.bio, qq=user.qq, is_admin=user.is_admin,
+        role=user.role, created_at=user.created_at, photos=visible_user_photos(user, viewer),
+    )
 
 
 def present_members(task: Task, viewer: User | None) -> list[TaskMemberOut]:
@@ -200,7 +237,10 @@ def present_members(task: Task, viewer: User | None) -> list[TaskMemberOut]:
     can_see_qq = viewer is not None and (viewer.is_admin or viewer.id == task.publisher_id or any(m.user_id == viewer.id for m in task.members))
     out: list[TaskMemberOut] = []
     for member in task.members:
-        item = TaskMemberOut.model_validate(member)
+        item = TaskMemberOut(
+            user=present_user_public(member.user, viewer), joined_at=member.joined_at,
+            confirmed_at=member.confirmed_at, cancel_confirmed_at=member.cancel_confirmed_at,
+        )
         if can_see_qq:
             item.qq = member.user.qq
         out.append(item)
@@ -209,6 +249,7 @@ def present_members(task: Task, viewer: User | None) -> list[TaskMemberOut]:
 
 def present_task(task: Task, viewer: User | None = None) -> TaskOut:
     data = TaskOut.model_validate(task)
+    data.publisher = present_user_public(task.publisher, viewer)
     data.members = present_members(task, viewer)
     if viewer is None:
         return data
@@ -478,14 +519,92 @@ def update_profile(payload: UserUpdate, user: User = Depends(get_current_user), 
     return user
 
 
+MAX_USER_PHOTOS = 3
+
+
+def user_with_photos_query():
+    return select(User).options(joinedload(User.photos))
+
+
+async def save_user_photos(photos: list[UploadFile], user: User, db: Session) -> User:
+    if len(photos) > MAX_USER_PHOTOS:
+        raise HTTPException(status_code=422, detail=f"最多上传 {MAX_USER_PHOTOS} 张图片")
+    images = await read_sugar_images(photos)
+    existing = len(user.photos)
+    if existing + len(images) > MAX_USER_PHOTOS:
+        raise HTTPException(status_code=422, detail=f"每位用户最多保存 {MAX_USER_PHOTOS} 张图片")
+    records = store_user_images(user, images)
+    db.add_all(records)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        for record in records:
+            try:
+                (settings.sugar_upload_path / record.file_path).unlink(missing_ok=True)
+            except OSError:
+                pass
+        raise
+    db.refresh(user)
+    return user
+
+
+def store_user_images(user: User, images: list[tuple[str, bytes]]) -> list[UserPhoto]:
+    settings.ensure_storage_directory()
+    stored: list[tuple[str, Path]] = []
+    try:
+        for extension, content in images:
+            file_path = f"users/{user.id}/{uuid4().hex}{extension}"
+            destination = settings.sugar_upload_path / file_path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(content)
+            stored.append((file_path, destination))
+    except OSError as error:
+        for _, destination in stored:
+            destination.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail="图片保存失败，请稍后重试") from error
+    return [UserPhoto(user=user, file_path=file_path) for file_path, _ in stored]
+
+
+@app.post("/api/users/me/photos", response_model=UserProfileOut, status_code=status.HTTP_201_CREATED)
+async def upload_user_photos(
+    photos: list[UploadFile] = File(default=[]),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not photos:
+        raise HTTPException(status_code=422, detail="请选择要上传的图片")
+    user = await save_user_photos(photos, user, db)
+    return present_user_profile(user, user)
+
+
+@app.delete("/api/users/me/photos/{photo_id}", response_model=UserProfileOut)
+def delete_user_photo(photo_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    photo = db.get(UserPhoto, photo_id)
+    if photo is None or photo.user_id != user.id:
+        raise HTTPException(status_code=404, detail="图片不存在")
+    path = photo.file_path
+    db.delete(photo)
+    db.commit()
+    root = settings.sugar_upload_path.resolve()
+    destination = (root / path).resolve()
+    if destination.is_relative_to(root):
+        try:
+            destination.unlink(missing_ok=True)
+        except OSError:
+            pass
+    db.refresh(user)
+    return present_user_profile(user, user)
+
+
 @app.get("/api/users/{user_id}", response_model=UserProfileOut)
 def user_profile(user_id: int, viewer: User | None = Depends(get_optional_user), db: Session = Depends(get_db)):
-    """店员资料允许匿名查看；其他用户资料维持登录与 QQ 可见性限制。"""
-    target = db.get(User, user_id)
+    """名录中的店员/志愿者允许匿名查看；其他用户资料要求登录。"""
+    target = db.scalar(user_with_photos_query().where(User.id == user_id))
     if target is None or not target.is_active:
         raise HTTPException(status_code=404, detail="用户不存在")
-    data = UserProfileOut.model_validate(target)
-    if target.role == UserRole.STAFF:
+    data = present_user_profile(target, viewer)
+    if target.role in (UserRole.STAFF, UserRole.VOLUNTEER):
         return data
     if viewer is None:
         raise HTTPException(status_code=401, detail="请先登录")
@@ -497,19 +616,15 @@ def user_profile(user_id: int, viewer: User | None = Depends(get_optional_user),
 @app.get("/api/staff", response_model=StaffDirectoryOut)
 def staff_directory(db: Session = Depends(get_db)):
     staff = db.scalars(
-        select(User)
-        .where(User.role == UserRole.STAFF, User.is_active.is_(True), User.is_admin.is_(False))
-        .order_by(User.created_at.asc())
-    ).all()
+        user_with_photos_query().where(User.role == UserRole.STAFF, User.is_active.is_(True), User.is_admin.is_(False)).order_by(User.created_at.asc())
+    ).unique().all()
     volunteers = db.scalars(
-        select(User)
-        .where(User.role == UserRole.VOLUNTEER, User.is_active.is_(True), User.is_admin.is_(False))
-        .order_by(User.created_at.asc())
-    ).all()
+        user_with_photos_query().where(User.role == UserRole.VOLUNTEER, User.is_active.is_(True), User.is_admin.is_(False)).order_by(User.created_at.asc())
+    ).unique().all()
     return StaffDirectoryOut(
         group_chat_id=settings.staff_group_id,
-        staff=[UserProfileOut.model_validate(user) for user in staff],
-        volunteers=[UserProfileOut.model_validate(user) for user in volunteers],
+        staff=[present_user_profile(user) for user in staff],
+        volunteers=[present_user_profile(user) for user in volunteers],
     )
 
 
@@ -1070,13 +1185,37 @@ def admin_users(manager: User = Depends(get_role_manager), db: Session = Depends
     query = select(User).order_by(User.created_at.desc())
     if not manager.is_admin:
         query = query.where(User.is_admin.is_(False))
-    users = db.scalars(query).all()
+    users = db.scalars(query.options(joinedload(User.photos))).unique().all()
     return [
         AdminUserOut.model_validate(user).model_copy(
             update={"active_task_count": active_task_count(db, user.id)}
         )
         for user in users
     ]
+
+
+@app.get("/api/admin/photos", response_model=list[UserProfileOut])
+def admin_photos(_: User = Depends(get_role_manager), db: Session = Depends(get_db)):
+    users = db.scalars(user_with_photos_query().order_by(User.created_at.desc())).unique().all()
+    return [present_user_profile(user, _) for user in users if user.photos]
+
+
+@app.patch("/api/admin/photos/{photo_id}", response_model=UserProfileOut)
+def moderate_user_photo(
+    photo_id: int,
+    payload: AdminPhotoUpdate,
+    manager: User = Depends(get_role_manager),
+    db: Session = Depends(get_db),
+):
+    photo = db.get(UserPhoto, photo_id)
+    if photo is None:
+        raise HTTPException(status_code=404, detail="图片不存在")
+    photo.is_visible = payload.is_visible
+    photo.moderated_by_id = manager.id
+    photo.moderated_at = datetime.utcnow()
+    db.commit()
+    user = db.scalar(user_with_photos_query().where(User.id == photo.user_id))
+    return present_user_profile(user, manager)
 
 
 @app.patch("/api/admin/users/{user_id}/task-limit", response_model=AdminUserOut)

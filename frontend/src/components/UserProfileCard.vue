@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-import { CalendarDays, Heart, KeyRound, MessageCircle, ShieldCheck, Store, UserRound, X } from 'lucide-vue-next'
+import { CalendarDays, EyeOff, Heart, KeyRound, MessageCircle, ShieldCheck, Store, UserRound, X } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
 import { roleLabel } from '../constants'
 
@@ -39,6 +39,12 @@ onMounted(async () => {
       </div>
       <p v-if="user.bio" class="user-card-bio">{{ user.bio }}</p>
       <p v-else class="user-card-bio muted">这个人还没有填写简介。</p>
+      <div v-if="user.photos?.length" class="user-profile-photos">
+        <figure v-for="photo in user.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
+          <img :src="photo.image_url" :alt="`${user.nickname} 的介绍图片`" />
+          <span v-if="!photo.is_visible"><EyeOff :size="13" />已屏蔽</span>
+        </figure>
+      </div>
       <div v-if="user.qq" class="user-card-qq"><MessageCircle :size="15" /><span><strong>QQ：{{ user.qq }}</strong><small>{{ user.role === 'staff' ? '店员联系方式对所有人公开' : '你们已建立委托协作，联系方式已向你开放' }}</small></span></div>
       <div v-else class="user-card-qq muted"><KeyRound :size="15" /><span><strong>暂无可见联系方式</strong><small>仅共同协作者可见对方 QQ</small></span></div>
     </template>

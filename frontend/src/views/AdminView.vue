@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, MessageCircle, RotateCcw, Save, Search, ShieldCheck, Store, UsersRound } from 'lucide-vue-next'
+import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, Image as ImageIcon, MessageCircle, RotateCcw, Save, Search, ShieldCheck, Store, UsersRound } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
@@ -14,6 +14,7 @@ const router = useRouter()
 const tasks = ref([])
 const users = ref([])
 const feedbacks = ref([])
+const photoUsers = ref([])
 const userLimits = reactive({})
 const stats = ref({ users: 0, tasks: 0, processing: 0, completed: 0, hidden: 0 })
 const activeTab = ref(auth.isAdmin ? 'tasks' : 'users')
@@ -35,26 +36,36 @@ async function load() {
   loading.value = true
   try {
     if (!auth.isAdmin) {
-      const { data } = await api.get('/admin/users')
-      users.value = data
+      const [userRes, photoRes] = await Promise.all([api.get('/admin/users'), api.get('/admin/photos')])
+      users.value = userRes.data
+      photoUsers.value = photoRes.data
       return
     }
-    const [taskRes, userRes, statRes, feedbackRes] = await Promise.all([
+    const [taskRes, userRes, statRes, feedbackRes, photoRes] = await Promise.all([
       api.get('/admin/tasks'),
       api.get('/admin/users'),
       api.get('/admin/stats'),
       api.get('/admin/feedback'),
+      api.get('/admin/photos'),
     ])
     tasks.value = taskRes.data
     users.value = userRes.data
     stats.value = statRes.data
     feedbacks.value = feedbackRes.data
+    photoUsers.value = photoRes.data
     users.value.forEach((user) => { userLimits[user.id] = user.max_concurrent_tasks })
   } catch (error) {
     toast.error(errorMessage(error))
   } finally {
     loading.value = false
   }
+}
+async function togglePhoto(user, photo) {
+  try {
+    const { data } = await api.patch(`/admin/photos/${photo.id}`, { is_visible: !photo.is_visible })
+    photoUsers.value[photoUsers.value.findIndex((item) => item.id === user.id)] = data
+    toast.success(photo.is_visible ? '图片已屏蔽' : '图片已恢复展示')
+  } catch (error) { toast.error(errorMessage(error)) }
 }
 async function saveUserLimit(user) {
   savingUserId.value = user.id
@@ -133,10 +144,11 @@ onMounted(load)
     <div class="page-title"><div><span class="eyebrow"><component :is="auth.isAdmin ? ShieldCheck : Store" :size="15" />{{ auth.isAdmin ? 'ADMIN CONSOLE' : 'STAFF CONSOLE' }}</span><h1>{{ auth.isAdmin ? '委托监管台' : '用户权限管理' }}</h1><p>{{ auth.isAdmin ? '查看平台运行状态，管理委托、用户权限与接单额度。' : '将非管理员账号设置为普通用户或志愿者。' }}</p></div></div>
     <div v-if="auth.isAdmin" class="admin-stats"><div v-for="item in statItems" :key="item.label"><component :is="item.icon" :size="20" /><span>{{ item.label }}</span><strong>{{ item.value }}</strong></div></div>
 
-    <div v-if="auth.isAdmin" class="tabs admin-tabs" role="tablist" aria-label="后台管理内容">
-      <button :class="{ active: activeTab === 'tasks' }" role="tab" :aria-selected="activeTab === 'tasks'" @click="activeTab = 'tasks'">委托管理</button>
+    <div class="tabs admin-tabs" role="tablist" aria-label="后台管理内容">
+      <button v-if="auth.isAdmin" :class="{ active: activeTab === 'tasks' }" role="tab" :aria-selected="activeTab === 'tasks'" @click="activeTab = 'tasks'">委托管理</button>
       <button :class="{ active: activeTab === 'users' }" role="tab" :aria-selected="activeTab === 'users'" @click="activeTab = 'users'">用户与权限</button>
-      <button :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
+      <button :class="{ active: activeTab === 'photos' }" role="tab" :aria-selected="activeTab === 'photos'" @click="activeTab = 'photos'">图片管理</button>
+      <button v-if="auth.isAdmin" :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
     </div>
 
     <section v-if="auth.isAdmin && activeTab === 'tasks'" class="admin-table-section">
@@ -183,6 +195,25 @@ onMounted(load)
           </tbody>
         </table>
       </div>
+    </section>
+
+    <section v-else-if="activeTab === 'photos'" class="admin-table-section">
+      <div class="admin-toolbar"><div><h2>用户介绍图片</h2><span>不适合展示的图片可手动屏蔽</span></div></div>
+      <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
+      <div v-else-if="photoUsers.length" class="moderation-users">
+        <section v-for="user in photoUsers" :key="user.id" class="moderation-user">
+          <header><strong>{{ user.nickname }}</strong><span>#{{ user.id }} · {{ roleLabel(user) }}</span></header>
+          <div class="moderation-photo-grid">
+            <figure v-for="photo in user.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
+              <img :src="photo.image_url" :alt="`${user.nickname} 的介绍图片`" />
+              <button class="button secondary small" type="button" @click="togglePhoto(user, photo)">
+                <EyeOff v-if="photo.is_visible" :size="15" /><Eye v-else :size="15" />{{ photo.is_visible ? '屏蔽' : '恢复' }}
+              </button>
+            </figure>
+          </div>
+        </section>
+      </div>
+      <div v-else class="feedback-admin-empty"><ImageIcon :size="28" />暂无用户图片</div>
     </section>
 
     <section v-else-if="auth.isAdmin && activeTab === 'feedback'" class="admin-table-section">

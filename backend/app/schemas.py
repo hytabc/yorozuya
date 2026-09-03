@@ -52,10 +52,17 @@ class LoginRequest(RequestModel):
     password: str
 
 
+class UserPhotoOut(ApiModel):
+    id: int
+    image_url: str
+    is_visible: bool = True
+
+
 class UserPublic(ApiModel):
     id: int
     nickname: str
     bio: str | None = None
+    photos: list[UserPhotoOut] = []
 
 
 class UserProfileOut(ApiModel):
@@ -67,6 +74,7 @@ class UserProfileOut(ApiModel):
     is_admin: bool = False
     role: UserRole = UserRole.USER
     created_at: datetime
+    photos: list[UserPhotoOut] = []
 
 
 class UserSelf(UserPublic):
@@ -177,10 +185,15 @@ class AdminUserOut(ApiModel):
     max_concurrent_tasks: int
     active_task_count: int = 0
     created_at: datetime
+    photos: list[UserPhotoOut] = []
 
 
 class AdminUserRoleUpdate(RequestModel):
     role: Literal["user", "volunteer", "staff"]
+
+
+class AdminPhotoUpdate(RequestModel):
+    is_visible: bool
 
 
 class StaffDirectoryOut(BaseModel):

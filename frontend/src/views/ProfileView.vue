@@ -1,6 +1,6 @@
 <script setup>
-import { reactive, ref } from 'vue'
-import { CalendarDays, Heart, Save, ShieldCheck, Store, UserRound } from 'lucide-vue-next'
+import { computed, reactive, ref } from 'vue'
+import { CalendarDays, EyeOff, Heart, ImagePlus, Save, ShieldCheck, Store, Trash2, UserRound } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
@@ -9,12 +9,40 @@ import { roleLabel, ROLE_HINTS } from '../constants'
 const auth = useAuthStore()
 const toast = useToast()
 const busy = ref(false)
+const photoBusy = ref(false)
+const photos = ref(auth.user.photos || [])
+const remaining = computed(() => Math.max(0, 3 - photos.value.length))
 const form = reactive({ nickname: auth.user.nickname, qq: auth.user.qq || '', bio: auth.user.bio || '' })
 const joined = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' }).format(new Date(auth.user.created_at))
 async function save() {
   busy.value = true
   try { const { data } = await api.patch('/users/me', form); auth.updateUser(data); toast.success('个人资料已保存') }
   catch (error) { toast.error(errorMessage(error)) } finally { busy.value = false }
+}
+async function uploadPhotos(event) {
+  const files = [...event.target.files]
+  event.target.value = ''
+  if (!files.length) return
+  if (files.length > remaining.value) return toast.error(`还可以上传 ${remaining.value} 张图片`)
+  if (files.some((file) => file.size > 5 * 1024 * 1024)) return toast.error('单张图片不能超过 5 MiB')
+  const body = new FormData()
+  files.forEach((file) => body.append('photos', file))
+  photoBusy.value = true
+  try {
+    const { data } = await api.post('/users/me/photos', body)
+    photos.value = data.photos
+    auth.updateUser({ ...auth.user, photos: data.photos })
+    toast.success('图片已上传')
+  } catch (error) { toast.error(errorMessage(error)) } finally { photoBusy.value = false }
+}
+async function deletePhoto(photo) {
+  photoBusy.value = true
+  try {
+    const { data } = await api.delete(`/users/me/photos/${photo.id}`)
+    photos.value = data.photos
+    auth.updateUser({ ...auth.user, photos: data.photos })
+    toast.success('图片已删除')
+  } catch (error) { toast.error(errorMessage(error)) } finally { photoBusy.value = false }
 }
 </script>
 
@@ -45,6 +73,20 @@ async function save() {
           <label>个人简介<textarea v-model.trim="form.bio" maxlength="300" rows="6" placeholder="简单介绍你擅长的事情、空闲时间等"></textarea><small>{{ form.bio.length }}/300</small></label>
           <div><button class="button" :disabled="busy"><Save :size="17" />{{ busy ? '保存中…' : '保存更改' }}</button></div>
         </form>
+        <div class="profile-photo-section">
+          <div class="section-heading compact"><div><span class="section-index">02</span><h2>介绍图片</h2><p>最多 3 张，单张不超过 5 MiB</p></div></div>
+          <div class="photo-grid profile-photo-grid">
+            <figure v-for="photo in photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
+              <img :src="photo.image_url" alt="个人介绍图片" />
+              <span v-if="!photo.is_visible" class="photo-blocked"><EyeOff :size="14" />已屏蔽</span>
+              <button class="icon-button photo-delete" type="button" title="删除图片" aria-label="删除图片" :disabled="photoBusy" @click="deletePhoto(photo)"><Trash2 :size="16" /></button>
+            </figure>
+            <label v-if="remaining" class="photo-add" :class="{ disabled: photoBusy }">
+              <ImagePlus :size="24" /><span>{{ photoBusy ? '上传中…' : '添加图片' }}</span>
+              <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple :disabled="photoBusy" @change="uploadPhotos" />
+            </label>
+          </div>
+        </div>
       </section>
     </div>
   </div>
