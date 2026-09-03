@@ -4,16 +4,20 @@ import { CalendarDays, EyeOff, Heart, KeyRound, MessageCircle, ShieldCheck, Stor
 import { api, errorMessage } from '../api'
 import { roleLabel } from '../constants'
 
-const props = defineProps({ userId: { type: Number, required: true } })
+const props = defineProps({
+  userId: { type: Number, default: null },
+  initialUser: { type: Object, default: null },
+})
 const emit = defineEmits(['close'])
-const loading = ref(true)
+const loading = ref(!props.initialUser)
 const error = ref('')
-const user = ref(null)
+const user = ref(props.initialUser)
 
 const joined = (value) =>
   new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' }).format(new Date(value))
 
 onMounted(async () => {
+  if (props.initialUser) return
   try {
     user.value = (await api.get(`/users/${props.userId}`)).data
   } catch (err) {
@@ -45,8 +49,8 @@ onMounted(async () => {
           <span v-if="!photo.is_visible"><EyeOff :size="13" />已屏蔽</span>
         </figure>
       </div>
-      <div v-if="user.qq" class="user-card-qq"><MessageCircle :size="15" /><span><strong>QQ：{{ user.qq }}</strong><small>{{ user.role === 'staff' ? '店员联系方式对所有人公开' : '你们已建立委托协作，联系方式已向你开放' }}</small></span></div>
-      <div v-else class="user-card-qq muted"><KeyRound :size="15" /><span><strong>暂无可见联系方式</strong><small>仅共同协作者可见对方 QQ</small></span></div>
+      <div v-if="user.qq" class="user-card-qq"><MessageCircle :size="15" /><span><strong>QQ：{{ user.qq }}</strong><small>{{ user.role === 'staff' ? '店员联系方式对所有人公开' : (user.qq_public ? '该志愿者已选择公开联系方式' : '你们已建立委托协作，联系方式已向你开放') }}</small></span></div>
+      <div v-else class="user-card-qq muted"><KeyRound :size="15" /><span><strong>暂无可见联系方式</strong><small>{{ user.role === 'volunteer' && !user.qq_public ? '该志愿者未在成员名录中公开 QQ' : '仅共同协作者可见对方 QQ' }}</small></span></div>
     </template>
   </section>
 </template>

@@ -102,6 +102,8 @@ def migrate_schema() -> None:
                 )
             if "role" not in user_columns:
                 connection.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(16) NOT NULL DEFAULT 'user'"))
+            if "qq_public" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN qq_public BOOLEAN NOT NULL DEFAULT 0"))
         if not inspector.has_table("tasks"):
             return
         task_columns = {column["name"] for column in inspector.get_columns("tasks")}
@@ -234,7 +236,8 @@ def present_user_public(user: User, viewer: User | None = None) -> UserPublic:
 
 def present_user_profile(user: User, viewer: User | None = None) -> UserProfileOut:
     return UserProfileOut(
-        id=user.id, nickname=user.nickname, bio=user.bio, qq=user.qq, is_admin=user.is_admin,
+        id=user.id, nickname=user.nickname, bio=user.bio, qq=user.qq, qq_public=user.qq_public,
+        is_admin=user.is_admin,
         role=user.role, created_at=user.created_at, photos=visible_user_photos(user, viewer),
     )
 
@@ -314,10 +317,14 @@ def shares_task_with(db: Session, viewer_id: int, target_id: int) -> bool:
     return bool(viewer_tasks & target_tasks)
 
 
-def can_view_user_qq(db: Session, viewer: User, target: User) -> bool:
-    """店员 QQ 完全公开；其他账号仅本人/管理员/协作者或招募中的委托人可见。"""
+def can_view_user_qq(db: Session, viewer: User | None, target: User) -> bool:
+    """店员及主动公开的志愿者对外可见；原有协作关系始终优先放行。"""
     if target.role == UserRole.STAFF:
         return True
+    if target.role == UserRole.VOLUNTEER and target.qq_public:
+        return True
+    if viewer is None:
+        return False
     if viewer.is_admin or viewer.id == target.id:
         return True
     if shares_task_with(db, viewer.id, target.id):
@@ -540,6 +547,7 @@ def me(user: User = Depends(get_current_user)):
 def update_profile(payload: UserUpdate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     user.nickname = payload.nickname.strip()
     user.qq = payload.qq
+    user.qq_public = payload.qq_public if user.role == UserRole.VOLUNTEER else False
     user.bio = payload.bio.strip() if payload.bio else None
     db.commit()
     db.refresh(user)
@@ -626,14 +634,12 @@ def delete_user_photo(photo_id: int, user: User = Depends(get_current_user), db:
 
 @app.get("/api/users/{user_id}", response_model=UserProfileOut)
 def user_profile(user_id: int, viewer: User | None = Depends(get_optional_user), db: Session = Depends(get_db)):
-    """名录中的店员/志愿者允许匿名查看；其他用户资料要求登录。"""
+    """名录中的店员/志愿者允许匿名查看，QQ 仍按公开偏好和协作关系脱敏。"""
     target = db.scalar(user_with_photos_query().where(User.id == user_id))
     if target is None or not target.is_active:
         raise HTTPException(status_code=404, detail="用户不存在")
     data = present_user_profile(target, viewer)
-    if target.role in (UserRole.STAFF, UserRole.VOLUNTEER):
-        return data
-    if viewer is None:
+    if target.role not in (UserRole.STAFF, UserRole.VOLUNTEER) and viewer is None:
         raise HTTPException(status_code=401, detail="请先登录")
     if not can_view_user_qq(db, viewer, target):
         data.qq = None
@@ -651,7 +657,10 @@ def staff_directory(db: Session = Depends(get_db)):
     return StaffDirectoryOut(
         group_chat_id=settings.staff_group_id,
         staff=[present_user_profile(user) for user in staff],
-        volunteers=[present_user_profile(user) for user in volunteers],
+        volunteers=[
+            present_user_profile(user).model_copy(update={"qq": user.qq if user.qq_public else None})
+            for user in volunteers
+        ],
     )
 
 
@@ -1345,6 +1354,8 @@ def update_user_role(
         raise HTTPException(status_code=409, detail="管理员账号的权限等级不可修改")
     if not manager.is_admin and payload.role == UserRole.STAFF:
         raise HTTPException(status_code=403, detail="只有管理员可以授予店员权限")
+    if payload.role == UserRole.VOLUNTEER and user.role != UserRole.VOLUNTEER:
+        user.qq_public = False
     user.role = payload.role
     db.commit()
     db.refresh(user)

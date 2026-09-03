@@ -889,7 +889,7 @@ def test_staff_role_management_and_public_directory(monkeypatch):
             json={"max_concurrent_tasks": 5},
         ).status_code == 403
 
-        # 成员名录中的店员与志愿者完整资料无需登录即可查看。
+        # 店员 QQ 公开；志愿者 QQ 默认隐藏。
         directory = client.get("/api/staff")
         assert directory.status_code == 200
         assert directory.json()["group_chat_id"] == "987654321"
@@ -901,13 +901,66 @@ def test_staff_role_management_and_public_directory(monkeypatch):
             user for user in directory.json()["volunteers"] if user["id"] == volunteer_me.json()["id"]
         )
         assert public_volunteer["nickname"] == "公开志愿者"
-        assert public_volunteer["qq"] == "223344556"
+        assert public_volunteer["qq"] is None
+        assert public_volunteer["qq_public"] is False
         assert public_volunteer["bio"] == "可协助接取委托"
 
         public_profile = client.get(f"/api/users/{staff_id}")
         assert public_profile.status_code == 200
         assert public_profile.json()["qq"] == "123456789"
+        hidden_volunteer_profile = client.get(f"/api/users/{volunteer_me.json()['id']}")
+        assert hidden_volunteer_profile.status_code == 200
+        assert hidden_volunteer_profile.json()["qq"] is None
+
+        # 志愿者可在个人设置中主动公开，名录与公开资料同步生效。
+        volunteer_me = client.patch(
+            "/api/users/me",
+            headers=volunteer_headers,
+            json={
+                "nickname": "公开志愿者",
+                "qq": "223344556",
+                "qq_public": True,
+                "bio": "可协助接取委托",
+            },
+        )
+        assert volunteer_me.status_code == 200
+        assert volunteer_me.json()["qq_public"] is True
+        directory = client.get("/api/staff").json()
+        public_volunteer = next(
+            user for user in directory["volunteers"] if user["id"] == volunteer_me.json()["id"]
+        )
+        assert public_volunteer["qq"] == "223344556"
+        assert client.get(f"/api/users/{volunteer_me.json()['id']}").json()["qq"] == "223344556"
         assert client.get(f"/api/users/{target_id}").status_code == 401
+
+
+def test_hidden_volunteer_qq_remains_visible_to_task_parties():
+    with TestClient(app) as client:
+        publisher = auth(client, "qq_privacy_publisher")
+        volunteer = auth(client, "qq_privacy_volunteer", role="volunteer")
+        publisher_me = set_qq(client, publisher, "334455667")
+        volunteer_me = set_qq(client, volunteer, "776655443")
+
+        assert volunteer_me["qq_public"] is False
+        directory = client.get("/api/staff").json()
+        listed = next(user for user in directory["volunteers"] if user["id"] == volunteer_me["id"])
+        assert listed["qq"] is None
+
+        task = create_task(client, publisher, password="privacy-task", required=1)
+        accepted = client.post(
+            f"/api/tasks/{task['id']}/accept",
+            headers=volunteer,
+            json={"password": "privacy-task"},
+        )
+        assert accepted.status_code == 200
+
+        as_publisher = client.get(f"/api/tasks/{task['id']}", headers=publisher).json()
+        assert as_publisher["members"][0]["qq"] == "776655443"
+        volunteer_profile = client.get(f"/api/users/{volunteer_me['id']}", headers=publisher).json()
+        assert volunteer_profile["qq"] == "776655443"
+
+        as_volunteer = client.get(f"/api/tasks/{task['id']}", headers=volunteer).json()
+        assert as_volunteer["contact_qq"] == publisher_me["qq"]
 
 
 def test_user_profile_photos_upload_limits_task_visibility_and_moderation(monkeypatch, tmp_path):

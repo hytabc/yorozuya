@@ -66,11 +66,12 @@ class UserPublic(ApiModel):
 
 
 class UserProfileOut(ApiModel):
-    """用户资料；成员名录完整公开店员/志愿者，其他场景按协作关系控制 QQ。"""
+    """用户资料；QQ 按名录公开偏好及协作关系控制可见性。"""
     id: int
     nickname: str
     bio: str | None = None
     qq: str | None = None
+    qq_public: bool = False
     is_admin: bool = False
     role: UserRole = UserRole.USER
     created_at: datetime
@@ -80,6 +81,7 @@ class UserProfileOut(ApiModel):
 class UserSelf(UserPublic):
     username: str
     qq: str | None = None
+    qq_public: bool = False
     is_admin: bool
     is_active: bool
     role: UserRole = UserRole.USER
@@ -90,6 +92,7 @@ class UserSelf(UserPublic):
 class UserUpdate(RequestModel):
     nickname: str = Field(min_length=1, max_length=32)
     qq: str | None = Field(default=None, max_length=20, pattern=r"^[0-9]{5,20}$")
+    qq_public: bool = False
     bio: str | None = Field(default=None, max_length=300)
 
     @field_validator("qq", "bio", mode="before")

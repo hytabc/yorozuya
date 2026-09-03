@@ -12,7 +12,12 @@ const busy = ref(false)
 const photoBusy = ref(false)
 const photos = ref(auth.user.photos || [])
 const remaining = computed(() => Math.max(0, 3 - photos.value.length))
-const form = reactive({ nickname: auth.user.nickname, qq: auth.user.qq || '', bio: auth.user.bio || '' })
+const form = reactive({
+  nickname: auth.user.nickname,
+  qq: auth.user.qq || '',
+  qq_public: Boolean(auth.user.qq_public),
+  bio: auth.user.bio || '',
+})
 const joined = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' }).format(new Date(auth.user.created_at))
 async function save() {
   busy.value = true
@@ -69,7 +74,8 @@ async function deletePhoto(photo) {
         <div class="section-heading compact"><div><span class="section-index">01</span><h2>公开资料</h2><p>昵称和简介会展示在委托中</p></div></div>
         <form class="form-stack" @submit.prevent="save">
           <label>昵称<input v-model.trim="form.nickname" required maxlength="32" /></label>
-          <label>QQ 号<input v-model.trim="form.qq" inputmode="numeric" pattern="[0-9]{5,20}" maxlength="20" placeholder="接单人需要靠它联系你" /><small>{{ ['staff', 'volunteer'].includes(auth.user.role) ? `${roleLabel(auth.user)}的 QQ 和个人资料会向所有访客公开` : '发布委托后，登录用户可在委托详情看到该 QQ，用于洽谈接取' }}</small></label>
+          <label>QQ 号<input v-model.trim="form.qq" inputmode="numeric" pattern="[0-9]{5,20}" maxlength="20" placeholder="接单人需要靠它联系你" /><small>{{ auth.user.role === 'staff' ? '店员 QQ 会在成员名录中向所有访客公开' : '委托双方始终可以看到彼此的 QQ，用于协作联系' }}</small></label>
+          <label v-if="auth.user.role === 'volunteer'" class="checkbox-inline profile-qq-public"><input v-model="form.qq_public" type="checkbox" /><span>在成员名录中公开 QQ 号</span></label>
           <label>个人简介<textarea v-model.trim="form.bio" maxlength="300" rows="6" placeholder="简单介绍你擅长的事情、空闲时间等"></textarea><small>{{ form.bio.length }}/300</small></label>
           <div><button class="button" :disabled="busy"><Save :size="17" />{{ busy ? '保存中…' : '保存更改' }}</button></div>
         </form>

@@ -58,6 +58,7 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     nickname: Mapped[str] = mapped_column(String(32))
     qq: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    qq_public: Mapped[bool] = mapped_column(Boolean, default=False)
     bio: Mapped[str | None] = mapped_column(String(300), nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
