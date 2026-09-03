@@ -721,3 +721,35 @@ def test_user_role_permissions():
         task2 = create_task(client, pub, password="pw-role-2", required=1)
         again_denied = client.post(f"/api/tasks/{task2['id']}/accept", headers=regular, json={"password": "pw-role-2"})
         assert again_denied.status_code == 403
+
+
+def test_passwordless_task_can_be_accepted_by_all_non_admin_roles():
+    with TestClient(app) as client:
+        publisher = auth(client, "open_pub")
+        regular = auth(client, "open_regular")
+        volunteer = auth(client, "open_volunteer", role="volunteer")
+        admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
+        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        task = create_task(client, publisher, password=None, required=2, title="任何用户都能接取的委托")
+        assert task["requires_password"] is False
+
+        joined = client.post(f"/api/tasks/{task['id']}/accept", headers=regular, json={})
+        assert joined.status_code == 200
+        assert joined.json()["status"] == "published"
+        assert len(joined.json()["members"]) == 1
+
+        started = client.post(f"/api/tasks/{task['id']}/accept", headers=volunteer, json={})
+        assert started.status_code == 200
+        assert started.json()["status"] == "accepted"
+        assert len(started.json()["members"]) == 2
+
+        another = create_task(client, publisher, password=None, required=1, title="管理员不能接取的委托")
+        denied = client.post(f"/api/tasks/{another['id']}/accept", headers=admin, json={})
+        assert denied.status_code == 403
+
+        protected = create_task(client, publisher, password="protected-123", required=1, title="仅志愿者接取的委托")
+        assert protected["requires_password"] is True
+        denied = client.post(f"/api/tasks/{protected['id']}/accept", headers=regular, json={"password": "protected-123"})
+        assert denied.status_code == 403
+        assert "志愿者" in denied.json()["detail"]

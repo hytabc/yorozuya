@@ -33,8 +33,8 @@ class FeedbackStatus(str, Enum):
 
 
 class UserRole(str, Enum):
-    USER = "user"  # 普通用户：仅可发布委托
-    VOLUNTEER = "volunteer"  # 志愿者：可发布 + 接取委托（管理员账号可升级）
+    USER = "user"  # 普通用户：可发布委托，也可接取无密码委托
+    VOLUNTEER = "volunteer"  # 志愿者：可发布并接取全部委托（管理员账号可升级）
 
 
 class User(Base):
@@ -82,7 +82,7 @@ class Task(Base):
     is_visible: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     admin_note: Mapped[str | None] = mapped_column(String(200), nullable=True)
     publisher_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    # 委托人设置的接取密码（只存哈希，任何接口都不会回传明文）
+    # 委托人设置的接取密码；null 表示公开接取，否则只存哈希且不回传明文。
     accept_password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # 需要几人接取该委托：null 表示人数不限（仅能由委托人手动点击开始）
     required_takers: Mapped[int | None] = mapped_column(nullable=True)
@@ -113,6 +113,10 @@ class Task(Base):
     )
 
     # ---- 便捷判断 ----
+    @property
+    def requires_password(self) -> bool:
+        return bool(self.accept_password_hash)
+
     @property
     def all_confirmed(self) -> bool:
         """委托人与所有接单人都已确认完成。"""

@@ -32,7 +32,7 @@ async function save() {
             <UserRound v-else :size="15" />{{ roleLabel(auth.user) }}
           </span>
         </div>
-        <p v-if="!auth.isAdmin" class="role-hint muted">{{ auth.user.role === 'volunteer' ? '志愿者：可发布委托，也可接取委托' : '普通用户：可发布委托；接取委托需联系管理员升级为志愿者' }}</p>
+        <p v-if="!auth.isAdmin" class="role-hint muted">{{ auth.user.role === 'volunteer' ? '志愿者：可发布委托，也可接取全部委托' : '普通用户：可发布委托，也可接取无密码委托' }}</p>
         <div class="profile-divider" />
         <span class="profile-since"><CalendarDays :size="16" />{{ joined }} 加入</span>
       </aside>
@@ -48,4 +48,3 @@ async function save() {
     </div>
   </div>
 </template>
-

@@ -456,7 +456,7 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
         expires_at=payload.expires_at,
         publisher_id=user.id,
         required_takers=payload.required_takers,
-        accept_password_hash=hash_password(payload.accept_password),
+        accept_password_hash=hash_password(payload.accept_password) if payload.accept_password else None,
     )
     db.add(task)
     db.commit()
@@ -470,7 +470,7 @@ def accept_task(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """接单人凭密码加入委托（按人数计算：一个账号算一位）。人数足够时自动开始。"""
+    """加入委托（有密码时限志愿者，无密码时普通用户也可加入）。人数足够时自动开始。"""
     expire_due_tasks(db)
     task = get_task_or_404(db, task_id)
     if not task.is_visible:
@@ -479,8 +479,6 @@ def accept_task(
         raise HTTPException(status_code=400, detail="不能接取自己发布的委托")
     if user.is_admin:
         raise HTTPException(status_code=403, detail="管理员不接取委托")
-    if user.role != UserRole.VOLUNTEER:
-        raise HTTPException(status_code=403, detail="只有志愿者可以接取委托，请联系管理员升级")
     if task.status != TaskStatus.PUBLISHED:
         raise HTTPException(status_code=409, detail="委托已开始或不可接取")
     if member_of(db, task_id, user.id) is not None:
@@ -489,10 +487,11 @@ def accept_task(
         joined = db.scalar(select(func.count()).select_from(TaskMember).where(TaskMember.task_id == task.id)) or 0
         if joined >= task.required_takers:
             raise HTTPException(status_code=409, detail="需要的人数已满，委托即将开始")
-    if not task.accept_password_hash:
-        raise HTTPException(status_code=403, detail="该委托尚未设置接取密码，请联系委托人处理")
-    if not verify_password(payload.password, task.accept_password_hash):
-        raise HTTPException(status_code=403, detail="接取密码不正确，请联系委托人确认")
+    if task.requires_password:
+        if user.role != UserRole.VOLUNTEER:
+            raise HTTPException(status_code=403, detail="有密码委托只有志愿者可以接取，请联系管理员升级")
+        if not payload.password or not verify_password(payload.password, task.accept_password_hash):
+            raise HTTPException(status_code=403, detail="接取密码不正确，请联系委托人确认")
     # 在支持行锁的数据库上串行化同一用户的接单操作，避免并发突破个人上限。
     db.scalar(select(User).where(User.id == user.id).with_for_update())
     if active_task_count(db, user.id) >= user.max_concurrent_tasks:
@@ -518,7 +517,7 @@ def start_task(task_id: int, user: User = Depends(get_current_user), db: Session
     if task.status != TaskStatus.PUBLISHED:
         raise HTTPException(status_code=409, detail="委托已开始或不可开始")
     if not task.members:
-        raise HTTPException(status_code=409, detail="至少需要一名接单人才能开始，先把密码告知接单人吧")
+        raise HTTPException(status_code=409, detail="至少需要一名接单人才能开始，请先等待接单人加入")
     task.status = TaskStatus.ACCEPTED
     task.started_at = datetime.utcnow()
     task.updated_at = datetime.utcnow()

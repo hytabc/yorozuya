@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { CalendarClock, Coins, UserRound, UsersRound, EyeOff } from 'lucide-vue-next'
+import { CalendarClock, Coins, EyeOff, LockOpen, UserRound, UsersRound } from 'lucide-vue-next'
 import StatusBadge from './StatusBadge.vue'
 
 const props = defineProps({ task: { type: Object, required: true }, showRole: Boolean, hint: String })
@@ -28,6 +28,7 @@ const joined = computed(() => props.task.members?.length || 0)
       <div class="task-tags">
         <StatusBadge :status="task.status" />
         <span class="pay-tag" :class="`pay-${task.pay_type || 'paid'}`">{{ task.pay_type === 'free' ? '无偿' : '有偿' }}</span>
+        <span v-if="task.requires_password === false" class="role-tag open-access-tag"><LockOpen :size="13" />免密码</span>
         <span class="category-tag">{{ task.category }}</span>
         <span v-if="showRole && role" class="role-tag">{{ role }}</span>
         <span v-if="hint" class="role-tag confirm-hint">{{ hint }}</span>

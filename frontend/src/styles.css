@@ -126,6 +126,7 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .role-tag { color: #805066; background: #f4eaf0; }
 .role-tag.role-volunteer { color: #1d6649; background: var(--green-soft); }
 .role-tag.role-user { color: #52605a; background: #eef0ee; }
+.open-access-tag { color: #286c86; background: var(--blue-soft); }
 .profile-role-tags { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 5px; flex-wrap: wrap; }
 .profile-role-tags .role-tag, .profile-role-tags .admin-tag { border-radius: 4px; padding: 6px 10px; font-size: 12px; }
 .role-hint { margin: 12px 0 0; font-size: 11px; line-height: 1.7; }
@@ -163,6 +164,8 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .error-notice { color: #8c2d38; background: var(--red-soft); }
 .info-notice { color: #46613c; background: var(--green-soft); }
 .success-notice { color: #1d6649; background: #eaf7f0; border: 1px solid #cde8d8; }
+.risk-notice { margin-top: 0; color: #76520a; border: 1px solid #ebd486; background: var(--yellow-soft); }
+.notice.risk-notice strong { display: flex; align-items: center; gap: 7px; }
 .notice strong { display: block; margin-bottom: 4px; font-size: 13px; }
 .notice p { display: flex; align-items: flex-start; gap: 5px; margin: 0; line-height: 1.7; font-size: 12px; }
 .notice p svg { flex-shrink: 0; margin-top: 2px; }
@@ -203,7 +206,7 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .field-hint { align-self: flex-start; color: #87908c; font-size: 11px; font-weight: 400; line-height: 1.6; }
 .taker-field { display: flex; flex-direction: column; gap: 8px; color: #46504b; font-size: 12px; font-weight: 650; }
 .taker-label { color: #46504b; font-size: 12px; font-weight: 650; }
-.pay-field { display: flex; flex-direction: column; gap: 8px; }
+.pay-field, .access-field { display: flex; flex-direction: column; gap: 8px; }
 .pay-toggle { display: grid; grid-template-columns: 1fr 1fr; height: 44px; border: 1px solid #ccd2ce; border-radius: 4px; overflow: hidden; }
 .pay-toggle button { border: 0; background: white; color: var(--muted); font-size: 13px; font-weight: 650; }
 .pay-toggle button + button { border-left: 1px solid #ccd2ce; }

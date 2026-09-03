@@ -100,7 +100,8 @@ class TaskCreate(RequestModel):
     # paid=有偿 free=无偿
     pay_type: Literal["paid", "free"] = "paid"
     reward: str | None = Field(default=None, max_length=60)
-    accept_password: str = Field(min_length=4, max_length=32)
+    # null 表示公开接取；设置密码时仍要求 4-32 位。
+    accept_password: str | None = Field(min_length=4, max_length=32)
     # 需要几人接取；null / 缺省表示人数不限（只能由委托人手动开始）
     required_takers: int | None = Field(default=None, ge=1, le=999)
     expires_at: datetime
@@ -114,7 +115,7 @@ class TaskCreate(RequestModel):
 
 
 class AcceptRequest(RequestModel):
-    password: str = Field(min_length=1, max_length=72)
+    password: str | None = Field(default=None, max_length=72)
 
 
 class PasswordUpdate(RequestModel):
@@ -141,6 +142,7 @@ class TaskOut(ApiModel):
     is_visible: bool
     admin_note: str | None = None
     publisher: UserPublic
+    requires_password: bool
     required_takers: int | None = None
     members: list[TaskMemberOut] = []
     publisher_id: int

@@ -107,7 +107,7 @@ function switchMode(next) {
     <section class="auth-story">
       <span class="eyebrow">YOROZUYA MEMBERSHIP</span>
       <h1>小事有人回应，<br />难事有人同行。</h1>
-      <p>一个账号即可发布委托、凭密码接取，并持续跟进每一次协作。</p>
+      <p>一个账号即可发布委托、接取开放委托，并持续跟进每一次协作。</p>
       <ul>
         <li><Check :size="17" />可设置需几人接取，凑齐或手动点击即开始</li>
         <li><Check :size="17" />委托完成需委托人与全体接单人确认</li>

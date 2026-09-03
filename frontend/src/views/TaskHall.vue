@@ -58,7 +58,7 @@ async function action(key, payload = {}) {
   try {
     const url = `/tasks/${selected.value.id}`
     let data
-    if (key === 'accept') ({ data } = await api.post(`${url}/accept`, { password: payload.password }))
+    if (key === 'accept') ({ data } = await api.post(`${url}/accept`, { password: payload.password ?? null }))
     else if (key === 'password') ({ data } = await api.patch(`${url}/password`, { password: payload.password }))
     else ({ data } = await api.post(`${url}/${key}`))
     selected.value = data
@@ -117,4 +117,3 @@ onMounted(load)
     <FeedbackDialog v-if="showFeedback" @close="showFeedback = false" />
   </div>
 </template>
-
