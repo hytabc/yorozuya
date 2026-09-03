@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     admin_username: str = "admin"
     admin_password: str = "Admin123!"
     admin_nickname: str = "万事屋管理员"
+    staff_group_id: str = ""
     cors_origins: str = "http://localhost:5173,http://localhost:8080"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -28,4 +29,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-

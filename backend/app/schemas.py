@@ -56,7 +56,7 @@ class UserPublic(ApiModel):
 
 
 class UserProfileOut(ApiModel):
-    """他人视角看到的用户资料：qq 仅对本人、管理员、共同协作双方可见，否则为 None。"""
+    """用户资料；成员名录完整公开店员/志愿者，其他场景按协作关系控制 QQ。"""
     id: int
     nickname: str
     bio: str | None = None
@@ -177,7 +177,13 @@ class AdminUserOut(ApiModel):
 
 
 class AdminUserRoleUpdate(RequestModel):
-    role: Literal["user", "volunteer"]
+    role: Literal["user", "volunteer", "staff"]
+
+
+class StaffDirectoryOut(BaseModel):
+    group_chat_id: str
+    staff: list[UserProfileOut]
+    volunteers: list[UserProfileOut]
 
 
 class AdminUserLimitUpdate(RequestModel):

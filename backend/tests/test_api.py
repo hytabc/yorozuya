@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.database import Base, get_db
+from app.config import settings
 from app.main import app
 from app.models import User
 from app.security import hash_password
@@ -748,8 +749,107 @@ def test_passwordless_task_can_be_accepted_by_all_non_admin_roles():
         denied = client.post(f"/api/tasks/{another['id']}/accept", headers=admin, json={})
         assert denied.status_code == 403
 
-        protected = create_task(client, publisher, password="protected-123", required=1, title="仅志愿者接取的委托")
+        protected = create_task(client, publisher, password="protected-123", required=1, title="高权限用户接取的委托")
         assert protected["requires_password"] is True
         denied = client.post(f"/api/tasks/{protected['id']}/accept", headers=regular, json={"password": "protected-123"})
         assert denied.status_code == 403
         assert "志愿者" in denied.json()["detail"]
+
+
+def test_staff_role_management_and_public_directory(monkeypatch):
+    monkeypatch.setattr(settings, "staff_group_id", "987654321")
+    with TestClient(app) as client:
+        admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
+        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+        admin_id = client.get("/api/auth/me", headers=admin).json()["id"]
+
+        staff_headers = auth(client, "staff_member")
+        staff_me = client.get("/api/auth/me", headers=staff_headers).json()
+        staff_id = staff_me["id"]
+        profile = client.patch(
+            "/api/users/me",
+            headers=staff_headers,
+            json={"nickname": "公开店员", "qq": "123456789", "bio": "负责处理权限申请"},
+        )
+        assert profile.status_code == 200
+
+        granted = client.patch(
+            f"/api/admin/users/{staff_id}/role", headers=admin, json={"role": "staff"}
+        )
+        assert granted.status_code == 200
+        assert granted.json()["role"] == "staff"
+
+        # 店员具备志愿者的有密码接取能力。
+        publisher = auth(client, "staff_task_pub")
+        protected = create_task(client, publisher, password="staff-can-take", required=1)
+        accepted = client.post(
+            f"/api/tasks/{protected['id']}/accept",
+            headers=staff_headers,
+            json={"password": "staff-can-take"},
+        )
+        assert accepted.status_code == 200
+        assert accepted.json()["status"] == "accepted"
+
+        target = auth(client, "staff_managed_user")
+        target_id = client.get("/api/auth/me", headers=target).json()["id"]
+        managed_users = client.get("/api/admin/users", headers=staff_headers)
+        assert managed_users.status_code == 200
+        assert all(not user["is_admin"] for user in managed_users.json())
+
+        promoted = client.patch(
+            f"/api/admin/users/{target_id}/role", headers=staff_headers, json={"role": "volunteer"}
+        )
+        assert promoted.status_code == 200
+        assert promoted.json()["role"] == "volunteer"
+        demoted = client.patch(
+            f"/api/admin/users/{target_id}/role", headers=staff_headers, json={"role": "user"}
+        )
+        assert demoted.status_code == 200
+        assert demoted.json()["role"] == "user"
+
+        volunteer_headers = auth(client, "public_volunteer", role="volunteer")
+        volunteer_me = client.patch(
+            "/api/users/me",
+            headers=volunteer_headers,
+            json={"nickname": "公开志愿者", "qq": "223344556", "bio": "可协助接取委托"},
+        )
+        assert volunteer_me.status_code == 200
+
+        cannot_grant_staff = client.patch(
+            f"/api/admin/users/{target_id}/role", headers=staff_headers, json={"role": "staff"}
+        )
+        assert cannot_grant_staff.status_code == 403
+        cannot_change_admin = client.patch(
+            f"/api/admin/users/{admin_id}/role", headers=staff_headers, json={"role": "user"}
+        )
+        assert cannot_change_admin.status_code == 409
+
+        # 其他监管功能仍为管理员专属。
+        assert client.get("/api/admin/stats", headers=staff_headers).status_code == 403
+        assert client.get("/api/admin/tasks", headers=staff_headers).status_code == 403
+        assert client.get("/api/admin/feedback", headers=staff_headers).status_code == 403
+        assert client.patch(
+            f"/api/admin/users/{target_id}/task-limit",
+            headers=staff_headers,
+            json={"max_concurrent_tasks": 5},
+        ).status_code == 403
+
+        # 成员名录中的店员与志愿者完整资料无需登录即可查看。
+        directory = client.get("/api/staff")
+        assert directory.status_code == 200
+        assert directory.json()["group_chat_id"] == "987654321"
+        public_staff = next(user for user in directory.json()["staff"] if user["id"] == staff_id)
+        assert public_staff["nickname"] == "公开店员"
+        assert public_staff["qq"] == "123456789"
+        assert public_staff["bio"] == "负责处理权限申请"
+        public_volunteer = next(
+            user for user in directory.json()["volunteers"] if user["id"] == volunteer_me.json()["id"]
+        )
+        assert public_volunteer["nickname"] == "公开志愿者"
+        assert public_volunteer["qq"] == "223344556"
+        assert public_volunteer["bio"] == "可协助接取委托"
+
+        public_profile = client.get(f"/api/users/{staff_id}")
+        assert public_profile.status_code == 200
+        assert public_profile.json()["qq"] == "123456789"
+        assert client.get(f"/api/users/{target_id}").status_code == 401

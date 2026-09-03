@@ -1,22 +1,27 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, MessageCircle, RotateCcw, Save, Search, ShieldCheck, UsersRound } from 'lucide-vue-next'
+import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, MessageCircle, RotateCcw, Save, Search, ShieldCheck, Store, UsersRound } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
+import { useAuthStore } from '../stores/auth'
 import StatusBadge from '../components/StatusBadge.vue'
 import { roleLabel } from '../constants'
 
 const toast = useToast()
+const auth = useAuthStore()
+const router = useRouter()
 const tasks = ref([])
 const users = ref([])
 const feedbacks = ref([])
 const userLimits = reactive({})
 const stats = ref({ users: 0, tasks: 0, processing: 0, completed: 0, hidden: 0 })
-const activeTab = ref('tasks')
+const activeTab = ref(auth.isAdmin ? 'tasks' : 'users')
 const taskSearch = ref('')
 const userSearch = ref('')
 const loading = ref(true)
 const savingUserId = ref(null)
+const savingRoleId = ref(null)
 const filteredTasks = computed(() => tasks.value.filter((task) => `${task.title}${task.publisher.nickname}`.toLowerCase().includes(taskSearch.value.toLowerCase())))
 const filteredUsers = computed(() => users.value.filter((user) => `${user.username}${user.nickname}`.toLowerCase().includes(userSearch.value.toLowerCase())))
 const pendingFeedbacks = computed(() => feedbacks.value.filter((item) => item.status === 'pending').length)
@@ -29,6 +34,11 @@ const statItems = computed(() => [
 async function load() {
   loading.value = true
   try {
+    if (!auth.isAdmin) {
+      const { data } = await api.get('/admin/users')
+      users.value = data
+      return
+    }
     const [taskRes, userRes, statRes, feedbackRes] = await Promise.all([
       api.get('/admin/tasks'),
       api.get('/admin/users'),
@@ -63,15 +73,23 @@ async function saveUserLimit(user) {
   }
 }
 
-async function changeUserRole(user) {
+async function changeUserRole(user, targetRole, select) {
   if (user.is_admin) return
-  const targetRole = user.role === 'volunteer' ? 'user' : 'volunteer'
+  if (targetRole === user.role) return
+  savingRoleId.value = user.id
   try {
     const { data } = await api.patch(`/admin/users/${user.id}/role`, { role: targetRole })
     users.value[users.value.findIndex((item) => item.id === user.id)] = data
-    toast.success(`${data.nickname} 已${targetRole === 'volunteer' ? '升级为志愿者' : '降为普通用户'}`)
+    toast.success(`${data.nickname} 的权限已修改为${roleLabel(data)}`)
+    if (data.id === auth.user?.id) {
+      auth.updateUser({ ...auth.user, role: data.role })
+      router.push('/')
+    }
   } catch (error) {
+    select.value = user.role
     toast.error(errorMessage(error))
+  } finally {
+    savingRoleId.value = null
   }
 }
 async function toggle(task) {
@@ -112,16 +130,16 @@ onMounted(load)
 
 <template>
   <div class="page inner-page admin-page">
-    <div class="page-title"><div><span class="eyebrow"><ShieldCheck :size="15" /> ADMIN CONSOLE</span><h1>委托监管台</h1><p>查看平台运行状态，管理委托与用户接单额度。</p></div></div>
-    <div class="admin-stats"><div v-for="item in statItems" :key="item.label"><component :is="item.icon" :size="20" /><span>{{ item.label }}</span><strong>{{ item.value }}</strong></div></div>
+    <div class="page-title"><div><span class="eyebrow"><component :is="auth.isAdmin ? ShieldCheck : Store" :size="15" />{{ auth.isAdmin ? 'ADMIN CONSOLE' : 'STAFF CONSOLE' }}</span><h1>{{ auth.isAdmin ? '委托监管台' : '用户权限管理' }}</h1><p>{{ auth.isAdmin ? '查看平台运行状态，管理委托、用户权限与接单额度。' : '将非管理员账号设置为普通用户或志愿者。' }}</p></div></div>
+    <div v-if="auth.isAdmin" class="admin-stats"><div v-for="item in statItems" :key="item.label"><component :is="item.icon" :size="20" /><span>{{ item.label }}</span><strong>{{ item.value }}</strong></div></div>
 
-    <div class="tabs admin-tabs" role="tablist" aria-label="后台管理内容">
+    <div v-if="auth.isAdmin" class="tabs admin-tabs" role="tablist" aria-label="后台管理内容">
       <button :class="{ active: activeTab === 'tasks' }" role="tab" :aria-selected="activeTab === 'tasks'" @click="activeTab = 'tasks'">委托管理</button>
-      <button :class="{ active: activeTab === 'users' }" role="tab" :aria-selected="activeTab === 'users'" @click="activeTab = 'users'">用户接单上限</button>
+      <button :class="{ active: activeTab === 'users' }" role="tab" :aria-selected="activeTab === 'users'" @click="activeTab = 'users'">用户与权限</button>
       <button :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
     </div>
 
-    <section v-if="activeTab === 'tasks'" class="admin-table-section">
+    <section v-if="auth.isAdmin && activeTab === 'tasks'" class="admin-table-section">
       <div class="admin-toolbar"><div><h2>全部委托</h2><span>隐藏 {{ stats.hidden }} 项</span></div><label class="search-field"><Search :size="17" /><input v-model="taskSearch" placeholder="搜索标题或发布人" /></label></div>
       <div class="table-wrap">
         <table>
@@ -143,18 +161,22 @@ onMounted(load)
       <div class="admin-toolbar"><div><h2>用户管理</h2><span>共 {{ users.length }} 人</span></div><label class="search-field"><Search :size="17" /><input v-model="userSearch" placeholder="搜索账号或昵称" /></label></div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>用户</th><th>权限等级</th><th>当前接单</th><th>接单上限</th><th><span class="sr-only">操作</span></th></tr></thead>
+          <thead><tr><th>用户</th><th>权限等级</th><th v-if="auth.isAdmin">当前接单</th><th v-if="auth.isAdmin">接单上限</th><th><span class="sr-only">操作</span></th></tr></thead>
           <tbody>
-            <tr v-if="loading"><td colspan="5" class="table-loading">正在加载…</td></tr>
+            <tr v-if="loading"><td :colspan="auth.isAdmin ? 5 : 3" class="table-loading">正在加载…</td></tr>
             <tr v-for="user in filteredUsers" v-else :key="user.id">
               <td><strong>{{ user.nickname }}</strong><small>@{{ user.username }} · #{{ user.id }}</small></td>
-              <td><span v-if="user.is_admin" class="admin-tag"><ShieldCheck :size="13" />管理员</span><span v-else class="role-tag" :class="`role-${user.role}`">{{ roleLabel(user) }}</span></td>
-              <td><span class="limit-usage" :class="{ full: user.active_task_count >= user.max_concurrent_tasks }">{{ user.active_task_count }} / {{ user.max_concurrent_tasks }}</span></td>
-              <td><input v-model.number="userLimits[user.id]" class="limit-input" type="number" min="0" max="999" :aria-label="`${user.nickname} 的接单上限`" /></td>
+              <td><span v-if="user.is_admin" class="admin-tag"><ShieldCheck :size="13" />管理员</span><span v-else class="role-tag" :class="`role-${user.role}`"><Store v-if="user.role === 'staff'" :size="13" />{{ roleLabel(user) }}</span></td>
+              <td v-if="auth.isAdmin"><span class="limit-usage" :class="{ full: user.active_task_count >= user.max_concurrent_tasks }">{{ user.active_task_count }} / {{ user.max_concurrent_tasks }}</span></td>
+              <td v-if="auth.isAdmin"><input v-model.number="userLimits[user.id]" class="limit-input" type="number" min="0" max="999" :aria-label="`${user.nickname} 的接单上限`" /></td>
               <td>
                 <div class="user-row-actions">
-                  <button class="button secondary small" title="保存接单上限" aria-label="保存接单上限" :disabled="savingUserId === user.id || userLimits[user.id] === user.max_concurrent_tasks" @click="saveUserLimit(user)"><Save :size="15" /></button>
-                  <button v-if="!user.is_admin" class="button small" :class="{ secondary: user.role === 'volunteer' }" :disabled="user.role === 'volunteer' && user.active_task_count > 0" @click="changeUserRole(user)">{{ user.role === 'volunteer' ? '降为普通用户' : '升级为志愿者' }}</button>
+                  <button v-if="auth.isAdmin" class="button secondary small" title="保存接单上限" aria-label="保存接单上限" :disabled="savingUserId === user.id || userLimits[user.id] === user.max_concurrent_tasks" @click="saveUserLimit(user)"><Save :size="15" /></button>
+                  <select v-if="!user.is_admin" class="role-select" :value="user.role" :disabled="savingRoleId === user.id" :aria-label="`修改 ${user.nickname} 的权限等级`" @change="changeUserRole(user, $event.target.value, $event.target)">
+                    <option value="user">普通用户</option>
+                    <option value="volunteer">志愿者</option>
+                    <option v-if="auth.isAdmin || user.role === 'staff'" value="staff" :disabled="!auth.isAdmin">店员{{ auth.isAdmin ? '' : '（仅管理员可授予）' }}</option>
+                  </select>
                 </div>
               </td>
             </tr>
@@ -163,7 +185,7 @@ onMounted(load)
       </div>
     </section>
 
-    <section v-else-if="activeTab === 'feedback'" class="admin-table-section">
+    <section v-else-if="auth.isAdmin && activeTab === 'feedback'" class="admin-table-section">
       <div class="admin-toolbar"><div><h2>用户反馈</h2><span>待处理 {{ pendingFeedbacks }} 条</span></div><span class="muted"><MessageCircle :size="15" /> 提交者会收到处理状态与回复</span></div>
       <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
       <ul v-else-if="feedbacks.length" class="feedback-admin-list">

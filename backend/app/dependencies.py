@@ -5,7 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from .database import get_db
-from .models import User
+from .models import User, UserRole
 from .security import decode_access_token
 
 bearer = HTTPBearer(auto_error=False)
@@ -43,4 +43,10 @@ def get_optional_user(
 def get_admin(user: User = Depends(get_current_user)) -> User:
     if not user.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员权限")
+    return user
+
+
+def get_role_manager(user: User = Depends(get_current_user)) -> User:
+    if not user.is_admin and user.role != UserRole.STAFF:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员或店员权限")
     return user

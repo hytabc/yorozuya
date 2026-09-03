@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { CalendarClock, Coins, KeyRound, LockOpen, MessageCircle, UserRound, UsersRound, X } from 'lucide-vue-next'
+import { CalendarClock, Coins, KeyRound, LockOpen, MessageCircle, Store, UserRound, UsersRound, X } from 'lucide-vue-next'
+import { api } from '../api'
 import { useAuthStore } from '../stores/auth'
 import StatusBadge from './StatusBadge.vue'
 import UserProfileCard from './UserProfileCard.vue'
@@ -10,6 +11,7 @@ const emit = defineEmits(['close', 'action'])
 const auth = useAuthStore()
 const password = ref('')
 const profileUserId = ref(null)
+const staffGroupId = ref('')
 
 function openProfile(userId) {
   if (!auth.isLoggedIn) return emit('action', 'login')
@@ -43,7 +45,7 @@ const totalPeople = computed(() => (props.task.members?.length || 0) + 1)
 const everyoneConfirmed = computed(() => finished.value || (working.value && confirmedCount.value >= totalPeople.value))
 const canSeeProgress = computed(() => isParticipant.value || auth.isAdmin)
 
-const canTakePanel = computed(() => published.value && auth.isLoggedIn && !isPublisher.value && !isMember.value && !auth.isAdmin && (!requiresPassword.value || auth.user?.role === 'volunteer'))
+const canTakePanel = computed(() => published.value && auth.isLoggedIn && !isPublisher.value && !isMember.value && !auth.isAdmin && (!requiresPassword.value || ['volunteer', 'staff'].includes(auth.user?.role)))
 const isRegularUser = computed(() => published.value && requiresPassword.value && auth.isLoggedIn && !isPublisher.value && !isMember.value && !auth.isAdmin && auth.user?.role === 'user')
 
 const confirmCopy = computed(() => {
@@ -70,14 +72,21 @@ const cancelRequesterName = computed(() => {
 
 const format = (value) => new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(value))
 function onKey(event) { if (event.key === 'Escape') emit('close') }
-onMounted(() => { document.body.classList.add('modal-open'); window.addEventListener('keydown', onKey) })
+onMounted(async () => {
+  document.body.classList.add('modal-open')
+  window.addEventListener('keydown', onKey)
+  if (isRegularUser.value) {
+    try { staffGroupId.value = (await api.get('/staff')).data.group_chat_id }
+    catch { staffGroupId.value = '' }
+  }
+})
 onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeEventListener('keydown', onKey) })
 
 function emitAccept() {
   if (!requiresPassword.value || password.value) emit('action', 'accept', { password: requiresPassword.value ? password.value : null })
 }
 function resetPassword() {
-  const next = window.prompt(requiresPassword.value ? '输入新的接取密码（4-32 位），旧密码将立即失效' : '输入接取密码（4-32 位），设置后将仅允许志愿者凭密码接取', '')
+  const next = window.prompt(requiresPassword.value ? '输入新的接取密码（4-32 位），旧密码将立即失效' : '输入接取密码（4-32 位），设置后将仅允许志愿者或店员凭密码接取', '')
   if (next === null) return
   emit('action', 'password', { password: next.trim() })
 }
@@ -123,13 +132,13 @@ function resetPassword() {
       <div v-if="published && !auth.isLoggedIn" class="notice info-notice">
         <strong>想接这份委托？</strong>
         <p v-if="requiresPassword">登录后即可看到委托人 QQ 并洽谈；委托人同意后会把接取密码告诉你（本委托共需 {{ requiredText }}）。</p>
-        <p v-else>这是无密码委托，普通用户和志愿者登录后均可直接接取（本委托共需 {{ requiredText }}）。</p>
+        <p v-else>这是无密码委托，所有权限等级的非管理员用户登录后均可直接接取（本委托共需 {{ requiredText }}）。</p>
       </div>
 
       <div v-if="published && isPublisher && !isMember" class="notice info-notice">
         <strong>委托待开始，等待接单人</strong>
         <p v-if="requiresPassword">已加入 {{ joinedCount }} / {{ requiredText }}。凑齐人数会自动开始，也可以等接单人联系你谈妥后手动开始；想换人先重设密码。</p>
-        <p v-else>已加入 {{ joinedCount }} / {{ requiredText }}。所有普通用户和志愿者均可直接接取，凑齐人数会自动开始。</p>
+        <p v-else>已加入 {{ joinedCount }} / {{ requiredText }}。所有权限等级的非管理员用户均可直接接取，凑齐人数会自动开始。</p>
       </div>
 
       <div v-if="published && isMember && !isPublisher" class="notice success-notice">
@@ -154,7 +163,7 @@ function resetPassword() {
       <!-- 普通用户只能直接接取无密码委托 -->
       <div v-if="isRegularUser" class="notice info-notice">
         <strong>这是有密码委托，普通用户不能接取</strong>
-        <p>普通用户可直接接取无密码委托；如需接取有密码委托，请联系管理员升级为志愿者。</p>
+        <p><Store :size="14" />请联系<RouterLink class="notice-link" to="/staff" @click="$emit('close')">任意店员</RouterLink>申请加入群聊<template v-if="staffGroupId">（群聊 ID：<strong class="inline-strong">{{ staffGroupId }}</strong>）</template>，由店员确认后手动提升为志愿者。</p>
       </div>
       <div v-if="published && auth.isLoggedIn && !isPublisher && !isMember && auth.isAdmin" class="notice info-notice">
         <strong>管理员账号不接取委托</strong>

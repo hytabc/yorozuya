@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from .config import settings
 from .database import Base, SessionLocal, engine, get_db
-from .dependencies import get_admin, get_current_user, get_optional_user
+from .dependencies import get_admin, get_current_user, get_optional_user, get_role_manager
 from .models import Feedback, FeedbackStatus, Task, TaskMember, TaskStatus, User, UserRole
 from .schemas import (
     AcceptRequest,
@@ -30,6 +30,7 @@ from .schemas import (
     TaskCreate,
     TaskMemberOut,
     TaskOut,
+    StaffDirectoryOut,
     TokenResponse,
     UserProfileOut,
     UserSelf,
@@ -235,7 +236,9 @@ def shares_task_with(db: Session, viewer_id: int, target_id: int) -> bool:
 
 
 def can_view_user_qq(db: Session, viewer: User, target: User) -> bool:
-    """能否看到该用户的 QQ：本人/管理员/共同协作双方可见；此外对方有正在招募的公开委托时也开放（洽谈用）。"""
+    """店员 QQ 完全公开；其他账号仅本人/管理员/协作者或招募中的委托人可见。"""
+    if target.role == UserRole.STAFF:
+        return True
     if viewer.is_admin or viewer.id == target.id:
         return True
     if shares_task_with(db, viewer.id, target.id):
@@ -323,15 +326,38 @@ def update_profile(payload: UserUpdate, user: User = Depends(get_current_user), 
 
 
 @app.get("/api/users/{user_id}", response_model=UserProfileOut)
-def user_profile(user_id: int, viewer: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """查看用户个人资料：昵称/简介/加入时间公开；QQ 仅在可协作洽谈范围内可见。"""
+def user_profile(user_id: int, viewer: User | None = Depends(get_optional_user), db: Session = Depends(get_db)):
+    """店员资料允许匿名查看；其他用户资料维持登录与 QQ 可见性限制。"""
     target = db.get(User, user_id)
     if target is None or not target.is_active:
         raise HTTPException(status_code=404, detail="用户不存在")
     data = UserProfileOut.model_validate(target)
+    if target.role == UserRole.STAFF:
+        return data
+    if viewer is None:
+        raise HTTPException(status_code=401, detail="请先登录")
     if not can_view_user_qq(db, viewer, target):
         data.qq = None
     return data
+
+
+@app.get("/api/staff", response_model=StaffDirectoryOut)
+def staff_directory(db: Session = Depends(get_db)):
+    staff = db.scalars(
+        select(User)
+        .where(User.role == UserRole.STAFF, User.is_active.is_(True), User.is_admin.is_(False))
+        .order_by(User.created_at.asc())
+    ).all()
+    volunteers = db.scalars(
+        select(User)
+        .where(User.role == UserRole.VOLUNTEER, User.is_active.is_(True), User.is_admin.is_(False))
+        .order_by(User.created_at.asc())
+    ).all()
+    return StaffDirectoryOut(
+        group_chat_id=settings.staff_group_id,
+        staff=[UserProfileOut.model_validate(user) for user in staff],
+        volunteers=[UserProfileOut.model_validate(user) for user in volunteers],
+    )
 
 
 @app.post("/api/feedback", response_model=FeedbackOut, status_code=status.HTTP_201_CREATED)
@@ -470,7 +496,7 @@ def accept_task(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """加入委托（有密码时限志愿者，无密码时普通用户也可加入）。人数足够时自动开始。"""
+    """加入委托（有密码时限志愿者/店员，无密码时所有非管理员用户可加入）。"""
     expire_due_tasks(db)
     task = get_task_or_404(db, task_id)
     if not task.is_visible:
@@ -488,8 +514,8 @@ def accept_task(
         if joined >= task.required_takers:
             raise HTTPException(status_code=409, detail="需要的人数已满，委托即将开始")
     if task.requires_password:
-        if user.role != UserRole.VOLUNTEER:
-            raise HTTPException(status_code=403, detail="有密码委托只有志愿者可以接取，请联系管理员升级")
+        if user.role not in (UserRole.VOLUNTEER, UserRole.STAFF):
+            raise HTTPException(status_code=403, detail="有密码委托只有志愿者或店员可以接取，请联系店员申请升级")
         if not payload.password or not verify_password(payload.password, task.accept_password_hash):
             raise HTTPException(status_code=403, detail="接取密码不正确，请联系委托人确认")
     # 在支持行锁的数据库上串行化同一用户的接单操作，避免并发突破个人上限。
@@ -702,9 +728,12 @@ def admin_tasks(_: User = Depends(get_admin), db: Session = Depends(get_db)):
 
 
 @app.get("/api/admin/users", response_model=list[AdminUserOut])
-def admin_users(_: User = Depends(get_admin), db: Session = Depends(get_db)):
+def admin_users(manager: User = Depends(get_role_manager), db: Session = Depends(get_db)):
     expire_due_tasks(db)
-    users = db.scalars(select(User).order_by(User.created_at.desc())).all()
+    query = select(User).order_by(User.created_at.desc())
+    if not manager.is_admin:
+        query = query.where(User.is_admin.is_(False))
+    users = db.scalars(query).all()
     return [
         AdminUserOut.model_validate(user).model_copy(
             update={"active_task_count": active_task_count(db, user.id)}
@@ -735,15 +764,17 @@ def update_user_task_limit(
 def update_user_role(
     user_id: int,
     payload: AdminUserRoleUpdate,
-    _: User = Depends(get_admin),
+    manager: User = Depends(get_role_manager),
     db: Session = Depends(get_db),
 ):
-    """升级/降级权限：普通用户(user) <-> 志愿者(volunteer)。管理员账号不参与该设置。"""
+    """管理员可设置全部角色；店员只能把非管理员账号设为普通用户或志愿者。"""
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="用户不存在")
     if user.is_admin:
         raise HTTPException(status_code=409, detail="管理员账号的权限等级不可修改")
+    if not manager.is_admin and payload.role == UserRole.STAFF:
+        raise HTTPException(status_code=403, detail="只有管理员可以授予店员权限")
     user.role = payload.role
     db.commit()
     db.refresh(user)

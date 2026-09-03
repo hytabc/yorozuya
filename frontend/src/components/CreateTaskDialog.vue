@@ -84,7 +84,7 @@ onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeE
         </label>
         <div v-else class="notice risk-notice" role="alert">
           <strong><TriangleAlert :size="17" />无密码接取风险</strong>
-          <p>普通用户和志愿者无需联系你确认即可直接加入，可能快速占满名额；达到所需人数后委托会自动开始。请确认委托内容适合公开接取。</p>
+          <p>所有非管理员用户无需联系你确认即可直接加入，可能快速占满名额；达到所需人数后委托会自动开始。请确认委托内容适合公开接取。</p>
         </div>
         <label>有效期<input v-model="form.expires_at" type="datetime-local" required /></label>
         <div class="dialog-footer"><button type="button" class="button secondary" @click="$emit('close')">暂不发布</button><button class="button" :disabled="busy">{{ busy ? '发布中…' : '确认发布' }}</button></div>

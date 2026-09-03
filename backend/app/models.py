@@ -35,6 +35,7 @@ class FeedbackStatus(str, Enum):
 class UserRole(str, Enum):
     USER = "user"  # 普通用户：可发布委托，也可接取无密码委托
     VOLUNTEER = "volunteer"  # 志愿者：可发布并接取全部委托（管理员账号可升级）
+    STAFF = "staff"  # 店员：志愿者能力 + 管理非管理员账号的普通用户/志愿者等级
 
 
 class User(Base):
