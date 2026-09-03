@@ -78,28 +78,41 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 docker compose -f docker-compose.yml -f docker-compose.dev.yml down
 ```
 
-## 本地开发（不经 Docker）
+## 本地启动（不使用 Docker）
 
-后端：
+设备需预先安装 Python 3.10+ 和 Node.js 20.19+（或 22.12+）。脚本首次运行会创建
+`backend/.venv`、安装前后端依赖，并同时启动 FastAPI 与 Vite。后端代码变化后自动重载，
+前端代码变化后页面通过 HMR 自动更新；数据库仍保存在 `backend/data/wsw.db`。
 
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
-
-前端：
+macOS / Linux：
 
 ```bash
-cd frontend
-npm install
-npm run dev
+chmod +x start.sh
+./start.sh
 ```
 
-Vite 开发环境默认把 `/api` 代理到 `http://localhost:8000`；如需改代理目标，
-设置环境变量 `VITE_PROXY_TARGET`。
+Windows：
+
+```bat
+start.bat
+```
+
+浏览器访问 `http://127.0.0.1:8080`。macOS / Linux 按 `Ctrl+C` 会同时停止两个服务；
+Windows 会分别打开后端和前端命令窗口，关闭这两个窗口即可停止。
+
+运行自动化测试（后端测试 + 前端生产构建）：
+
+```bash
+./start.sh test
+```
+
+```bat
+start.bat test
+```
+
+可通过 `WEB_PORT`、`BACKEND_PORT` 环境变量修改端口。依赖已安装且未修改依赖清单时，
+可设置 `SKIP_INSTALL=1` 加快启动。后端会读取项目根目录 `.env` 中的管理员及密钥配置；
+未创建 `.env` 时使用仅适合本地测试的默认值。
 
 ## 状态流转
 
