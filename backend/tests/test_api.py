@@ -83,14 +83,14 @@ def register_sugar_profile(client, headers, about="喜欢在周末散步"):
     return response.json()
 
 
-def create_task(client, headers, password="接取密码123", required=None, title="帮忙整理一份资料"):
+def create_task(client, headers, password="接取密码123", required=None, title="帮忙整理一份资料", expiry_days=2):
     payload = {
         "title": title,
         "description": "需要将十条记录整理成清晰的表格文件",
         "category": "学习",
         "reward": "30 元",
         "accept_password": password,
-        "expires_at": (datetime.utcnow() + timedelta(days=2)).isoformat() + "Z",
+        "expires_in_days": expiry_days,
     }
     if required is not None:
         payload["required_takers"] = required
@@ -476,6 +476,33 @@ def test_expired_task_is_updated_when_listed():
         assert tasks[0]["status"] == "expired"
 
 
+def test_task_expiry_only_accepts_fixed_day_options():
+    with TestClient(app) as client:
+        publisher = auth(client, "expiry_options_publisher")
+        for days in (1, 2, 3, 5, 10):
+            before = datetime.utcnow()
+            task = create_task(
+                client,
+                publisher,
+                title=f"有效期 {days} 天的委托",
+                expiry_days=days,
+            )
+            expires_at = datetime.fromisoformat(task["expires_at"].removesuffix("Z"))
+            assert abs((expires_at - before).total_seconds() - days * 86400) < 2
+
+        rejected = client.post(
+            "/api/tasks",
+            headers=publisher,
+            json={
+                "title": "非法有效期委托",
+                "description": "这个委托使用了固定选项之外的有效期",
+                "category": "其他",
+                "expires_in_days": 4,
+            },
+        )
+        assert rejected.status_code == 422
+
+
 def test_list_tasks_without_status_filter():
     with TestClient(app) as client:
         publisher = auth(client, "list_publisher")
@@ -512,7 +539,7 @@ def test_pay_type_create_and_filter():
                 "reward": None,
                 "accept_password": "pw-free-1",
                 "required_takers": 1,
-                "expires_at": (datetime.utcnow() + timedelta(days=2)).isoformat() + "Z",
+                "expires_in_days": 2,
             },
         )
         assert free_resp.status_code == 201, free_resp.text
@@ -1043,7 +1070,7 @@ def test_designated_single_member_accepts_or_declines_without_password():
                 "pay_type": "free",
                 "accept_password": "should-not-apply",
                 "designated_user_ids": [volunteer_id],
-                "expires_at": (datetime.utcnow() + timedelta(days=2)).isoformat() + "Z",
+                "expires_in_days": 2,
             },
         ).json()
         assert task["is_designated"] is True and task["requires_password"] is False
@@ -1067,7 +1094,7 @@ def test_designated_multiple_waits_for_all_and_cancels_when_all_decline():
             "category": "其他",
             "pay_type": "free",
             "designated_user_ids": ids,
-            "expires_at": (datetime.utcnow() + timedelta(days=2)).isoformat() + "Z",
+            "expires_in_days": 2,
         }
         created = client.post("/api/tasks", headers=publisher, json=payload)
         assert created.status_code == 201, created.text

@@ -15,8 +15,7 @@ const directory = ref({ staff: [], volunteers: [] })
 const designated = ref(false)
 const designatedIds = ref([])
 const designatedUsers = computed(() => [...directory.value.staff, ...directory.value.volunteers])
-const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000)
-tomorrow.setMinutes(tomorrow.getMinutes() - tomorrow.getTimezoneOffset())
+const expiryOptions = [1, 2, 3, 5, 10]
 const form = reactive({
   title: '',
   description: '',
@@ -25,7 +24,7 @@ const form = reactive({
   reward: '',
   accept_password: '',
   required_takers: 1,
-  expires_at: tomorrow.toISOString().slice(0, 16),
+  expires_in_days: 1,
 })
 
 async function submit() {
@@ -34,7 +33,6 @@ async function submit() {
     const payload = {
       ...form,
       required_takers: unlimited.value ? null : form.required_takers,
-      expires_at: new Date(form.expires_at).toISOString(),
       pay_type: form.pay_type,
       reward: form.pay_type === 'paid' ? (form.reward || null) : null,
       accept_password: passwordless.value ? null : form.accept_password,
@@ -106,7 +104,7 @@ onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeE
           <strong><TriangleAlert :size="17" />无密码接取风险</strong>
           <p>所有非管理员用户无需联系你确认即可直接加入，可能快速占满名额；达到所需人数后委托会自动开始。请确认委托内容适合公开接取。</p>
         </div>
-        <label>有效期<input v-model="form.expires_at" type="datetime-local" required /></label>
+        <label>有效期（自发布起）<select v-model.number="form.expires_in_days" required><option v-for="days in expiryOptions" :key="days" :value="days">{{ days }} 天</option></select></label>
         <div class="dialog-footer"><button type="button" class="button secondary" @click="$emit('close')">暂不发布</button><button class="button" :disabled="busy || (designated && !designatedIds.length)">{{ busy ? '发布中…' : '确认发布' }}</button></div>
       </form>
     </section>

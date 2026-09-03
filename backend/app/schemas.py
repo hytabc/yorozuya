@@ -120,14 +120,7 @@ class TaskCreate(RequestModel):
     required_takers: int | None = Field(default=None, ge=1, le=999)
     # 非空时为指定委托，只允许名单内的店员/志愿者响应。
     designated_user_ids: list[int] = Field(default_factory=list, max_length=999)
-    expires_at: datetime
-
-    @field_validator("expires_at")
-    @classmethod
-    def normalize_expiry(cls, value: datetime):
-        if value.tzinfo is not None:
-            value = value.astimezone(timezone.utc).replace(tzinfo=None)
-        return value
+    expires_in_days: Literal[1, 2, 3, 5, 10]
 
 
 class AcceptRequest(RequestModel):

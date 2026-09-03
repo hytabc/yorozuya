@@ -957,10 +957,6 @@ def task_detail(task_id: int, viewer: User | None = Depends(get_optional_user), 
 @app.post("/api/tasks", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
 def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     now = datetime.utcnow()
-    if payload.expires_at < now + timedelta(hours=1):
-        raise HTTPException(status_code=422, detail="有效期至少需要 1 小时")
-    if payload.expires_at > now + timedelta(days=90):
-        raise HTTPException(status_code=422, detail="有效期最长为 90 天")
     designated_user_ids = list(dict.fromkeys(payload.designated_user_ids))
     if user.id in designated_user_ids:
         raise HTTPException(status_code=422, detail="不能指定自己接取委托")
@@ -982,7 +978,7 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
         category=payload.category,
         pay_type=payload.pay_type,
         reward=payload.reward.strip() if payload.reward else None,
-        expires_at=payload.expires_at,
+        expires_at=now + timedelta(days=payload.expires_in_days),
         publisher_id=user.id,
         required_takers=len(designated_user_ids) if designated_user_ids else payload.required_takers,
         # 指定委托无须密码，响应权限由指定名单保证。
