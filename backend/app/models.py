@@ -27,6 +27,12 @@ class TaskStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
+class TaskMemberResponse(str, Enum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    DECLINED = "declined"
+
+
 class FeedbackStatus(str, Enum):
     PENDING = "pending"  # 待处理
     HANDLED = "handled"  # 已处理
@@ -119,6 +125,8 @@ class Task(Base):
     accept_password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # 需要几人接取该委托：null 表示人数不限（仅能由委托人手动点击开始）
     required_takers: Mapped[int | None] = mapped_column(nullable=True)
+    # 指定店员/志愿者的委托不会向大厅开放接取，须等全部指定人员响应后开始。
+    is_designated: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
@@ -155,16 +163,21 @@ class Task(Base):
         """委托人与所有接单人都已确认完成。"""
         if self.publisher_confirmed_at is None:
             return False
-        if not self.members:
+        accepted_members = [member for member in self.members if member.response_status == TaskMemberResponse.ACCEPTED]
+        if not accepted_members:
             return False
-        return all(member.confirmed_at is not None for member in self.members)
+        return all(member.confirmed_at is not None for member in accepted_members)
 
     @property
     def all_agree_to_cancel(self) -> bool:
         """委托人与所有接单人都已同意取消。"""
         if self.publisher_cancel_confirmed_at is None:
             return False
-        return all(member.cancel_confirmed_at is not None for member in self.members)
+        return all(
+            member.cancel_confirmed_at is not None
+            for member in self.members
+            if member.response_status == TaskMemberResponse.ACCEPTED
+        )
 
 
 class TaskMember(Base):
@@ -177,6 +190,11 @@ class TaskMember(Base):
     task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"), index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     joined_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    response_status: Mapped[TaskMemberResponse] = mapped_column(
+        SqlEnum(TaskMemberResponse, values_callable=lambda values: [item.value for item in values]),
+        default=TaskMemberResponse.ACCEPTED,
+        index=True,
+    )
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     cancel_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 

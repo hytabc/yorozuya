@@ -1,6 +1,6 @@
 <script setup>
-import { reactive, ref, onMounted, onUnmounted } from 'vue'
-import { TriangleAlert, X } from 'lucide-vue-next'
+import { reactive, ref, computed, onMounted, onUnmounted } from 'vue'
+import { Check, TriangleAlert, X } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
 import { CATEGORIES } from '../constants'
@@ -11,6 +11,10 @@ const busy = ref(false)
 const unlimited = ref(false)
 const passwordless = ref(false)
 const categories = CATEGORIES
+const directory = ref({ staff: [], volunteers: [] })
+const designated = ref(false)
+const designatedIds = ref([])
+const designatedUsers = computed(() => [...directory.value.staff, ...directory.value.volunteers])
 const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000)
 tomorrow.setMinutes(tomorrow.getMinutes() - tomorrow.getTimezoneOffset())
 const form = reactive({
@@ -34,14 +38,18 @@ async function submit() {
       pay_type: form.pay_type,
       reward: form.pay_type === 'paid' ? (form.reward || null) : null,
       accept_password: passwordless.value ? null : form.accept_password,
+      designated_user_ids: designated.value ? designatedIds.value : [],
     }
     const { data } = await api.post('/tasks', payload)
-    toast.success(unlimited.value || form.required_takers === 1 ? '委托已发布' : '委托已发布，凑齐人数后自动开始')
+    toast.success(designated.value ? '指定委托已发布，等待被指定人员响应' : (unlimited.value || form.required_takers === 1 ? '委托已发布' : '委托已发布，凑齐人数后自动开始'))
     emit('created', data)
   } catch (error) { toast.error(errorMessage(error)) } finally { busy.value = false }
 }
 function onKey(event) { if (event.key === 'Escape') emit('close') }
 onMounted(() => { document.body.classList.add('modal-open'); window.addEventListener('keydown', onKey) })
+onMounted(async () => {
+  try { directory.value = (await api.get('/staff')).data } catch { directory.value = { staff: [], volunteers: [] } }
+})
 onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeEventListener('keydown', onKey) })
 </script>
 
@@ -72,22 +80,34 @@ onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeE
           </div>
           <small class="field-hint">凑齐人数后委托自动开始；不限人数时需要你手动点击开始。</small>
         </div>
-        <div class="access-field">
+        <div class="designated-field">
+          <label class="checkbox-inline"><input v-model="designated" type="checkbox" /><span>指定店员/志愿者接取</span></label>
+          <small class="field-hint">指定委托无需密码，仅名单内人员可响应；单人接受即开始，多人需全部响应后开始。</small>
+          <div v-if="designated" class="designated-list">
+            <label v-for="person in designatedUsers" :key="person.id" class="designated-option">
+              <input v-model="designatedIds" type="checkbox" :value="person.id" />
+              <span>{{ person.nickname }}</span><small>{{ person.role === 'staff' ? '店员' : '志愿者' }}</small><Check v-if="designatedIds.includes(person.id)" :size="15" />
+            </label>
+            <p v-if="!designatedUsers.length" class="field-hint">当前没有可指定的店员或志愿者。</p>
+            <p v-if="designated && !designatedIds.length" class="field-error">请至少指定一名店员或志愿者</p>
+          </div>
+        </div>
+        <div v-if="!designated" class="access-field">
           <span class="taker-label">接取方式</span>
           <div class="pay-toggle" role="radiogroup" aria-label="接取方式">
             <button type="button" role="radio" :aria-checked="!passwordless" :class="{ active: !passwordless }" @click="passwordless = false">密码接取</button>
             <button type="button" role="radio" :aria-checked="passwordless" :class="{ active: passwordless }" @click="passwordless = true">无密码</button>
           </div>
         </div>
-        <label v-if="!passwordless">接取密码<input v-model="form.accept_password" type="password" required minlength="4" maxlength="32" autocomplete="new-password" placeholder="4-32 位，每位接单人凭此密码接取" />
+        <label v-if="!designated && !passwordless">接取密码<input v-model="form.accept_password" type="password" required minlength="4" maxlength="32" autocomplete="new-password" placeholder="4-32 位，每位接单人凭此密码接取" />
           <small class="field-hint">每位接单人都要用这个密码接取。密码不会在站内展示，请通过 QQ 私下告知每一位你选定的人。</small>
         </label>
-        <div v-else class="notice risk-notice" role="alert">
+        <div v-else-if="!designated" class="notice risk-notice" role="alert">
           <strong><TriangleAlert :size="17" />无密码接取风险</strong>
           <p>所有非管理员用户无需联系你确认即可直接加入，可能快速占满名额；达到所需人数后委托会自动开始。请确认委托内容适合公开接取。</p>
         </div>
         <label>有效期<input v-model="form.expires_at" type="datetime-local" required /></label>
-        <div class="dialog-footer"><button type="button" class="button secondary" @click="$emit('close')">暂不发布</button><button class="button" :disabled="busy">{{ busy ? '发布中…' : '确认发布' }}</button></div>
+        <div class="dialog-footer"><button type="button" class="button secondary" @click="$emit('close')">暂不发布</button><button class="button" :disabled="busy || (designated && !designatedIds.length)">{{ busy ? '发布中…' : '确认发布' }}</button></div>
       </form>
     </section>
   </div>

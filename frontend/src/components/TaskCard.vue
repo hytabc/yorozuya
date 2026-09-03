@@ -19,7 +19,7 @@ const role = computed(() => {
 })
 
 const requiredText = computed(() => (props.task.required_takers == null ? '不限' : props.task.required_takers))
-const joined = computed(() => props.task.members?.length || 0)
+const joined = computed(() => props.task.members?.filter((m) => m.response_status === 'accepted').length || 0)
 </script>
 
 <template>
@@ -29,6 +29,7 @@ const joined = computed(() => props.task.members?.length || 0)
         <StatusBadge :status="task.status" />
         <span class="pay-tag" :class="`pay-${task.pay_type || 'paid'}`">{{ task.pay_type === 'free' ? '无偿' : '有偿' }}</span>
         <span v-if="task.requires_password === false" class="role-tag open-access-tag"><LockOpen :size="13" />免密码</span>
+        <span v-if="task.is_designated" class="role-tag">指定人员</span>
         <span class="category-tag">{{ task.category }}</span>
         <span v-if="showRole && role" class="role-tag">{{ role }}</span>
         <span v-if="hint" class="role-tag confirm-hint">{{ hint }}</span>

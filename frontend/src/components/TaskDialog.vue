@@ -21,15 +21,19 @@ function openProfile(userId) {
 const isPublisher = computed(() => auth.user?.id === props.task.publisher_id)
 const meMember = computed(() => props.task.members?.find((m) => m.user.id === auth.user?.id))
 const isMember = computed(() => Boolean(meMember.value))
-const isParticipant = computed(() => isPublisher.value || isMember.value)
+const isParticipant = computed(() => isPublisher.value || meMember.value?.response_status === 'accepted')
 const published = computed(() => props.task.status === 'published')
+const designated = computed(() => Boolean(props.task.is_designated))
 const working = computed(() => props.task.status === 'accepted' || props.task.status === 'awaiting')
 const finished = computed(() => props.task.status === 'completed')
 const requiresPassword = computed(() => props.task.requires_password !== false)
 
 const required = computed(() => props.task.required_takers)
 const requiredText = computed(() => (required.value == null ? '不限' : `${required.value} 人`))
-const joinedCount = computed(() => props.task.members?.length || 0)
+const acceptedCount = computed(() => props.task.members?.filter((m) => m.response_status === 'accepted').length || 0)
+const pendingMember = computed(() => meMember.value?.response_status === 'pending')
+const joinedCount = computed(() => acceptedCount.value)
+const pendingCount = computed(() => props.task.members?.filter((m) => m.response_status === 'pending').length || 0)
 const autoRemain = computed(() => {
   if (published.value && required.value != null) return Math.max(0, required.value - joinedCount.value)
   return null
@@ -41,11 +45,12 @@ const confirmedCount = computed(() => {
   const members = props.task.members?.filter((m) => m.confirmed_at).length || 0
   return publisher + members
 })
-const totalPeople = computed(() => (props.task.members?.length || 0) + 1)
+const totalPeople = computed(() => acceptedCount.value + 1)
 const everyoneConfirmed = computed(() => finished.value || (working.value && confirmedCount.value >= totalPeople.value))
 const canSeeProgress = computed(() => isParticipant.value || auth.isAdmin)
 
-const canTakePanel = computed(() => published.value && auth.isLoggedIn && !isPublisher.value && !isMember.value && !auth.isAdmin && (!requiresPassword.value || ['volunteer', 'staff'].includes(auth.user?.role)))
+const canTakePanel = computed(() => published.value && auth.isLoggedIn && !isPublisher.value && !isMember.value && !auth.isAdmin && !designated.value && (!requiresPassword.value || ['volunteer', 'staff'].includes(auth.user?.role)))
+const canRespondDesignated = computed(() => published.value && designated.value && pendingMember.value && !auth.isAdmin)
 const isRegularUser = computed(() => published.value && requiresPassword.value && auth.isLoggedIn && !isPublisher.value && !isMember.value && !auth.isAdmin && auth.user?.role === 'user')
 
 const confirmCopy = computed(() => {
@@ -104,8 +109,8 @@ function resetPassword() {
       <dl class="task-detail-grid">
         <div><dt><UserRound :size="16" />委托人</dt><dd><button class="name-link" type="button" @click="openProfile(task.publisher_id)">{{ task.publisher.nickname }}</button></dd></div>
         <div><dt><CalendarClock :size="16" />有效期至</dt><dd>{{ format(task.expires_at) }}</dd></div>
-        <div><dt><UsersRound :size="16" />需要接取人数</dt><dd>{{ requiredText }}<span class="muted">（已 {{ joinedCount }} 人）</span></dd></div>
-        <div><dt><component :is="requiresPassword ? KeyRound : LockOpen" :size="16" />接取方式</dt><dd>{{ requiresPassword ? '凭密码接取' : '无需密码，直接接取' }}</dd></div>
+        <div><dt><UsersRound :size="16" />需要接取人数</dt><dd>{{ requiredText }}<span class="muted">（已响应 {{ joinedCount }} 人<template v-if="pendingCount">，待响应 {{ pendingCount }} 人</template>）</span></dd></div>
+        <div><dt><component :is="designated ? UsersRound : (requiresPassword ? KeyRound : LockOpen)" :size="16" />接取方式</dt><dd>{{ designated ? '指定人员响应' : (requiresPassword ? '凭密码接取' : '无需密码，直接接取') }}</dd></div>
         <div><dt><Coins :size="16" />是否付费</dt><dd><span class="pay-tag" :class="`pay-${task.pay_type || 'paid'}`">{{ task.pay_type === 'free' ? '无偿' : '有偿' }}</span><template v-if="task.pay_type !== 'free' && task.reward"> · {{ task.reward }}</template><span v-if="task.pay_type !== 'free' && !task.reward" class="muted"> · 报酬待协商</span></dd></div>
         <div v-if="task.contact_qq"><dt><MessageCircle :size="16" />委托人 QQ</dt><dd>{{ task.contact_qq }}</dd></div>
       </dl>
@@ -120,9 +125,9 @@ function resetPassword() {
           <li :class="{ confirmed: canSeeProgress && task.publisher_confirmed_at }">
             <span class="crew-tag role-owner">委</span><button class="name-link" type="button" @click="openProfile(task.publisher_id)">{{ task.publisher.nickname }}</button><em v-if="canSeeProgress && task.publisher_confirmed_at">已确认</em>
           </li>
-          <li v-for="m in task.members" :key="m.user.id" :class="{ confirmed: canSeeProgress && m.confirmed_at }">
+          <li v-for="m in task.members" :key="m.user.id" :class="{ confirmed: canSeeProgress && m.confirmed_at, declined: m.response_status === 'declined', pending: m.response_status === 'pending' }">
             <span class="crew-tag">{{ m.user.id === auth.user?.id ? '我' : '接' }}</span>
-            <button class="name-link" type="button" @click="openProfile(m.user.id)">{{ m.user.nickname }}</button><span v-if="m.qq && canSeeProgress" class="crew-qq muted">QQ {{ m.qq }}</span><em v-if="canSeeProgress && m.confirmed_at">已确认</em>
+            <button class="name-link" type="button" @click="openProfile(m.user.id)">{{ m.user.nickname }}</button><span v-if="m.qq && canSeeProgress" class="crew-qq muted">QQ {{ m.qq }}</span><em v-if="m.response_status === 'pending'">待响应</em><em v-else-if="m.response_status === 'declined'">已拒绝</em><em v-else-if="canSeeProgress && m.confirmed_at">已确认</em>
           </li>
         </ul>
         <p v-if="canSeeProgress && (working || finished)" class="crew-progress muted">确认进度 {{ confirmedCount }} / {{ totalPeople }}<template v-if="!everyoneConfirmed"> · 还差 {{ totalPeople - confirmedCount }} 人确认</template></p>
@@ -137,14 +142,19 @@ function resetPassword() {
 
       <div v-if="published && isPublisher && !isMember" class="notice info-notice">
         <strong>委托待开始，等待接单人</strong>
-        <p v-if="requiresPassword">已加入 {{ joinedCount }} / {{ requiredText }}。凑齐人数会自动开始，也可以等接单人联系你谈妥后手动开始；想换人先重设密码。</p>
+        <p v-if="designated">已指定 {{ requiredText }}，已响应 {{ joinedCount }} 人，待响应 {{ pendingCount }} 人。所有被指定人员响应后，委托才会开始。</p>
+        <p v-else-if="requiresPassword">已加入 {{ joinedCount }} / {{ requiredText }}。凑齐人数会自动开始，也可以等接单人联系你谈妥后手动开始；想换人先重设密码。</p>
         <p v-else>已加入 {{ joinedCount }} / {{ requiredText }}。所有权限等级的非管理员用户均可直接接取，凑齐人数会自动开始。</p>
       </div>
 
-      <div v-if="published && isMember && !isPublisher" class="notice success-notice">
+      <div v-if="published && isMember && !isPublisher && !pendingMember" class="notice success-notice">
         <strong>你已接取，等待委托人开始</strong>
         <p v-if="autoRemain != null && autoRemain > 0">还需 {{ autoRemain }} 人接取后自动开始，委托人也可以提前手动开始。</p>
         <p v-else>委托人开始后即可进行任务。</p>
+      </div>
+      <div v-if="canRespondDesignated" class="take-panel">
+        <div class="notice info-notice"><strong>你被指定接取此委托</strong><p>无需密码，请选择接受或拒绝。接受后将按协作成员参与完成确认。</p></div>
+        <div class="accept-tools"><button class="button" :disabled="busy" @click="$emit('action', 'accept')">{{ busy ? '处理中…' : '接受委托' }}</button><button class="button secondary" :disabled="busy" @click="$emit('action', 'leave')">拒绝委托</button></div>
       </div>
 
       <div v-if="canTakePanel" class="take-panel">
@@ -207,9 +217,9 @@ function resetPassword() {
       <footer class="dialog-footer">
         <span class="muted">发布于 {{ format(task.created_at) }}<template v-if="task.started_at"> · 开始于 {{ format(task.started_at) }}</template><template v-if="task.status === 'cancelling'"> · 取消请求发起于 {{ format(task.cancel_requested_at) }}</template></span>
         <div class="dialog-actions">
-          <button v-if="published && isPublisher && !isMember" class="button" :disabled="busy || joinedCount === 0" @click="$emit('action', 'start')">{{ busy ? '处理中…' : '开始委托任务' }}</button>
-          <button v-if="published && isPublisher && !isMember" class="button secondary small" :disabled="busy" @click="resetPassword">{{ requiresPassword ? '重设接取密码' : '设置接取密码' }}</button>
-          <button v-if="published && isMember && !isPublisher && !cancelling" class="button danger small" :disabled="busy" @click="$emit('action', 'leave')">{{ busy ? '处理中…' : '退出接取' }}</button>
+          <button v-if="published && isPublisher && !isMember && !designated" class="button" :disabled="busy || joinedCount === 0" @click="$emit('action', 'start')">{{ busy ? '处理中…' : '开始委托任务' }}</button>
+          <button v-if="published && isPublisher && !isMember && !designated" class="button secondary small" :disabled="busy" @click="resetPassword">{{ requiresPassword ? '重设接取密码' : '设置接取密码' }}</button>
+          <button v-if="published && isMember && !isPublisher && !designated && !cancelling" class="button danger small" :disabled="busy" @click="$emit('action', 'leave')">{{ busy ? '处理中…' : '退出接取' }}</button>
           <button v-if="cancellable && !cancelling" class="button danger small" :disabled="busy" @click="$emit('action', 'cancel')">{{ busy ? '处理中…' : '取消委托' }}</button>
           <button v-if="cancelling && isParticipant && cancelAgreedByMe" class="button secondary small" :disabled="busy" @click="$emit('action', 'cancel-continue')">{{ busy ? '处理中…' : '撤回，继续委托' }}</button>
           <template v-if="cancelling && isParticipant && !cancelAgreedByMe">

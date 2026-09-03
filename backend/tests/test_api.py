@@ -972,3 +972,64 @@ def test_user_profile_photos_upload_limits_task_visibility_and_moderation(monkey
         deleted = client.delete(f"/api/users/me/photos/{photo_id}", headers=owner)
         assert deleted.status_code == 200
         assert len(deleted.json()["photos"]) == 2
+
+
+def test_designated_single_member_accepts_or_declines_without_password():
+    with TestClient(app) as client:
+        publisher = auth(client, "designated_pub")
+        volunteer = auth(client, "designated_one", role="volunteer")
+        volunteer_id = client.get("/api/auth/me", headers=volunteer).json()["id"]
+        # 指定委托由创建请求中的名单决定，密码字段被忽略。
+        task = client.post(
+            "/api/tasks",
+            headers=publisher,
+            json={
+                "title": "指定单人委托",
+                "description": "请完成一项指定人员才能处理的工作内容",
+                "category": "其他",
+                "pay_type": "free",
+                "accept_password": "should-not-apply",
+                "designated_user_ids": [volunteer_id],
+                "expires_at": (datetime.utcnow() + timedelta(days=2)).isoformat() + "Z",
+            },
+        ).json()
+        assert task["is_designated"] is True and task["requires_password"] is False
+        assert task["members"][0]["response_status"] == "pending"
+        tid = task["id"]
+        accepted = client.post(f"/api/tasks/{tid}/accept", headers=volunteer, json={"password": "wrong"})
+        assert accepted.status_code == 200
+        assert accepted.json()["status"] == "accepted"
+
+
+def test_designated_multiple_waits_for_all_and_cancels_when_all_decline():
+    with TestClient(app) as client:
+        publisher = auth(client, "designated_pub2")
+        one = auth(client, "designated_two", role="volunteer")
+        two = auth(client, "designated_three", role="volunteer")
+        outsider = auth(client, "designated_outsider", role="volunteer")
+        ids = [client.get("/api/auth/me", headers=h).json()["id"] for h in (one, two)]
+        payload = {
+            "title": "指定多人委托",
+            "description": "请完成一项需要多人响应后才能开始的工作内容",
+            "category": "其他",
+            "pay_type": "free",
+            "designated_user_ids": ids,
+            "expires_at": (datetime.utcnow() + timedelta(days=2)).isoformat() + "Z",
+        }
+        created = client.post("/api/tasks", headers=publisher, json=payload)
+        assert created.status_code == 201, created.text
+        task = created.json()
+        tid = task["id"]
+        assert client.post(f"/api/tasks/{tid}/accept", headers=outsider, json={}).status_code == 403
+        assert client.post(f"/api/tasks/{tid}/accept", headers=one, json={}).json()["status"] == "published"
+        # 另一人拒绝不会取消；全部响应后有一人接受则开始。
+        declined = client.post(f"/api/tasks/{tid}/leave", headers=two)
+        assert declined.status_code == 200 and declined.json()["status"] == "accepted"
+
+        payload["title"] = "指定多人全拒绝"
+        created2 = client.post("/api/tasks", headers=publisher, json=payload)
+        assert created2.status_code == 201, created2.text
+        task2 = created2.json()
+        tid2 = task2["id"]
+        assert client.post(f"/api/tasks/{tid2}/leave", headers=one).json()["status"] == "published"
+        assert client.post(f"/api/tasks/{tid2}/leave", headers=two).json()["status"] == "cancelled"

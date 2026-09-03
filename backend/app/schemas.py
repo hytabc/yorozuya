@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
-from .models import FeedbackStatus, SugarPairStatus, TaskStatus, UserRole
+from .models import FeedbackStatus, SugarPairStatus, TaskMemberResponse, TaskStatus, UserRole
 
 
 class ApiModel(BaseModel):
@@ -112,9 +112,11 @@ class TaskCreate(RequestModel):
     pay_type: Literal["paid", "free"] = "paid"
     reward: str | None = Field(default=None, max_length=60)
     # null 表示公开接取；设置密码时仍要求 4-32 位。
-    accept_password: str | None = Field(min_length=4, max_length=32)
+    accept_password: str | None = Field(default=None, min_length=4, max_length=32)
     # 需要几人接取；null / 缺省表示人数不限（只能由委托人手动开始）
     required_takers: int | None = Field(default=None, ge=1, le=999)
+    # 非空时为指定委托，只允许名单内的店员/志愿者响应。
+    designated_user_ids: list[int] = Field(default_factory=list, max_length=999)
     expires_at: datetime
 
     @field_validator("expires_at")
@@ -136,6 +138,7 @@ class PasswordUpdate(RequestModel):
 class TaskMemberOut(ApiModel):
     user: UserPublic
     joined_at: datetime
+    response_status: TaskMemberResponse = TaskMemberResponse.ACCEPTED
     confirmed_at: datetime | None = None
     cancel_confirmed_at: datetime | None = None
     # 联系方式只在协作双方可见时由后端填充
@@ -155,6 +158,7 @@ class TaskOut(ApiModel):
     publisher: UserPublic
     requires_password: bool
     required_takers: int | None = None
+    is_designated: bool = False
     members: list[TaskMemberOut] = []
     publisher_id: int
     publisher_confirmed_at: datetime | None = None

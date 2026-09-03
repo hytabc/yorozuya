@@ -25,6 +25,7 @@ from .models import (
     SugarProfile,
     Task,
     TaskMember,
+    TaskMemberResponse,
     TaskStatus,
     User,
     UserPhoto,
@@ -106,6 +107,8 @@ def migrate_schema() -> None:
         task_columns = {column["name"] for column in inspector.get_columns("tasks")}
         if "required_takers" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN required_takers INTEGER"))
+        if "is_designated" not in task_columns:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN is_designated BOOLEAN NOT NULL DEFAULT 0"))
         if "started_at" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN started_at DATETIME"))
         if "pay_type" not in task_columns:
@@ -131,6 +134,10 @@ def migrate_schema() -> None:
             member_columns = {column["name"] for column in inspector.get_columns("task_members")}
             if "cancel_confirmed_at" not in member_columns:
                 connection.execute(text("ALTER TABLE task_members ADD COLUMN cancel_confirmed_at DATETIME"))
+            if "response_status" not in member_columns:
+                connection.execute(
+                    text("ALTER TABLE task_members ADD COLUMN response_status VARCHAR(16) NOT NULL DEFAULT 'accepted'")
+                )
         # 旧版单接单人数据升级：
         # 1) submitted(已提交待验收) -> awaiting(待确认)，以提交时间作为接单人确认时间
         # 2) 有 assignee_id 的任务，把接单人搬进 task_members
@@ -239,7 +246,8 @@ def present_members(task: Task, viewer: User | None) -> list[TaskMemberOut]:
     for member in task.members:
         item = TaskMemberOut(
             user=present_user_public(member.user, viewer), joined_at=member.joined_at,
-            confirmed_at=member.confirmed_at, cancel_confirmed_at=member.cancel_confirmed_at,
+            response_status=member.response_status, confirmed_at=member.confirmed_at,
+            cancel_confirmed_at=member.cancel_confirmed_at,
         )
         if can_see_qq:
             item.qq = member.user.qq
@@ -283,6 +291,16 @@ def present_feedback(feedback: Feedback) -> FeedbackOut:
 
 def member_of(db: Session, task_id: int, user_id: int) -> TaskMember | None:
     return db.scalar(select(TaskMember).where(TaskMember.task_id == task_id, TaskMember.user_id == user_id))
+
+
+def accepted_member_of(db: Session, task_id: int, user_id: int) -> TaskMember | None:
+    return db.scalar(
+        select(TaskMember).where(
+            TaskMember.task_id == task_id,
+            TaskMember.user_id == user_id,
+            TaskMember.response_status == TaskMemberResponse.ACCEPTED,
+        )
+    )
 
 
 def shares_task_with(db: Session, viewer_id: int, target_id: int) -> bool:
@@ -457,7 +475,11 @@ def active_task_count(db: Session, user_id: int) -> int:
         select(func.count())
         .select_from(TaskMember)
         .join(Task, Task.id == TaskMember.task_id)
-        .where(TaskMember.user_id == user_id, Task.status.in_(ACTIVE_TAKEN_STATUSES))
+        .where(
+            TaskMember.user_id == user_id,
+            TaskMember.response_status == TaskMemberResponse.ACCEPTED,
+            Task.status.in_(ACTIVE_TAKEN_STATUSES),
+        )
     ) or 0
 
 
@@ -465,9 +487,14 @@ def start_if_ready(db: Session, task: Task) -> None:
     """达到所需人数时自动开始。required_takers 为 null 表示不限人数，只有委托人手动开始。"""
     if task.status != TaskStatus.PUBLISHED:
         return
-    if task.required_takers is None:
+    if task.required_takers is None or task.is_designated:
         return
-    count = db.scalar(select(func.count()).select_from(TaskMember).where(TaskMember.task_id == task.id)) or 0
+    count = db.scalar(
+        select(func.count()).select_from(TaskMember).where(
+            TaskMember.task_id == task.id,
+            TaskMember.response_status == TaskMemberResponse.ACCEPTED,
+        )
+    ) or 0
     if count >= task.required_takers:
         task.status = TaskStatus.ACCEPTED
         task.started_at = task.started_at or datetime.utcnow()
@@ -925,6 +952,21 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
         raise HTTPException(status_code=422, detail="有效期至少需要 1 小时")
     if payload.expires_at > now + timedelta(days=90):
         raise HTTPException(status_code=422, detail="有效期最长为 90 天")
+    designated_user_ids = list(dict.fromkeys(payload.designated_user_ids))
+    if user.id in designated_user_ids:
+        raise HTTPException(status_code=422, detail="不能指定自己接取委托")
+    designated_users: list[User] = []
+    if designated_user_ids:
+        designated_users = db.scalars(
+            select(User).where(
+                User.id.in_(designated_user_ids),
+                User.is_active.is_(True),
+                User.is_admin.is_(False),
+                User.role.in_([UserRole.VOLUNTEER, UserRole.STAFF]),
+            )
+        ).all()
+        if len(designated_users) != len(designated_user_ids):
+            raise HTTPException(status_code=422, detail="只能指定当前可用的店员或志愿者")
     task = Task(
         title=payload.title.strip(),
         description=payload.description.strip(),
@@ -933,10 +975,21 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
         reward=payload.reward.strip() if payload.reward else None,
         expires_at=payload.expires_at,
         publisher_id=user.id,
-        required_takers=payload.required_takers,
-        accept_password_hash=hash_password(payload.accept_password) if payload.accept_password else None,
+        required_takers=len(designated_user_ids) if designated_user_ids else payload.required_takers,
+        # 指定委托无须密码，响应权限由指定名单保证。
+        accept_password_hash=None if designated_user_ids else (hash_password(payload.accept_password) if payload.accept_password else None),
+        is_designated=bool(designated_user_ids),
     )
     db.add(task)
+    db.flush()
+    for designated_user in designated_users:
+        db.add(
+            TaskMember(
+                task_id=task.id,
+                user_id=designated_user.id,
+                response_status=TaskMemberResponse.PENDING,
+            )
+        )
     db.commit()
     return present_task(get_task_or_404(db, task.id), user)
 
@@ -959,7 +1012,32 @@ def accept_task(
         raise HTTPException(status_code=403, detail="管理员不接取委托")
     if task.status != TaskStatus.PUBLISHED:
         raise HTTPException(status_code=409, detail="委托已开始或不可接取")
-    if member_of(db, task_id, user.id) is not None:
+    existing_member = member_of(db, task_id, user.id)
+    if task.is_designated:
+        if existing_member is None:
+            raise HTTPException(status_code=403, detail="该委托已指定其他店员或志愿者")
+        if existing_member.response_status != TaskMemberResponse.PENDING:
+            raise HTTPException(status_code=409, detail="你已响应此指定委托")
+        # 在支持行锁的数据库上串行化同一用户的接单操作，避免并发突破个人上限。
+        db.scalar(select(User).where(User.id == user.id).with_for_update())
+        if active_task_count(db, user.id) >= user.max_concurrent_tasks:
+            raise HTTPException(
+                status_code=409,
+                detail=f"你同时接取的委托已达上限（{user.max_concurrent_tasks} 个）",
+            )
+        existing_member.response_status = TaskMemberResponse.ACCEPTED
+        task.updated_at = datetime.utcnow()
+        # 指定单人接受后立即开始；多人须等所有指定人员均响应后开始。
+        if all(member.response_status != TaskMemberResponse.PENDING for member in task.members):
+            if any(member.response_status == TaskMemberResponse.ACCEPTED for member in task.members):
+                task.status = TaskStatus.ACCEPTED
+                task.started_at = task.started_at or datetime.utcnow()
+            else:
+                task.status = TaskStatus.CANCELLED
+                task.cancelled_at = datetime.utcnow()
+        db.commit()
+        return present_task(get_task_or_404(db, task_id), user)
+    if existing_member is not None:
         raise HTTPException(status_code=409, detail="你已经接取过该委托")
     if task.required_takers is not None:
         joined = db.scalar(select(func.count()).select_from(TaskMember).where(TaskMember.task_id == task.id)) or 0
@@ -994,6 +1072,8 @@ def start_task(task_id: int, user: User = Depends(get_current_user), db: Session
         raise HTTPException(status_code=403, detail="只有委托人（发布人）可以开始委托")
     if task.status != TaskStatus.PUBLISHED:
         raise HTTPException(status_code=409, detail="委托已开始或不可开始")
+    if task.is_designated:
+        raise HTTPException(status_code=409, detail="指定委托须等待所有被指定人员响应")
     if not task.members:
         raise HTTPException(status_code=409, detail="至少需要一名接单人才能开始，请先等待接单人加入")
     task.status = TaskStatus.ACCEPTED
@@ -1013,6 +1093,20 @@ def leave_task(task_id: int, user: User = Depends(get_current_user), db: Session
         raise HTTPException(status_code=403, detail="你不是该委托的接单人")
     if task.status != TaskStatus.PUBLISHED:
         raise HTTPException(status_code=409, detail="委托已经开始，不能退出")
+    if task.is_designated:
+        if membership.response_status != TaskMemberResponse.PENDING:
+            raise HTTPException(status_code=409, detail="已接受指定委托，不能拒绝")
+        membership.response_status = TaskMemberResponse.DECLINED
+        task.updated_at = datetime.utcnow()
+        if all(member.response_status != TaskMemberResponse.PENDING for member in task.members):
+            if any(member.response_status == TaskMemberResponse.ACCEPTED for member in task.members):
+                task.status = TaskStatus.ACCEPTED
+                task.started_at = datetime.utcnow()
+            else:
+                task.status = TaskStatus.CANCELLED
+                task.cancelled_at = datetime.utcnow()
+        db.commit()
+        return present_task(get_task_or_404(db, task_id), user)
     db.delete(membership)
     db.commit()
     return present_task(get_task_or_404(db, task_id), user)
@@ -1031,7 +1125,7 @@ def confirm_task(task_id: int, user: User = Depends(get_current_user), db: Sessi
             raise HTTPException(status_code=409, detail="你已确认完成")
         task.publisher_confirmed_at = now
     else:
-        membership = member_of(db, task_id, user.id)
+        membership = accepted_member_of(db, task_id, user.id)
         if membership is None:
             raise HTTPException(status_code=403, detail="只有委托人和接单人可确认完成")
         if membership.confirmed_at is not None:
@@ -1077,7 +1171,7 @@ def request_cancel_task(task_id: int, user: User = Depends(get_current_user), db
     """
     expire_due_tasks(db)
     task = get_task_or_404(db, task_id)
-    if task.publisher_id != user.id and member_of(db, task_id, user.id) is None:
+    if task.publisher_id != user.id and accepted_member_of(db, task_id, user.id) is None:
         raise HTTPException(status_code=403, detail="只有委托人或接单人能发起取消")
     if task.status == TaskStatus.CANCELLING:
         raise HTTPException(status_code=409, detail="已发起取消，等待双方确认")
@@ -1100,7 +1194,7 @@ def request_cancel_task(task_id: int, user: User = Depends(get_current_user), db
     if task.publisher_id == user.id:
         task.publisher_cancel_confirmed_at = now
     else:
-        membership = member_of(db, task_id, user.id)
+        membership = accepted_member_of(db, task_id, user.id)
         if membership is not None:
             membership.cancel_confirmed_at = now
     task.updated_at = now
@@ -1115,7 +1209,7 @@ def confirm_cancel_task(task_id: int, user: User = Depends(get_current_user), db
     task = get_task_or_404(db, task_id)
     if task.status != TaskStatus.CANCELLING:
         raise HTTPException(status_code=409, detail="当前没有待确认的取消请求")
-    if task.publisher_id != user.id and member_of(db, task_id, user.id) is None:
+    if task.publisher_id != user.id and accepted_member_of(db, task_id, user.id) is None:
         raise HTTPException(status_code=403, detail="只有委托人或接单人可确认取消")
     now = datetime.utcnow()
     if task.publisher_id == user.id:
@@ -1123,7 +1217,7 @@ def confirm_cancel_task(task_id: int, user: User = Depends(get_current_user), db
             raise HTTPException(status_code=409, detail="你已同意取消")
         task.publisher_cancel_confirmed_at = now
     else:
-        membership = member_of(db, task_id, user.id)
+        membership = accepted_member_of(db, task_id, user.id)
         if membership is None or membership.cancel_confirmed_at is not None:
             raise HTTPException(status_code=409, detail="你已同意取消")
         membership.cancel_confirmed_at = now
@@ -1143,7 +1237,7 @@ def reject_cancel_task(task_id: int, user: User = Depends(get_current_user), db:
     task = get_task_or_404(db, task_id)
     if task.status != TaskStatus.CANCELLING:
         raise HTTPException(status_code=409, detail="当前没有可撤回的取消请求")
-    if task.publisher_id != user.id and member_of(db, task_id, user.id) is None:
+    if task.publisher_id != user.id and accepted_member_of(db, task_id, user.id) is None:
         raise HTTPException(status_code=403, detail="只有委托人或接单人可操作取消请求")
     now = datetime.utcnow()
     resume = task.cancel_resume_status or TaskStatus.ACCEPTED
