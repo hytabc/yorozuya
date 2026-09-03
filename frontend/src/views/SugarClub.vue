@@ -22,7 +22,7 @@ const form = reactive({ about: '' })
 
 const ownProfile = computed(() => profiles.value.find((profile) => profile.user.id === auth.user.id) || null)
 const activePair = computed(() => myPairs.value.find((pair) => pair.status === 'active') || null)
-const pendingPair = computed(() => myPairs.value.find((pair) => pair.status === 'pending') || null)
+const pendingPairs = computed(() => myPairs.value.filter((pair) => pair.status === 'pending'))
 const canAddPhotos = computed(() => (ownProfile.value?.photos.length || 0) + pendingPhotos.value.length < MAX_PHOTOS)
 
 function partner(pair) {
@@ -121,6 +121,18 @@ async function deletePhoto(photo) {
   }
 }
 
+async function deleteProfile() {
+  if (!window.confirm('确定删除已登记的砂糖社资料吗？进行中的关系也会结束。')) return
+  try {
+    await api.delete('/sugar/profile')
+    editorOpen.value = false
+    await load()
+    toast.success('砂糖社资料已删除')
+  } catch (error) {
+    toast.error(errorMessage(error))
+  }
+}
+
 async function openDetail(userId) {
   detail.value = null
   detailLoading.value = true
@@ -168,12 +180,11 @@ onBeforeUnmount(clearPendingPhotos)
       <button class="button" @click="setEditor()"><Pencil :size="17" />{{ ownProfile ? '编辑档案' : '登记资料' }}</button>
     </div>
 
-    <section v-if="activePair || pendingPair" class="sugar-status" :class="{ active: activePair }">
+    <section v-if="activePair || pendingPairs.length" class="sugar-status" :class="{ active: activePair }">
       <HeartHandshake :size="22" />
       <div v-if="activePair"><small>当前砂糖</small><strong>{{ partner(activePair).nickname }}</strong><span>已维持 {{ duration(activePair.duration_seconds) }}</span></div>
-      <div v-else><small>待确认砂糖</small><strong>{{ partner(pendingPair).nickname }}</strong><span>{{ pendingPair.initiated_by_id === auth.user.id ? '等待对方确认' : '等待你的确认' }}</span></div>
+      <div v-else class="pending-sugar-list"><small>待确认砂糖</small><div v-for="pair in pendingPairs" :key="pair.id" class="pending-sugar-row"><strong>{{ partner(pair).nickname }}</strong><span>{{ pair.initiated_by_id === auth.user.id ? '等待对方确认' : '等待你的确认' }}</span><button class="button secondary small" @click="openDetail(partner(pair).id)">查看</button></div></div>
       <button v-if="activePair" class="button secondary small" @click="endPair(activePair)">结束关系</button>
-      <button v-else class="button small" @click="openDetail(partner(pendingPair).id)">查看</button>
     </section>
 
     <section class="sugar-ranking">
@@ -216,7 +227,7 @@ onBeforeUnmount(clearPendingPhotos)
               <label v-if="canAddPhotos" class="photo-add"><ImagePlus :size="22" /><input type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple @change="selectPhotos" /></label>
             </div>
           </div>
-          <div class="dialog-footer"><button class="button secondary" type="button" @click="editorOpen = false">取消</button><button class="button" :disabled="saving"><Save :size="16" />{{ saving ? '保存中…' : '保存档案' }}</button></div>
+          <div class="dialog-footer"><button v-if="ownProfile" class="button danger small" type="button" @click="deleteProfile">删除档案</button><span class="dialog-footer-spacer" /><button class="button secondary" type="button" @click="editorOpen = false">取消</button><button class="button" :disabled="saving"><Save :size="16" />{{ saving ? '保存中…' : '保存档案' }}</button></div>
         </form>
       </section>
     </div>

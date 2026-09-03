@@ -365,6 +365,12 @@ tr.dimmed td { color: #89918d; background: #fafafa; }
 .sugar-status small, .sugar-status span { color: var(--muted); font-size: 11px; }
 .sugar-status strong { overflow-wrap: anywhere; color: var(--ink); font-size: 16px; }
 .sugar-status .button { margin-left: auto; flex-shrink: 0; }
+.pending-sugar-list { display: grid; gap: 8px; min-width: 0; flex: 1; }
+.pending-sugar-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.pending-sugar-row strong { overflow-wrap: anywhere; }
+.pending-sugar-row span { color: var(--muted); font-size: 12px; }
+.pending-sugar-row .button { margin-left: auto; }
+.dialog-footer-spacer { flex: 1; }
 .sugar-ranking { margin-bottom: 55px; }
 .pair-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 17px; }
 .pair-card { position: relative; min-height: 155px; padding: 22px; overflow: hidden; border: 1px solid var(--line); border-top: 3px solid #ba718c; border-radius: 6px; background: white; }
