@@ -450,6 +450,16 @@ def ongoing_sugar_pair_for(db: Session, user_id: int, exclude_pair_id: int | Non
     return db.scalar(sugar_pair_query().where(*filters).order_by(SugarPair.initiated_at.desc()))
 
 
+def active_sugar_pair_for(db: Session, user_id: int, exclude_pair_id: int | None = None) -> SugarPair | None:
+    filters = [
+        SugarPair.status == SugarPairStatus.ACTIVE,
+        or_(SugarPair.first_user_id == user_id, SugarPair.second_user_id == user_id),
+    ]
+    if exclude_pair_id is not None:
+        filters.append(SugarPair.id != exclude_pair_id)
+    return db.scalar(sugar_pair_query().where(*filters).order_by(SugarPair.initiated_at.desc()))
+
+
 def image_extension(content: bytes) -> str | None:
     for signature, extension in IMAGE_SIGNATURES:
         if content.startswith(signature):
@@ -800,6 +810,39 @@ def delete_sugar_photo(photo_id: int, user: User = Depends(get_current_user), db
     return present_sugar_profile(get_sugar_profile_or_404(db, user.id), qq=user.qq, detailed=True)
 
 
+@app.delete("/api/sugar/profile", status_code=status.HTTP_204_NO_CONTENT)
+def delete_sugar_profile(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """删除本人砂糖资料；待确认关系一并移除，进行中的关系标记为已结束。"""
+    profile = db.scalars(sugar_profile_query().where(SugarProfile.user_id == user.id)).unique().one_or_none()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="砂糖社资料不存在")
+    photo_paths = [photo.file_path for photo in profile.photos]
+    now = datetime.utcnow()
+    pairs = db.scalars(
+        sugar_pair_query().where(
+            or_(SugarPair.first_user_id == user.id, SugarPair.second_user_id == user.id),
+            SugarPair.status.in_([SugarPairStatus.PENDING, SugarPairStatus.ACTIVE]),
+        )
+    ).all()
+    for pair in pairs:
+        if pair.status == SugarPairStatus.ACTIVE:
+            pair.status = SugarPairStatus.ENDED
+            pair.ended_at = now
+        else:
+            db.delete(pair)
+    db.delete(profile)
+    db.commit()
+    root = settings.sugar_upload_path.resolve()
+    for file_path in photo_paths:
+        destination = (root / file_path).resolve()
+        if destination.is_relative_to(root):
+            try:
+                destination.unlink(missing_ok=True)
+            except OSError:
+                pass
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @app.get("/api/sugar/pairs/mine", response_model=list[SugarPairOut])
 def my_sugar_pairs(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     pairs = db.scalars(
@@ -845,15 +888,29 @@ def confirm_sugar_pair(
             raise HTTPException(status_code=409, detail="你们已经是砂糖")
         if existing.initiated_by_id == user.id:
             raise HTTPException(status_code=409, detail="已等待对方确认")
-        conflict = ongoing_sugar_pair_for(db, user.id, existing.id) or ongoing_sugar_pair_for(db, target_user_id, existing.id)
-        if conflict is not None:
-            raise HTTPException(status_code=409, detail="双方有人已有待确认或进行中的砂糖关系")
+        # 已有待确认记录时，资料发布人（被邀请方）再次确认即可选择并激活该关系。
+        # 其他人的待确认请求可以同时存在，待发布人逐一选择。
+        if active_sugar_pair_for(db, user.id, existing.id) or active_sugar_pair_for(db, target_user_id, existing.id):
+            raise HTTPException(status_code=409, detail="双方已有进行中的砂糖关系")
         existing.status = SugarPairStatus.ACTIVE
         existing.activated_at = now
+        # 发布人选定关系后，清理其余待确认请求，避免其他申请人长期停留在待确认状态。
+        selected_owner_id = user.id
+        other_pending = db.scalars(
+            select(SugarPair).where(
+                SugarPair.id != existing.id,
+                SugarPair.status == SugarPairStatus.PENDING,
+                SugarPair.initiated_by_id != selected_owner_id,
+                or_(SugarPair.first_user_id == selected_owner_id, SugarPair.second_user_id == selected_owner_id),
+            )
+        ).all()
+        for pending in other_pending:
+            db.delete(pending)
         db.commit()
         return present_sugar_pair(existing)
-    if ongoing_sugar_pair_for(db, user.id) or ongoing_sugar_pair_for(db, target_user_id):
-        raise HTTPException(status_code=409, detail="双方有人已有待确认或进行中的砂糖关系")
+    # 允许同一资料发布人同时收到多条待确认请求，但任一方已有进行中的关系时不可再发起。
+    if active_sugar_pair_for(db, user.id) or active_sugar_pair_for(db, target_user_id):
+        raise HTTPException(status_code=409, detail="双方已有进行中的砂糖关系")
     pair = SugarPair(
         first_user_id=user.id,
         second_user_id=target_user_id,
