@@ -38,6 +38,12 @@ class UserRole(str, Enum):
     STAFF = "staff"  # 店员：志愿者能力 + 管理非管理员账号的普通用户/志愿者等级
 
 
+class SugarPairStatus(str, Enum):
+    PENDING = "pending"
+    ACTIVE = "active"
+    ENDED = "ended"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -63,6 +69,7 @@ class User(Base):
     memberships: Mapped[list["TaskMember"]] = relationship(
         foreign_keys="TaskMember.user_id", back_populates="user"
     )
+    sugar_profile: Mapped["SugarProfile | None"] = relationship(back_populates="user", uselist=False)
 
 
 class Task(Base):
@@ -172,3 +179,54 @@ class Feedback(Base):
     handled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     user: Mapped[User | None] = relationship(foreign_keys=[user_id])
+
+
+class SugarProfile(Base):
+    """砂糖社公开档案；联系信息仍复用用户资料中的 QQ。"""
+
+    __tablename__ = "sugar_profiles"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, index=True)
+    about: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user: Mapped[User] = relationship(back_populates="sugar_profile")
+    photos: Mapped[list["SugarPhoto"]] = relationship(
+        back_populates="profile", cascade="all, delete-orphan", order_by="SugarPhoto.created_at"
+    )
+
+
+class SugarPhoto(Base):
+    __tablename__ = "sugar_photos"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    profile_id: Mapped[int] = mapped_column(ForeignKey("sugar_profiles.id"), index=True)
+    # 仅存相对上传目录的路径，文件本体由服务端本地磁盘保存。
+    file_path: Mapped[str] = mapped_column(String(255), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    profile: Mapped[SugarProfile] = relationship(back_populates="photos")
+
+
+class SugarPair(Base):
+    """一次砂糖关系；结束后保留，方便按实际维持时长排行。"""
+
+    __tablename__ = "sugar_pairs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    first_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    second_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    initiated_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    status: Mapped[SugarPairStatus] = mapped_column(
+        SqlEnum(SugarPairStatus, values_callable=lambda values: [item.value for item in values]),
+        default=SugarPairStatus.PENDING,
+        index=True,
+    )
+    initiated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    first_user: Mapped[User] = relationship(foreign_keys=[first_user_id])
+    second_user: Mapped[User] = relationship(foreign_keys=[second_user_id])

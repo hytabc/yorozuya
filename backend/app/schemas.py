@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
-from .models import FeedbackStatus, TaskStatus, UserRole
+from .models import FeedbackStatus, SugarPairStatus, TaskStatus, UserRole
 
 
 class ApiModel(BaseModel):
@@ -24,6 +24,9 @@ class ApiModel(BaseModel):
         "cancelled_at",
         "cancel_requested_at",
         "publisher_cancel_confirmed_at",
+        "initiated_at",
+        "activated_at",
+        "ended_at",
         check_fields=False,
     )
     def serialize_datetime(self, value: datetime | None):
@@ -222,3 +225,34 @@ class AdminStats(BaseModel):
     processing: int
     completed: int
     hidden: int
+
+
+class SugarPhotoOut(BaseModel):
+    id: int
+    image_url: str
+
+
+class SugarProfileCardOut(ApiModel):
+    id: int
+    user: UserPublic
+    about: str
+    photos: list[SugarPhotoOut] = []
+    created_at: datetime
+    updated_at: datetime
+
+
+class SugarPairOut(ApiModel):
+    id: int
+    first_user: UserPublic
+    second_user: UserPublic
+    initiated_by_id: int
+    status: SugarPairStatus
+    initiated_at: datetime
+    activated_at: datetime | None = None
+    ended_at: datetime | None = None
+    duration_seconds: int = 0
+
+
+class SugarProfileDetailOut(SugarProfileCardOut):
+    qq: str | None = None
+    relationship: SugarPairOut | None = None

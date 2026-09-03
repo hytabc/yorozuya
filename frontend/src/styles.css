@@ -328,6 +328,58 @@ tr.dimmed td { color: #89918d; background: #fafafa; }
 .staff-empty { min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--muted); font-size: 13px; text-align: center; }
 .staff-empty.compact { min-height: 120px; border: 1px dashed var(--line); }
 
+.sugar-title { margin-bottom: 30px; }
+.sugar-status { display: flex; align-items: center; gap: 13px; min-height: 86px; margin-bottom: 44px; padding: 16px 20px; border-block: 1px solid var(--line); color: #805066; background: #fcf8fa; }
+.sugar-status.active { color: #1d6649; background: #f4faf6; }
+.sugar-status > svg { flex-shrink: 0; }
+.sugar-status > div { display: grid; gap: 2px; min-width: 0; }
+.sugar-status small, .sugar-status span { color: var(--muted); font-size: 11px; }
+.sugar-status strong { overflow-wrap: anywhere; color: var(--ink); font-size: 16px; }
+.sugar-status .button { margin-left: auto; flex-shrink: 0; }
+.sugar-ranking { margin-bottom: 55px; }
+.pair-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 17px; }
+.pair-card { position: relative; min-height: 155px; padding: 22px; overflow: hidden; border: 1px solid var(--line); border-top: 3px solid #ba718c; border-radius: 6px; background: white; }
+.pair-card:first-child { border-top-color: #b88319; }
+.pair-card > svg { position: absolute; top: 22px; right: 20px; color: #b88319; }
+.pair-rank { display: block; color: #a7657d; font-family: Georgia, serif; font-size: 12px; font-weight: 700; }
+.pair-card h3 { margin: 25px 0 7px; overflow-wrap: anywhere; font-size: 17px; }
+.pair-card h3 span { color: #b45b7a; }
+.pair-card p { margin: 0; color: #68736d; font-family: Georgia, serif; font-size: 21px; }
+.pair-card small { position: absolute; right: 20px; bottom: 20px; color: var(--muted); font-size: 11px; }
+.pair-card small.active { color: var(--green); }
+.sugar-directory { padding-top: 4px; }
+.sugar-card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 17px; }
+.sugar-card { position: relative; display: block; min-width: 0; padding: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: white; text-align: left; transition: transform .18s, box-shadow .18s, border-color .18s; }
+.sugar-card:not(.skeleton):hover, .sugar-card:not(.skeleton):focus-visible { transform: translateY(-3px); border-color: #bdc5c0; box-shadow: var(--shadow); outline: none; }
+.sugar-card > img { display: block; width: 100%; height: 225px; object-fit: cover; background: #e8ece9; }
+.sugar-card-body { display: grid; gap: 7px; min-height: 103px; padding: 17px 18px; }
+.sugar-card-body strong { overflow-wrap: anywhere; font-size: 17px; }
+.sugar-card-body small { display: -webkit-box; overflow: hidden; color: var(--muted); font-size: 12px; line-height: 1.65; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.mine-tag { position: absolute; top: 11px; left: 11px; padding: 4px 7px; border-radius: 3px; color: #1d6649; background: rgba(244,250,246,.94); font-size: 10px; font-weight: 700; }
+.sugar-empty { min-height: 134px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; margin-top: 17px; border: 1px dashed var(--line); color: var(--muted); font-size: 12px; }
+.sugar-empty svg { color: #a7657d; }
+.sugar-editor .form-stack { margin-top: 24px; }
+.photo-field { display: grid; gap: 10px; color: #46504b; font-size: 12px; font-weight: 650; }
+.photo-field > span { display: flex; justify-content: space-between; gap: 10px; }
+.photo-field small { color: #87908c; font-size: 10px; font-weight: 400; }
+.photo-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.photo-grid figure { position: relative; aspect-ratio: 1; margin: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 4px; background: #f3f5f2; }
+.photo-grid img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.photo-add { display: grid; place-items: center; aspect-ratio: 1; border: 1px dashed #aab5ae; border-radius: 4px; color: var(--green); background: #f8faf8; cursor: pointer; }
+.photo-add:hover { background: var(--green-soft); }
+.photo-add input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.photo-delete { position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; color: #943541; border-color: #efd0d4; background: rgba(255,255,255,.92); }
+.sugar-detail .photo-grid { margin: 23px 0 0; }
+.sugar-detail .photo-grid.detail { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.sugar-detail .photo-grid.detail img { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 4px; object-fit: cover; }
+.sugar-about { margin: 24px 0; padding-block: 19px; border-block: 1px solid #e3e7e4; color: #3e4944; font-size: 14px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sugar-qq { display: flex; align-items: center; gap: 10px; color: #805066; }
+.sugar-qq span { display: grid; gap: 2px; }
+.sugar-qq small { color: var(--muted); font-size: 10px; }
+.sugar-qq strong { color: var(--ink); font-size: 14px; }
+.sugar-detail-actions { align-items: center; padding-top: 22px; border-top: 1px solid #e3e7e4; }
+.sugar-detail-actions .muted { margin-right: auto; font-size: 12px; }
+
 .toast-host { position: fixed; z-index: 200; top: 88px; right: 20px; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 .toast { width: min(360px, calc(100vw - 40px)); display: flex; align-items: center; gap: 9px; padding: 13px 15px; border: 1px solid #bad8c9; border-radius: 4px; color: #1d6649; background: #f2faf5; box-shadow: var(--shadow); font-size: 12px; }
 .toast.error { color: #943541; border-color: #ecc0c5; background: #fff5f6; }
@@ -349,6 +401,7 @@ tr.dimmed td { color: #89918d; background: #fafafa; }
   .profile-form-section { padding-left: 30px; }
   .admin-stats { grid-template-columns: 1fr 1fr; }
   .staff-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sugar-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 680px) {
@@ -398,6 +451,11 @@ tr.dimmed td { color: #89918d; background: #fafafa; }
   .admin-toolbar { align-items: stretch; flex-direction: column; }
   .admin-toolbar .search-field { width: 100%; }
   .staff-grid { grid-template-columns: 1fr; }
+  .pair-grid, .sugar-card-grid { grid-template-columns: 1fr; }
+  .sugar-status { margin-bottom: 36px; }
+  .sugar-card > img { height: 235px; }
+  .sugar-detail-actions { align-items: stretch; flex-direction: column; }
+  .sugar-detail-actions .muted { margin-right: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

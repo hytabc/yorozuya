@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     admin_password: str = "Admin123!"
     admin_nickname: str = "万事屋管理员"
     staff_group_id: str = ""
+    # 留空时跟随 SQLite 数据库所在目录，保证数据库与上传图片能一起通过 Docker 挂载持久化。
+    sugar_upload_dir: str = ""
     cors_origins: str = "http://localhost:5173,http://localhost:8080"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -26,6 +28,18 @@ class Settings(BaseSettings):
         if self.database_url.startswith("sqlite:///"):
             db_path = Path(self.database_url.removeprefix("sqlite:///"))
             db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    @property
+    def sugar_upload_path(self) -> Path:
+        if self.sugar_upload_dir:
+            return Path(self.sugar_upload_dir)
+        if self.database_url.startswith("sqlite:///"):
+            database_path = Path(self.database_url.removeprefix("sqlite:///"))
+            return database_path.parent / "uploads"
+        return Path("./data/uploads")
+
+    def ensure_storage_directory(self) -> None:
+        self.sugar_upload_path.mkdir(parents=True, exist_ok=True)
 
 
 settings = Settings()

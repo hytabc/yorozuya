@@ -6,6 +6,7 @@ import MyTasks from './views/MyTasks.vue'
 import ProfileView from './views/ProfileView.vue'
 import AdminView from './views/AdminView.vue'
 import StaffView from './views/StaffView.vue'
+import SugarClub from './views/SugarClub.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -17,6 +18,7 @@ const router = createRouter({
     { path: '/mine', component: MyTasks, meta: { auth: true } },
     { path: '/profile', component: ProfileView, meta: { auth: true } },
     { path: '/staff', component: StaffView },
+    { path: '/sugar', component: SugarClub, meta: { auth: true } },
     { path: '/admin', component: AdminView, meta: { roleManager: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],

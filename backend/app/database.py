@@ -4,6 +4,7 @@ from sqlalchemy.orm import DeclarativeBase, Session as BaseSession, sessionmaker
 from .config import settings
 
 settings.ensure_sqlite_directory()
+settings.ensure_storage_directory()
 
 connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
 engine = create_engine(settings.database_url, connect_args=connect_args)
@@ -32,4 +33,3 @@ def get_db():
         yield db
     finally:
         db.close()
-

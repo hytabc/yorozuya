@@ -66,6 +66,23 @@ def set_qq(client, headers, qq):
     return r.json()
 
 
+TINY_PNG = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\x0dIDAT\x08\xd7c\xf8\xcf\xc0\xf0\x1f\x00\x05\x00\x01\xff\x89\x99=\x1d\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+
+def register_sugar_profile(client, headers, about="喜欢在周末散步"):
+    response = client.post(
+        "/api/sugar/profile",
+        headers=headers,
+        data={"about": about},
+        files=[("photos", ("portrait.png", TINY_PNG, "image/png"))],
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
 def create_task(client, headers, password="接取密码123", required=None, title="帮忙整理一份资料"):
     payload = {
         "title": title,
@@ -343,6 +360,44 @@ def test_profile_visibility_rules():
 
         # 不存在的用户 404
         assert client.get("/api/users/999999", headers=taker).status_code == 404
+
+
+def test_sugar_club_profiles_pairing_and_ranking(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "sugar_upload_dir", str(tmp_path / "uploads"))
+    with TestClient(app) as client:
+        alice = auth(client, "sugar_alice")
+        bob = auth(client, "sugar_bob")
+        set_qq(client, alice, "1111111111")
+        set_qq(client, bob, "2222222222")
+        alice_profile = register_sugar_profile(client, alice, "喜欢摄影和散步")
+        bob_profile = register_sugar_profile(client, bob, "喜欢展览和咖啡")
+        alice_id = alice_profile["user"]["id"]
+        bob_id = bob_profile["user"]["id"]
+
+        # 公共卡片不返回 QQ，详情只在当前查看人与档案主人之间提供联系方式。
+        cards = client.get("/api/sugar/profiles", headers=alice).json()
+        assert {card["user"]["id"] for card in cards} == {alice_id, bob_id}
+        assert all("qq" not in card for card in cards)
+        detail = client.get(f"/api/sugar/profiles/{bob_id}", headers=alice).json()
+        assert detail["qq"] == "2222222222"
+        assert detail["photos"][0]["image_url"].startswith("/uploads/sugar/")
+        assert list((tmp_path / "uploads" / "sugar").iterdir())
+
+        # 第一次确认进入待确认；第二人确认后才开始计时。
+        pending = client.post(f"/api/sugar/pairs/{bob_id}/confirm", headers=alice)
+        assert pending.status_code == 201, pending.text
+        assert pending.json()["status"] == "pending"
+        active = client.post(f"/api/sugar/pairs/{alice_id}/confirm", headers=bob)
+        assert active.status_code == 201, active.text
+        assert active.json()["status"] == "active"
+        pair_id = active.json()["id"]
+
+        ended = client.post(f"/api/sugar/pairs/{pair_id}/end", headers=alice)
+        assert ended.status_code == 200
+        assert ended.json()["status"] == "ended"
+        leaderboard = client.get("/api/sugar/pairs/top", headers=bob).json()
+        assert leaderboard[0]["id"] == pair_id
+        assert leaderboard[0]["status"] == "ended"
 
 
 def test_feedback_flow():

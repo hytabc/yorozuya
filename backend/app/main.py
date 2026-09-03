@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Annotated
+from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BeforeValidator
 from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.orm import Session, joinedload
@@ -13,7 +16,19 @@ from sqlalchemy.orm import Session, joinedload
 from .config import settings
 from .database import Base, SessionLocal, engine, get_db
 from .dependencies import get_admin, get_current_user, get_optional_user, get_role_manager
-from .models import Feedback, FeedbackStatus, Task, TaskMember, TaskStatus, User, UserRole
+from .models import (
+    Feedback,
+    FeedbackStatus,
+    SugarPair,
+    SugarPairStatus,
+    SugarPhoto,
+    SugarProfile,
+    Task,
+    TaskMember,
+    TaskStatus,
+    User,
+    UserRole,
+)
 from .schemas import (
     AcceptRequest,
     AdminStats,
@@ -31,6 +46,10 @@ from .schemas import (
     TaskMemberOut,
     TaskOut,
     StaffDirectoryOut,
+    SugarPairOut,
+    SugarPhotoOut,
+    SugarProfileCardOut,
+    SugarProfileDetailOut,
     TokenResponse,
     UserProfileOut,
     UserSelf,
@@ -156,6 +175,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.mount("/uploads", StaticFiles(directory=settings.sugar_upload_path), name="uploads")
 
 
 def expire_due_tasks(db: Session) -> None:
@@ -253,6 +273,139 @@ def can_view_user_qq(db: Session, viewer: User, target: User) -> bool:
         .limit(1)
     )
     return recruiting is not None
+
+
+MAX_SUGAR_PHOTOS = 6
+MAX_SUGAR_IMAGE_BYTES = 5 * 1024 * 1024
+IMAGE_SIGNATURES = (
+    (b"\xff\xd8\xff", ".jpg"),
+    (b"\x89PNG\r\n\x1a\n", ".png"),
+    (b"GIF87a", ".gif"),
+    (b"GIF89a", ".gif"),
+)
+
+
+def sugar_profile_query():
+    return select(SugarProfile).options(joinedload(SugarProfile.user), joinedload(SugarProfile.photos))
+
+
+def sugar_pair_query():
+    return select(SugarPair).options(joinedload(SugarPair.first_user), joinedload(SugarPair.second_user))
+
+
+def photo_url(photo: SugarPhoto) -> str:
+    return f"/uploads/{photo.file_path}"
+
+
+def present_sugar_profile(
+    profile: SugarProfile,
+    *,
+    qq: str | None = None,
+    relationship: SugarPair | None = None,
+    detailed: bool = False,
+) -> SugarProfileCardOut | SugarProfileDetailOut:
+    data = {
+        "id": profile.id,
+        "user": profile.user,
+        "about": profile.about,
+        "photos": [SugarPhotoOut(id=photo.id, image_url=photo_url(photo)) for photo in profile.photos],
+        "created_at": profile.created_at,
+        "updated_at": profile.updated_at,
+    }
+    if detailed:
+        return SugarProfileDetailOut(
+            **data,
+            qq=qq,
+            relationship=present_sugar_pair(relationship) if relationship else None,
+        )
+    return SugarProfileCardOut(**data)
+
+
+def sugar_pair_duration(pair: SugarPair) -> int:
+    if pair.activated_at is None:
+        return 0
+    finish = pair.ended_at or datetime.utcnow()
+    return max(0, int((finish - pair.activated_at).total_seconds()))
+
+
+def present_sugar_pair(pair: SugarPair) -> SugarPairOut:
+    return SugarPairOut.model_validate(pair).model_copy(update={"duration_seconds": sugar_pair_duration(pair)})
+
+
+def get_sugar_profile_or_404(db: Session, user_id: int) -> SugarProfile:
+    profile = db.scalars(sugar_profile_query().where(SugarProfile.user_id == user_id)).unique().one_or_none()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="该用户尚未登记砂糖社档案")
+    return profile
+
+
+def pair_between(db: Session, first_user_id: int, second_user_id: int) -> SugarPair | None:
+    return db.scalar(
+        sugar_pair_query()
+        .where(
+            SugarPair.status.in_([SugarPairStatus.PENDING, SugarPairStatus.ACTIVE]),
+            or_(
+                (SugarPair.first_user_id == first_user_id) & (SugarPair.second_user_id == second_user_id),
+                (SugarPair.first_user_id == second_user_id) & (SugarPair.second_user_id == first_user_id),
+            ),
+        )
+        .order_by(SugarPair.initiated_at.desc())
+    )
+
+
+def ongoing_sugar_pair_for(db: Session, user_id: int, exclude_pair_id: int | None = None) -> SugarPair | None:
+    filters = [
+        SugarPair.status.in_([SugarPairStatus.PENDING, SugarPairStatus.ACTIVE]),
+        or_(SugarPair.first_user_id == user_id, SugarPair.second_user_id == user_id),
+    ]
+    if exclude_pair_id is not None:
+        filters.append(SugarPair.id != exclude_pair_id)
+    return db.scalar(sugar_pair_query().where(*filters).order_by(SugarPair.initiated_at.desc()))
+
+
+def image_extension(content: bytes) -> str | None:
+    for signature, extension in IMAGE_SIGNATURES:
+        if content.startswith(signature):
+            return extension
+    if content.startswith(b"RIFF") and content[8:12] == b"WEBP":
+        return ".webp"
+    return None
+
+
+async def read_sugar_images(photos: list[UploadFile]) -> list[tuple[str, bytes]]:
+    images: list[tuple[str, bytes]] = []
+    for photo in photos:
+        content = await photo.read(MAX_SUGAR_IMAGE_BYTES + 1)
+        if not content:
+            raise HTTPException(status_code=422, detail="上传的照片不能为空")
+        if len(content) > MAX_SUGAR_IMAGE_BYTES:
+            raise HTTPException(status_code=422, detail="单张照片不能超过 5 MiB")
+        extension = image_extension(content)
+        if extension is None:
+            raise HTTPException(status_code=422, detail="仅支持 JPEG、PNG、GIF 或 WebP 图片")
+        images.append((extension, content))
+    return images
+
+
+def store_sugar_images(profile: SugarProfile, images: list[tuple[str, bytes]]) -> list[SugarPhoto]:
+    settings.ensure_storage_directory()
+    stored: list[tuple[str, str]] = []
+    try:
+        for extension, content in images:
+            file_path = f"sugar/{uuid4().hex}{extension}"
+            destination = settings.sugar_upload_path / file_path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(content)
+            stored.append((file_path, str(destination)))
+    except OSError as error:
+        for _, destination in stored:
+            try:
+                Path(destination).unlink(missing_ok=True)
+            except OSError:
+                pass
+        raise HTTPException(status_code=500, detail="照片保存失败，请稍后重试") from error
+    records = [SugarPhoto(profile=profile, file_path=file_path) for file_path, _ in stored]
+    return records
 
 
 ACTIVE_TAKEN_STATUSES = (TaskStatus.PUBLISHED, TaskStatus.ACCEPTED, TaskStatus.AWAITING, TaskStatus.CANCELLING)
@@ -358,6 +511,190 @@ def staff_directory(db: Session = Depends(get_db)):
         staff=[UserProfileOut.model_validate(user) for user in staff],
         volunteers=[UserProfileOut.model_validate(user) for user in volunteers],
     )
+
+
+@app.get("/api/sugar/profiles", response_model=list[SugarProfileCardOut])
+def list_sugar_profiles(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """砂糖社卡片列表不含 QQ；查看详情时才按一对一上下文提供联系方式。"""
+    profiles = db.scalars(
+        sugar_profile_query()
+        .join(SugarProfile.user)
+        .where(User.is_active.is_(True), User.is_admin.is_(False))
+        .order_by(SugarProfile.updated_at.desc())
+        .limit(200)
+    ).unique().all()
+    return [present_sugar_profile(profile) for profile in profiles]
+
+
+@app.get("/api/sugar/profiles/{user_id}", response_model=SugarProfileDetailOut)
+def sugar_profile_detail(
+    user_id: int,
+    viewer: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    target = db.get(User, user_id)
+    if target is None or not target.is_active or target.is_admin:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    profile = get_sugar_profile_or_404(db, user_id)
+    relationship = pair_between(db, viewer.id, target.id) if viewer.id != target.id else None
+    # QQ 不出现在公共列表；此详情请求的查看者与资料主人构成唯一的可见双方。
+    return present_sugar_profile(
+        profile,
+        qq=target.qq,
+        relationship=relationship,
+        detailed=True,
+    )
+
+
+@app.post("/api/sugar/profile", response_model=SugarProfileDetailOut)
+async def save_sugar_profile(
+    response: Response,
+    about: Annotated[str, Form(...)],
+    photos: list[UploadFile] = File(default=[]),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """新建或更新砂糖社档案。每次追加上传最多 6 张，单张最多 5 MiB。"""
+    if user.is_admin:
+        raise HTTPException(status_code=403, detail="管理员账号不能登记砂糖社档案")
+    about = about.strip()
+    if not 1 <= len(about) <= 1000:
+        raise HTTPException(status_code=422, detail="砂糖社介绍需要 1 至 1000 个字符")
+    if len(photos) > MAX_SUGAR_PHOTOS:
+        raise HTTPException(status_code=422, detail=f"最多上传 {MAX_SUGAR_PHOTOS} 张照片")
+    images = await read_sugar_images(photos)
+    profile = db.scalars(sugar_profile_query().where(SugarProfile.user_id == user.id)).unique().one_or_none()
+    is_new = profile is None
+    if profile is None:
+        if not images:
+            raise HTTPException(status_code=422, detail="首次登记请至少上传一张照片")
+        profile = SugarProfile(user_id=user.id, about=about)
+        db.add(profile)
+        db.flush()
+    else:
+        if len(profile.photos) + len(images) > MAX_SUGAR_PHOTOS:
+            raise HTTPException(status_code=422, detail=f"每个档案最多保存 {MAX_SUGAR_PHOTOS} 张照片")
+        profile.about = about
+        profile.updated_at = datetime.utcnow()
+    records = store_sugar_images(profile, images)
+    db.add_all(records)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        for record in records:
+            try:
+                (settings.sugar_upload_path / record.file_path).unlink(missing_ok=True)
+            except OSError:
+                pass
+        raise
+    saved = get_sugar_profile_or_404(db, user.id)
+    response.status_code = status.HTTP_201_CREATED if is_new else status.HTTP_200_OK
+    return present_sugar_profile(saved, qq=user.qq, detailed=True)
+
+
+@app.delete("/api/sugar/photos/{photo_id}", response_model=SugarProfileDetailOut)
+def delete_sugar_photo(photo_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    photo = db.get(SugarPhoto, photo_id)
+    if photo is None:
+        raise HTTPException(status_code=404, detail="照片不存在")
+    profile = get_sugar_profile_or_404(db, user.id)
+    if photo.profile_id != profile.id:
+        raise HTTPException(status_code=403, detail="只能删除自己的照片")
+    if len(profile.photos) <= 1:
+        raise HTTPException(status_code=409, detail="档案至少需要保留一张照片")
+    file_path = photo.file_path
+    db.delete(photo)
+    db.commit()
+    root = settings.sugar_upload_path.resolve()
+    destination = (root / file_path).resolve()
+    if destination.is_relative_to(root):
+        try:
+            destination.unlink(missing_ok=True)
+        except OSError:
+            pass
+    return present_sugar_profile(get_sugar_profile_or_404(db, user.id), qq=user.qq, detailed=True)
+
+
+@app.get("/api/sugar/pairs/mine", response_model=list[SugarPairOut])
+def my_sugar_pairs(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    pairs = db.scalars(
+        sugar_pair_query()
+        .where(
+            SugarPair.status.in_([SugarPairStatus.PENDING, SugarPairStatus.ACTIVE]),
+            or_(SugarPair.first_user_id == user.id, SugarPair.second_user_id == user.id),
+        )
+        .order_by(SugarPair.initiated_at.desc())
+    ).all()
+    return [present_sugar_pair(pair) for pair in pairs]
+
+
+@app.get("/api/sugar/pairs/top", response_model=list[SugarPairOut])
+def top_sugar_pairs(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    pairs = db.scalars(
+        sugar_pair_query()
+        .where(SugarPair.status.in_([SugarPairStatus.ACTIVE, SugarPairStatus.ENDED]))
+        .order_by(SugarPair.activated_at.asc())
+        .limit(1000)
+    ).all()
+    return [present_sugar_pair(pair) for pair in sorted(pairs, key=sugar_pair_duration, reverse=True)[:3]]
+
+
+@app.post("/api/sugar/pairs/{target_user_id}/confirm", response_model=SugarPairOut, status_code=status.HTTP_201_CREATED)
+def confirm_sugar_pair(
+    target_user_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """第一次点击建立待确认记录；被邀请的一方点击同一操作后正式开始计时。"""
+    if target_user_id == user.id:
+        raise HTTPException(status_code=400, detail="不能与自己登记为砂糖")
+    target = db.get(User, target_user_id)
+    if target is None or not target.is_active or target.is_admin:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    get_sugar_profile_or_404(db, user.id)
+    get_sugar_profile_or_404(db, target_user_id)
+    existing = pair_between(db, user.id, target_user_id)
+    now = datetime.utcnow()
+    if existing is not None:
+        if existing.status == SugarPairStatus.ACTIVE:
+            raise HTTPException(status_code=409, detail="你们已经是砂糖")
+        if existing.initiated_by_id == user.id:
+            raise HTTPException(status_code=409, detail="已等待对方确认")
+        conflict = ongoing_sugar_pair_for(db, user.id, existing.id) or ongoing_sugar_pair_for(db, target_user_id, existing.id)
+        if conflict is not None:
+            raise HTTPException(status_code=409, detail="双方有人已有待确认或进行中的砂糖关系")
+        existing.status = SugarPairStatus.ACTIVE
+        existing.activated_at = now
+        db.commit()
+        return present_sugar_pair(existing)
+    if ongoing_sugar_pair_for(db, user.id) or ongoing_sugar_pair_for(db, target_user_id):
+        raise HTTPException(status_code=409, detail="双方有人已有待确认或进行中的砂糖关系")
+    pair = SugarPair(
+        first_user_id=user.id,
+        second_user_id=target_user_id,
+        initiated_by_id=user.id,
+        initiated_at=now,
+    )
+    db.add(pair)
+    db.commit()
+    db.refresh(pair)
+    return present_sugar_pair(db.scalar(sugar_pair_query().where(SugarPair.id == pair.id)))
+
+
+@app.post("/api/sugar/pairs/{pair_id}/end", response_model=SugarPairOut)
+def end_sugar_pair(pair_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    pair = db.scalar(sugar_pair_query().where(SugarPair.id == pair_id))
+    if pair is None:
+        raise HTTPException(status_code=404, detail="砂糖关系不存在")
+    if user.id not in (pair.first_user_id, pair.second_user_id):
+        raise HTTPException(status_code=403, detail="只有砂糖双方可以结束关系")
+    if pair.status != SugarPairStatus.ACTIVE:
+        raise HTTPException(status_code=409, detail="当前关系不能结束")
+    pair.status = SugarPairStatus.ENDED
+    pair.ended_at = datetime.utcnow()
+    db.commit()
+    return present_sugar_pair(pair)
 
 
 @app.post("/api/feedback", response_model=FeedbackOut, status_code=status.HTTP_201_CREATED)
