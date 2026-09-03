@@ -17,7 +17,7 @@ const feedbacks = ref([])
 const photoUsers = ref([])
 const userLimits = reactive({})
 const stats = ref({ users: 0, tasks: 0, processing: 0, completed: 0, hidden: 0 })
-const activeTab = ref(auth.isAdmin ? 'tasks' : 'users')
+const activeTab = ref('tasks')
 const taskSearch = ref('')
 const userSearch = ref('')
 const loading = ref(true)
@@ -36,7 +36,9 @@ async function load() {
   loading.value = true
   try {
     if (!auth.isAdmin) {
-      const [userRes, photoRes] = await Promise.all([api.get('/admin/users'), api.get('/admin/photos')])
+      const [taskRes, userRes, photoRes] = await Promise.all([api.get('/admin/tasks'), api.get('/admin/users'), api.get('/admin/photos')])
+      tasks.value = taskRes.data
+      stats.value.hidden = tasks.value.filter((task) => !task.is_visible).length
       users.value = userRes.data
       photoUsers.value = photoRes.data
       return
@@ -106,8 +108,12 @@ async function changeUserRole(user, targetRole, select) {
 async function toggle(task) {
   let note = task.admin_note
   if (task.is_visible) {
-    note = window.prompt('请输入隐藏原因（将展示给委托相关用户）', task.admin_note || '')
+    note = window.prompt('请输入屏蔽原因（将展示给委托人）', task.admin_note || '')
     if (note === null) return
+    if (!note.trim()) {
+      toast.error('屏蔽委托时必须填写理由')
+      return
+    }
   }
   try {
     const { data } = await api.patch(`/admin/tasks/${task.id}`, { is_visible: !task.is_visible, admin_note: task.is_visible ? note : null })
@@ -141,17 +147,17 @@ onMounted(load)
 
 <template>
   <div class="page inner-page admin-page">
-    <div class="page-title"><div><span class="eyebrow"><component :is="auth.isAdmin ? ShieldCheck : Store" :size="15" />{{ auth.isAdmin ? 'ADMIN CONSOLE' : 'STAFF CONSOLE' }}</span><h1>{{ auth.isAdmin ? '委托监管台' : '用户权限管理' }}</h1><p>{{ auth.isAdmin ? '查看平台运行状态，管理委托、用户权限与接单额度。' : '将非管理员账号设置为普通用户或志愿者。' }}</p></div></div>
+    <div class="page-title"><div><span class="eyebrow"><component :is="auth.isAdmin ? ShieldCheck : Store" :size="15" />{{ auth.isAdmin ? 'ADMIN CONSOLE' : 'STAFF CONSOLE' }}</span><h1>{{ auth.isAdmin ? '委托监管台' : '委托与用户管理' }}</h1><p>{{ auth.isAdmin ? '查看平台运行状态，管理委托、用户权限与接单额度。' : '屏蔽不当委托，管理非管理员账号的基础权限。' }}</p></div></div>
     <div v-if="auth.isAdmin" class="admin-stats"><div v-for="item in statItems" :key="item.label"><component :is="item.icon" :size="20" /><span>{{ item.label }}</span><strong>{{ item.value }}</strong></div></div>
 
     <div class="tabs admin-tabs" role="tablist" aria-label="后台管理内容">
-      <button v-if="auth.isAdmin" :class="{ active: activeTab === 'tasks' }" role="tab" :aria-selected="activeTab === 'tasks'" @click="activeTab = 'tasks'">委托管理</button>
+      <button :class="{ active: activeTab === 'tasks' }" role="tab" :aria-selected="activeTab === 'tasks'" @click="activeTab = 'tasks'">委托管理</button>
       <button :class="{ active: activeTab === 'users' }" role="tab" :aria-selected="activeTab === 'users'" @click="activeTab = 'users'">用户与权限</button>
       <button :class="{ active: activeTab === 'photos' }" role="tab" :aria-selected="activeTab === 'photos'" @click="activeTab = 'photos'">图片管理</button>
       <button v-if="auth.isAdmin" :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
     </div>
 
-    <section v-if="auth.isAdmin && activeTab === 'tasks'" class="admin-table-section">
+    <section v-if="activeTab === 'tasks'" class="admin-table-section">
       <div class="admin-toolbar"><div><h2>全部委托</h2><span>隐藏 {{ stats.hidden }} 项</span></div><label class="search-field"><Search :size="17" /><input v-model="taskSearch" placeholder="搜索标题或发布人" /></label></div>
       <div class="table-wrap">
         <table>

@@ -132,6 +132,10 @@ def migrate_schema() -> None:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN cancel_resume_status VARCHAR(16)"))
         if "publisher_cancel_confirmed_at" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN publisher_cancel_confirmed_at DATETIME"))
+        if "is_visible" not in task_columns:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN is_visible BOOLEAN NOT NULL DEFAULT 1"))
+        if "admin_note" not in task_columns:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN admin_note VARCHAR(200)"))
         if inspector.has_table("task_members"):
             member_columns = {column["name"] for column in inspector.get_columns("task_members")}
             if "cancel_confirmed_at" not in member_columns:
@@ -260,6 +264,11 @@ def present_members(task: Task, viewer: User | None) -> list[TaskMemberOut]:
 
 def present_task(task: Task, viewer: User | None = None) -> TaskOut:
     data = TaskOut.model_validate(task)
+    can_see_hidden = viewer is not None and (
+        viewer.is_admin or viewer.role == UserRole.STAFF or viewer.id == task.publisher_id
+    )
+    # 屏蔽原因只对监管人员和委托人返回，避免通过“我的委托”泄露给接单人。
+    data.admin_note = task.admin_note if (not task.is_visible and can_see_hidden) else None
     data.publisher = present_user_public(task.publisher, viewer)
     data.members = present_members(task, viewer)
     if viewer is None:
@@ -286,6 +295,12 @@ def get_task_or_404(db: Session, task_id: int) -> Task:
     if task is None:
         raise HTTPException(status_code=404, detail="委托不存在")
     return task
+
+
+def can_view_hidden_task(task: Task, viewer: User | None) -> bool:
+    return viewer is not None and (
+        viewer.is_admin or viewer.role == UserRole.STAFF or viewer.id == task.publisher_id
+    )
 
 
 def present_feedback(feedback: Feedback) -> FeedbackOut:
@@ -932,16 +947,17 @@ def list_tasks(
 @app.get("/api/tasks/mine", response_model=list[TaskOut])
 def my_tasks(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     expire_due_tasks(db)
-    tasks = db.scalars(
-        task_query()
-        .where(
-            or_(
-                Task.publisher_id == user.id,
-                Task.id.in_(select(TaskMember.task_id).where(TaskMember.user_id == user.id)),
-            )
-        )
-        .order_by(Task.updated_at.desc())
-    ).unique().all()
+    participation = or_(
+        Task.publisher_id == user.id,
+        Task.id.in_(select(TaskMember.task_id).where(TaskMember.user_id == user.id)),
+    )
+    visibility = or_(
+        Task.is_visible.is_(True),
+        Task.publisher_id == user.id,
+        user.is_admin,
+        user.role == UserRole.STAFF,
+    )
+    tasks = db.scalars(task_query().where(participation, visibility).order_by(Task.updated_at.desc())).unique().all()
     return [present_task(task, user) for task in tasks]
 
 
@@ -949,7 +965,7 @@ def my_tasks(user: User = Depends(get_current_user), db: Session = Depends(get_d
 def task_detail(task_id: int, viewer: User | None = Depends(get_optional_user), db: Session = Depends(get_db)):
     expire_due_tasks(db)
     task = get_task_or_404(db, task_id)
-    if not task.is_visible:
+    if not task.is_visible and not can_view_hidden_task(task, viewer):
         raise HTTPException(status_code=404, detail="委托不存在")
     return present_task(task, viewer)
 
@@ -1272,7 +1288,7 @@ def admin_stats(_: User = Depends(get_admin), db: Session = Depends(get_db)):
 
 
 @app.get("/api/admin/tasks", response_model=list[TaskOut])
-def admin_tasks(_: User = Depends(get_admin), db: Session = Depends(get_db)):
+def admin_tasks(_: User = Depends(get_role_manager), db: Session = Depends(get_db)):
     expire_due_tasks(db)
     tasks = db.scalars(task_query().order_by(Task.updated_at.desc()).limit(500)).unique().all()
     return [present_task(task, _) for task in tasks]
@@ -1364,11 +1380,14 @@ def update_user_role(
 def moderate_task(
     task_id: int,
     payload: AdminTaskUpdate,
-    admin: User = Depends(get_admin),
+    admin: User = Depends(get_role_manager),
     db: Session = Depends(get_db),
 ):
     task = get_task_or_404(db, task_id)
+    note = payload.admin_note.strip() if payload.admin_note else None
+    if not payload.is_visible and not note:
+        raise HTTPException(status_code=422, detail="屏蔽委托时必须填写理由")
     task.is_visible = payload.is_visible
-    task.admin_note = payload.admin_note.strip() if payload.admin_note else None
+    task.admin_note = note if not payload.is_visible else None
     db.commit()
     return present_task(get_task_or_404(db, task_id), admin)
