@@ -100,15 +100,15 @@ onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeE
           <small class="field-hint">凑齐人数后委托自动开始；不限人数时需要你手动点击开始。</small>
         </div>
         <div class="designated-field">
-          <label class="checkbox-inline"><input v-model="designated" type="checkbox" /><span>指定店员/志愿者接取</span></label>
+          <label class="checkbox-inline"><input v-model="designated" type="checkbox" /><span>指定管理员/志愿者接取</span></label>
           <small class="field-hint">指定委托无需密码，仅名单内人员可响应；单人接受即开始，多人需全部响应后开始。</small>
           <div v-if="designated" class="designated-list">
             <label v-for="person in designatedUsers" :key="person.id" class="designated-option">
               <input v-model="designatedIds" type="checkbox" :value="person.id" />
-              <span>{{ person.nickname }}</span><small>{{ person.role === 'staff' ? '店员' : '志愿者' }}</small><Check v-if="designatedIds.includes(person.id)" :size="15" />
+              <span>{{ person.nickname }}</span><small>{{ person.role === 'staff' ? '管理员' : '志愿者' }}</small><Check v-if="designatedIds.includes(person.id)" :size="15" />
             </label>
-            <p v-if="!designatedUsers.length" class="field-hint">当前没有可指定的店员或志愿者。</p>
-            <p v-if="designated && !designatedIds.length" class="field-error">请至少指定一名店员或志愿者</p>
+            <p v-if="!designatedUsers.length" class="field-hint">当前没有可指定的管理员或志愿者。</p>
+            <p v-if="designated && !designatedIds.length" class="field-error">请至少指定一名管理员或志愿者</p>
           </div>
         </div>
         <div class="anonymous-field">

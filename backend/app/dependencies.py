@@ -48,5 +48,5 @@ def get_admin(user: User = Depends(get_current_user)) -> User:
 
 def get_role_manager(user: User = Depends(get_current_user)) -> User:
     if not user.is_admin and user.role != UserRole.STAFF:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员或店员权限")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员权限")
     return user

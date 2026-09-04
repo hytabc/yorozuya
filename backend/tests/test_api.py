@@ -798,12 +798,15 @@ def test_user_role_permissions():
         assert me["role"] == "user"
         assert me["is_admin"] is False
 
-        # 普通用户可以发布，但不能接取
+        # 普通用户可以发布，凭密码也能接取；密码错误仍被拒绝
         task = create_task(client, pub, password="pw-role-1", required=1)
         tid = task["id"]
-        denied = client.post(f"/api/tasks/{tid}/accept", headers=regular, json={"password": "pw-role-1"})
+        denied = client.post(f"/api/tasks/{tid}/accept", headers=regular, json={"password": "wrong-pass"})
         assert denied.status_code == 403
-        assert "志愿者" in denied.json()["detail"]
+        assert "接取密码不正确" in denied.json()["detail"]
+        accepted = client.post(f"/api/tasks/{tid}/accept", headers=regular, json={"password": "pw-role-1"})
+        assert accepted.status_code == 200
+        assert accepted.json()["status"] == "accepted"
 
         # 管理员升级该用户为志愿者
         promoted = client.patch(f"/api/admin/users/{regular_id}/role", headers=admin, json={"role": "volunteer"})
@@ -812,11 +815,6 @@ def test_user_role_permissions():
         me_after = client.get("/api/auth/me", headers=regular).json()
         assert me_after["role"] == "volunteer"
 
-        # 志愿者可正常接取
-        accepted = client.post(f"/api/tasks/{tid}/accept", headers=regular, json={"password": "pw-role-1"})
-        assert accepted.status_code == 200
-        assert accepted.json()["status"] == "accepted"
-
         # 管理员账号不能修改自己的权限等级，也不可接取
         admin_me = client.get("/api/auth/me", headers=admin).json()
         admin_change = client.patch(
@@ -824,13 +822,13 @@ def test_user_role_permissions():
         )
         assert admin_change.status_code == 409
 
-        # 降级回普通用户：另开新委托验证不能接取
+        # 降级回普通用户：另开新委托验证密码错误仍不能接取
         demoted = client.patch(f"/api/admin/users/{regular_id}/role", headers=admin, json={"role": "user"})
         assert demoted.status_code == 200
         assert demoted.json()["role"] == "user"
 
         task2 = create_task(client, pub, password="pw-role-2", required=1)
-        again_denied = client.post(f"/api/tasks/{task2['id']}/accept", headers=regular, json={"password": "pw-role-2"})
+        again_denied = client.post(f"/api/tasks/{task2['id']}/accept", headers=regular, json={"password": "nope"})
         assert again_denied.status_code == 403
 
 
@@ -859,11 +857,14 @@ def test_passwordless_task_can_be_accepted_by_all_non_admin_roles():
         denied = client.post(f"/api/tasks/{another['id']}/accept", headers=admin, json={})
         assert denied.status_code == 403
 
-        protected = create_task(client, publisher, password="protected-123", required=1, title="高权限用户接取的委托")
+        protected = create_task(client, publisher, password="protected-123", required=1, title="凭密码接取的委托")
         assert protected["requires_password"] is True
-        denied = client.post(f"/api/tasks/{protected['id']}/accept", headers=regular, json={"password": "protected-123"})
-        assert denied.status_code == 403
-        assert "志愿者" in denied.json()["detail"]
+        wrong = client.post(f"/api/tasks/{protected['id']}/accept", headers=regular, json={"password": "wrong"})
+        assert wrong.status_code == 403
+        assert "接取密码不正确" in wrong.json()["detail"]
+        joined_protected = client.post(f"/api/tasks/{protected['id']}/accept", headers=regular, json={"password": "protected-123"})
+        assert joined_protected.status_code == 200
+        assert joined_protected.json()["status"] == "accepted"
 
 
 def test_staff_role_management_and_public_directory(monkeypatch):
@@ -934,10 +935,10 @@ def test_staff_role_management_and_public_directory(monkeypatch):
         )
         assert cannot_change_admin.status_code == 409
 
-        # 其他监管功能仍为管理员专属。
+        # 其他监管功能仍为管理员专属；反馈处理已下放给管理员组。
         assert client.get("/api/admin/stats", headers=staff_headers).status_code == 403
 #         assert client.get("/api/admin/tasks", headers=staff_headers).status_code == 403
-        assert client.get("/api/admin/feedback", headers=staff_headers).status_code == 403
+        assert client.get("/api/admin/feedback", headers=staff_headers).status_code == 200
         assert client.patch(
             f"/api/admin/users/{target_id}/task-limit",
             headers=staff_headers,

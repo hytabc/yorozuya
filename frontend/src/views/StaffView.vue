@@ -46,7 +46,7 @@ onMounted(async () => {
 <template>
   <div class="page inner-page staff-page">
     <div class="page-title staff-title">
-      <div><span class="eyebrow"><Store :size="15" /> MEMBER DIRECTORY</span><h1>店员与志愿者</h1><p>公开展示服务成员资料；需要提升权限时，可联系任意店员申请加入群聊。</p></div>
+      <div><span class="eyebrow"><Store :size="15" /> MEMBER DIRECTORY</span><h1>管理员与志愿者</h1><p>公开展示服务成员资料；需要提升权限时，可联系任意管理员申请加入群聊。</p></div>
     </div>
 
     <section class="staff-group-band" aria-label="群聊信息">
@@ -60,15 +60,15 @@ onMounted(async () => {
     <div v-else-if="error" class="staff-empty error-notice">{{ error }}</div>
     <template v-else>
       <section class="directory-section" aria-labelledby="staff-heading">
-        <div class="directory-heading"><Store :size="19" /><h2 id="staff-heading">店员</h2><span>{{ staff.length }} 人</span></div>
-        <div v-if="!staff.length" class="staff-empty compact"><strong>暂时没有可联系的店员</strong></div>
+        <div class="directory-heading"><Store :size="19" /><h2 id="staff-heading">管理员</h2><span>{{ staff.length }} 人</span></div>
+        <div v-if="!staff.length" class="staff-empty compact"><strong>暂时没有可联系的管理员</strong></div>
         <div v-else class="staff-grid">
           <button v-for="member in staff" :key="member.id" class="staff-card" type="button" @click="selectedUser = member">
             <header>
               <span class="user-avatar-lg">{{ member.nickname.slice(0, 1) }}</span>
-              <div><h3>{{ member.nickname }}</h3><span class="role-tag role-staff"><Store :size="13" />店员</span></div>
+              <div><h3>{{ member.nickname }}</h3><span class="role-tag role-staff"><Store :size="13" />管理员</span></div>
             </header>
-            <p class="staff-bio">{{ member.bio || '这位店员还没有填写个人简介。' }}</p>
+            <p class="staff-bio">{{ member.bio || '这位管理员还没有填写个人简介。' }}</p>
             <footer>
               <span><MessageCircle :size="15" />QQ：<strong>{{ member.qq || '未填写' }}</strong></span>
               <span><CalendarDays :size="15" />{{ joined(member.created_at) }} 加入</span>

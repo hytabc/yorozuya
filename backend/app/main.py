@@ -467,7 +467,7 @@ def shares_task_with(db: Session, viewer_id: int, target_id: int) -> bool:
 
 
 def can_view_user_qq(db: Session, viewer: User | None, target: User) -> bool:
-    """店员及主动公开的志愿者对外可见；原有协作关系始终优先放行。"""
+    """管理员组及主动公开的志愿者对外可见；原有协作关系始终优先放行。"""
     if target.role == UserRole.STAFF:
         return True
     if target.role == UserRole.VOLUNTEER and target.qq_public:
@@ -814,7 +814,7 @@ def delete_user_photo(photo_id: int, user: User = Depends(get_current_user), db:
 
 @app.get("/api/users/{user_id}", response_model=UserProfileOut)
 def user_profile(user_id: int, viewer: User | None = Depends(get_optional_user), db: Session = Depends(get_db)):
-    """名录中的店员/志愿者允许匿名查看，QQ 仍按公开偏好和协作关系脱敏。"""
+    """名录中的管理员/志愿者允许匿名查看，QQ 仍按公开偏好和协作关系脱敏。"""
     target = db.scalar(user_with_photos_query().where(User.id == user_id))
     if target is None or not target.is_active:
         raise HTTPException(status_code=404, detail="用户不存在")
@@ -1109,7 +1109,7 @@ def my_feedback(user: User = Depends(get_current_user), db: Session = Depends(ge
 
 
 @app.get("/api/admin/feedback", response_model=list[FeedbackOut])
-def admin_feedback(_: User = Depends(get_admin), db: Session = Depends(get_db)):
+def admin_feedback(_: User = Depends(get_role_manager), db: Session = Depends(get_db)):
     feedback_list = db.scalars(select(Feedback).order_by(Feedback.created_at.desc()).limit(500)).all()
     return [present_feedback(item) for item in feedback_list]
 
@@ -1118,10 +1118,10 @@ def admin_feedback(_: User = Depends(get_admin), db: Session = Depends(get_db)):
 def handle_feedback(
     feedback_id: int,
     payload: FeedbackUpdate,
-    _: User = Depends(get_admin),
+    _: User = Depends(get_role_manager),
     db: Session = Depends(get_db),
 ):
-    """管理员处理反馈：标记状态并填写处理回复。"""
+    """管理员组处理反馈：标记状态并填写处理回复。"""
     feedback = db.get(Feedback, feedback_id)
     if feedback is None:
         raise HTTPException(status_code=404, detail="反馈不存在")
@@ -1151,7 +1151,7 @@ def list_tasks(
         query = query.where(or_(Task.title.contains(search), Task.description.contains(search)))
     if category:
         query = query.where(Task.category == category)
-    # 普通用户只能浏览招募中的委托；管理员/店员可查看全部状态。
+    # 普通用户只能浏览招募中的委托；超级管理员/管理员可查看全部状态。
     if task_status and is_task_manager(viewer):
         query = query.where(Task.status == task_status)
     elif not is_task_manager(viewer):
@@ -1191,7 +1191,7 @@ def task_detail(task_id: int, viewer: User | None = Depends(get_optional_user), 
             TaskReport.status == ReportStatus.PENDING,
         ).limit(1)
     ) is not None
-    # 被举报的委托仅店员/管理员/委托双方可见；处理中或已完成的委托仅委托双方可见。
+    # 被举报的委托仅管理员/超级管理员/委托双方可见；处理中或已完成的委托仅委托双方可见。
     if reported or task.status != TaskStatus.PUBLISHED:
         if not is_task_manager(viewer) and not is_task_participant(task, viewer):
             raise HTTPException(status_code=404, detail="委托不存在")
@@ -1217,7 +1217,7 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
             )
         ).all()
         if len(designated_users) != len(designated_user_ids):
-            raise HTTPException(status_code=422, detail="只能指定当前可用的店员或志愿者")
+            raise HTTPException(status_code=422, detail="只能指定当前可用的管理员或志愿者")
     task = Task(
         title=payload.title.strip(),
         description=payload.description.strip(),
@@ -1253,7 +1253,7 @@ def report_task(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """举报委托：被举报的委托不进入大厅，仅由店员/管理员处理。"""
+    """举报委托：被举报的委托不进入大厅，仅由管理员/超级管理员处理。"""
     task = get_task_or_404(db, task_id)
     if task.publisher_id == user.id:
         raise HTTPException(status_code=422, detail="不能举报自己发布的委托")
@@ -1353,7 +1353,7 @@ def accept_task(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """加入委托（有密码时限志愿者/店员，无密码时所有非管理员用户可加入）。"""
+    """加入委托（有密码时需凭正确密码，无密码时所有非管理员用户可加入）。"""
     expire_due_tasks(db)
     task = get_task_or_404(db, task_id)
     if not task.is_visible:
@@ -1367,7 +1367,7 @@ def accept_task(
     existing_member = member_of(db, task_id, user.id)
     if task.is_designated:
         if existing_member is None:
-            raise HTTPException(status_code=403, detail="该委托已指定其他店员或志愿者")
+            raise HTTPException(status_code=403, detail="该委托已指定其他管理员或志愿者")
         if existing_member.response_status != TaskMemberResponse.PENDING:
             raise HTTPException(status_code=409, detail="你已响应此指定委托")
         # 在支持行锁的数据库上串行化同一用户的接单操作，避免并发突破个人上限。
@@ -1396,8 +1396,6 @@ def accept_task(
         if joined >= task.required_takers:
             raise HTTPException(status_code=409, detail="需要的人数已满，委托即将开始")
     if task.requires_password:
-        if user.role not in (UserRole.VOLUNTEER, UserRole.STAFF):
-            raise HTTPException(status_code=403, detail="有密码委托只有志愿者或店员可以接取，请联系店员申请升级")
         if not payload.password or not verify_password(payload.password, task.accept_password_hash):
             raise HTTPException(status_code=403, detail="接取密码不正确，请联系委托人确认")
     # 在支持行锁的数据库上串行化同一用户的接单操作，避免并发突破个人上限。
@@ -1707,14 +1705,14 @@ def update_user_role(
     manager: User = Depends(get_role_manager),
     db: Session = Depends(get_db),
 ):
-    """管理员可设置全部角色；店员只能把非管理员账号设为普通用户或志愿者。"""
+    """超级管理员可设置全部角色；管理员只能把非管理员账号设为普通用户或志愿者。"""
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="用户不存在")
     if user.is_admin:
         raise HTTPException(status_code=409, detail="管理员账号的权限等级不可修改")
     if not manager.is_admin and payload.role == UserRole.STAFF:
-        raise HTTPException(status_code=403, detail="只有管理员可以授予店员权限")
+        raise HTTPException(status_code=403, detail="只有超级管理员可以授予管理员权限")
     if payload.role == UserRole.VOLUNTEER and user.role != UserRole.VOLUNTEER:
         user.qq_public = False
     user.role = payload.role

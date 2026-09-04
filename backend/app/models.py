@@ -44,9 +44,9 @@ class ReportStatus(str, Enum):
 
 
 class UserRole(str, Enum):
-    USER = "user"  # 普通用户：可发布委托，也可接取无密码委托
+    USER = "user"  # 普通用户：可发布委托，凭正确密码也可接取带密码委托
     VOLUNTEER = "volunteer"  # 志愿者：可发布并接取全部委托（管理员账号可升级）
-    STAFF = "staff"  # 店员：志愿者能力 + 管理非管理员账号的普通用户/志愿者等级
+    STAFF = "staff"  # 管理员组（内部值保留 staff）：志愿者能力 + 管理用户等级 + 处理反馈
 
 
 class SugarPairStatus(str, Enum):
@@ -131,7 +131,7 @@ class Task(Base):
     accept_password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # 需要几人接取该委托：null 表示人数不限（仅能由委托人手动点击开始）
     required_takers: Mapped[int | None] = mapped_column(nullable=True)
-    # 指定店员/志愿者的委托不会向大厅开放接取，须等全部指定人员响应后开始。
+    # 指定管理员/志愿者的委托不会向大厅开放接取，须等全部指定人员响应后开始。
     is_designated: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     # 匿名委托：个人信息不公开显示，接取后联系方式仅双方可见。
     is_anonymous: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
@@ -216,7 +216,7 @@ class TaskMember(Base):
 
 
 class TaskReport(Base):
-    """委托举报：被举报的委托不进入大厅，仅由店员/管理员处理。"""
+    """委托举报：被举报的委托不进入大厅，仅由管理员/超级管理员处理。"""
 
     __tablename__ = "task_reports"
 

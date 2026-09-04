@@ -28,7 +28,7 @@ const payOptions = [
   { value: 'free', label: '无偿' },
 ]
 const isManager = computed(() => auth.isAdmin || auth.isStaff)
-// 普通用户在大厅只能查看招募中的委托；管理员/店员可查看全部状态。
+// 普通用户在大厅只能查看招募中的委托；超级管理员/管理员可查看全部状态。
 const statuses = computed(() => isManager.value
   ? [{ value: '', label: '全部状态' }, { value: 'published', label: '招募中' }, { value: 'accepted', label: '处理中' }, { value: 'awaiting', label: '待确认' }, { value: 'cancelling', label: '取消确认中' }, { value: 'completed', label: '已完成' }, { value: 'expired', label: '已过期' }]
   : [{ value: 'published', label: '招募中' }])

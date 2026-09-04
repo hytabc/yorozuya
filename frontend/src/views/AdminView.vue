@@ -46,7 +46,7 @@ async function load() {
   loading.value = true
   try {
     if (!auth.isAdmin) {
-      const [taskRes, userRes, photoRes, reportRes, limitRes] = await Promise.all([api.get('/admin/tasks'), api.get('/admin/users'), api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/settings/report-limit')])
+      const [taskRes, userRes, photoRes, reportRes, limitRes, feedbackRes] = await Promise.all([api.get('/admin/tasks'), api.get('/admin/users'), api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/settings/report-limit'), api.get('/admin/feedback')])
       tasks.value = taskRes.data
       stats.value.hidden = tasks.value.filter((task) => !task.is_visible).length
       users.value = userRes.data
@@ -54,6 +54,7 @@ async function load() {
       reports.value = reportRes.data
       reportLimit.value = limitRes.data.daily_limit
       reportLimitInput.value = limitRes.data.daily_limit
+      feedbacks.value = feedbackRes.data
       return
     }
     const [taskRes, userRes, statRes, feedbackRes, photoRes, reportRes, limitRes] = await Promise.all([
@@ -220,7 +221,7 @@ onMounted(load)
       <button :class="{ active: activeTab === 'reports' }" role="tab" :aria-selected="activeTab === 'reports'" @click="activeTab = 'reports'">举报处理<span v-if="pendingReports">{{ pendingReports }}</span></button>
       <button :class="{ active: activeTab === 'users' }" role="tab" :aria-selected="activeTab === 'users'" @click="activeTab = 'users'">用户与权限</button>
       <button :class="{ active: activeTab === 'photos' }" role="tab" :aria-selected="activeTab === 'photos'" @click="activeTab = 'photos'">图片管理</button>
-      <button v-if="auth.isAdmin" :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
+      <button :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
     </div>
 
     <section v-if="activeTab === 'reports'" class="admin-table-section">
@@ -275,7 +276,7 @@ onMounted(load)
             <tr v-if="loading"><td :colspan="auth.isAdmin ? 5 : 3" class="table-loading">正在加载…</td></tr>
             <tr v-for="user in filteredUsers" v-else :key="user.id">
               <td><strong>{{ user.nickname }}</strong><small>@{{ user.username }} · #{{ user.id }}</small></td>
-              <td><span v-if="user.is_admin" class="admin-tag"><ShieldCheck :size="13" />管理员</span><span v-else class="role-tag" :class="`role-${user.role}`"><Store v-if="user.role === 'staff'" :size="13" />{{ roleLabel(user) }}</span></td>
+              <td><span v-if="user.is_admin" class="admin-tag"><ShieldCheck :size="13" />超级管理员</span><span v-else class="role-tag" :class="`role-${user.role}`"><Store v-if="user.role === 'staff'" :size="13" />{{ roleLabel(user) }}</span></td>
               <td v-if="auth.isAdmin"><span class="limit-usage" :class="{ full: user.active_task_count >= user.max_concurrent_tasks }">{{ user.active_task_count }} / {{ user.max_concurrent_tasks }}</span></td>
               <td v-if="auth.isAdmin"><input v-model.number="userLimits[user.id]" class="limit-input" type="number" min="0" max="999" :aria-label="`${user.nickname} 的接单上限`" /></td>
               <td>
@@ -285,7 +286,7 @@ onMounted(load)
                   <select v-if="!user.is_admin" class="role-select" :value="user.role" :disabled="savingRoleId === user.id" :aria-label="`修改 ${user.nickname} 的权限等级`" @change="changeUserRole(user, $event.target.value, $event.target)">
                     <option value="user">普通用户</option>
                     <option value="volunteer">志愿者</option>
-                    <option v-if="auth.isAdmin || user.role === 'staff'" value="staff" :disabled="!auth.isAdmin">店员{{ auth.isAdmin ? '' : '（仅管理员可授予）' }}</option>
+                    <option v-if="auth.isAdmin || user.role === 'staff'" value="staff" :disabled="!auth.isAdmin">管理员{{ auth.isAdmin ? '' : '（仅超级管理员可授予）' }}</option>
                   </select>
                 </div>
               </td>
@@ -314,7 +315,7 @@ onMounted(load)
       <div v-else class="feedback-admin-empty"><ImageIcon :size="28" />暂无用户图片</div>
     </section>
 
-    <section v-else-if="auth.isAdmin && activeTab === 'feedback'" class="admin-table-section">
+    <section v-else-if="activeTab === 'feedback'" class="admin-table-section">
       <div class="admin-toolbar"><div><h2>用户反馈</h2><span>待处理 {{ pendingFeedbacks }} 条</span></div><span class="muted"><MessageCircle :size="15" /> 提交者会收到处理状态与回复</span></div>
       <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
       <ul v-else-if="feedbacks.length" class="feedback-admin-list">

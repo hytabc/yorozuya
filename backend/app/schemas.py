@@ -118,7 +118,7 @@ class TaskCreate(RequestModel):
     accept_password: str | None = Field(default=None, min_length=4, max_length=32)
     # 需要几人接取；null / 缺省表示人数不限（只能由委托人手动开始）
     required_takers: int | None = Field(default=None, ge=1, le=999)
-    # 非空时为指定委托，只允许名单内的店员/志愿者响应。
+    # 非空时为指定委托，只允许名单内的管理员/志愿者响应。
     designated_user_ids: list[int] = Field(default_factory=list, max_length=999)
     # 匿名发布：大厅仅展示标题和内容，接取后联系方式仅双方可见。
     is_anonymous: bool = False

@@ -75,7 +75,7 @@ async function deletePhoto(photo) {
         <span class="profile-avatar">{{ auth.user.nickname.slice(0, 1) }}</span>
         <h2>{{ auth.user.nickname }}</h2><p>@{{ auth.user.username }}</p>
         <div class="profile-role-tags">
-          <span v-if="auth.isAdmin" class="admin-tag"><ShieldCheck :size="15" />管理员</span>
+          <span v-if="auth.isAdmin" class="admin-tag"><ShieldCheck :size="15" />超级管理员</span>
           <span v-else class="role-tag" :class="`role-${auth.user.role}`">
             <Store v-if="auth.user.role === 'staff'" :size="15" />
             <Heart v-else-if="auth.user.role === 'volunteer'" :size="15" />
@@ -90,7 +90,7 @@ async function deletePhoto(photo) {
         <div class="section-heading compact"><div><span class="section-index">01</span><h2>公开资料</h2><p>昵称和简介会展示在委托中</p></div></div>
         <form class="form-stack" @submit.prevent="save">
           <label>昵称<input v-model.trim="form.nickname" required maxlength="32" /></label>
-          <label>QQ 号<input v-model.trim="form.qq" inputmode="numeric" pattern="[0-9]{5,20}" maxlength="20" placeholder="接单人需要靠它联系你" /><small>{{ auth.user.role === 'staff' ? '店员 QQ 会在成员名录中向所有访客公开' : '委托双方始终可以看到彼此的 QQ，用于协作联系' }}</small></label>
+          <label>QQ 号<input v-model.trim="form.qq" inputmode="numeric" pattern="[0-9]{5,20}" maxlength="20" placeholder="接单人需要靠它联系你" /><small>{{ auth.user.role === 'staff' ? '管理员 QQ 会在成员名录中向所有访客公开' : '委托双方始终可以看到彼此的 QQ，用于协作联系' }}</small></label>
           <label v-if="auth.user.role === 'volunteer'" class="checkbox-inline profile-qq-public"><input v-model="form.qq_public" type="checkbox" /><span>在成员名录中公开 QQ 号</span></label>
           <label>个人简介<textarea v-model.trim="form.bio" maxlength="300" rows="6" placeholder="简单介绍你擅长的事情、空闲时间等"></textarea><small>{{ form.bio.length }}/300</small></label>
           <div><button class="button" :disabled="busy"><Save :size="17" />{{ busy ? '保存中…' : '保存更改' }}</button></div>

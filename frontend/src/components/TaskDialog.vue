@@ -1,7 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { CalendarClock, Coins, Flag, KeyRound, LockOpen, MessageCircle, Store, UserRound, UsersRound, X } from 'lucide-vue-next'
-import { api } from '../api'
+import { CalendarClock, Coins, Flag, KeyRound, LockOpen, MessageCircle, UserRound, UsersRound, X } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import ReportDialog from './ReportDialog.vue'
 import StatusBadge from './StatusBadge.vue'
@@ -12,7 +11,6 @@ const emit = defineEmits(['close', 'action', 'reported'])
 const auth = useAuthStore()
 const password = ref('')
 const profileUserId = ref(null)
-const staffGroupId = ref('')
 const showReport = ref(false)
 
 function openProfile(userId) {
@@ -53,9 +51,8 @@ const totalPeople = computed(() => acceptedCount.value + 1)
 const everyoneConfirmed = computed(() => finished.value || (working.value && confirmedCount.value >= totalPeople.value))
 const canSeeProgress = computed(() => isParticipant.value || auth.isAdmin)
 
-const canTakePanel = computed(() => published.value && auth.isLoggedIn && !isPublisher.value && !isMember.value && !auth.isAdmin && !designated.value && (!requiresPassword.value || ['volunteer', 'staff'].includes(auth.user?.role)))
+const canTakePanel = computed(() => published.value && auth.isLoggedIn && !isPublisher.value && !isMember.value && !auth.isAdmin && !designated.value)
 const canRespondDesignated = computed(() => published.value && designated.value && pendingMember.value && !auth.isAdmin)
-const isRegularUser = computed(() => published.value && requiresPassword.value && auth.isLoggedIn && !isPublisher.value && !isMember.value && !auth.isAdmin && auth.user?.role === 'user')
 
 const confirmCopy = computed(() => {
   if (!isParticipant.value || !working.value || viewerConfirmed.value) return null
@@ -84,10 +81,6 @@ function onKey(event) { if (event.key === 'Escape') emit('close') }
 onMounted(async () => {
   document.body.classList.add('modal-open')
   window.addEventListener('keydown', onKey)
-  if (isRegularUser.value) {
-    try { staffGroupId.value = (await api.get('/staff')).data.group_chat_id }
-    catch { staffGroupId.value = '' }
-  }
 })
 onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeEventListener('keydown', onKey) })
 
@@ -95,7 +88,7 @@ function emitAccept() {
   if (!requiresPassword.value || password.value) emit('action', 'accept', { password: requiresPassword.value ? password.value : null })
 }
 function resetPassword() {
-  const next = window.prompt(requiresPassword.value ? '输入新的接取密码（4-32 位），旧密码将立即失效' : '输入接取密码（4-32 位），设置后将仅允许志愿者或店员凭密码接取', '')
+  const next = window.prompt(requiresPassword.value ? '输入新的接取密码（4-32 位），旧密码将立即失效' : '输入接取密码（4-32 位），设置后需凭密码接取', '')
   if (next === null) return
   emit('action', 'password', { password: next.trim() })
 }
@@ -174,14 +167,10 @@ function resetPassword() {
         <div v-else class="accept-tools"><button class="button wide" :disabled="busy" @click="emitAccept">{{ busy ? '处理中…' : '直接接取' }}</button></div>
       </div>
 
-      <!-- 普通用户只能直接接取无密码委托 -->
-      <div v-if="isRegularUser" class="notice info-notice">
-        <strong>这是有密码委托，普通用户不能接取</strong>
-        <p><Store :size="14" />请联系<RouterLink class="notice-link" to="/staff" @click="$emit('close')">任意店员</RouterLink>申请加入群聊<template v-if="staffGroupId">（群聊 ID：<strong class="inline-strong">{{ staffGroupId }}</strong>）</template>，由店员确认后手动提升为志愿者。</p>
-      </div>
+      <!-- 普通用户也可凭密码接取带密码的委托 -->
       <div v-if="published && auth.isLoggedIn && !isPublisher && !isMember && auth.isAdmin" class="notice info-notice">
-        <strong>管理员账号不接取委托</strong>
-        <p>管理员负责平台管理；如需测试接取流程，请使用志愿者账号。</p>
+        <strong>超级管理员账号不接取委托</strong>
+        <p>超级管理员负责平台管理；如需测试接取流程，请使用志愿者账号。</p>
       </div>
 
       <!-- 进行中 / 待确认 -->
@@ -218,7 +207,7 @@ function resetPassword() {
       </div>
 
       <div v-if="!task.is_visible" class="notice error-notice">该委托已被管理人员屏蔽：{{ task.admin_note || '未填写原因' }}</div>
-      <div v-if="task.reported && (isParticipant || auth.isAdmin || auth.isStaff)" class="notice risk-notice">该委托已被举报，正在等待店员/管理员处理。</div>
+      <div v-if="task.reported && (isParticipant || auth.isAdmin || auth.isStaff)" class="notice risk-notice">该委托已被举报，正在等待管理员处理。</div>
       <footer class="dialog-footer">
         <span class="muted">发布于 {{ format(task.created_at) }}<template v-if="task.started_at"> · 开始于 {{ format(task.started_at) }}</template><template v-if="task.status === 'cancelling'"> · 取消请求发起于 {{ format(task.cancel_requested_at) }}</template></span>
         <div class="dialog-actions">
