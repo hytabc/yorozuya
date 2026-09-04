@@ -18,8 +18,10 @@ from .config import settings
 from .database import Base, SessionLocal, engine, get_db
 from .dependencies import get_admin, get_current_user, get_optional_user, get_role_manager
 from .models import (
+    AppSetting,
     Feedback,
     FeedbackStatus,
+    ReportStatus,
     SugarPair,
     SugarPairStatus,
     SugarPhoto,
@@ -27,6 +29,7 @@ from .models import (
     Task,
     TaskMember,
     TaskMemberResponse,
+    TaskReport,
     TaskStatus,
     User,
     UserPhoto,
@@ -45,10 +48,15 @@ from .schemas import (
     FeedbackUpdate,
     LoginRequest,
     PasswordUpdate,
+    ReportCreate,
+    ReportLimitOut,
+    ReportLimitUpdate,
+    ReportResolveRequest,
     RegisterRequest,
     TaskCreate,
     TaskMemberOut,
     TaskOut,
+    TaskReportOut,
     StaffDirectoryOut,
     SugarPairOut,
     SugarPhotoOut,
@@ -113,6 +121,8 @@ def migrate_schema() -> None:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN required_takers INTEGER"))
         if "is_designated" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN is_designated BOOLEAN NOT NULL DEFAULT 0"))
+        if "is_anonymous" not in task_columns:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN is_anonymous BOOLEAN NOT NULL DEFAULT 0"))
         if "started_at" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN started_at DATETIME"))
         if "pay_type" not in task_columns:
@@ -195,7 +205,7 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title=settings.app_name, version="1.1.0", lifespan=lifespan)
+app = FastAPI(title=settings.app_name, version="1.2.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
@@ -228,6 +238,7 @@ def task_query():
     return select(Task).options(
         joinedload(Task.publisher).joinedload(User.photos),
         joinedload(Task.members).joinedload(TaskMember.user).joinedload(User.photos),
+        joinedload(Task.reports),
     )
 
 
@@ -245,6 +256,9 @@ def present_user_public(user: User, viewer: User | None = None) -> UserPublic:
     return UserPublic(id=user.id, nickname=user.nickname, bio=user.bio, photos=visible_user_photos(user, viewer))
 
 
+ANONYMOUS_PUBLISHER = UserPublic(id=0, nickname="匿名委托人", bio=None, photos=[])
+
+
 def present_user_profile(user: User, viewer: User | None = None) -> UserProfileOut:
     return UserProfileOut(
         id=user.id, nickname=user.nickname, bio=user.bio, qq=user.qq, qq_public=user.qq_public,
@@ -254,8 +268,11 @@ def present_user_profile(user: User, viewer: User | None = None) -> UserProfileO
 
 
 def present_members(task: Task, viewer: User | None) -> list[TaskMemberOut]:
-    """成员序列化；qq 只在协作相关方（委托人/成员/管理员）可见。"""
-    can_see_qq = viewer is not None and (viewer.is_admin or viewer.id == task.publisher_id or any(m.user_id == viewer.id for m in task.members))
+    """成员序列化；qq 只在协作相关方（委托人/成员/管理员）可见。
+
+    匿名委托中，联系方式只对“发布人 ↔ 已接取成员”双方可见：发布人可看所有成员，
+    成员只能看到自己的 QQ，成员之间互不可见。
+    """
     out: list[TaskMemberOut] = []
     for member in task.members:
         item = TaskMemberOut(
@@ -263,7 +280,15 @@ def present_members(task: Task, viewer: User | None) -> list[TaskMemberOut]:
             response_status=member.response_status, confirmed_at=member.confirmed_at,
             cancel_confirmed_at=member.cancel_confirmed_at,
         )
-        if can_see_qq:
+        if task.is_anonymous:
+            can_see_this = viewer is not None and (
+                viewer.is_admin or viewer.id == task.publisher_id or member.user_id == viewer.id
+            )
+        else:
+            can_see_this = viewer is not None and (
+                viewer.is_admin or viewer.id == task.publisher_id or any(m.user_id == viewer.id for m in task.members)
+            )
+        if can_see_this:
             item.qq = member.user.qq
         out.append(item)
     return out
@@ -271,6 +296,7 @@ def present_members(task: Task, viewer: User | None) -> list[TaskMemberOut]:
 
 def present_task(task: Task, viewer: User | None = None) -> TaskOut:
     data = TaskOut.model_validate(task)
+    data.reported = any(report.status == ReportStatus.PENDING for report in task.reports)
     can_see_hidden = viewer is not None and (
         viewer.is_admin or viewer.role == UserRole.STAFF or viewer.id == task.publisher_id
     )
@@ -278,6 +304,40 @@ def present_task(task: Task, viewer: User | None = None) -> TaskOut:
     data.admin_note = task.admin_note if (not task.is_visible and can_see_hidden) else None
     data.publisher = present_user_public(task.publisher, viewer)
     data.members = present_members(task, viewer)
+    if task.is_anonymous:
+        # 匿名委托：接取前仅展示标题与内容，个人信息不公开；接取后联系方式仅双方可见。
+        is_collaborator = viewer is not None and (
+            viewer.id == task.publisher_id
+            or any(
+                m.user_id == viewer.id and m.response_status == TaskMemberResponse.ACCEPTED
+                for m in task.members
+            )
+        )
+        is_pending_designated = viewer is not None and any(
+            m.user_id == viewer.id and m.response_status == TaskMemberResponse.PENDING for m in task.members
+        )
+        can_inspect = viewer is not None and (viewer.is_admin or viewer.role == UserRole.STAFF)
+        if not (is_collaborator or is_pending_designated or can_inspect):
+            data.publisher = ANONYMOUS_PUBLISHER
+            data.publisher_id = 0
+            data.members = []
+            return data
+        if is_pending_designated and not is_collaborator:
+            # 匿名指定委托：被指定者仅看到自己的待响应状态，不暴露发布人与其他成员。
+            data.publisher = ANONYMOUS_PUBLISHER
+            data.publisher_id = 0
+            data.members = [member for member in data.members if member.user.id == viewer.id]
+            return data
+        if task.publisher_id == viewer.id:
+            # 委托人：成员 QQ 已由 present_members 填充
+            return data
+        if is_collaborator:
+            # 已接取成员：可见委托人联系方式
+            data.contact_qq = task.publisher.qq
+            return data
+        if viewer.is_admin:
+            data.contact_qq = task.publisher.qq
+        return data
     if viewer is None:
         return data
     if viewer.is_admin:
@@ -310,6 +370,48 @@ def can_view_hidden_task(task: Task, viewer: User | None) -> bool:
     )
 
 
+def is_task_manager(viewer: User | None) -> bool:
+    return viewer is not None and (viewer.is_admin or viewer.role == UserRole.STAFF)
+
+
+def is_task_participant(task: Task, viewer: User | None) -> bool:
+    return viewer is not None and (
+        viewer.id == task.publisher_id or any(m.user_id == viewer.id for m in task.members)
+    )
+
+
+def get_setting_int(db: Session, key: str, default: int) -> int:
+    setting = db.get(AppSetting, key)
+    if setting is None:
+        return default
+    try:
+        return int(setting.value)
+    except (TypeError, ValueError):
+        return default
+
+
+def set_setting(db: Session, key: str, value: str) -> None:
+    setting = db.get(AppSetting, key)
+    if setting is None:
+        db.add(AppSetting(key=key, value=value))
+    else:
+        setting.value = value
+
+
+def present_report(report: TaskReport) -> TaskReportOut:
+    return TaskReportOut(
+        id=report.id,
+        task_id=report.task_id,
+        task_title=report.task.title if report.task else '',
+        task_status=report.task.status if report.task else TaskStatus.PUBLISHED,
+        reporter=present_user_public(report.reporter),
+        reason=report.reason,
+        status=report.status,
+        created_at=report.created_at,
+        handled_at=report.handled_at,
+    )
+
+
 def present_feedback(feedback: Feedback) -> FeedbackOut:
     return FeedbackOut.model_validate(feedback)
 
@@ -329,14 +431,39 @@ def accepted_member_of(db: Session, task_id: int, user_id: int) -> TaskMember | 
 
 
 def shares_task_with(db: Session, viewer_id: int, target_id: int) -> bool:
-    """两人是否在同一委托中共事过（一个委托人发布、另一个成员接取，或同为成员）。"""
+    """两人是否在同一委托中共事过（一个委托人发布、另一个成员接取，或同为成员）。
+
+    匿名委托只算“发布人 ↔ 已接取成员”这一对关系：接单人之间不算共事，
+    避免通过资料页互相看到联系方式。
+    """
     if viewer_id == target_id:
         return True
     viewer_tasks = set(db.scalars(select(Task.id).where(Task.publisher_id == viewer_id)))
     viewer_tasks |= set(db.scalars(select(TaskMember.task_id).where(TaskMember.user_id == viewer_id)))
     target_tasks = set(db.scalars(select(Task.id).where(Task.publisher_id == target_id)))
     target_tasks |= set(db.scalars(select(TaskMember.task_id).where(TaskMember.user_id == target_id)))
-    return bool(viewer_tasks & target_tasks)
+    shared_ids = viewer_tasks & target_tasks
+    for task_id in shared_ids:
+        task = db.get(Task, task_id)
+        if task is None:
+            continue
+        if not task.is_anonymous:
+            return True
+        # 匿名委托：必须是发布人与已接取成员之间的对应关系
+        viewer_is_pub = task.publisher_id == viewer_id
+        target_is_pub = task.publisher_id == target_id
+        if viewer_is_pub != target_is_pub:
+            member_id = target_id if viewer_is_pub else viewer_id
+            member_row = db.scalar(
+                select(TaskMember).where(
+                    TaskMember.task_id == task_id,
+                    TaskMember.user_id == member_id,
+                    TaskMember.response_status == TaskMemberResponse.ACCEPTED,
+                )
+            )
+            if member_row is not None:
+                return True
+    return False
 
 
 def can_view_user_qq(db: Session, viewer: User | None, target: User) -> bool:
@@ -357,6 +484,7 @@ def can_view_user_qq(db: Session, viewer: User | None, target: User) -> bool:
             Task.publisher_id == target.id,
             Task.status == TaskStatus.PUBLISHED,
             Task.is_visible.is_(True),
+            Task.is_anonymous.is_(False),
         )
         .limit(1)
     )
@@ -1017,13 +1145,17 @@ def list_tasks(
     db: Session = Depends(get_db),
 ):
     expire_due_tasks(db)
-    query = task_query().where(Task.is_visible.is_(True))
+    reported_ids = select(TaskReport.task_id).where(TaskReport.status == ReportStatus.PENDING)
+    query = task_query().where(Task.is_visible.is_(True), ~Task.id.in_(reported_ids))
     if search:
         query = query.where(or_(Task.title.contains(search), Task.description.contains(search)))
     if category:
         query = query.where(Task.category == category)
-    if task_status:
+    # 普通用户只能浏览招募中的委托；管理员/店员可查看全部状态。
+    if task_status and is_task_manager(viewer):
         query = query.where(Task.status == task_status)
+    elif not is_task_manager(viewer):
+        query = query.where(Task.status == TaskStatus.PUBLISHED)
     if pay_type in ("paid", "free"):
         query = query.where(Task.pay_type == pay_type)
     tasks = db.scalars(query.order_by(Task.created_at.desc()).limit(200)).unique().all()
@@ -1053,11 +1185,23 @@ def task_detail(task_id: int, viewer: User | None = Depends(get_optional_user), 
     task = get_task_or_404(db, task_id)
     if not task.is_visible and not can_view_hidden_task(task, viewer):
         raise HTTPException(status_code=404, detail="委托不存在")
+    reported = db.scalar(
+        select(TaskReport.id).where(
+            TaskReport.task_id == task_id,
+            TaskReport.status == ReportStatus.PENDING,
+        ).limit(1)
+    ) is not None
+    # 被举报的委托仅店员/管理员/委托双方可见；处理中或已完成的委托仅委托双方可见。
+    if reported or task.status != TaskStatus.PUBLISHED:
+        if not is_task_manager(viewer) and not is_task_participant(task, viewer):
+            raise HTTPException(status_code=404, detail="委托不存在")
     return present_task(task, viewer)
 
 
 @app.post("/api/tasks", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
 def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user.qq:
+        raise HTTPException(status_code=422, detail="发布委托需要先填写联系方式（QQ），请在个人设置中添加后再发布")
     now = datetime.utcnow()
     designated_user_ids = list(dict.fromkeys(payload.designated_user_ids))
     if user.id in designated_user_ids:
@@ -1082,6 +1226,7 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
         reward=payload.reward.strip() if payload.reward else None,
         expires_at=now + timedelta(days=payload.expires_in_days),
         publisher_id=user.id,
+        is_anonymous=payload.is_anonymous,
         required_takers=len(designated_user_ids) if designated_user_ids else payload.required_takers,
         # 指定委托无须密码，响应权限由指定名单保证。
         accept_password_hash=None if designated_user_ids else (hash_password(payload.accept_password) if payload.accept_password else None),
@@ -1099,6 +1244,106 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
         )
     db.commit()
     return present_task(get_task_or_404(db, task.id), user)
+
+
+@app.post("/api/tasks/{task_id}/report", response_model=TaskReportOut, status_code=status.HTTP_201_CREATED)
+def report_task(
+    task_id: int,
+    payload: ReportCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """举报委托：被举报的委托不进入大厅，仅由店员/管理员处理。"""
+    task = get_task_or_404(db, task_id)
+    if task.publisher_id == user.id:
+        raise HTTPException(status_code=422, detail="不能举报自己发布的委托")
+    existing = db.scalar(
+        select(TaskReport).where(
+            TaskReport.task_id == task_id,
+            TaskReport.reporter_id == user.id,
+        )
+    )
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="你已经举报过该委托")
+    daily_limit = get_setting_int(db, "report_daily_limit", 2)
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_count = db.scalar(
+        select(func.count()).select_from(TaskReport).where(
+            TaskReport.reporter_id == user.id,
+            TaskReport.created_at >= today_start,
+        )
+    ) or 0
+    if today_count >= daily_limit:
+        raise HTTPException(status_code=429, detail=f"今日举报次数已达上限（{daily_limit} 次）")
+    report = TaskReport(task_id=task_id, reporter_id=user.id, reason=payload.reason.strip())
+    db.add(report)
+    db.commit()
+    return present_report(db.get(TaskReport, report.id))
+
+
+@app.get("/api/admin/reports", response_model=list[TaskReportOut])
+def admin_reports(_: User = Depends(get_role_manager), db: Session = Depends(get_db)):
+    reports = db.scalars(
+        select(TaskReport)
+        .options(joinedload(TaskReport.task), joinedload(TaskReport.reporter))
+        .order_by(TaskReport.created_at.desc())
+        .limit(500)
+    ).unique().all()
+    return [present_report(report) for report in reports]
+
+
+@app.post("/api/admin/reports/{report_id}/resolve", response_model=TaskReportOut)
+def resolve_report(
+    report_id: int,
+    payload: ReportResolveRequest,
+    manager: User = Depends(get_role_manager),
+    db: Session = Depends(get_db),
+):
+    """处理被举报的委托：close 关闭举报 / hide 屏蔽委托 / restore 重新放开。"""
+    report = db.get(TaskReport, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="举报不存在")
+    task = report.task
+    if payload.action == "hide":
+        note = payload.admin_note.strip() if payload.admin_note else None
+        if not note:
+            raise HTTPException(status_code=422, detail="屏蔽委托时必须填写理由")
+        task.is_visible = False
+        task.admin_note = note
+    elif payload.action == "restore":
+        task.is_visible = True
+        task.admin_note = None
+    now = datetime.utcnow()
+    pending = db.scalars(
+        select(TaskReport).where(
+            TaskReport.task_id == task.id,
+            TaskReport.status == ReportStatus.PENDING,
+        )
+    ).all()
+    for item in pending:
+        item.status = ReportStatus.HANDLED
+        item.handled_by_id = manager.id
+        item.handled_at = now
+    task.updated_at = now
+    db.commit()
+    db.refresh(report)
+    return present_report(report)
+
+
+@app.get("/api/admin/settings/report-limit", response_model=ReportLimitOut)
+def get_report_limit(_: User = Depends(get_role_manager), db: Session = Depends(get_db)):
+    return ReportLimitOut(daily_limit=get_setting_int(db, "report_daily_limit", 2))
+
+
+@app.patch("/api/admin/settings/report-limit", response_model=ReportLimitOut)
+def set_report_limit(
+    payload: ReportLimitUpdate,
+    _: User = Depends(get_role_manager),
+    db: Session = Depends(get_db),
+):
+    set_setting(db, "report_daily_limit", str(payload.daily_limit))
+    db.commit()
+    return ReportLimitOut(daily_limit=payload.daily_limit)
 
 
 @app.post("/api/tasks/{task_id}/accept", response_model=TaskOut)

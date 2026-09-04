@@ -1,12 +1,17 @@
 <script setup>
 import { reactive, ref, computed, onMounted, onUnmounted } from 'vue'
 import { Check, TriangleAlert, X } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
+import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import { CATEGORIES } from '../constants'
 
 const emit = defineEmits(['close', 'created'])
+const auth = useAuthStore()
+const router = useRouter()
 const toast = useToast()
+const hasContact = computed(() => Boolean(auth.user?.qq))
 const busy = ref(false)
 const unlimited = ref(false)
 const passwordless = ref(false)
@@ -24,10 +29,17 @@ const form = reactive({
   reward: '',
   accept_password: '',
   required_takers: 1,
+  is_anonymous: false,
   expires_in_days: 1,
 })
 
 async function submit() {
+  if (!hasContact.value) {
+    toast.error('发布委托需要先添加联系方式，请先到个人设置填写 QQ 号')
+    emit('close')
+    router.push('/profile')
+    return
+  }
   busy.value = true
   try {
     const payload = {
@@ -44,6 +56,10 @@ async function submit() {
   } catch (error) { toast.error(errorMessage(error)) } finally { busy.value = false }
 }
 function onKey(event) { if (event.key === 'Escape') emit('close') }
+function goAddContact() {
+  emit('close')
+  router.push('/profile')
+}
 onMounted(() => { document.body.classList.add('modal-open'); window.addEventListener('keydown', onKey) })
 onMounted(async () => {
   try { directory.value = (await api.get('/staff')).data } catch { directory.value = { staff: [], volunteers: [] } }
@@ -56,6 +72,11 @@ onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeE
     <section class="dialog create-dialog" role="dialog" aria-modal="true" aria-label="发布新委托">
       <button class="icon-button dialog-close" aria-label="关闭" title="关闭" @click="$emit('close')"><X :size="20" /></button>
       <div class="dialog-heading"><span class="eyebrow">NEW REQUEST</span><h2>发布新委托</h2><p>把交付目标、时间和报酬说清楚，更容易遇到合适的人。</p></div>
+      <div v-if="!hasContact" class="notice risk-notice" role="alert">
+        <strong><TriangleAlert :size="17" />发布委托需要先添加联系方式</strong>
+        <p>接单人需要靠 QQ 联系你确认细节并完成交付，请先在个人设置中填写 QQ 号。</p>
+        <button type="button" class="button small secondary" @click="goAddContact">去个人设置添加联系方式</button>
+      </div>
       <form class="form-stack" @submit.prevent="submit">
         <label>委托标题<input v-model.trim="form.title" required minlength="2" maxlength="80" placeholder="一句话说明需要什么" /></label>
         <label>详细说明<textarea v-model.trim="form.description" required minlength="10" maxlength="3000" rows="6" placeholder="说明背景、具体要求和交付方式"></textarea><small>{{ form.description.length }}/3000</small></label>
@@ -90,6 +111,10 @@ onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeE
             <p v-if="designated && !designatedIds.length" class="field-error">请至少指定一名店员或志愿者</p>
           </div>
         </div>
+        <div class="anonymous-field">
+          <label class="checkbox-inline"><input v-model="form.is_anonymous" type="checkbox" /><span>匿名发布</span></label>
+          <small class="field-hint">匿名委托在大厅不公开昵称与个人资料，仅显示标题和内容；接取后联系方式仅双方可见。</small>
+        </div>
         <div v-if="!designated" class="access-field">
           <span class="taker-label">接取方式</span>
           <div class="pay-toggle" role="radiogroup" aria-label="接取方式">
@@ -105,7 +130,7 @@ onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeE
           <p>所有非管理员用户无需联系你确认即可直接加入，可能快速占满名额；达到所需人数后委托会自动开始。请确认委托内容适合公开接取。</p>
         </div>
         <label>有效期（自发布起）<select v-model.number="form.expires_in_days" required><option v-for="days in expiryOptions" :key="days" :value="days">{{ days }} 天</option></select></label>
-        <div class="dialog-footer"><button type="button" class="button secondary" @click="$emit('close')">暂不发布</button><button class="button" :disabled="busy || (designated && !designatedIds.length)">{{ busy ? '发布中…' : '确认发布' }}</button></div>
+        <div class="dialog-footer"><button type="button" class="button secondary" @click="$emit('close')">暂不发布</button><button class="button" :disabled="busy || !hasContact || (designated && !designatedIds.length)">{{ busy ? '发布中…' : '确认发布' }}</button></div>
       </form>
     </section>
   </div>
