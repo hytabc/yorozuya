@@ -21,7 +21,7 @@
 - 砂糖社：登记带照片的公开档案，查看卡片后通过仅对查看双方开放的 QQ 线下交流；双方确认后成为砂糖，任一方可结束关系，展示维持最久的前三对（含已结束记录）
 - 管理员统计、委托隐藏与恢复；隐藏原因对相关用户可见
 - 看板娘「小白」：PC 端左上角常驻的站内 AI 助手，可聊天、答疑，自带倾听与心理支持模式（可配置，见下文）
-- Docker Compose 一键部署与 FRP TCP 内网穿透
+- Docker Compose 一键部署、FRP TCP 内网穿透与 Let's Encrypt HTTPS 自动续期
 
 ## 🤖 看板娘「小白」（可选 AI 助手）
 
@@ -89,8 +89,59 @@ MASCOT_MODEL=kimi-k2.7-code-highspeed
    docker compose --profile tunnel up -d
    ```
 
-   `frpc`（仅该 profile 启动）会把远端 `FRP_REMOTE_PORT` 转发到前端容器的 80 端口。
-   对应的 `frps` 服务端需允许该 TCP 端口。
+   `frpc`（仅该 profile 启动）会把远端 `FRP_REMOTE_PORT`、`FRP_REMOTE_HTTP_PORT`（默认 80）
+   与 `FRP_REMOTE_HTTPS_PORT`（默认 443）分别转发到前端容器的 80/443 端口。
+   对应的 `frps` 服务端需允许这些 TCP 端口。
+
+## HTTPS 部署（Let's Encrypt 自动签发与续期）
+
+启用 FRP 隧道后，站点通过 Let's Encrypt 自动签发 HTTPS 证书，并每 12 小时自动检查续期；
+证书更新后 nginx 会在约 30 秒内自动热重载，全程无需手动干预。
+
+**前置条件**
+
+- 域名（frpc 域名）的 A 记录已解析到 FRP 服务器公网 IP（即下方 `SERVER_IP`）；
+- `frps` 服务器允许绑定 80 与 443 端口，且防火墙已放行（HTTP-01 校验要求
+  `FRP_REMOTE_HTTP_PORT` 必须为 80 才能从公网验证）。
+
+**在 `.env` 中填写**
+
+| 配置 | 说明 |
+|---|---|
+| `DOMAIN` | 对外访问的域名，例如 `yorozuya.example.com` |
+| `SERVER_IP` | FRP 服务器公网 IP（域名 A 记录指向它） |
+| `LETSENCRYPT_EMAIL` | Let's Encrypt 通知邮箱（证书到期前提醒） |
+| `HTTPS_PORT` | 本机调试 HTTPS 的宿主映射端口，默认 `8443` |
+| `FRP_REMOTE_HTTP_PORT` | frps 上 HTTP 隧道远端端口，默认 `80` |
+| `FRP_REMOTE_HTTPS_PORT` | frps 上 HTTPS 隧道远端端口，默认 `443` |
+| `CORS_ORIGINS` | 建议追加 `https://你的域名`（逗号分隔） |
+
+**启动**
+
+```bash
+docker compose --profile tunnel up -d --build
+```
+
+首次启动时 `certbot` 容器会自动申请证书（每 60 秒重试直到成功）；
+签发成功后 nginx 自动加载真实证书。查看申请进度：
+
+```bash
+docker compose logs -f certbot
+```
+
+**验证**
+
+- 浏览器访问 `https://你的域名`，应显示绿锁并自动跳转（`http://你的域名` 会 301 到 HTTPS）；
+- 本机调试可访问 `https://localhost:<HTTPS_PORT>`（证书域名不匹配提示属正常现象）；
+- 手动立即重载证书：`docker compose exec frontend nginx -s reload`。
+
+**续期与排错**
+
+- `certbot` 每 12 小时检查一次续期（证书到期前 30 天内自动续期）；
+- 证书申请失败常见原因：DNS 尚未生效、`frps` 未放行 80 端口隧道
+  （用 `docker compose logs frpc` 查看）、服务器防火墙未开放 80 端口；
+- 修复后无需重启，`certbot` 会继续按周期重试；也可 `docker compose restart certbot` 立即重试；
+- 证书文件保存在 `deploy/certbot/`（已被 `.gitignore` 忽略），重建容器不会丢失。
 
 ## Docker Compose 热部署开发
 

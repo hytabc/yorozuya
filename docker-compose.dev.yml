@@ -11,6 +11,8 @@ services:
     build:
       context: ./frontend
       target: dev
+    # 开发镜像不含 /entrypoint.sh，重置生产 entrypoint，使用镜像默认入口。
+    entrypoint: []
     # 与生产 Nginx 使用相同的容器端口，复用主配置中的端口映射和 FRP 配置。
     command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "80"]
     environment:

@@ -1,5 +1,6 @@
 .env
 *.db
+deploy/certbot/
 backend/data/
 backend/.venv/
 backend/.pytest_cache/

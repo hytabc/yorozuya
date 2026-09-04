@@ -9,3 +9,17 @@ type = "tcp"
 localIP = "frontend"
 localPort = 80
 remotePort = {{ .Envs.FRP_REMOTE_PORT }}
+
+[[proxies]]
+name = "yorozuya-http"
+type = "tcp"
+localIP = "frontend"
+localPort = 80
+remotePort = {{ .Envs.FRP_REMOTE_HTTP_PORT }}
+
+[[proxies]]
+name = "yorozuya-https"
+type = "tcp"
+localIP = "frontend"
+localPort = 443
+remotePort = {{ .Envs.FRP_REMOTE_HTTPS_PORT }}
