@@ -54,6 +54,7 @@ from .schemas import (
     SugarProfileCardOut,
     SugarProfileDetailOut,
     TokenResponse,
+    UserPasswordUpdate,
     UserPublic,
     UserProfileOut,
     UserPhotoOut,
@@ -569,6 +570,18 @@ def update_profile(payload: UserUpdate, user: User = Depends(get_current_user), 
     user.qq = payload.qq
     user.qq_public = payload.qq_public if user.role == UserRole.VOLUNTEER else False
     user.bio = payload.bio.strip() if payload.bio else None
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@app.patch("/api/users/me/password", response_model=UserSelf)
+def update_my_password(
+    payload: UserPasswordUpdate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user.password_hash = hash_password(payload.password)
     db.commit()
     db.refresh(user)
     return user
@@ -1349,6 +1362,24 @@ def update_user_task_limit(
     if user is None:
         raise HTTPException(status_code=404, detail="用户不存在")
     user.max_concurrent_tasks = payload.max_concurrent_tasks
+    db.commit()
+    db.refresh(user)
+    return AdminUserOut.model_validate(user).model_copy(
+        update={"active_task_count": active_task_count(db, user.id)}
+    )
+
+
+@app.patch("/api/admin/users/{user_id}/password", response_model=AdminUserOut)
+def reset_user_password(
+    user_id: int,
+    payload: UserPasswordUpdate,
+    _: User = Depends(get_admin),
+    db: Session = Depends(get_db),
+):
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    user.password_hash = hash_password(payload.password)
     db.commit()
     db.refresh(user)
     return AdminUserOut.model_validate(user).model_copy(

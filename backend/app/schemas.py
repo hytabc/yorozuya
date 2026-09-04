@@ -131,6 +131,11 @@ class PasswordUpdate(RequestModel):
     password: str = Field(min_length=4, max_length=32)
 
 
+class UserPasswordUpdate(RequestModel):
+    """用户登录密码；比委托接取密码要求更长。"""
+    password: str = Field(min_length=8, max_length=72)
+
+
 class TaskMemberOut(ApiModel):
     user: UserPublic
     joined_at: datetime

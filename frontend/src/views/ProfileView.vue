@@ -1,6 +1,6 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
-import { CalendarDays, EyeOff, Heart, ImagePlus, Save, ShieldCheck, Store, Trash2, UserRound } from 'lucide-vue-next'
+import { CalendarDays, EyeOff, Heart, ImagePlus, KeyRound, Save, ShieldCheck, Store, Trash2, UserRound } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
@@ -9,6 +9,7 @@ import { roleLabel, ROLE_HINTS } from '../constants'
 const auth = useAuthStore()
 const toast = useToast()
 const busy = ref(false)
+const passwordBusy = ref(false)
 const photoBusy = ref(false)
 const photos = ref(auth.user.photos || [])
 const remaining = computed(() => Math.max(0, 3 - photos.value.length))
@@ -18,11 +19,24 @@ const form = reactive({
   qq_public: Boolean(auth.user.qq_public),
   bio: auth.user.bio || '',
 })
+const passwordForm = reactive({ password: '', confirm: '' })
 const joined = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' }).format(new Date(auth.user.created_at))
 async function save() {
   busy.value = true
   try { const { data } = await api.patch('/users/me', form); auth.updateUser(data); toast.success('个人资料已保存') }
   catch (error) { toast.error(errorMessage(error)) } finally { busy.value = false }
+}
+async function changePassword() {
+  if (passwordForm.password.length < 8) return toast.error('新密码至少需要 8 位')
+  if (passwordForm.password !== passwordForm.confirm) return toast.error('两次输入的新密码不一致')
+  passwordBusy.value = true
+  try {
+    const { data } = await api.patch('/users/me/password', { password: passwordForm.password })
+    auth.updateUser(data)
+    passwordForm.password = ''
+    passwordForm.confirm = ''
+    toast.success('密码已重置，请使用新密码登录')
+  } catch (error) { toast.error(errorMessage(error)) } finally { passwordBusy.value = false }
 }
 async function uploadPhotos(event) {
   const files = [...event.target.files]
@@ -79,8 +93,16 @@ async function deletePhoto(photo) {
           <label>个人简介<textarea v-model.trim="form.bio" maxlength="300" rows="6" placeholder="简单介绍你擅长的事情、空闲时间等"></textarea><small>{{ form.bio.length }}/300</small></label>
           <div><button class="button" :disabled="busy"><Save :size="17" />{{ busy ? '保存中…' : '保存更改' }}</button></div>
         </form>
+        <div class="profile-password-section">
+          <div class="section-heading compact"><div><span class="section-index">02</span><h2>重置密码</h2><p>设置新密码并确认，至少 8 位</p></div></div>
+          <form class="form-stack" @submit.prevent="changePassword">
+            <label>新密码<input v-model="passwordForm.password" type="password" required minlength="8" maxlength="72" autocomplete="new-password" placeholder="至少 8 位" /></label>
+            <label>确认新密码<input v-model="passwordForm.confirm" type="password" required minlength="8" maxlength="72" autocomplete="new-password" placeholder="再次输入新密码" /></label>
+            <div><button class="button" :disabled="passwordBusy"><KeyRound :size="17" />{{ passwordBusy ? '重置中…' : '确认重置密码' }}</button></div>
+          </form>
+        </div>
         <div class="profile-photo-section">
-          <div class="section-heading compact"><div><span class="section-index">02</span><h2>介绍图片</h2><p>最多 3 张，单张不超过 5 MiB</p></div></div>
+          <div class="section-heading compact"><div><span class="section-index">03</span><h2>介绍图片</h2><p>最多 3 张，单张不超过 5 MiB</p></div></div>
           <div class="photo-grid profile-photo-grid">
             <figure v-for="photo in photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
               <img :src="photo.image_url" alt="个人介绍图片" />

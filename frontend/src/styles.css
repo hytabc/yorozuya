@@ -273,6 +273,7 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .profile-form-section { padding-left: 44px; border-left: 1px solid var(--line); }
 .section-heading.compact { margin-bottom: 29px; }
 .section-heading.compact h2 { font-size: 23px; }
+.profile-password-section { margin-top: 42px; padding-top: 35px; border-top: 1px solid var(--line); }
 .profile-photo-section { margin-top: 42px; padding-top: 35px; border-top: 1px solid var(--line); }
 .profile-photo-grid .photo-add span { margin-top: 7px; font-size: 11px; }
 .photo-add.disabled { cursor: wait; opacity: .6; }

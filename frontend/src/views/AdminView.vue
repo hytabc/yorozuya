@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, Image as ImageIcon, MessageCircle, RotateCcw, Save, Search, ShieldCheck, Store, UsersRound } from 'lucide-vue-next'
+import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, Image as ImageIcon, KeyRound, MessageCircle, RotateCcw, Save, Search, ShieldCheck, Store, UsersRound, X } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
@@ -23,6 +23,9 @@ const userSearch = ref('')
 const loading = ref(true)
 const savingUserId = ref(null)
 const savingRoleId = ref(null)
+const resetUser = ref(null)
+const resetPasswordBusy = ref(false)
+const resetPasswordForm = reactive({ password: '', confirm: '' })
 const filteredTasks = computed(() => tasks.value.filter((task) => `${task.title}${task.publisher.nickname}`.toLowerCase().includes(taskSearch.value.toLowerCase())))
 const filteredUsers = computed(() => users.value.filter((user) => `${user.username}${user.nickname}`.toLowerCase().includes(userSearch.value.toLowerCase())))
 const pendingFeedbacks = computed(() => feedbacks.value.filter((item) => item.status === 'pending').length)
@@ -104,6 +107,26 @@ async function changeUserRole(user, targetRole, select) {
   } finally {
     savingRoleId.value = null
   }
+}
+function openPasswordReset(user) {
+  resetUser.value = user
+  resetPasswordForm.password = ''
+  resetPasswordForm.confirm = ''
+}
+function closePasswordReset() {
+  if (resetPasswordBusy.value) return
+  resetUser.value = null
+}
+async function resetUserPassword() {
+  if (resetPasswordForm.password.length < 8) return toast.error('新密码至少需要 8 位')
+  if (resetPasswordForm.password !== resetPasswordForm.confirm) return toast.error('两次输入的新密码不一致')
+  resetPasswordBusy.value = true
+  try {
+    const { data } = await api.patch(`/admin/users/${resetUser.value.id}/password`, { password: resetPasswordForm.password })
+    users.value[users.value.findIndex((item) => item.id === data.id)] = data
+    toast.success(`已重置 ${data.nickname} 的密码`)
+    resetUser.value = null
+  } catch (error) { toast.error(errorMessage(error)) } finally { resetPasswordBusy.value = false }
 }
 async function toggle(task) {
   let note = task.admin_note
@@ -190,6 +213,7 @@ onMounted(load)
               <td>
                 <div class="user-row-actions">
                   <button v-if="auth.isAdmin" class="button secondary small" :class="{ 'is-saving': savingUserId === user.id }" :title="savingUserId === user.id ? '保存中…' : '保存接单上限'" aria-label="保存接单上限" :disabled="savingUserId === user.id || userLimits[user.id] === user.max_concurrent_tasks" @click="saveUserLimit(user)">{{ savingUserId === user.id ? '…' : '' }}<Save :size="15" /></button>
+                  <button class="button secondary small" title="重置密码" :aria-label="`重置 ${user.nickname} 的密码`" @click="openPasswordReset(user)"><KeyRound :size="15" />重置密码</button>
                   <select v-if="!user.is_admin" class="role-select" :value="user.role" :disabled="savingRoleId === user.id" :aria-label="`修改 ${user.nickname} 的权限等级`" @change="changeUserRole(user, $event.target.value, $event.target)">
                     <option value="user">普通用户</option>
                     <option value="volunteer">志愿者</option>
@@ -243,5 +267,17 @@ onMounted(load)
       </ul>
       <div v-else class="feedback-admin-empty"><MessageCircle :size="28" />还没有收到任何反馈</div>
     </section>
+
+    <div v-if="resetUser" class="modal-backdrop" @mousedown.self="closePasswordReset">
+      <section class="dialog password-reset-dialog" role="dialog" aria-modal="true" aria-label="重置用户密码">
+        <button class="icon-button dialog-close" title="关闭" aria-label="关闭" :disabled="resetPasswordBusy" @click="closePasswordReset"><X :size="20" /></button>
+        <div class="dialog-heading"><span class="eyebrow"><KeyRound :size="14" /> PASSWORD RESET</span><h2>重置用户密码</h2><p>为 {{ resetUser.nickname }}（@{{ resetUser.username }}）设置新密码。</p></div>
+        <form class="form-stack" @submit.prevent="resetUserPassword">
+          <label>新密码<input v-model="resetPasswordForm.password" type="password" required minlength="8" maxlength="72" autocomplete="new-password" placeholder="至少 8 位" /></label>
+          <label>确认新密码<input v-model="resetPasswordForm.confirm" type="password" required minlength="8" maxlength="72" autocomplete="new-password" placeholder="再次输入新密码" /></label>
+          <div class="dialog-footer"><button type="button" class="button secondary" :disabled="resetPasswordBusy" @click="closePasswordReset">取消</button><button class="button" :disabled="resetPasswordBusy"><KeyRound :size="16" />{{ resetPasswordBusy ? '重置中…' : '确认重置' }}</button></div>
+        </form>
+      </section>
+    </div>
   </div>
 </template>
