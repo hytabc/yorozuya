@@ -87,6 +87,19 @@ main { min-height: calc(100vh - 72px); }
 .hall-stats strong, .hall-stats span { display: block; }
 .hall-stats strong { font-family: Georgia, serif; font-size: 28px; }
 .hall-stats span { margin-top: 6px; color: var(--muted); font-size: 11px; }
+.hall-notice { padding: 17px 20px; border: 1px solid #ebd486; border-radius: 6px; background: var(--yellow-soft); }
+.hall-notice .notice-content { display: flex; align-items: flex-start; gap: 13px; }
+.hall-notice .notice-icon { flex-shrink: 0; margin-top: 1px; color: var(--yellow); }
+.hall-notice strong { display: block; margin-bottom: 4px; color: #76520a; font-size: 13px; }
+.hall-notice p { margin: 0; color: #6d5a23; font-size: 12.5px; line-height: 1.8; }
+.disclaimer { padding: 54px 0 90px; }
+.disclaimer .section-heading { margin-bottom: 28px; }
+.disclaimer-body { display: grid; gap: 20px; }
+.disclaimer-part { padding: 20px 22px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); }
+.disclaimer-part h3 { margin: 0 0 10px; color: var(--ink); font-size: 15px; }
+.disclaimer-part p, .disclaimer-part ol { margin: 0; color: #55605a; font-size: 12.5px; line-height: 1.9; }
+.disclaimer-part ol { margin: 0; padding-left: 20px; }
+.disclaimer-part li + li { margin-top: 5px; }
 .task-workspace { padding: 54px 0 100px; }
 .section-heading, .page-title { display: flex; align-items: flex-end; justify-content: space-between; gap: 30px; }
 .section-heading > div, .page-title > div { display: grid; grid-template-columns: auto auto; align-items: baseline; column-gap: 13px; }
@@ -128,6 +141,7 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .role-tag.role-volunteer { color: #1d6649; background: var(--green-soft); }
 .role-tag.role-staff { color: #215f78; background: var(--blue-soft); }
 .role-tag.role-user { color: #52605a; background: #eef0ee; }
+.role-tag.anon-tag { color: #4a3a6b; background: #ece7f5; }
 .open-access-tag { color: #286c86; background: var(--blue-soft); }
 .profile-role-tags { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 5px; flex-wrap: wrap; }
 .profile-role-tags .role-tag, .profile-role-tags .admin-tag { border-radius: 4px; padding: 6px 10px; font-size: 12px; }

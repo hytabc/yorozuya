@@ -188,7 +188,7 @@ onMounted(load)
           <tbody>
             <tr v-if="loading"><td colspan="6" class="table-loading">正在加载…</td></tr>
             <tr v-for="task in filteredTasks" v-else :key="task.id" :class="{ dimmed: !task.is_visible }">
-              <td><strong>{{ task.title }}</strong><small>#{{ task.id }} · {{ task.category }}</small></td>
+              <td><strong>{{ task.title }}<span v-if="task.is_anonymous" class="role-tag anon-tag">匿名</span></strong><small>#{{ task.id }} · {{ task.category }}</small></td>
               <td>{{ task.publisher.nickname }}</td><td><StatusBadge :status="task.status" /></td><td>{{ date(task.expires_at) }}</td>
               <td><span class="visibility"><Eye v-if="task.is_visible" :size="15" /><EyeOff v-else :size="15" />{{ task.is_visible ? '公开' : '已隐藏' }}</span></td>
               <td><button class="icon-button" :title="task.is_visible ? '隐藏委托' : '恢复公开'" :aria-label="task.is_visible ? '隐藏委托' : '恢复公开'" @click="toggle(task)"><EyeOff v-if="task.is_visible" :size="18" /><Eye v-else :size="18" /></button></td>

@@ -124,7 +124,7 @@ function resetPassword() {
         <h4>协作成员（{{ totalPeople }} 人<template v-if="canSeeProgress">，完成需全员确认</template>）</h4>
         <ul class="crew-list">
           <li :class="{ confirmed: canSeeProgress && task.publisher_confirmed_at }">
-            <span class="crew-tag role-owner">委</span><button class="name-link" type="button" @click="openProfile(task.publisher_id)">{{ task.publisher.nickname }}</button><em v-if="canSeeProgress && task.publisher_confirmed_at">已确认</em>
+            <span class="crew-tag role-owner">委</span><button v-if="task.publisher.id > 0" class="name-link" type="button" @click="openProfile(task.publisher.id)">{{ task.publisher.nickname }}</button><span v-else class="muted">匿名委托人</span><em v-if="canSeeProgress && task.publisher_confirmed_at">已确认</em>
           </li>
           <li v-for="m in task.members" :key="m.user.id" :class="{ confirmed: canSeeProgress && m.confirmed_at, declined: m.response_status === 'declined', pending: m.response_status === 'pending' }">
             <span class="crew-tag">{{ m.user.id === auth.user?.id ? '我' : '接' }}</span>

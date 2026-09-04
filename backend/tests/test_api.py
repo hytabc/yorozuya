@@ -86,6 +86,9 @@ def register_sugar_profile(client, headers, about="喜欢在周末散步"):
 
 
 def create_task(client, headers, password="接取密码123", required=None, title="帮忙整理一份资料", expiry_days=2):
+    me = client.get("/api/auth/me", headers=headers).json()
+    if not me.get("qq"):
+        set_qq(client, headers, "1000000000")
     payload = {
         "title": title,
         "description": "需要将十条记录整理成清晰的表格文件",
@@ -103,6 +106,28 @@ def create_task(client, headers, password="接取密码123", required=None, titl
 
 def member_ids(task):
     return [m["user"]["id"] for m in task["members"]]
+
+
+def test_create_task_requires_contact():
+    with TestClient(app) as client:
+        publisher = auth(client, "no_contact_pub")
+        payload = {
+            "title": "没有联系方式的委托",
+            "description": "发布者尚未填写 QQ，不应允许发布",
+            "category": "其他",
+            "pay_type": "free",
+            "accept_password": "pw-no-contact",
+            "required_takers": 1,
+            "expires_in_days": 1,
+        }
+        rejected = client.post("/api/tasks", headers=publisher, json=payload)
+        assert rejected.status_code == 422
+        assert "联系方式" in rejected.json()["detail"]
+
+        # 填写 QQ 后即可正常发布
+        set_qq(client, publisher, "1000000001")
+        created = create_task(client, publisher, password="pw-no-contact", required=1)
+        assert created["id"] > 0
 
 
 def test_accept_fills_up_until_auto_start():
@@ -1094,6 +1119,7 @@ def test_image_upload_reports_storage_space_error(monkeypatch, tmp_path):
 def test_designated_single_member_accepts_or_declines_without_password():
     with TestClient(app) as client:
         publisher = auth(client, "designated_pub")
+        set_qq(client, publisher, "10086041")
         volunteer = auth(client, "designated_one", role="volunteer")
         volunteer_id = client.get("/api/auth/me", headers=volunteer).json()["id"]
         # 指定委托由创建请求中的名单决定，密码字段被忽略。
@@ -1121,6 +1147,7 @@ def test_designated_single_member_accepts_or_declines_without_password():
 def test_designated_multiple_waits_for_all_and_cancels_when_all_decline():
     with TestClient(app) as client:
         publisher = auth(client, "designated_pub2")
+        set_qq(client, publisher, "10086042")
         one = auth(client, "designated_two", role="volunteer")
         two = auth(client, "designated_three", role="volunteer")
         outsider = auth(client, "designated_outsider", role="volunteer")

@@ -259,16 +259,11 @@ def present_user_profile(user: User, viewer: User | None = None) -> UserProfileO
 
 
 def present_members(task: Task, viewer: User | None) -> list[TaskMemberOut]:
-    """成员序列化；qq 只在协作相关方（委托人/成员/管理员）可见。"""
-    if task.is_anonymous:
-        # 匿名委托：只有委托人、已接取成员或管理员能看到成员联系方式，接取前不可见。
-        can_see_qq = viewer is not None and (
-            viewer.is_admin
-            or viewer.id == task.publisher_id
-            or any(m.user_id == viewer.id and m.response_status == TaskMemberResponse.ACCEPTED for m in task.members)
-        )
-    else:
-        can_see_qq = viewer is not None and (viewer.is_admin or viewer.id == task.publisher_id or any(m.user_id == viewer.id for m in task.members))
+    """成员序列化；qq 只在协作相关方（委托人/成员/管理员）可见。
+
+    匿名委托中，联系方式只对“发布人 ↔ 已接取成员”双方可见：发布人可看所有成员，
+    成员只能看到自己的 QQ，成员之间互不可见。
+    """
     out: list[TaskMemberOut] = []
     for member in task.members:
         item = TaskMemberOut(
@@ -276,7 +271,15 @@ def present_members(task: Task, viewer: User | None) -> list[TaskMemberOut]:
             response_status=member.response_status, confirmed_at=member.confirmed_at,
             cancel_confirmed_at=member.cancel_confirmed_at,
         )
-        if can_see_qq:
+        if task.is_anonymous:
+            can_see_this = viewer is not None and (
+                viewer.is_admin or viewer.id == task.publisher_id or member.user_id == viewer.id
+            )
+        else:
+            can_see_this = viewer is not None and (
+                viewer.is_admin or viewer.id == task.publisher_id or any(m.user_id == viewer.id for m in task.members)
+            )
+        if can_see_this:
             item.qq = member.user.qq
         out.append(item)
     return out
@@ -376,14 +379,39 @@ def accepted_member_of(db: Session, task_id: int, user_id: int) -> TaskMember | 
 
 
 def shares_task_with(db: Session, viewer_id: int, target_id: int) -> bool:
-    """两人是否在同一委托中共事过（一个委托人发布、另一个成员接取，或同为成员）。"""
+    """两人是否在同一委托中共事过（一个委托人发布、另一个成员接取，或同为成员）。
+
+    匿名委托只算“发布人 ↔ 已接取成员”这一对关系：接单人之间不算共事，
+    避免通过资料页互相看到联系方式。
+    """
     if viewer_id == target_id:
         return True
     viewer_tasks = set(db.scalars(select(Task.id).where(Task.publisher_id == viewer_id)))
     viewer_tasks |= set(db.scalars(select(TaskMember.task_id).where(TaskMember.user_id == viewer_id)))
     target_tasks = set(db.scalars(select(Task.id).where(Task.publisher_id == target_id)))
     target_tasks |= set(db.scalars(select(TaskMember.task_id).where(TaskMember.user_id == target_id)))
-    return bool(viewer_tasks & target_tasks)
+    shared_ids = viewer_tasks & target_tasks
+    for task_id in shared_ids:
+        task = db.get(Task, task_id)
+        if task is None:
+            continue
+        if not task.is_anonymous:
+            return True
+        # 匿名委托：必须是发布人与已接取成员之间的对应关系
+        viewer_is_pub = task.publisher_id == viewer_id
+        target_is_pub = task.publisher_id == target_id
+        if viewer_is_pub != target_is_pub:
+            member_id = target_id if viewer_is_pub else viewer_id
+            member_row = db.scalar(
+                select(TaskMember).where(
+                    TaskMember.task_id == task_id,
+                    TaskMember.user_id == member_id,
+                    TaskMember.response_status == TaskMemberResponse.ACCEPTED,
+                )
+            )
+            if member_row is not None:
+                return True
+    return False
 
 
 def can_view_user_qq(db: Session, viewer: User | None, target: User) -> bool:
@@ -404,6 +432,7 @@ def can_view_user_qq(db: Session, viewer: User | None, target: User) -> bool:
             Task.publisher_id == target.id,
             Task.status == TaskStatus.PUBLISHED,
             Task.is_visible.is_(True),
+            Task.is_anonymous.is_(False),
         )
         .limit(1)
     )
@@ -1105,6 +1134,8 @@ def task_detail(task_id: int, viewer: User | None = Depends(get_optional_user), 
 
 @app.post("/api/tasks", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
 def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user.qq:
+        raise HTTPException(status_code=422, detail="发布委托需要先填写联系方式（QQ），请在个人设置中添加后再发布")
     now = datetime.utcnow()
     designated_user_ids = list(dict.fromkeys(payload.designated_user_ids))
     if user.id in designated_user_ids:
