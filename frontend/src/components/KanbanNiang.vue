@@ -28,9 +28,12 @@ async function send() {
   scrollBottom()
 
   try {
+    const token = localStorage.getItem('wsw_token')
+    const headers = { 'content-type': 'application/json' }
+    if (token) headers.authorization = `Bearer ${token}`
     const resp = await fetch('/api/mascot/chat', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers,
       body: JSON.stringify({ messages: messages.value.slice(-16) })
     })
     const data = await resp.json()
