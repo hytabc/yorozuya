@@ -339,3 +339,28 @@ class SugarPairOut(ApiModel):
 class SugarProfileDetailOut(SugarProfileCardOut):
     qq: str | None = None
     relationship: SugarPairOut | None = None
+
+
+class BoardPostCreate(RequestModel):
+    content: str = Field(min_length=1, max_length=500)
+
+
+class BoardCommentCreate(RequestModel):
+    content: str = Field(min_length=1, max_length=500)
+
+
+class BoardCommentOut(ApiModel):
+    id: int
+    content: str
+    created_at: datetime
+    user: UserPublic
+    can_delete: bool = False
+
+
+class BoardMessageOut(ApiModel):
+    id: int
+    content: str
+    created_at: datetime
+    user: UserPublic
+    comments: list[BoardCommentOut] = []
+    can_delete: bool = False

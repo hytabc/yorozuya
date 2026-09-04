@@ -577,6 +577,73 @@ def test_volunteer_application_flow():
         assert len(mine_list) == 3
 
 
+def test_board_flow():
+    with TestClient(app) as client:
+        alice = auth(client, "alice")
+        bob = auth(client, "bob")
+        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+
+        # 游客可浏览空留言板
+        assert client.get("/api/board").json() == []
+
+        # 未登录不能留言/评论
+        assert client.post("/api/board", json={"content": "游客想留言"}).status_code == 401
+
+        # 内容为空 → 422
+        assert client.post("/api/board", headers=alice, json={"content": "   "}).status_code == 422
+
+        # alice 发布留言
+        created = client.post("/api/board", headers=alice, json={"content": "大家好，欢迎来万事屋留言板！"})
+        assert created.status_code == 201, created.text
+        message_id = created.json()["id"]
+        assert created.json()["user"]["nickname"] == "用户alice"
+        assert created.json()["can_delete"] is True
+        assert created.json()["comments"] == []
+
+        # bob 评论 alice 的留言
+        commented = client.post(f"/api/board/{message_id}/comments", headers=bob, json={"content": "你好呀，潜水员报道。"})
+        assert commented.status_code == 201, commented.text
+        comment_id = commented.json()["comments"][0]["id"]
+        assert commented.json()["comments"][0]["user"]["nickname"] == "用户bob"
+        assert commented.json()["comments"][0]["can_delete"] is True
+
+        # 留言不存在的评论 → 404
+        assert client.post("/api/board/99999/comments", headers=bob, json={"content": "给不存在的留言评论"}).status_code == 404
+
+        # 游客与无关用户都能浏览到留言和评论；无关用户看不到删除按钮
+        board = client.get("/api/board").json()
+        assert len(board) == 1 and board[0]["id"] == message_id
+        assert board[0]["comments"][0]["content"] == "你好呀，潜水员报道。"
+        assert board[0]["can_delete"] is False
+        assert board[0]["comments"][0]["can_delete"] is False
+
+        # 第三方普通用户不能删除别人的留言/评论
+        carol = auth(client, "carol")
+        assert client.delete(f"/api/board/{message_id}", headers=carol).status_code == 403
+        assert client.delete(f"/api/board/comments/{comment_id}", headers=carol).status_code == 403
+
+        # 管理员组（超管）可以删除他人评论
+        assert client.delete(f"/api/board/comments/{comment_id}", headers=admin).status_code == 204
+        assert client.get("/api/board").json()[0]["comments"] == []
+
+        # bob 再评论一次，留言者 alice 删除整个留言，评论级联消失
+        client.post(f"/api/board/{message_id}/comments", headers=bob, json={"content": "再来一条评论"})
+        assert client.delete(f"/api/board/{message_id}", headers=alice).status_code == 204
+        assert client.get("/api/board").json() == []
+
+        # 管理员组（staff）可以删除他人留言
+        staff_user = auth(client, "mod")
+        staff_id = client.get("/api/auth/me", headers=staff_user).json()["id"]
+        assert client.patch(f"/api/admin/users/{staff_id}/role", headers=admin, json={"role": "staff"}).status_code == 200
+        staff = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'mod', 'password': 'Password123!'}).json()['access_token']}"}
+        staff_target = client.post("/api/board", headers=bob, json={"content": "这条留言将被管理员删除"})
+        assert staff_target.status_code == 201
+        assert client.delete(f"/api/board/{staff_target.json()['id']}", headers=staff).status_code == 204
+
+        # 删除后重复删除 → 404
+        assert client.delete(f"/api/board/{staff_target.json()['id']}", headers=staff).status_code == 404
+
+
 def test_expired_task_is_updated_when_listed():
     with TestClient(app) as client:
         publisher = auth(client, "expirer")

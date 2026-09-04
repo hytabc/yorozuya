@@ -20,6 +20,8 @@ from .dependencies import get_admin, get_current_user, get_optional_user, get_ro
 from .models import (
     AppSetting,
     ApplicationStatus,
+    BoardComment,
+    BoardMessage,
     Feedback,
     FeedbackStatus,
     ReportStatus,
@@ -71,6 +73,10 @@ from .schemas import (
     UserPhotoOut,
     UserSelf,
     UserUpdate,
+    BoardCommentCreate,
+    BoardCommentOut,
+    BoardMessageOut,
+    BoardPostCreate,
     VolunteerApplicationAdminOut,
     VolunteerApplicationCreate,
     VolunteerApplicationOut,
@@ -1234,6 +1240,111 @@ def review_volunteer_application(
     db.commit()
     db.refresh(application)
     return present_application(application, viewer=manager)
+
+
+def can_moderate(user: User | None) -> bool:
+    """留言板删除权限：管理员组（超管/管理员）。"""
+    return user is not None and (user.is_admin or user.role == UserRole.STAFF)
+
+
+def present_board_comment(comment: BoardComment, viewer: User | None) -> BoardCommentOut:
+    return BoardCommentOut(
+        id=comment.id,
+        content=comment.content,
+        created_at=comment.created_at,
+        user=present_user_public(comment.user, viewer),
+        can_delete=can_moderate(viewer) or (viewer is not None and viewer.id == comment.user_id),
+    )
+
+
+def present_board_message(message: BoardMessage, viewer: User | None) -> BoardMessageOut:
+    return BoardMessageOut(
+        id=message.id,
+        content=message.content,
+        created_at=message.created_at,
+        user=present_user_public(message.user, viewer),
+        comments=[present_board_comment(comment, viewer) for comment in message.comments],
+        can_delete=can_moderate(viewer) or (viewer is not None and viewer.id == message.user_id),
+    )
+
+
+@app.get("/api/board", response_model=list[BoardMessageOut])
+def list_board_messages(
+    viewer: User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    """留言板：最新 200 条留言及其评论，游客可浏览。"""
+    messages = db.scalars(
+        select(BoardMessage)
+        .options(joinedload(BoardMessage.user), joinedload(BoardMessage.comments).joinedload(BoardComment.user))
+        .order_by(BoardMessage.created_at.desc(), BoardMessage.id.desc())
+        .limit(200)
+    ).unique().all()
+    return [present_board_message(message, viewer) for message in messages]
+
+
+@app.post("/api/board", response_model=BoardMessageOut, status_code=status.HTTP_201_CREATED)
+def create_board_message(
+    payload: BoardPostCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    message = BoardMessage(user_id=user.id, content=payload.content.strip())
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+    return present_board_message(message, viewer=user)
+
+
+@app.post("/api/board/{message_id}/comments", response_model=BoardMessageOut, status_code=status.HTTP_201_CREATED)
+def create_board_comment(
+    message_id: int,
+    payload: BoardCommentCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    message = db.get(BoardMessage, message_id)
+    if message is None:
+        raise HTTPException(status_code=404, detail="留言不存在或已被删除")
+    message.comments.append(BoardComment(user_id=user.id, content=payload.content.strip()))
+    db.commit()
+    db.refresh(message)
+    return present_board_message(message, viewer=user)
+
+
+def delete_board_item_allowed(item_user_id: int, user: User) -> None:
+    if user.id != item_user_id and not can_moderate(user):
+        raise HTTPException(status_code=403, detail="只能删除自己的留言或评论")
+
+
+@app.delete("/api/board/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_board_message(
+    message_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    message = db.get(BoardMessage, message_id)
+    if message is None:
+        raise HTTPException(status_code=404, detail="留言不存在或已被删除")
+    delete_board_item_allowed(message.user_id, user)
+    db.delete(message)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.delete("/api/board/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_board_comment(
+    comment_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    comment = db.get(BoardComment, comment_id)
+    if comment is None:
+        raise HTTPException(status_code=404, detail="评论不存在或已被删除")
+    delete_board_item_allowed(comment.user_id, user)
+    db.delete(comment)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.get("/api/tasks", response_model=list[TaskOut])

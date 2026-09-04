@@ -296,6 +296,39 @@ class Feedback(Base):
     user: Mapped[User | None] = relationship(foreign_keys=[user_id])
 
 
+class BoardMessage(Base):
+    """留言板留言：登录用户发布，留言者本人或管理员组可删除（删除时级联删评论）。"""
+
+    __tablename__ = "board_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    user: Mapped[User] = relationship(foreign_keys=[user_id])
+    comments: Mapped[list["BoardComment"]] = relationship(
+        back_populates="message",
+        cascade="all, delete-orphan",
+        order_by="(BoardComment.created_at, BoardComment.id)",
+    )
+
+
+class BoardComment(Base):
+    """留言板评论：挂在某条留言下，评论者本人或管理员组可删除。"""
+
+    __tablename__ = "board_comments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    message_id: Mapped[int] = mapped_column(ForeignKey("board_messages.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    message: Mapped[BoardMessage] = relationship(back_populates="comments")
+    user: Mapped[User] = relationship(foreign_keys=[user_id])
+
+
 class SugarProfile(Base):
     """砂糖社公开档案；联系信息仍复用用户资料中的 QQ。"""
 
