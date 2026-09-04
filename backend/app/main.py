@@ -37,6 +37,10 @@ from .models import (
     User,
     UserPhoto,
     UserRole,
+    VrMap,
+    VrMapLike,
+    VrMapPhoto,
+    VrMapReport,
     VolunteerApplication,
 )
 from .schemas import (
@@ -84,6 +88,14 @@ from .schemas import (
     VolunteerApplicationCreate,
     VolunteerApplicationOut,
     VolunteerApplicationReview,
+    VrMapCreate,
+    VrMapLikeState,
+    VrMapOut,
+    VrMapPhotoAdminOut,
+    VrMapPhotoOut,
+    VrMapReportCreate,
+    VrMapReportOut,
+    VrMapReportResolveRequest,
 )
 from .security import create_access_token, hash_password, verify_password
 
@@ -550,6 +562,10 @@ AVATAR_SIGNATURES = (
     (b"\xff\xd8\xff", ".jpg"),
     (b"\x89PNG\r\n\x1a\n", ".png"),
 )
+
+# VRChat 地图推荐：实拍照片仅 PNG/JPG，最大 10 MB，需管理员审核
+MAX_VR_MAP_PHOTO_BYTES = 10 * 1024 * 1024
+MAP_CATEGORIES = ("游戏", "休闲", "恐怖", "风景", "解谜", "社交", "其他")
 
 
 def sugar_profile_query():
@@ -1477,6 +1493,326 @@ def delete_board_comment(
     db.delete(comment)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ---- VRChat 地图推荐 ----
+
+
+def vr_map_query():
+    return select(VrMap).options(
+        joinedload(VrMap.uploader).joinedload(User.photos),
+        joinedload(VrMap.likes),
+        joinedload(VrMap.reports),
+        joinedload(VrMap.photos),
+    )
+
+
+def vr_map_pending_report_ids():
+    return select(VrMapReport.map_id).where(VrMapReport.status == ReportStatus.PENDING)
+
+
+def present_vr_map_photos(vr_map: VrMap, viewer: User | None) -> list[VrMapPhotoOut]:
+    """待审/被驳回的照片仅上传者本人和管理员组可见。"""
+    photos: list[VrMapPhotoOut] = []
+    for photo in vr_map.photos:
+        can_see = photo.is_visible or (viewer is not None and (viewer.id == photo.user_id or can_moderate(viewer)))
+        if can_see:
+            photos.append(
+                VrMapPhotoOut(
+                    id=photo.id,
+                    image_url=f"/uploads/{photo.file_path}",
+                    is_visible=photo.is_visible,
+                    moderated=photo.moderated_at is not None,
+                )
+            )
+    return photos
+
+
+def present_vr_map(vr_map: VrMap, viewer: User | None) -> VrMapOut:
+    return VrMapOut(
+        id=vr_map.id,
+        name=vr_map.name,
+        description=vr_map.description,
+        category=vr_map.category,
+        like_count=vr_map.like_count,
+        liked_by_me=viewer is not None and any(like.user_id == viewer.id for like in vr_map.likes),
+        reported_by_me=viewer is not None and any(report.reporter_id == viewer.id for report in vr_map.reports),
+        has_pending_report=any(report.status == ReportStatus.PENDING for report in vr_map.reports),
+        is_visible=vr_map.is_visible,
+        admin_note=vr_map.admin_note,
+        uploader=present_user_public(vr_map.uploader, viewer),
+        photos=present_vr_map_photos(vr_map, viewer),
+        created_at=vr_map.created_at,
+    )
+
+
+def get_vr_map_or_404(db: Session, map_id: int) -> VrMap:
+    vr_map = db.get(VrMap, map_id)
+    if vr_map is None:
+        raise HTTPException(status_code=404, detail="地图不存在或已被删除")
+    return vr_map
+
+
+@app.get("/api/vr-maps", response_model=list[VrMapOut])
+def list_vr_maps(
+    viewer: User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    """地图推荐列表：按点赞数排序；被举报待审/被屏蔽的地图对公众隐藏。"""
+    query = vr_map_query()
+    if viewer is None:
+        query = query.where(VrMap.is_visible.is_(True), ~VrMap.id.in_(vr_map_pending_report_ids()))
+    elif not can_moderate(viewer):
+        publicly_ok = VrMap.is_visible.is_(True) & ~VrMap.id.in_(vr_map_pending_report_ids())
+        query = query.where(or_(VrMap.uploader_id == viewer.id, publicly_ok))
+    maps = db.scalars(
+        query.order_by(VrMap.like_count.desc(), VrMap.created_at.desc(), VrMap.id.desc()).limit(200)
+    ).unique().all()
+    return [present_vr_map(vr_map, viewer) for vr_map in maps]
+
+
+@app.post("/api/vr-maps", response_model=VrMapOut, status_code=status.HTTP_201_CREATED)
+def create_vr_map(
+    payload: VrMapCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if payload.category not in MAP_CATEGORIES:
+        raise HTTPException(status_code=422, detail="地图类型不正确")
+    vr_map = VrMap(
+        name=payload.name.strip(),
+        description=payload.description.strip(),
+        category=payload.category,
+        uploader_id=user.id,
+    )
+    db.add(vr_map)
+    db.commit()
+    db.refresh(vr_map)
+    return present_vr_map(vr_map, viewer=user)
+
+
+@app.get("/api/vr-maps/{map_id}", response_model=VrMapOut)
+def vr_map_detail(
+    map_id: int,
+    viewer: User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    vr_map = get_vr_map_or_404(db, map_id)
+    publicly_ok = vr_map.is_visible and not any(
+        report.status == ReportStatus.PENDING for report in vr_map.reports
+    )
+    if not publicly_ok and not (viewer and (viewer.id == vr_map.uploader_id or can_moderate(viewer))):
+        raise HTTPException(status_code=404, detail="地图不存在或已被删除")
+    return present_vr_map(vr_map, viewer)
+
+
+@app.post("/api/vr-maps/{map_id}/like", response_model=VrMapLikeState)
+def toggle_vr_map_like(
+    map_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """点赞/取消点赞：一人对同一张地图只能有一个有效点赞。"""
+    vr_map = get_vr_map_or_404(db, map_id)
+    like = db.scalar(select(VrMapLike).where(VrMapLike.map_id == map_id, VrMapLike.user_id == user.id))
+    if like is not None:
+        db.delete(like)
+        vr_map.like_count = max(0, vr_map.like_count - 1)
+        liked = False
+    else:
+        db.add(VrMapLike(map_id=map_id, user_id=user.id))
+        vr_map.like_count += 1
+        liked = True
+    db.commit()
+    return VrMapLikeState(like_count=vr_map.like_count, liked=liked)
+
+
+@app.post("/api/vr-maps/{map_id}/report", response_model=VrMapOut, status_code=status.HTTP_201_CREATED)
+def report_vr_map(
+    map_id: int,
+    payload: VrMapReportCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """举报地图：每人限一次；待处理举报会使地图退出公开列表。"""
+    vr_map = get_vr_map_or_404(db, map_id)
+    if vr_map.uploader_id == user.id:
+        raise HTTPException(status_code=422, detail="不能举报自己推荐的地图")
+    existing = db.scalar(
+        select(VrMapReport).where(VrMapReport.map_id == map_id, VrMapReport.reporter_id == user.id)
+    )
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="你已举报过这张地图")
+    db.add(VrMapReport(map_id=map_id, reporter_id=user.id, reason=payload.reason.strip()))
+    db.commit()
+    db.refresh(vr_map)
+    return present_vr_map(vr_map, viewer=user)
+
+
+@app.post("/api/vr-maps/{map_id}/photos", response_model=VrMapOut, status_code=status.HTTP_201_CREATED)
+async def upload_vr_map_photo(
+    map_id: int,
+    photo: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """上传地图实拍照片：每人每图限 1 张，重复上传替换旧照片；需管理员审核后公开。"""
+    vr_map = get_vr_map_or_404(db, map_id)
+    content = await photo.read(MAX_VR_MAP_PHOTO_BYTES + 1)
+    if not content:
+        raise HTTPException(status_code=422, detail="请选择要上传的照片")
+    if len(content) > MAX_VR_MAP_PHOTO_BYTES:
+        raise HTTPException(status_code=422, detail="地图照片不能超过 10 MB")
+    extension = avatar_extension(content)
+    if extension is None:
+        raise HTTPException(status_code=422, detail="地图照片仅支持 PNG 或 JPG 格式")
+    settings.ensure_storage_directory()
+    file_path = f"vrmaps/{map_id}/{uuid4().hex}{extension}"
+    destination = settings.sugar_upload_path / file_path
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        destination.write_bytes(content)
+    except OSError as error:
+        raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
+    existing = db.scalar(
+        select(VrMapPhoto).where(VrMapPhoto.map_id == map_id, VrMapPhoto.user_id == user.id)
+    )
+    if existing is not None:
+        old_path = existing.file_path
+        db.delete(existing)
+        db.flush()
+        root = settings.sugar_upload_path.resolve()
+        old_file = (root / old_path).resolve()
+        if old_file.is_relative_to(root):
+            try:
+                old_file.unlink(missing_ok=True)
+            except OSError:
+                pass
+    db.add(VrMapPhoto(map_id=map_id, user_id=user.id, file_path=file_path))
+    db.commit()
+    db.refresh(vr_map)
+    return present_vr_map(vr_map, viewer=user)
+
+
+@app.get("/api/admin/vr-map-reports", response_model=list[VrMapReportOut])
+def admin_vr_map_reports(
+    manager: User = Depends(get_role_manager), db: Session = Depends(get_db)
+):
+    reports = db.scalars(
+        select(VrMapReport)
+        .options(joinedload(VrMapReport.map), joinedload(VrMapReport.reporter).joinedload(User.photos))
+        .order_by(VrMapReport.created_at.desc(), VrMapReport.id.desc())
+        .limit(500)
+    ).unique().all()
+    return [
+        VrMapReportOut(
+            id=report.id,
+            map_id=report.map_id,
+            map_name=report.map.name,
+            reporter=present_user_public(report.reporter, manager),
+            reason=report.reason,
+            status=report.status,
+            created_at=report.created_at,
+            handled_at=report.handled_at,
+        )
+        for report in reports
+    ]
+
+
+@app.post("/api/admin/vr-map-reports/{report_id}/resolve", response_model=VrMapReportOut)
+def resolve_vr_map_report(
+    report_id: int,
+    payload: VrMapReportResolveRequest,
+    manager: User = Depends(get_role_manager),
+    db: Session = Depends(get_db),
+):
+    """处置地图举报：close 放开（举报不成立）/ hide 屏蔽 / restore 重新放开已屏蔽地图。"""
+    report = db.get(VrMapReport, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="举报不存在")
+    vr_map = db.get(VrMap, report.map_id)
+    if payload.action == "close":
+        report.status = ReportStatus.HANDLED
+    elif payload.action == "hide":
+        if not (payload.admin_note or "").strip():
+            raise HTTPException(status_code=422, detail="屏蔽地图时必须填写理由")
+        report.status = ReportStatus.HANDLED
+        vr_map.is_visible = False
+        vr_map.admin_note = payload.admin_note.strip()
+    else:
+        vr_map.is_visible = True
+        vr_map.admin_note = None
+        report.status = ReportStatus.HANDLED
+    report.handled_by_id = manager.id
+    report.handled_at = datetime.utcnow()
+    db.commit()
+    db.refresh(report)
+    return VrMapReportOut(
+        id=report.id,
+        map_id=report.map_id,
+        map_name=report.map.name,
+        reporter=present_user_public(report.reporter, manager),
+        reason=report.reason,
+        status=report.status,
+        created_at=report.created_at,
+        handled_at=report.handled_at,
+    )
+
+
+@app.get("/api/admin/vr-map-photos", response_model=list[VrMapPhotoAdminOut])
+def admin_vr_map_photos(
+    manager: User = Depends(get_role_manager), db: Session = Depends(get_db)
+):
+    photos = db.scalars(
+        select(VrMapPhoto)
+        .options(
+            joinedload(VrMapPhoto.user).joinedload(User.photos),
+            joinedload(VrMapPhoto.map),
+        )
+        .order_by(VrMapPhoto.created_at.desc(), VrMapPhoto.id.desc())
+        .limit(500)
+    ).unique().all()
+    return [
+        VrMapPhotoAdminOut(
+            id=photo.id,
+            image_url=f"/uploads/{photo.file_path}",
+            is_visible=photo.is_visible,
+            moderated=photo.moderated_at is not None,
+            map_id=photo.map_id,
+            map_name=photo.map.name,
+            user=present_user_public(photo.user, manager),
+            created_at=photo.created_at,
+        )
+        for photo in photos
+    ]
+
+
+@app.patch("/api/admin/vr-map-photos/{photo_id}", response_model=VrMapPhotoAdminOut)
+def moderate_vr_map_photo(
+    photo_id: int,
+    payload: AdminPhotoUpdate,
+    manager: User = Depends(get_role_manager),
+    db: Session = Depends(get_db),
+):
+    """审核地图照片：通过后公开展示，驳回则仅上传者本人可见。"""
+    photo = db.get(VrMapPhoto, photo_id)
+    if photo is None:
+        raise HTTPException(status_code=404, detail="照片不存在")
+    photo.is_visible = payload.is_visible
+    photo.moderated_by_id = manager.id
+    photo.moderated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(photo)
+    return VrMapPhotoAdminOut(
+        id=photo.id,
+        image_url=f"/uploads/{photo.file_path}",
+        is_visible=photo.is_visible,
+        moderated=photo.moderated_at is not None,
+        map_id=photo.map_id,
+        map_name=photo.map.name,
+        user=present_user_public(photo.user, manager),
+        created_at=photo.created_at,
+    )
 
 
 @app.get("/api/tasks", response_model=list[TaskOut])

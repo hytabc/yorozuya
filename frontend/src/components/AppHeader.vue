@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { BriefcaseBusiness, HeartHandshake, LogOut, Menu, MessagesSquare, ShieldCheck, Store, UserRound, X } from 'lucide-vue-next'
+import { BriefcaseBusiness, HeartHandshake, LogOut, Map, Menu, MessagesSquare, ShieldCheck, Store, UserRound, X } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import UserAvatar from './UserAvatar.vue'
 
@@ -28,6 +28,7 @@ function logout() {
         <RouterLink to="/">委托大厅</RouterLink>
         <RouterLink to="/staff">成员名录</RouterLink>
         <RouterLink to="/board">留言板</RouterLink>
+        <RouterLink to="/maps">地图推荐</RouterLink>
         <RouterLink to="/sugar">砂糖社</RouterLink>
         <RouterLink v-if="auth.isLoggedIn" to="/mine">我的委托</RouterLink>
         <RouterLink v-if="auth.canManageRoles" to="/admin">{{ auth.isAdmin ? '监管台' : '权限管理' }}</RouterLink>
@@ -56,6 +57,7 @@ function logout() {
       <RouterLink to="/" @click="open = false"><BriefcaseBusiness :size="18" />委托大厅</RouterLink>
       <RouterLink to="/staff" @click="open = false"><Store :size="18" />成员名录</RouterLink>
       <RouterLink to="/board" @click="open = false"><MessagesSquare :size="18" />留言板</RouterLink>
+      <RouterLink to="/maps" @click="open = false"><Map :size="18" />地图推荐</RouterLink>
       <RouterLink to="/sugar" @click="open = false"><HeartHandshake :size="18" />砂糖社</RouterLink>
       <RouterLink v-if="auth.isLoggedIn" to="/mine" @click="open = false"><BriefcaseBusiness :size="18" />我的委托</RouterLink>
       <RouterLink v-if="auth.isLoggedIn" to="/profile" @click="open = false"><UserRound :size="18" />个人设置</RouterLink>

@@ -7,6 +7,7 @@ import ProfileView from './views/ProfileView.vue'
 import AdminView from './views/AdminView.vue'
 import StaffView from './views/StaffView.vue'
 import BoardView from './views/BoardView.vue'
+import VrMaps from './views/VrMaps.vue'
 import SugarClub from './views/SugarClub.vue'
 
 const router = createRouter({
@@ -20,6 +21,7 @@ const router = createRouter({
     { path: '/profile', component: ProfileView, meta: { auth: true } },
     { path: '/staff', component: StaffView },
     { path: '/board', component: BoardView },
+    { path: '/maps', component: VrMaps },
     { path: '/sugar', component: SugarClub, meta: { auth: true } },
     { path: '/admin', component: AdminView, meta: { roleManager: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
