@@ -15,6 +15,11 @@ services:
       # 普通用户资料和砂糖社图片共用该持久化目录。
       SUGAR_UPLOAD_DIR: /data/uploads
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      # 看板娘「小白」集中式大脑:值在项目根目录 .env 中设置(compose 只读取根目录 .env)
+      MASCOT_API_BASE: ${MASCOT_API_BASE:-}
+      MASCOT_API_KEY: ${MASCOT_API_KEY:-}
+      MASCOT_MODEL: ${MASCOT_MODEL:-kimi-k2.7-code-highspeed}
+      MASCOT_MAX_TOKENS: ${MASCOT_MAX_TOKENS:-1500}
     volumes:
       # 数据库与上传图片持久化：宿主机 backend/data 与容器 /data 一致。
       - ./backend/data:/data
