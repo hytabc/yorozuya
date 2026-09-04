@@ -15,7 +15,7 @@ async function submit() {
   busy.value = true
   try {
     await api.post(`/tasks/${props.task.id}/report`, { reason: reason.value.trim() })
-    toast.success('举报已提交，店员/管理员会尽快处理')
+    toast.success('举报已提交，管理员会尽快处理')
     emit('reported')
     emit('close')
   } catch (error) {
@@ -34,7 +34,7 @@ onBeforeUnmount(() => { document.body.classList.remove('modal-open'); window.rem
   <div class="modal-backdrop" @mousedown.self="$emit('close')">
     <section class="dialog report-dialog" role="dialog" aria-modal="true" aria-label="举报委托">
       <button class="icon-button dialog-close" aria-label="关闭" title="关闭" @click="$emit('close')"><X :size="20" /></button>
-      <div class="dialog-heading"><span class="eyebrow"><Flag :size="14" /> REPORT</span><h2>举报委托</h2><p>该委托将暂时移出大厅，由店员/管理员核实处理。</p></div>
+      <div class="dialog-heading"><span class="eyebrow"><Flag :size="14" /> REPORT</span><h2>举报委托</h2><p>该委托将暂时移出大厅，由管理员核实处理。</p></div>
       <form class="form-stack" @submit.prevent="submit">
         <label>举报原因<textarea v-model.trim="reason" required minlength="2" maxlength="200" rows="5" placeholder="如：疑似诈骗 / 违规内容 / 恶意行为"></textarea><small>{{ reason.length }}/200</small></label>
         <div class="dialog-footer"><button type="button" class="button secondary" :disabled="busy" @click="$emit('close')">取消</button><button class="button" :disabled="busy"><Flag :size="16" />{{ busy ? '提交中…' : '提交举报' }}</button></div>

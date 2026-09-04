@@ -482,6 +482,330 @@ def test_feedback_flow():
         assert after[0]["reply"] == "已记录，深色模式已在规划中"
 
 
+def test_volunteer_application_flow():
+    with TestClient(app) as client:
+        user = auth(client, "applicant")
+        volunteer = auth(client, "helper", role="volunteer")
+        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+        # 造一个管理员（staff）账号参与评审
+        staff_user = auth(client, "chief")
+        staff_id = client.get("/api/auth/me", headers=staff_user).json()["id"]
+        assert client.patch(f"/api/admin/users/{staff_id}/role", headers=admin, json={"role": "staff"}).status_code == 200
+        staff = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'chief', 'password': 'Password123!'}).json()['access_token']}"}
+
+        # 理由太短 → 422
+        short = client.post("/api/volunteer-applications", headers=user, json={"reason": "想帮忙"})
+        assert short.status_code == 422
+
+        # 普通用户提交申请
+        created = client.post(
+            "/api/volunteer-applications", headers=user, json={"reason": "经常在线，愿意帮忙处理社区委托"}
+        )
+        assert created.status_code == 201, created.text
+        app_id = created.json()["id"]
+        assert created.json()["status"] == "pending"
+        assert created.json()["user"]["nickname"] == "用户applicant"
+
+        # 有待审申请时重复提交 → 409
+        duplicate = client.post(
+            "/api/volunteer-applications", headers=user, json={"reason": "再提交一次理由要足够长才可以通过"}
+        )
+        assert duplicate.status_code == 409
+
+        # 志愿者/超级管理员不能申请
+        assert client.post(
+            "/api/volunteer-applications", headers=volunteer, json={"reason": "志愿者不能再申请志愿者"}
+        ).status_code == 403
+        assert client.post(
+            "/api/volunteer-applications", headers=admin, json={"reason": "超级管理员不需要申请志愿者"}
+        ).status_code == 403
+
+        # 本人可查看最近一次申请
+        mine = client.get("/api/volunteer-applications/mine", headers=user)
+        assert mine.status_code == 200 and mine.json()["id"] == app_id
+
+        # 普通用户不能访问管理列表；staff 与超管都可以
+        assert client.get("/api/admin/volunteer-applications", headers=user).status_code == 403
+        staff_list = client.get("/api/admin/volunteer-applications", headers=staff)
+        assert staff_list.status_code == 200 and len(staff_list.json()) == 1
+
+        # staff 审核通过 → 申请人升为志愿者
+        approved = client.post(
+            f"/api/admin/volunteer-applications/{app_id}/review",
+            headers=staff,
+            json={"action": "approve"},
+        )
+        assert approved.status_code == 200, approved.text
+        assert approved.json()["status"] == "approved"
+        assert approved.json()["handled_at"] is not None
+        assert approved.json()["handled_by"]["nickname"] == "用户chief"
+        me = client.get("/api/auth/me", headers=user).json()
+        assert me["role"] == "volunteer"
+
+        # 已处理申请重复审核 → 409
+        again = client.post(
+            f"/api/admin/volunteer-applications/{app_id}/review",
+            headers=staff,
+            json={"action": "approve"},
+        )
+        assert again.status_code == 409
+
+        # 通过后进入成员名录志愿者组
+        directory = client.get("/api/staff").json()
+        assert any(v["id"] == me["id"] for v in directory["volunteers"])
+
+        # 被拒绝后可以重新申请
+        other = auth(client, "retry")
+        first = client.post(
+            "/api/volunteer-applications", headers=other, json={"reason": "第一次申请理由要写满十个字以上"}
+        )
+        assert first.status_code == 201
+        rejected = client.post(
+            f"/api/admin/volunteer-applications/{first.json()['id']}/review",
+            headers=admin,
+            json={"action": "reject", "note": "活跃度不足，欢迎下次再申请"},
+        )
+        assert rejected.status_code == 200
+        assert rejected.json()["status"] == "rejected"
+        assert rejected.json()["review_note"] == "活跃度不足，欢迎下次再申请"
+        assert client.get("/api/auth/me", headers=other).json()["role"] == "user"
+        second = client.post(
+            "/api/volunteer-applications", headers=other, json={"reason": "被拒绝后再次提交申请的理由"}
+        )
+        assert second.status_code == 201, second.text
+        mine_list = client.get("/api/admin/volunteer-applications", headers=admin).json()
+        assert len(mine_list) == 3
+
+
+def test_board_flow():
+    with TestClient(app) as client:
+        alice = auth(client, "alice")
+        bob = auth(client, "bob")
+        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+
+        # 游客可浏览空留言板
+        assert client.get("/api/board").json() == []
+
+        # 未登录不能留言/评论
+        assert client.post("/api/board", json={"content": "游客想留言"}).status_code == 401
+
+        # 内容为空 → 422
+        assert client.post("/api/board", headers=alice, json={"content": "   "}).status_code == 422
+
+        # alice 发布留言
+        created = client.post("/api/board", headers=alice, json={"content": "大家好，欢迎来万事屋留言板！"})
+        assert created.status_code == 201, created.text
+        message_id = created.json()["id"]
+        assert created.json()["user"]["nickname"] == "用户alice"
+        assert created.json()["can_delete"] is True
+        assert created.json()["comments"] == []
+
+        # bob 评论 alice 的留言
+        commented = client.post(f"/api/board/{message_id}/comments", headers=bob, json={"content": "你好呀，潜水员报道。"})
+        assert commented.status_code == 201, commented.text
+        comment_id = commented.json()["comments"][0]["id"]
+        assert commented.json()["comments"][0]["user"]["nickname"] == "用户bob"
+        assert commented.json()["comments"][0]["can_delete"] is True
+
+        # 留言不存在的评论 → 404
+        assert client.post("/api/board/99999/comments", headers=bob, json={"content": "给不存在的留言评论"}).status_code == 404
+
+        # 游客与无关用户都能浏览到留言和评论；无关用户看不到删除按钮
+        board = client.get("/api/board").json()
+        assert len(board) == 1 and board[0]["id"] == message_id
+        assert board[0]["comments"][0]["content"] == "你好呀，潜水员报道。"
+        assert board[0]["can_delete"] is False
+        assert board[0]["comments"][0]["can_delete"] is False
+
+        # 第三方普通用户不能删除别人的留言/评论
+        carol = auth(client, "carol")
+        assert client.delete(f"/api/board/{message_id}", headers=carol).status_code == 403
+        assert client.delete(f"/api/board/comments/{comment_id}", headers=carol).status_code == 403
+
+        # 管理员组（超管）可以删除他人评论
+        assert client.delete(f"/api/board/comments/{comment_id}", headers=admin).status_code == 204
+        assert client.get("/api/board").json()[0]["comments"] == []
+
+        # bob 再评论一次，留言者 alice 删除整个留言，评论级联消失
+        client.post(f"/api/board/{message_id}/comments", headers=bob, json={"content": "再来一条评论"})
+        assert client.delete(f"/api/board/{message_id}", headers=alice).status_code == 204
+        assert client.get("/api/board").json() == []
+
+        # 管理员组（staff）可以删除他人留言
+        staff_user = auth(client, "mod")
+        staff_id = client.get("/api/auth/me", headers=staff_user).json()["id"]
+        assert client.patch(f"/api/admin/users/{staff_id}/role", headers=admin, json={"role": "staff"}).status_code == 200
+        staff = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'mod', 'password': 'Password123!'}).json()['access_token']}"}
+        staff_target = client.post("/api/board", headers=bob, json={"content": "这条留言将被管理员删除"})
+        assert staff_target.status_code == 201
+        assert client.delete(f"/api/board/{staff_target.json()['id']}", headers=staff).status_code == 204
+
+        # 删除后重复删除 → 404
+        assert client.delete(f"/api/board/{staff_target.json()['id']}", headers=staff).status_code == 404
+
+
+def test_task_stats_endpoint():
+    with TestClient(app) as client:
+        alice = auth(client, "stat_pub")
+        bob = promote(client, auth(client, "stat_taker"))
+        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+
+        # 游客可访问，初始为空
+        assert client.get("/api/tasks/stats").json() == {"published": 0, "processing": 0, "completed": 0}
+
+        # 一条完成、一条保持招募中、一条将被后台屏蔽
+        finished = create_task(client, alice, required=1, title="统计测试已完成委托")
+        staying = create_task(client, alice, required=None, title="统计测试招募中委托")
+        hidden = create_task(client, alice, required=None, title="统计测试被屏蔽委托")
+        client.post(f"/api/tasks/{finished['id']}/accept", headers=bob, json={"password": "接取密码123"})
+        client.post(f"/api/tasks/{finished['id']}/confirm", headers=alice)
+        client.post(f"/api/tasks/{finished['id']}/confirm", headers=bob)
+        client.patch(f"/api/admin/tasks/{hidden['id']}", headers=admin, json={"is_visible": False, "admin_note": "屏蔽测试"})
+
+        # 全站数量不受大厅筛选/角色影响，且被屏蔽的委托不计入
+        stats = client.get("/api/tasks/stats").json()
+        assert stats == {"published": 1, "processing": 0, "completed": 1}
+        assert staying["status"] == "published"
+
+        # 请求只包含数量字段，不返回委托内容
+        assert set(stats.keys()) == {"published", "processing", "completed"}
+
+        # 再发布一条并接取开始 → 计入正在处理
+        started = create_task(client, alice, required=1, title="统计测试处理中委托")
+        client.post(f"/api/tasks/{started['id']}/accept", headers=bob, json={"password": "接取密码123"})
+        assert client.get("/api/tasks/stats").json() == {"published": 1, "processing": 1, "completed": 1}
+
+        # /api/tasks/{task_id} 仍正常工作（stats 未被误当成 ID）
+        assert client.get(f"/api/tasks/{staying['id']}").json()["id"] == staying["id"]
+
+
+def test_avatar_upload_and_moderation():
+    with TestClient(app) as client:
+        alice = auth(client, "avatar_user")
+        bob = auth(client, "avatar_viewer")
+        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+
+        # 上传 PNG 成功，默认待审核
+        uploaded = client.post("/api/users/me/avatar", headers=alice, files={"avatar": ("a.png", TINY_PNG, "image/png")})
+        assert uploaded.status_code == 201, uploaded.text
+        assert uploaded.json()["avatar_url"].startswith("/uploads/avatars/")
+        assert uploaded.json()["avatar_visible"] is False
+
+        # 本人可以看到自己的待审头像
+        me = client.get("/api/auth/me", headers=alice).json()
+        assert me["avatar_url"]
+
+        # 未过审时其他用户看不到
+        assert client.get(f"/api/users/{me['id']}", headers=bob).json()["avatar_url"] is None
+
+        # 超过 2MB → 422
+        oversized = b"\x89PNG\r\n\x1a\n" + b"\x00" * (2 * 1024 * 1024)
+        too_big = client.post("/api/users/me/avatar", headers=alice, files={"avatar": ("big.png", oversized, "image/png")})
+        assert too_big.status_code == 422
+        assert "2 MB" in too_big.json()["detail"]
+
+        # 非 PNG/JPG（GIF）→ 422
+        gif = client.post("/api/users/me/avatar", headers=alice, files={"avatar": ("a.gif", b"GIF89a" + b"\x00" * 32, "image/gif")})
+        assert gif.status_code == 422
+        assert "PNG 或 JPG" in gif.json()["detail"]
+
+        # 管理员在图片管理列表中能看到待审头像（审核者可见未过审头像）
+        photos = client.get("/api/admin/photos", headers=admin).json()
+        target = next(item for item in photos if item["id"] == me["id"])
+        assert target["avatar_url"]
+
+        # 普通用户不能审核头像
+        assert client.patch(f"/api/admin/users/{me['id']}/avatar", headers=bob, json={"is_visible": True}).status_code == 403
+
+        # 审核通过后对其他用户可见
+        approved = client.patch(f"/api/admin/users/{me['id']}/avatar", headers=admin, json={"is_visible": True})
+        assert approved.status_code == 200, approved.text
+        assert approved.json()["avatar_visible"] is True
+        assert client.get(f"/api/users/{me['id']}", headers=bob).json()["avatar_url"]
+
+        # 驳回后再次仅本人可见
+        client.patch(f"/api/admin/users/{me['id']}/avatar", headers=admin, json={"is_visible": False})
+        assert client.get(f"/api/users/{me['id']}", headers=bob).json()["avatar_url"] is None
+        assert client.get("/api/auth/me", headers=alice).json()["avatar_url"]
+
+        # JPG 重新上传会替换并重置审核状态
+        jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 64
+        replaced = client.post("/api/users/me/avatar", headers=alice, files={"avatar": ("b.jpg", jpeg, "image/jpeg")})
+        assert replaced.status_code == 201, replaced.text
+        assert replaced.json()["avatar_url"].endswith(".jpg")
+        assert replaced.json()["avatar_visible"] is False
+
+        # 删除头像后清空
+        deleted = client.delete("/api/users/me/avatar", headers=alice)
+        assert deleted.status_code == 200
+        assert deleted.json()["avatar_url"] is None
+        assert client.get("/api/auth/me", headers=alice).json()["avatar_url"] is None
+
+        # 没有头像时审核接口 404
+        assert client.patch(f"/api/admin/users/{me['id']}/avatar", headers=admin, json={"is_visible": True}).status_code == 404
+
+
+def test_sugar_photo_moderation():
+    with TestClient(app) as client:
+        alice = auth(client, "sugar_own")
+        bob = auth(client, "sugar_other")
+        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+
+        profile = register_sugar_profile(client, alice)
+        photo_id = profile["photos"][0]["id"]
+
+        # 管理端能看到砂糖照片及主人
+        listed = client.get("/api/admin/sugar/photos", headers=admin)
+        assert listed.status_code == 200
+        assert listed.json()[0]["id"] == photo_id
+        assert listed.json()[0]["user"]["nickname"] == "用户sugar_own"
+        assert listed.json()[0]["is_visible"] is True
+
+        # 屏蔽时不填理由 → 422
+        missing_note = client.patch(f"/api/admin/sugar/photos/{photo_id}", headers=admin, json={"is_visible": False})
+        assert missing_note.status_code == 422
+        assert "理由" in missing_note.json()["detail"]
+
+        # 普通用户不能审核
+        assert client.patch(f"/api/admin/sugar/photos/{photo_id}", headers=bob, json={"is_visible": False, "admin_note": "乱填"}).status_code == 403
+
+        # 带理由屏蔽
+        hidden = client.patch(
+            f"/api/admin/sugar/photos/{photo_id}",
+            headers=admin,
+            json={"is_visible": False, "admin_note": "照片包含无关广告水印"},
+        )
+        assert hidden.status_code == 200, hidden.text
+        assert hidden.json()["is_visible"] is False
+        assert hidden.json()["admin_note"] == "照片包含无关广告水印"
+
+        # 主人详情里照片仍在原位，且能拿到屏蔽理由
+        own_detail = client.get(f"/api/sugar/profiles/{profile['user']['id']}", headers=alice).json()
+        assert len(own_detail["photos"]) == 1
+        assert own_detail["photos"][0]["is_visible"] is False
+        assert own_detail["photos"][0]["admin_note"] == "照片包含无关广告水印"
+
+        # 其他用户的名片列表与详情都看不到被屏蔽照片
+        other_list = client.get("/api/sugar/profiles", headers=bob).json()
+        assert other_list[0]["photos"] == []
+        other_detail = client.get(f"/api/sugar/profiles/{profile['user']['id']}", headers=bob).json()
+        assert other_detail["photos"] == []
+
+        # 管理员查看与主人一致（能看到被屏蔽照片与理由）
+        admin_detail = client.get(f"/api/sugar/profiles/{profile['user']['id']}", headers=admin).json()
+        assert len(admin_detail["photos"]) == 1 and admin_detail["photos"][0]["is_visible"] is False
+
+        # 恢复展示后理由清空，他人重新可见
+        restored = client.patch(f"/api/admin/sugar/photos/{photo_id}", headers=admin, json={"is_visible": True, "admin_note": None})
+        assert restored.status_code == 200
+        assert restored.json()["is_visible"] is True
+        assert restored.json()["admin_note"] is None
+        assert len(client.get("/api/sugar/profiles", headers=bob).json()[0]["photos"]) == 1
+
+        # 照片不存在 → 404
+        assert client.patch("/api/admin/sugar/photos/99999", headers=admin, json={"is_visible": True}).status_code == 404
+
+
 def test_expired_task_is_updated_when_listed():
     with TestClient(app) as client:
         publisher = auth(client, "expirer")
@@ -798,12 +1122,15 @@ def test_user_role_permissions():
         assert me["role"] == "user"
         assert me["is_admin"] is False
 
-        # 普通用户可以发布，但不能接取
+        # 普通用户可以发布，凭密码也能接取；密码错误仍被拒绝
         task = create_task(client, pub, password="pw-role-1", required=1)
         tid = task["id"]
-        denied = client.post(f"/api/tasks/{tid}/accept", headers=regular, json={"password": "pw-role-1"})
+        denied = client.post(f"/api/tasks/{tid}/accept", headers=regular, json={"password": "wrong-pass"})
         assert denied.status_code == 403
-        assert "志愿者" in denied.json()["detail"]
+        assert "接取密码不正确" in denied.json()["detail"]
+        accepted = client.post(f"/api/tasks/{tid}/accept", headers=regular, json={"password": "pw-role-1"})
+        assert accepted.status_code == 200
+        assert accepted.json()["status"] == "accepted"
 
         # 管理员升级该用户为志愿者
         promoted = client.patch(f"/api/admin/users/{regular_id}/role", headers=admin, json={"role": "volunteer"})
@@ -812,11 +1139,6 @@ def test_user_role_permissions():
         me_after = client.get("/api/auth/me", headers=regular).json()
         assert me_after["role"] == "volunteer"
 
-        # 志愿者可正常接取
-        accepted = client.post(f"/api/tasks/{tid}/accept", headers=regular, json={"password": "pw-role-1"})
-        assert accepted.status_code == 200
-        assert accepted.json()["status"] == "accepted"
-
         # 管理员账号不能修改自己的权限等级，也不可接取
         admin_me = client.get("/api/auth/me", headers=admin).json()
         admin_change = client.patch(
@@ -824,13 +1146,13 @@ def test_user_role_permissions():
         )
         assert admin_change.status_code == 409
 
-        # 降级回普通用户：另开新委托验证不能接取
+        # 降级回普通用户：另开新委托验证密码错误仍不能接取
         demoted = client.patch(f"/api/admin/users/{regular_id}/role", headers=admin, json={"role": "user"})
         assert demoted.status_code == 200
         assert demoted.json()["role"] == "user"
 
         task2 = create_task(client, pub, password="pw-role-2", required=1)
-        again_denied = client.post(f"/api/tasks/{task2['id']}/accept", headers=regular, json={"password": "pw-role-2"})
+        again_denied = client.post(f"/api/tasks/{task2['id']}/accept", headers=regular, json={"password": "nope"})
         assert again_denied.status_code == 403
 
 
@@ -859,11 +1181,14 @@ def test_passwordless_task_can_be_accepted_by_all_non_admin_roles():
         denied = client.post(f"/api/tasks/{another['id']}/accept", headers=admin, json={})
         assert denied.status_code == 403
 
-        protected = create_task(client, publisher, password="protected-123", required=1, title="高权限用户接取的委托")
+        protected = create_task(client, publisher, password="protected-123", required=1, title="凭密码接取的委托")
         assert protected["requires_password"] is True
-        denied = client.post(f"/api/tasks/{protected['id']}/accept", headers=regular, json={"password": "protected-123"})
-        assert denied.status_code == 403
-        assert "志愿者" in denied.json()["detail"]
+        wrong = client.post(f"/api/tasks/{protected['id']}/accept", headers=regular, json={"password": "wrong"})
+        assert wrong.status_code == 403
+        assert "接取密码不正确" in wrong.json()["detail"]
+        joined_protected = client.post(f"/api/tasks/{protected['id']}/accept", headers=regular, json={"password": "protected-123"})
+        assert joined_protected.status_code == 200
+        assert joined_protected.json()["status"] == "accepted"
 
 
 def test_staff_role_management_and_public_directory(monkeypatch):
@@ -934,10 +1259,10 @@ def test_staff_role_management_and_public_directory(monkeypatch):
         )
         assert cannot_change_admin.status_code == 409
 
-        # 其他监管功能仍为管理员专属。
+        # 其他监管功能仍为管理员专属；反馈处理已下放给管理员组。
         assert client.get("/api/admin/stats", headers=staff_headers).status_code == 403
 #         assert client.get("/api/admin/tasks", headers=staff_headers).status_code == 403
-        assert client.get("/api/admin/feedback", headers=staff_headers).status_code == 403
+        assert client.get("/api/admin/feedback", headers=staff_headers).status_code == 200
         assert client.patch(
             f"/api/admin/users/{target_id}/task-limit",
             headers=staff_headers,

@@ -1,8 +1,9 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { BriefcaseBusiness, HeartHandshake, LogOut, Menu, ShieldCheck, Store, UserRound, X } from 'lucide-vue-next'
+import { BriefcaseBusiness, HeartHandshake, LogOut, Menu, MessagesSquare, ShieldCheck, Store, UserRound, X } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
+import UserAvatar from './UserAvatar.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -26,6 +27,7 @@ function logout() {
       <nav class="desktop-nav" aria-label="主导航">
         <RouterLink to="/">委托大厅</RouterLink>
         <RouterLink to="/staff">成员名录</RouterLink>
+        <RouterLink to="/board">留言板</RouterLink>
         <RouterLink to="/sugar">砂糖社</RouterLink>
         <RouterLink v-if="auth.isLoggedIn" to="/mine">我的委托</RouterLink>
         <RouterLink v-if="auth.canManageRoles" to="/admin">{{ auth.isAdmin ? '监管台' : '权限管理' }}</RouterLink>
@@ -34,7 +36,7 @@ function logout() {
       <div class="header-actions">
         <template v-if="auth.isLoggedIn">
           <RouterLink to="/profile" class="user-chip">
-            <span class="avatar">{{ auth.user?.nickname?.slice(0, 1) }}</span>
+            <UserAvatar :user="auth.user" :size="30" />
             <span>{{ auth.user?.nickname }}</span>
           </RouterLink>
           <button class="icon-button desktop-only" title="退出登录" aria-label="退出登录" @click="logout">
@@ -53,6 +55,7 @@ function logout() {
     <div v-if="open" class="mobile-panel">
       <RouterLink to="/" @click="open = false"><BriefcaseBusiness :size="18" />委托大厅</RouterLink>
       <RouterLink to="/staff" @click="open = false"><Store :size="18" />成员名录</RouterLink>
+      <RouterLink to="/board" @click="open = false"><MessagesSquare :size="18" />留言板</RouterLink>
       <RouterLink to="/sugar" @click="open = false"><HeartHandshake :size="18" />砂糖社</RouterLink>
       <RouterLink v-if="auth.isLoggedIn" to="/mine" @click="open = false"><BriefcaseBusiness :size="18" />我的委托</RouterLink>
       <RouterLink v-if="auth.isLoggedIn" to="/profile" @click="open = false"><UserRound :size="18" />个人设置</RouterLink>

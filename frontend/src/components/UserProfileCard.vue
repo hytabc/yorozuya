@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { CalendarDays, EyeOff, Heart, KeyRound, MessageCircle, ShieldCheck, Store, UserRound, X } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
 import { roleLabel } from '../constants'
+import UserAvatar from './UserAvatar.vue'
 
 const props = defineProps({
   userId: { type: Number, default: null },
@@ -35,7 +36,7 @@ onMounted(async () => {
     <div v-else-if="error" class="user-card-body">{{ error }}</div>
     <template v-else-if="user">
       <div class="user-card-head">
-        <span class="user-avatar-lg">{{ user.nickname.slice(0, 1) }}</span>
+        <UserAvatar :user="user" :size="54" />
         <div>
           <h4>{{ user.nickname }}<span v-if="user.is_admin" class="admin-tag"><ShieldCheck :size="13" />管理员</span><span v-else class="role-tag" :class="`role-${user.role}`"><Store v-if="user.role === 'staff'" :size="13" /><Heart v-else-if="user.role === 'volunteer'" :size="13" /><UserRound v-else :size="13" />{{ roleLabel(user) }}</span></h4>
           <span class="user-card-since muted"><CalendarDays :size="14" />{{ joined(user.created_at) }} 加入</span>
@@ -49,7 +50,7 @@ onMounted(async () => {
           <span v-if="!photo.is_visible"><EyeOff :size="13" />已屏蔽</span>
         </figure>
       </div>
-      <div v-if="user.qq" class="user-card-qq"><MessageCircle :size="15" /><span><strong>QQ：{{ user.qq }}</strong><small>{{ user.role === 'staff' ? '店员联系方式对所有人公开' : (user.qq_public ? '该志愿者已选择公开联系方式' : '你们已建立委托协作，联系方式已向你开放') }}</small></span></div>
+      <div v-if="user.qq" class="user-card-qq"><MessageCircle :size="15" /><span><strong>QQ：{{ user.qq }}</strong><small>{{ user.role === 'staff' ? '管理员联系方式对所有人公开' : (user.qq_public ? '该志愿者已选择公开联系方式' : '你们已建立委托协作，联系方式已向你开放') }}</small></span></div>
       <div v-else class="user-card-qq muted"><KeyRound :size="15" /><span><strong>暂无可见联系方式</strong><small>{{ user.role === 'volunteer' && !user.qq_public ? '该志愿者未在成员名录中公开 QQ' : '仅共同协作者可见对方 QQ' }}</small></span></div>
     </template>
   </section>

@@ -5,7 +5,15 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
-from .models import FeedbackStatus, ReportStatus, SugarPairStatus, TaskMemberResponse, TaskStatus, UserRole
+from .models import (
+    ApplicationStatus,
+    FeedbackStatus,
+    ReportStatus,
+    SugarPairStatus,
+    TaskMemberResponse,
+    TaskStatus,
+    UserRole,
+)
 
 
 class ApiModel(BaseModel):
@@ -63,6 +71,9 @@ class UserPublic(ApiModel):
     nickname: str
     bio: str | None = None
     photos: list[UserPhotoOut] = []
+    # avatar_url 仅在查看者有权看到时由后端填充；未过审头像仅本人和管理员组可见
+    avatar_url: str | None = None
+    avatar_visible: bool = False
 
 
 class UserProfileOut(ApiModel):
@@ -76,6 +87,8 @@ class UserProfileOut(ApiModel):
     role: UserRole = UserRole.USER
     created_at: datetime
     photos: list[UserPhotoOut] = []
+    avatar_url: str | None = None
+    avatar_visible: bool = False
 
 
 class UserSelf(UserPublic):
@@ -118,7 +131,7 @@ class TaskCreate(RequestModel):
     accept_password: str | None = Field(default=None, min_length=4, max_length=32)
     # 需要几人接取；null / 缺省表示人数不限（只能由委托人手动开始）
     required_takers: int | None = Field(default=None, ge=1, le=999)
-    # 非空时为指定委托，只允许名单内的店员/志愿者响应。
+    # 非空时为指定委托，只允许名单内的管理员/志愿者响应。
     designated_user_ids: list[int] = Field(default_factory=list, max_length=999)
     # 匿名发布：大厅仅展示标题和内容，接取后联系方式仅双方可见。
     is_anonymous: bool = False
@@ -265,6 +278,30 @@ class ReportLimitOut(BaseModel):
     daily_limit: int
 
 
+class VolunteerApplicationCreate(RequestModel):
+    reason: str = Field(min_length=10, max_length=500)
+
+
+class VolunteerApplicationReview(RequestModel):
+    """管理员审核志愿者申请：approve 通过（升为志愿者）/ reject 拒绝。"""
+    action: Literal["approve", "reject"]
+    note: str | None = Field(default=None, max_length=500)
+
+
+class VolunteerApplicationOut(ApiModel):
+    id: int
+    reason: str
+    status: ApplicationStatus
+    review_note: str | None = None
+    created_at: datetime
+    handled_at: datetime | None = None
+    user: UserPublic
+
+
+class VolunteerApplicationAdminOut(VolunteerApplicationOut):
+    handled_by: UserPublic | None = None
+
+
 class ReportLimitUpdate(RequestModel):
     daily_limit: int = Field(ge=1, le=100)
 
@@ -278,9 +315,34 @@ class AdminStats(BaseModel):
     hidden: int
 
 
+class TaskStats(BaseModel):
+    """大厅顶部统计：仅返回数量，不含任何委托内容。"""
+    published: int
+    processing: int
+    completed: int
+
+
 class SugarPhotoOut(BaseModel):
     id: int
     image_url: str
+    # is_visible=False 的照片仅主人和管理员组会收到；admin_note 为屏蔽理由
+    is_visible: bool = True
+    admin_note: str | None = None
+
+
+class SugarPhotoAdminOut(ApiModel):
+    id: int
+    image_url: str
+    is_visible: bool
+    admin_note: str | None = None
+    created_at: datetime
+    user: UserPublic
+
+
+class SugarPhotoModerateUpdate(RequestModel):
+    """砂糖社照片审核：屏蔽时必须提供理由，恢复时可清空。"""
+    is_visible: bool
+    admin_note: str | None = Field(default=None, max_length=200)
 
 
 class SugarProfileCardOut(ApiModel):
@@ -307,3 +369,28 @@ class SugarPairOut(ApiModel):
 class SugarProfileDetailOut(SugarProfileCardOut):
     qq: str | None = None
     relationship: SugarPairOut | None = None
+
+
+class BoardPostCreate(RequestModel):
+    content: str = Field(min_length=1, max_length=500)
+
+
+class BoardCommentCreate(RequestModel):
+    content: str = Field(min_length=1, max_length=500)
+
+
+class BoardCommentOut(ApiModel):
+    id: int
+    content: str
+    created_at: datetime
+    user: UserPublic
+    can_delete: bool = False
+
+
+class BoardMessageOut(ApiModel):
+    id: int
+    content: str
+    created_at: datetime
+    user: UserPublic
+    comments: list[BoardCommentOut] = []
+    can_delete: bool = False

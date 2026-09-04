@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, Flag, Image as ImageIcon, KeyRound, MessageCircle, RotateCcw, Save, Search, ShieldCheck, Store, UsersRound, X } from 'lucide-vue-next'
+import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, Flag, HeartHandshake, Image as ImageIcon, KeyRound, MessageCircle, RotateCcw, Save, Search, ShieldCheck, Store, UsersRound, X } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
@@ -14,7 +14,10 @@ const router = useRouter()
 const tasks = ref([])
 const users = ref([])
 const feedbacks = ref([])
+const applications = ref([])
 const photoUsers = ref([])
+const sugarPhotos = ref([])
+const moderatingSugarId = ref(null)
 const reports = ref([])
 const reportLimit = ref(2)
 const reportLimitInput = ref(2)
@@ -28,12 +31,14 @@ const userSearch = ref('')
 const loading = ref(true)
 const savingUserId = ref(null)
 const savingRoleId = ref(null)
+const reviewAppId = ref(null)
 const resetUser = ref(null)
 const resetPasswordBusy = ref(false)
 const resetPasswordForm = reactive({ password: '', confirm: '' })
 const filteredTasks = computed(() => tasks.value.filter((task) => `${task.title}${task.publisher.nickname}`.toLowerCase().includes(taskSearch.value.toLowerCase())))
 const filteredUsers = computed(() => users.value.filter((user) => `${user.username}${user.nickname}`.toLowerCase().includes(userSearch.value.toLowerCase())))
 const pendingFeedbacks = computed(() => feedbacks.value.filter((item) => item.status === 'pending').length)
+const pendingApplications = computed(() => applications.value.filter((item) => item.status === 'pending').length)
 const pendingReports = computed(() => reports.value.filter((item) => item.status === 'pending').length)
 const sortedReports = computed(() => [...reports.value].sort((a, b) => (a.status === 'pending' ? -1 : 1) - (b.status === 'pending' ? -1 : 1)))
 const statItems = computed(() => [
@@ -46,7 +51,7 @@ async function load() {
   loading.value = true
   try {
     if (!auth.isAdmin) {
-      const [taskRes, userRes, photoRes, reportRes, limitRes] = await Promise.all([api.get('/admin/tasks'), api.get('/admin/users'), api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/settings/report-limit')])
+      const [taskRes, userRes, photoRes, reportRes, limitRes, feedbackRes, applicationRes, sugarPhotoRes] = await Promise.all([api.get('/admin/tasks'), api.get('/admin/users'), api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/settings/report-limit'), api.get('/admin/feedback'), api.get('/admin/volunteer-applications'), api.get('/admin/sugar/photos')])
       tasks.value = taskRes.data
       stats.value.hidden = tasks.value.filter((task) => !task.is_visible).length
       users.value = userRes.data
@@ -54,9 +59,12 @@ async function load() {
       reports.value = reportRes.data
       reportLimit.value = limitRes.data.daily_limit
       reportLimitInput.value = limitRes.data.daily_limit
+      feedbacks.value = feedbackRes.data
+      applications.value = applicationRes.data
+      sugarPhotos.value = sugarPhotoRes.data
       return
     }
-    const [taskRes, userRes, statRes, feedbackRes, photoRes, reportRes, limitRes] = await Promise.all([
+    const [taskRes, userRes, statRes, feedbackRes, photoRes, reportRes, limitRes, applicationRes, sugarPhotoRes] = await Promise.all([
       api.get('/admin/tasks'),
       api.get('/admin/users'),
       api.get('/admin/stats'),
@@ -64,6 +72,8 @@ async function load() {
       api.get('/admin/photos'),
       api.get('/admin/reports'),
       api.get('/admin/settings/report-limit'),
+      api.get('/admin/volunteer-applications'),
+      api.get('/admin/sugar/photos'),
     ])
     tasks.value = taskRes.data
     users.value = userRes.data
@@ -71,6 +81,8 @@ async function load() {
     feedbacks.value = feedbackRes.data
     photoUsers.value = photoRes.data
     reports.value = reportRes.data
+    applications.value = applicationRes.data
+    sugarPhotos.value = sugarPhotoRes.data
     reportLimit.value = limitRes.data.daily_limit
     reportLimitInput.value = limitRes.data.daily_limit
     users.value.forEach((user) => { userLimits[user.id] = user.max_concurrent_tasks })
@@ -85,6 +97,14 @@ async function togglePhoto(user, photo) {
     const { data } = await api.patch(`/admin/photos/${photo.id}`, { is_visible: !photo.is_visible })
     photoUsers.value[photoUsers.value.findIndex((item) => item.id === user.id)] = data
     toast.success(photo.is_visible ? '图片已屏蔽' : '图片已恢复展示')
+  } catch (error) { toast.error(errorMessage(error)) }
+}
+async function moderateAvatar(user) {
+  const approve = !user.avatar_visible
+  try {
+    const { data } = await api.patch(`/admin/users/${user.id}/avatar`, { is_visible: approve })
+    photoUsers.value[photoUsers.value.findIndex((item) => item.id === user.id)] = data
+    toast.success(approve ? `已通过 ${data.nickname} 的头像审核` : `已驳回 ${data.nickname} 的头像`)
   } catch (error) { toast.error(errorMessage(error)) }
 }
 async function saveUserLimit(user) {
@@ -193,6 +213,34 @@ async function resolveReport(report, action) {
   } catch (error) { toast.error(errorMessage(error)) } finally { savingReportId.value = null }
 }
 
+async function reviewApplication(item, action) {
+  let note = null
+  if (action === 'reject') {
+    note = window.prompt('请输入拒绝理由（会展示给申请人，可留空）', item.review_note || '')
+    if (note === null) return
+  }
+  reviewAppId.value = item.id
+  try {
+    const { data } = await api.post(`/admin/volunteer-applications/${item.id}/review`, { action, note: note?.trim() || null })
+    applications.value[applications.value.findIndex((a) => a.id === item.id)] = data
+    toast.success(action === 'approve' ? `已通过 ${data.user.nickname} 的志愿者申请` : '已拒绝该志愿者申请')
+  } catch (error) { toast.error(errorMessage(error)) } finally { reviewAppId.value = null }
+}
+
+async function moderateSugarPhoto(photo, isVisible) {
+  let note = null
+  if (!isVisible) {
+    note = window.prompt('请输入屏蔽理由（将展示给照片主人）', photo.admin_note || '')
+    if (note === null) return
+    if (!note.trim()) return toast.error('屏蔽照片时必须填写理由')
+  }
+  moderatingSugarId.value = photo.id
+  try {
+    const { data } = await api.patch(`/admin/sugar/photos/${photo.id}`, { is_visible: isVisible, admin_note: isVisible ? null : note.trim() })
+    sugarPhotos.value[sugarPhotos.value.findIndex((item) => item.id === photo.id)] = data
+    toast.success(isVisible ? '照片已恢复展示' : '照片已屏蔽')
+  } catch (error) { toast.error(errorMessage(error)) } finally { moderatingSugarId.value = null }
+}
 async function saveReportLimit() {
   const value = Number(reportLimitInput.value)
   if (!Number.isInteger(value) || value < 1) return toast.error('每日举报上限需为不小于 1 的整数')
@@ -218,9 +266,10 @@ onMounted(load)
     <div class="tabs admin-tabs" role="tablist" aria-label="后台管理内容">
       <button :class="{ active: activeTab === 'tasks' }" role="tab" :aria-selected="activeTab === 'tasks'" @click="activeTab = 'tasks'">委托管理</button>
       <button :class="{ active: activeTab === 'reports' }" role="tab" :aria-selected="activeTab === 'reports'" @click="activeTab = 'reports'">举报处理<span v-if="pendingReports">{{ pendingReports }}</span></button>
+      <button :class="{ active: activeTab === 'applications' }" role="tab" :aria-selected="activeTab === 'applications'" @click="activeTab = 'applications'">志愿者申请<span v-if="pendingApplications">{{ pendingApplications }}</span></button>
       <button :class="{ active: activeTab === 'users' }" role="tab" :aria-selected="activeTab === 'users'" @click="activeTab = 'users'">用户与权限</button>
       <button :class="{ active: activeTab === 'photos' }" role="tab" :aria-selected="activeTab === 'photos'" @click="activeTab = 'photos'">图片管理</button>
-      <button v-if="auth.isAdmin" :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
+      <button :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
     </div>
 
     <section v-if="activeTab === 'reports'" class="admin-table-section">
@@ -246,6 +295,29 @@ onMounted(load)
         </li>
       </ul>
       <div v-else class="feedback-admin-empty"><Flag :size="28" />暂无举报</div>
+    </section>
+
+    <section v-if="activeTab === 'applications'" class="admin-table-section">
+      <div class="admin-toolbar"><div><h2>志愿者申请</h2><span>待审核 {{ pendingApplications }} 条</span></div><span class="muted"><HeartHandshake :size="15" /> 通过后申请人将升级为志愿者</span></div>
+      <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
+      <ul v-else-if="applications.length" class="feedback-admin-list">
+        <li v-for="item in applications" :key="item.id" :class="{ handled: item.status !== 'pending' }">
+          <div class="fb-head">
+            <span class="fb-state" :class="`state-${item.status}`">{{ item.status === 'pending' ? '待审核' : item.status === 'approved' ? '已通过' : '已拒绝' }}</span>
+            <strong>{{ item.user.nickname }}</strong>
+            <time class="muted">{{ date(item.created_at) }}</time>
+          </div>
+          <p class="fb-content">{{ item.reason }}</p>
+          <div class="fb-actions">
+            <span v-if="item.status !== 'pending' && item.review_note" class="fb-reply-admin">审核说明：{{ item.review_note }}</span>
+            <template v-if="item.status === 'pending'">
+              <button class="button secondary small" :disabled="reviewAppId === item.id" @click="reviewApplication(item, 'approve')"><Check :size="15" />通过</button>
+              <button class="button secondary small" :disabled="reviewAppId === item.id" @click="reviewApplication(item, 'reject')"><X :size="15" />拒绝</button>
+            </template>
+          </div>
+        </li>
+      </ul>
+      <div v-else class="feedback-admin-empty"><HeartHandshake :size="28" />还没有收到志愿者申请</div>
     </section>
 
     <section v-if="activeTab === 'tasks'" class="admin-table-section">
@@ -275,7 +347,7 @@ onMounted(load)
             <tr v-if="loading"><td :colspan="auth.isAdmin ? 5 : 3" class="table-loading">正在加载…</td></tr>
             <tr v-for="user in filteredUsers" v-else :key="user.id">
               <td><strong>{{ user.nickname }}</strong><small>@{{ user.username }} · #{{ user.id }}</small></td>
-              <td><span v-if="user.is_admin" class="admin-tag"><ShieldCheck :size="13" />管理员</span><span v-else class="role-tag" :class="`role-${user.role}`"><Store v-if="user.role === 'staff'" :size="13" />{{ roleLabel(user) }}</span></td>
+              <td><span v-if="user.is_admin" class="admin-tag"><ShieldCheck :size="13" />超级管理员</span><span v-else class="role-tag" :class="`role-${user.role}`"><Store v-if="user.role === 'staff'" :size="13" />{{ roleLabel(user) }}</span></td>
               <td v-if="auth.isAdmin"><span class="limit-usage" :class="{ full: user.active_task_count >= user.max_concurrent_tasks }">{{ user.active_task_count }} / {{ user.max_concurrent_tasks }}</span></td>
               <td v-if="auth.isAdmin"><input v-model.number="userLimits[user.id]" class="limit-input" type="number" min="0" max="999" :aria-label="`${user.nickname} 的接单上限`" /></td>
               <td>
@@ -285,7 +357,7 @@ onMounted(load)
                   <select v-if="!user.is_admin" class="role-select" :value="user.role" :disabled="savingRoleId === user.id" :aria-label="`修改 ${user.nickname} 的权限等级`" @change="changeUserRole(user, $event.target.value, $event.target)">
                     <option value="user">普通用户</option>
                     <option value="volunteer">志愿者</option>
-                    <option v-if="auth.isAdmin || user.role === 'staff'" value="staff" :disabled="!auth.isAdmin">店员{{ auth.isAdmin ? '' : '（仅管理员可授予）' }}</option>
+                    <option v-if="auth.isAdmin || user.role === 'staff'" value="staff" :disabled="!auth.isAdmin">管理员{{ auth.isAdmin ? '' : '（仅超级管理员可授予）' }}</option>
                   </select>
                 </div>
               </td>
@@ -298,23 +370,53 @@ onMounted(load)
     <section v-else-if="activeTab === 'photos'" class="admin-table-section">
       <div class="admin-toolbar"><div><h2>用户介绍图片</h2><span>不适合展示的图片可手动屏蔽</span></div></div>
       <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
-      <div v-else-if="photoUsers.length" class="moderation-users">
-        <section v-for="user in photoUsers" :key="user.id" class="moderation-user">
-          <header><strong>{{ user.nickname }}</strong><span>#{{ user.id }} · {{ roleLabel(user) }}</span></header>
-          <div class="moderation-photo-grid">
-            <figure v-for="photo in user.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
-              <img :src="photo.image_url" :alt="`${user.nickname} 的介绍图片`" />
-              <button class="button secondary small" type="button" @click="togglePhoto(user, photo)">
-                <EyeOff v-if="photo.is_visible" :size="15" /><Eye v-else :size="15" />{{ photo.is_visible ? '屏蔽' : '恢复' }}
+      <template v-else>
+        <div v-if="photoUsers.length" class="moderation-users">
+          <section v-for="user in photoUsers" :key="user.id" class="moderation-user">
+            <header><strong>{{ user.nickname }}</strong><span>#{{ user.id }} · {{ roleLabel(user) }}</span></header>
+            <div v-if="user.avatar_url" class="moderation-avatar-row">
+              <figure class="moderation-avatar" :class="{ blocked: !user.avatar_visible }">
+                <img :src="user.avatar_url" :alt="`${user.nickname} 的头像`" />
+                <span v-if="!user.avatar_visible" class="photo-blocked"><Clock3 :size="14" />审核中</span>
+                <button class="button secondary small" type="button" @click="moderateAvatar(user)">
+                  <Check v-if="!user.avatar_visible" :size="15" /><EyeOff v-else :size="15" />{{ user.avatar_visible ? '驳回' : '通过' }}
+                </button>
+              </figure>
+              <span class="muted">头像</span>
+            </div>
+            <div v-if="user.photos.length" class="moderation-photo-grid">
+              <figure v-for="photo in user.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
+                <img :src="photo.image_url" :alt="`${user.nickname} 的介绍图片`" />
+                <button class="button secondary small" type="button" @click="togglePhoto(user, photo)">
+                  <EyeOff v-if="photo.is_visible" :size="15" /><Eye v-else :size="15" />{{ photo.is_visible ? '屏蔽' : '恢复' }}
+                </button>
+              </figure>
+            </div>
+          </section>
+        </div>
+        <div v-else-if="!sugarPhotos.length" class="feedback-admin-empty"><ImageIcon :size="28" />暂无用户图片</div>
+
+        <div class="admin-toolbar sugar-photos-toolbar"><div><h2>砂糖社照片</h2><span>屏蔽时需填写理由，理由会展示给照片主人</span></div></div>
+        <div v-if="sugarPhotos.length" class="moderation-photo-grid sugar-photos">
+          <figure v-for="photo in sugarPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
+            <img :src="photo.image_url" :alt="`${photo.user.nickname} 的砂糖社照片`" />
+            <span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.admin_note }}</span>
+            <div class="sugar-photo-actions">
+              <button class="button secondary small" type="button" :disabled="moderatingSugarId === photo.id" @click="moderateSugarPhoto(photo, false)">
+                <EyeOff :size="15" />屏蔽
               </button>
-            </figure>
-          </div>
-        </section>
-      </div>
-      <div v-else class="feedback-admin-empty"><ImageIcon :size="28" />暂无用户图片</div>
+              <button v-if="!photo.is_visible" class="button secondary small" type="button" :disabled="moderatingSugarId === photo.id" @click="moderateSugarPhoto(photo, true)">
+                <Eye :size="15" />恢复
+              </button>
+            </div>
+            <figcaption class="muted">{{ photo.user.nickname }}</figcaption>
+          </figure>
+        </div>
+        <div v-else class="feedback-admin-empty"><ImageIcon :size="28" />暂无砂糖社照片</div>
+      </template>
     </section>
 
-    <section v-else-if="auth.isAdmin && activeTab === 'feedback'" class="admin-table-section">
+    <section v-else-if="activeTab === 'feedback'" class="admin-table-section">
       <div class="admin-toolbar"><div><h2>用户反馈</h2><span>待处理 {{ pendingFeedbacks }} 条</span></div><span class="muted"><MessageCircle :size="15" /> 提交者会收到处理状态与回复</span></div>
       <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
       <ul v-else-if="feedbacks.length" class="feedback-admin-list">
@@ -349,3 +451,101 @@ onMounted(load)
     </div>
   </div>
 </template>
+
+<style scoped>
+.moderation-avatar-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.sugar-photos-toolbar {
+  margin-top: 24px;
+}
+
+.sugar-photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.sugar-photos figure {
+  position: relative;
+  aspect-ratio: auto;
+  overflow: visible;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+.sugar-photos figure img {
+  width: 100%;
+  height: 120px;
+  border-radius: 4px;
+  object-fit: cover;
+  display: block;
+}
+
+.sugar-photos figure.blocked img {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+
+.sugar-photos .photo-blocked {
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  white-space: normal;
+}
+
+.sugar-photo-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.sugar-photos figcaption {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.moderation-avatar-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.moderation-avatar {
+  position: relative;
+  width: 84px;
+  margin: 0;
+  text-align: center;
+}
+
+.moderation-avatar img {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  margin: 0 auto 6px;
+}
+
+.moderation-avatar .photo-blocked {
+  top: 46px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.moderation-avatar.blocked img {
+  filter: grayscale(0.7);
+  opacity: 0.75;
+}
+</style>

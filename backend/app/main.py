@@ -19,6 +19,9 @@ from .database import Base, SessionLocal, engine, get_db
 from .dependencies import get_admin, get_current_user, get_optional_user, get_role_manager
 from .models import (
     AppSetting,
+    ApplicationStatus,
+    BoardComment,
+    BoardMessage,
     Feedback,
     FeedbackStatus,
     ReportStatus,
@@ -34,6 +37,7 @@ from .models import (
     User,
     UserPhoto,
     UserRole,
+    VolunteerApplication,
 )
 from .schemas import (
     AcceptRequest,
@@ -57,9 +61,12 @@ from .schemas import (
     TaskMemberOut,
     TaskOut,
     TaskReportOut,
+    TaskStats,
     StaffDirectoryOut,
     SugarPairOut,
+    SugarPhotoAdminOut,
     SugarPhotoOut,
+    SugarPhotoModerateUpdate,
     SugarProfileCardOut,
     SugarProfileDetailOut,
     TokenResponse,
@@ -69,6 +76,14 @@ from .schemas import (
     UserPhotoOut,
     UserSelf,
     UserUpdate,
+    BoardCommentCreate,
+    BoardCommentOut,
+    BoardMessageOut,
+    BoardPostCreate,
+    VolunteerApplicationAdminOut,
+    VolunteerApplicationCreate,
+    VolunteerApplicationOut,
+    VolunteerApplicationReview,
 )
 from .security import create_access_token, hash_password, verify_password
 
@@ -114,6 +129,12 @@ def migrate_schema() -> None:
                 connection.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(16) NOT NULL DEFAULT 'user'"))
             if "qq_public" not in user_columns:
                 connection.execute(text("ALTER TABLE users ADD COLUMN qq_public BOOLEAN NOT NULL DEFAULT 0"))
+            if "avatar_path" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN avatar_path VARCHAR(255)"))
+            if "avatar_visible" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN avatar_visible BOOLEAN NOT NULL DEFAULT 0"))
+            if "avatar_moderated_at" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN avatar_moderated_at DATETIME"))
         if not inspector.has_table("tasks"):
             return
         task_columns = {column["name"] for column in inspector.get_columns("tasks")}
@@ -197,6 +218,16 @@ def migrate_schema() -> None:
                 connection.execute(text("ALTER TABLE user_photos ADD COLUMN moderated_by_id INTEGER"))
             if "moderated_at" not in photo_columns:
                 connection.execute(text("ALTER TABLE user_photos ADD COLUMN moderated_at DATETIME"))
+        if inspector.has_table("sugar_photos"):
+            sugar_photo_columns = {column["name"] for column in inspector.get_columns("sugar_photos")}
+            if "is_visible" not in sugar_photo_columns:
+                connection.execute(text("ALTER TABLE sugar_photos ADD COLUMN is_visible BOOLEAN NOT NULL DEFAULT 1"))
+            if "admin_note" not in sugar_photo_columns:
+                connection.execute(text("ALTER TABLE sugar_photos ADD COLUMN admin_note VARCHAR(200)"))
+            if "moderated_by_id" not in sugar_photo_columns:
+                connection.execute(text("ALTER TABLE sugar_photos ADD COLUMN moderated_by_id INTEGER"))
+            if "moderated_at" not in sugar_photo_columns:
+                connection.execute(text("ALTER TABLE sugar_photos ADD COLUMN moderated_at DATETIME"))
 
 
 @asynccontextmanager
@@ -252,8 +283,20 @@ def visible_user_photos(user: User, viewer: User | None = None) -> list[UserPhot
     ]
 
 
+def visible_avatar(user: User, viewer: User | None = None) -> str | None:
+    """头像 URL：审核通过后对所有人可见，未过审时仅本人和管理员组可见。"""
+    if not user.avatar_path:
+        return None
+    if user.avatar_visible or (viewer is not None and (viewer.id == user.id or can_moderate(viewer))):
+        return user.avatar_url
+    return None
+
+
 def present_user_public(user: User, viewer: User | None = None) -> UserPublic:
-    return UserPublic(id=user.id, nickname=user.nickname, bio=user.bio, photos=visible_user_photos(user, viewer))
+    return UserPublic(
+        id=user.id, nickname=user.nickname, bio=user.bio, photos=visible_user_photos(user, viewer),
+        avatar_url=visible_avatar(user, viewer), avatar_visible=user.avatar_visible,
+    )
 
 
 ANONYMOUS_PUBLISHER = UserPublic(id=0, nickname="匿名委托人", bio=None, photos=[])
@@ -264,6 +307,7 @@ def present_user_profile(user: User, viewer: User | None = None) -> UserProfileO
         id=user.id, nickname=user.nickname, bio=user.bio, qq=user.qq, qq_public=user.qq_public,
         is_admin=user.is_admin,
         role=user.role, created_at=user.created_at, photos=visible_user_photos(user, viewer),
+        avatar_url=visible_avatar(user, viewer), avatar_visible=user.avatar_visible,
     )
 
 
@@ -467,7 +511,7 @@ def shares_task_with(db: Session, viewer_id: int, target_id: int) -> bool:
 
 
 def can_view_user_qq(db: Session, viewer: User | None, target: User) -> bool:
-    """店员及主动公开的志愿者对外可见；原有协作关系始终优先放行。"""
+    """管理员组及主动公开的志愿者对外可见；原有协作关系始终优先放行。"""
     if target.role == UserRole.STAFF:
         return True
     if target.role == UserRole.VOLUNTEER and target.qq_public:
@@ -500,6 +544,13 @@ IMAGE_SIGNATURES = (
     (b"GIF89a", ".gif"),
 )
 
+# 头像：仅 PNG/JPG，最大 2 MB，上传后需管理员审核
+MAX_AVATAR_BYTES = 2 * 1024 * 1024
+AVATAR_SIGNATURES = (
+    (b"\xff\xd8\xff", ".jpg"),
+    (b"\x89PNG\r\n\x1a\n", ".png"),
+)
+
 
 def sugar_profile_query():
     return select(SugarProfile).options(joinedload(SugarProfile.user), joinedload(SugarProfile.photos))
@@ -513,9 +564,20 @@ def photo_url(photo: SugarPhoto) -> str:
     return f"/uploads/{photo.file_path}"
 
 
+def present_sugar_photos(profile: SugarProfile, viewer: User | None) -> list[SugarPhotoOut]:
+    """被屏蔽的照片仅主人和管理员组可见（附带屏蔽理由），对其他查看者隐藏。"""
+    can_manage = viewer is not None and (viewer.id == profile.user_id or can_moderate(viewer))
+    return [
+        SugarPhotoOut(id=photo.id, image_url=photo_url(photo), is_visible=photo.is_visible, admin_note=photo.admin_note)
+        for photo in profile.photos
+        if photo.is_visible or can_manage
+    ]
+
+
 def present_sugar_profile(
     profile: SugarProfile,
     *,
+    viewer: User | None = None,
     qq: str | None = None,
     relationship: SugarPair | None = None,
     detailed: bool = False,
@@ -524,7 +586,7 @@ def present_sugar_profile(
         "id": profile.id,
         "user": profile.user,
         "about": profile.about,
-        "photos": [SugarPhotoOut(id=photo.id, image_url=photo_url(photo)) for photo in profile.photos],
+        "photos": present_sugar_photos(profile, viewer),
         "created_at": profile.created_at,
         "updated_at": profile.updated_at,
     }
@@ -812,9 +874,90 @@ def delete_user_photo(photo_id: int, user: User = Depends(get_current_user), db:
     return present_user_profile(user, user)
 
 
+def avatar_extension(content: bytes) -> str | None:
+    for signature, extension in AVATAR_SIGNATURES:
+        if content.startswith(signature):
+            return extension
+    return None
+
+
+def clear_avatar_file(user: User) -> None:
+    """移除旧头像文件并清空头像字段（重新上传换头像、删除头像时复用）。"""
+    if not user.avatar_path:
+        return
+    root = settings.sugar_upload_path.resolve()
+    destination = (root / user.avatar_path).resolve()
+    if destination.is_relative_to(root):
+        try:
+            destination.unlink(missing_ok=True)
+        except OSError:
+            pass
+    user.avatar_path = None
+    user.avatar_visible = False
+    user.avatar_moderated_at = None
+
+
+@app.post("/api/users/me/avatar", response_model=UserProfileOut, status_code=status.HTTP_201_CREATED)
+async def upload_avatar(
+    avatar: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """上传头像：仅支持 PNG/JPG、最大 2 MB；需管理员审核通过后才公开展示。"""
+    content = await avatar.read(MAX_AVATAR_BYTES + 1)
+    if not content:
+        raise HTTPException(status_code=422, detail="请选择要上传的头像图片")
+    if len(content) > MAX_AVATAR_BYTES:
+        raise HTTPException(status_code=422, detail="头像图片不能超过 2 MB")
+    extension = avatar_extension(content)
+    if extension is None:
+        raise HTTPException(status_code=422, detail="头像仅支持 PNG 或 JPG 格式")
+    settings.ensure_storage_directory()
+    file_path = f"avatars/{user.id}/{uuid4().hex}{extension}"
+    destination = settings.sugar_upload_path / file_path
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        destination.write_bytes(content)
+    except OSError as error:
+        raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
+    clear_avatar_file(user)
+    user.avatar_path = file_path
+    user.avatar_visible = False
+    user.avatar_moderated_at = None
+    db.commit()
+    db.refresh(user)
+    return present_user_profile(user, user)
+
+
+@app.delete("/api/users/me/avatar", response_model=UserProfileOut)
+def delete_avatar(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    clear_avatar_file(user)
+    db.commit()
+    db.refresh(user)
+    return present_user_profile(user, user)
+
+
+@app.patch("/api/admin/users/{user_id}/avatar", response_model=UserProfileOut)
+def moderate_avatar(
+    user_id: int,
+    payload: AdminPhotoUpdate,
+    manager: User = Depends(get_role_manager),
+    db: Session = Depends(get_db),
+):
+    """管理员组审核头像：通过后公开展示，驳回则仅本人可见。"""
+    target = db.get(User, user_id)
+    if target is None or not target.avatar_path:
+        raise HTTPException(status_code=404, detail="头像不存在")
+    target.avatar_visible = payload.is_visible
+    target.avatar_moderated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(target)
+    return present_user_profile(target, manager)
+
+
 @app.get("/api/users/{user_id}", response_model=UserProfileOut)
 def user_profile(user_id: int, viewer: User | None = Depends(get_optional_user), db: Session = Depends(get_db)):
-    """名录中的店员/志愿者允许匿名查看，QQ 仍按公开偏好和协作关系脱敏。"""
+    """名录中的管理员/志愿者允许匿名查看，QQ 仍按公开偏好和协作关系脱敏。"""
     target = db.scalar(user_with_photos_query().where(User.id == user_id))
     if target is None or not target.is_active:
         raise HTTPException(status_code=404, detail="用户不存在")
@@ -854,7 +997,7 @@ def list_sugar_profiles(user: User = Depends(get_current_user), db: Session = De
         .order_by(SugarProfile.updated_at.desc())
         .limit(200)
     ).unique().all()
-    return [present_sugar_profile(profile) for profile in profiles]
+    return [present_sugar_profile(profile, viewer=user) for profile in profiles]
 
 
 @app.get("/api/sugar/profiles/{user_id}", response_model=SugarProfileDetailOut)
@@ -871,6 +1014,7 @@ def sugar_profile_detail(
     # QQ 不出现在公共列表；此详情请求的查看者与资料主人构成唯一的可见双方。
     return present_sugar_profile(
         profile,
+        viewer=viewer,
         qq=target.qq,
         relationship=relationship,
         detailed=True,
@@ -921,7 +1065,7 @@ async def save_sugar_profile(
         raise
     saved = get_sugar_profile_or_404(db, user.id)
     response.status_code = status.HTTP_201_CREATED if is_new else status.HTTP_200_OK
-    return present_sugar_profile(saved, qq=user.qq, detailed=True)
+    return present_sugar_profile(saved, viewer=user, qq=user.qq, detailed=True)
 
 
 @app.delete("/api/sugar/photos/{photo_id}", response_model=SugarProfileDetailOut)
@@ -944,7 +1088,7 @@ def delete_sugar_photo(photo_id: int, user: User = Depends(get_current_user), db
             destination.unlink(missing_ok=True)
         except OSError:
             pass
-    return present_sugar_profile(get_sugar_profile_or_404(db, user.id), qq=user.qq, detailed=True)
+    return present_sugar_profile(get_sugar_profile_or_404(db, user.id), viewer=user, qq=user.qq, detailed=True)
 
 
 @app.delete("/api/sugar/profile", status_code=status.HTTP_204_NO_CONTENT)
@@ -1109,7 +1253,7 @@ def my_feedback(user: User = Depends(get_current_user), db: Session = Depends(ge
 
 
 @app.get("/api/admin/feedback", response_model=list[FeedbackOut])
-def admin_feedback(_: User = Depends(get_admin), db: Session = Depends(get_db)):
+def admin_feedback(_: User = Depends(get_role_manager), db: Session = Depends(get_db)):
     feedback_list = db.scalars(select(Feedback).order_by(Feedback.created_at.desc()).limit(500)).all()
     return [present_feedback(item) for item in feedback_list]
 
@@ -1118,10 +1262,10 @@ def admin_feedback(_: User = Depends(get_admin), db: Session = Depends(get_db)):
 def handle_feedback(
     feedback_id: int,
     payload: FeedbackUpdate,
-    _: User = Depends(get_admin),
+    _: User = Depends(get_role_manager),
     db: Session = Depends(get_db),
 ):
-    """管理员处理反馈：标记状态并填写处理回复。"""
+    """管理员组处理反馈：标记状态并填写处理回复。"""
     feedback = db.get(Feedback, feedback_id)
     if feedback is None:
         raise HTTPException(status_code=404, detail="反馈不存在")
@@ -1133,6 +1277,206 @@ def handle_feedback(
     feedback.handled_at = datetime.utcnow() if feedback.status == FeedbackStatus.HANDLED else feedback.handled_at
     db.commit()
     return present_feedback(feedback)
+
+
+def present_application(
+    application: VolunteerApplication, viewer: User | None = None
+) -> VolunteerApplicationAdminOut:
+    return VolunteerApplicationAdminOut(
+        id=application.id,
+        reason=application.reason,
+        status=application.status,
+        review_note=application.review_note,
+        created_at=application.created_at,
+        handled_at=application.handled_at,
+        user=present_user_public(application.user, viewer),
+        handled_by=present_user_public(application.handled_by, viewer) if application.handled_by else None,
+    )
+
+
+@app.post("/api/volunteer-applications", response_model=VolunteerApplicationOut, status_code=status.HTTP_201_CREATED)
+def create_volunteer_application(
+    payload: VolunteerApplicationCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """普通用户申请成为志愿者，需提交理由，由管理员组审核。"""
+    if user.is_admin or user.role != UserRole.USER:
+        raise HTTPException(status_code=403, detail="只有普通用户可以申请成为志愿者")
+    pending = db.scalar(
+        select(VolunteerApplication).where(
+            VolunteerApplication.user_id == user.id,
+            VolunteerApplication.status == ApplicationStatus.PENDING,
+        )
+    )
+    if pending is not None:
+        raise HTTPException(status_code=409, detail="你已提交过申请，请等待管理员处理")
+    application = VolunteerApplication(user_id=user.id, reason=payload.reason.strip())
+    db.add(application)
+    db.commit()
+    db.refresh(application)
+    return present_application(application, viewer=user)
+
+
+@app.get("/api/volunteer-applications/mine", response_model=VolunteerApplicationOut | None)
+def my_volunteer_application(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """当前用户最近一次志愿者申请及审核状态。"""
+    application = db.scalars(
+        select(VolunteerApplication)
+        .where(VolunteerApplication.user_id == user.id)
+        .order_by(VolunteerApplication.created_at.desc(), VolunteerApplication.id.desc())
+        .limit(1)
+    ).first()
+    return present_application(application, viewer=user) if application else None
+
+
+@app.get("/api/admin/volunteer-applications", response_model=list[VolunteerApplicationAdminOut])
+def admin_volunteer_applications(
+    manager: User = Depends(get_role_manager), db: Session = Depends(get_db)
+):
+    applications = db.scalars(
+        select(VolunteerApplication)
+        .options(joinedload(VolunteerApplication.user), joinedload(VolunteerApplication.handled_by))
+        .order_by(VolunteerApplication.created_at.desc(), VolunteerApplication.id.desc())
+        .limit(500)
+    ).all()
+    return [present_application(item, viewer=manager) for item in applications]
+
+
+@app.post("/api/admin/volunteer-applications/{application_id}/review", response_model=VolunteerApplicationAdminOut)
+def review_volunteer_application(
+    application_id: int,
+    payload: VolunteerApplicationReview,
+    manager: User = Depends(get_role_manager),
+    db: Session = Depends(get_db),
+):
+    """管理员组审核志愿者申请：通过则申请人升为志愿者。"""
+    application = db.get(VolunteerApplication, application_id)
+    if application is None:
+        raise HTTPException(status_code=404, detail="申请不存在")
+    if application.status != ApplicationStatus.PENDING:
+        raise HTTPException(status_code=409, detail="该申请已处理过")
+    if payload.action == "approve":
+        applicant = db.get(User, application.user_id)
+        if applicant is None:
+            raise HTTPException(status_code=404, detail="申请用户不存在")
+        if applicant.role != UserRole.VOLUNTEER:
+            applicant.role = UserRole.VOLUNTEER
+            applicant.qq_public = False
+        application.status = ApplicationStatus.APPROVED
+    else:
+        application.status = ApplicationStatus.REJECTED
+    application.review_note = payload.note.strip() if payload.note else None
+    application.handled_by_id = manager.id
+    application.handled_at = datetime.utcnow()
+    db.commit()
+    db.refresh(application)
+    return present_application(application, viewer=manager)
+
+
+def can_moderate(user: User | None) -> bool:
+    """留言板删除权限：管理员组（超管/管理员）。"""
+    return user is not None and (user.is_admin or user.role == UserRole.STAFF)
+
+
+def present_board_comment(comment: BoardComment, viewer: User | None) -> BoardCommentOut:
+    return BoardCommentOut(
+        id=comment.id,
+        content=comment.content,
+        created_at=comment.created_at,
+        user=present_user_public(comment.user, viewer),
+        can_delete=can_moderate(viewer) or (viewer is not None and viewer.id == comment.user_id),
+    )
+
+
+def present_board_message(message: BoardMessage, viewer: User | None) -> BoardMessageOut:
+    return BoardMessageOut(
+        id=message.id,
+        content=message.content,
+        created_at=message.created_at,
+        user=present_user_public(message.user, viewer),
+        comments=[present_board_comment(comment, viewer) for comment in message.comments],
+        can_delete=can_moderate(viewer) or (viewer is not None and viewer.id == message.user_id),
+    )
+
+
+@app.get("/api/board", response_model=list[BoardMessageOut])
+def list_board_messages(
+    viewer: User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    """留言板：最新 200 条留言及其评论，游客可浏览。"""
+    messages = db.scalars(
+        select(BoardMessage)
+        .options(joinedload(BoardMessage.user), joinedload(BoardMessage.comments).joinedload(BoardComment.user))
+        .order_by(BoardMessage.created_at.desc(), BoardMessage.id.desc())
+        .limit(200)
+    ).unique().all()
+    return [present_board_message(message, viewer) for message in messages]
+
+
+@app.post("/api/board", response_model=BoardMessageOut, status_code=status.HTTP_201_CREATED)
+def create_board_message(
+    payload: BoardPostCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    message = BoardMessage(user_id=user.id, content=payload.content.strip())
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+    return present_board_message(message, viewer=user)
+
+
+@app.post("/api/board/{message_id}/comments", response_model=BoardMessageOut, status_code=status.HTTP_201_CREATED)
+def create_board_comment(
+    message_id: int,
+    payload: BoardCommentCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    message = db.get(BoardMessage, message_id)
+    if message is None:
+        raise HTTPException(status_code=404, detail="留言不存在或已被删除")
+    message.comments.append(BoardComment(user_id=user.id, content=payload.content.strip()))
+    db.commit()
+    db.refresh(message)
+    return present_board_message(message, viewer=user)
+
+
+def delete_board_item_allowed(item_user_id: int, user: User) -> None:
+    if user.id != item_user_id and not can_moderate(user):
+        raise HTTPException(status_code=403, detail="只能删除自己的留言或评论")
+
+
+@app.delete("/api/board/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_board_message(
+    message_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    message = db.get(BoardMessage, message_id)
+    if message is None:
+        raise HTTPException(status_code=404, detail="留言不存在或已被删除")
+    delete_board_item_allowed(message.user_id, user)
+    db.delete(message)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.delete("/api/board/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_board_comment(
+    comment_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    comment = db.get(BoardComment, comment_id)
+    if comment is None:
+        raise HTTPException(status_code=404, detail="评论不存在或已被删除")
+    delete_board_item_allowed(comment.user_id, user)
+    db.delete(comment)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.get("/api/tasks", response_model=list[TaskOut])
@@ -1151,7 +1495,7 @@ def list_tasks(
         query = query.where(or_(Task.title.contains(search), Task.description.contains(search)))
     if category:
         query = query.where(Task.category == category)
-    # 普通用户只能浏览招募中的委托；管理员/店员可查看全部状态。
+    # 普通用户只能浏览招募中的委托；超级管理员/管理员可查看全部状态。
     if task_status and is_task_manager(viewer):
         query = query.where(Task.status == task_status)
     elif not is_task_manager(viewer):
@@ -1160,6 +1504,28 @@ def list_tasks(
         query = query.where(Task.pay_type == pay_type)
     tasks = db.scalars(query.order_by(Task.created_at.desc()).limit(200)).unique().all()
     return [present_task(task, viewer) for task in tasks]
+
+
+@app.get("/api/tasks/stats", response_model=TaskStats)
+def task_stats(db: Session = Depends(get_db)):
+    """大厅顶部统计：全站数量（正在招募/正在处理/顺利完成），不受筛选影响。
+
+    仅返回数量不返回内容；被后台屏蔽的委托不计入。路由需注册在
+    /api/tasks/{task_id} 之前，避免 "stats" 被当作委托 ID 解析。
+    """
+    expire_due_tasks(db)
+    visible = Task.is_visible.is_(True)
+    return TaskStats(
+        published=db.scalar(
+            select(func.count()).select_from(Task).where(visible, Task.status == TaskStatus.PUBLISHED)
+        ) or 0,
+        processing=db.scalar(
+            select(func.count()).select_from(Task).where(visible, Task.status.in_([TaskStatus.ACCEPTED, TaskStatus.AWAITING]))
+        ) or 0,
+        completed=db.scalar(
+            select(func.count()).select_from(Task).where(visible, Task.status == TaskStatus.COMPLETED)
+        ) or 0,
+    )
 
 
 @app.get("/api/tasks/mine", response_model=list[TaskOut])
@@ -1191,7 +1557,7 @@ def task_detail(task_id: int, viewer: User | None = Depends(get_optional_user), 
             TaskReport.status == ReportStatus.PENDING,
         ).limit(1)
     ) is not None
-    # 被举报的委托仅店员/管理员/委托双方可见；处理中或已完成的委托仅委托双方可见。
+    # 被举报的委托仅管理员/超级管理员/委托双方可见；处理中或已完成的委托仅委托双方可见。
     if reported or task.status != TaskStatus.PUBLISHED:
         if not is_task_manager(viewer) and not is_task_participant(task, viewer):
             raise HTTPException(status_code=404, detail="委托不存在")
@@ -1217,7 +1583,7 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
             )
         ).all()
         if len(designated_users) != len(designated_user_ids):
-            raise HTTPException(status_code=422, detail="只能指定当前可用的店员或志愿者")
+            raise HTTPException(status_code=422, detail="只能指定当前可用的管理员或志愿者")
     task = Task(
         title=payload.title.strip(),
         description=payload.description.strip(),
@@ -1253,7 +1619,7 @@ def report_task(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """举报委托：被举报的委托不进入大厅，仅由店员/管理员处理。"""
+    """举报委托：被举报的委托不进入大厅，仅由管理员/超级管理员处理。"""
     task = get_task_or_404(db, task_id)
     if task.publisher_id == user.id:
         raise HTTPException(status_code=422, detail="不能举报自己发布的委托")
@@ -1353,7 +1719,7 @@ def accept_task(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """加入委托（有密码时限志愿者/店员，无密码时所有非管理员用户可加入）。"""
+    """加入委托（有密码时需凭正确密码，无密码时所有非管理员用户可加入）。"""
     expire_due_tasks(db)
     task = get_task_or_404(db, task_id)
     if not task.is_visible:
@@ -1367,7 +1733,7 @@ def accept_task(
     existing_member = member_of(db, task_id, user.id)
     if task.is_designated:
         if existing_member is None:
-            raise HTTPException(status_code=403, detail="该委托已指定其他店员或志愿者")
+            raise HTTPException(status_code=403, detail="该委托已指定其他管理员或志愿者")
         if existing_member.response_status != TaskMemberResponse.PENDING:
             raise HTTPException(status_code=409, detail="你已响应此指定委托")
         # 在支持行锁的数据库上串行化同一用户的接单操作，避免并发突破个人上限。
@@ -1396,8 +1762,6 @@ def accept_task(
         if joined >= task.required_takers:
             raise HTTPException(status_code=409, detail="需要的人数已满，委托即将开始")
     if task.requires_password:
-        if user.role not in (UserRole.VOLUNTEER, UserRole.STAFF):
-            raise HTTPException(status_code=403, detail="有密码委托只有志愿者或店员可以接取，请联系店员申请升级")
         if not payload.password or not verify_password(payload.password, task.accept_password_hash):
             raise HTTPException(status_code=403, detail="接取密码不正确，请联系委托人确认")
     # 在支持行锁的数据库上串行化同一用户的接单操作，避免并发突破个人上限。
@@ -1643,7 +2007,7 @@ def admin_users(manager: User = Depends(get_role_manager), db: Session = Depends
 @app.get("/api/admin/photos", response_model=list[UserProfileOut])
 def admin_photos(_: User = Depends(get_role_manager), db: Session = Depends(get_db)):
     users = db.scalars(user_with_photos_query().order_by(User.created_at.desc())).unique().all()
-    return [present_user_profile(user, _) for user in users if user.photos]
+    return [present_user_profile(user, _) for user in users if user.photos or user.avatar_path]
 
 
 @app.patch("/api/admin/photos/{photo_id}", response_model=UserProfileOut)
@@ -1662,6 +2026,50 @@ def moderate_user_photo(
     db.commit()
     user = db.scalar(user_with_photos_query().where(User.id == photo.user_id))
     return present_user_profile(user, manager)
+
+
+def present_sugar_photo_admin(photo: SugarPhoto) -> SugarPhotoAdminOut:
+    return SugarPhotoAdminOut(
+        id=photo.id,
+        image_url=photo_url(photo),
+        is_visible=photo.is_visible,
+        admin_note=photo.admin_note,
+        created_at=photo.created_at,
+        user=present_user_public(photo.profile.user),
+    )
+
+
+@app.get("/api/admin/sugar/photos", response_model=list[SugarPhotoAdminOut])
+def admin_sugar_photos(_: User = Depends(get_role_manager), db: Session = Depends(get_db)):
+    photos = db.scalars(
+        select(SugarPhoto)
+        .options(joinedload(SugarPhoto.profile).joinedload(SugarProfile.user))
+        .order_by(SugarPhoto.created_at.desc())
+        .limit(500)
+    ).unique().all()
+    return [present_sugar_photo_admin(photo) for photo in photos]
+
+
+@app.patch("/api/admin/sugar/photos/{photo_id}", response_model=SugarPhotoAdminOut)
+def moderate_sugar_photo(
+    photo_id: int,
+    payload: SugarPhotoModerateUpdate,
+    manager: User = Depends(get_role_manager),
+    db: Session = Depends(get_db),
+):
+    """管理员组屏蔽/恢复砂糖社照片：屏蔽必须填写理由，恢复时清空理由。"""
+    photo = db.get(SugarPhoto, photo_id)
+    if photo is None:
+        raise HTTPException(status_code=404, detail="照片不存在")
+    if not payload.is_visible and not (payload.admin_note or "").strip():
+        raise HTTPException(status_code=422, detail="屏蔽照片时必须填写理由")
+    photo.is_visible = payload.is_visible
+    photo.admin_note = payload.admin_note.strip() if payload.admin_note and payload.admin_note.strip() else None
+    photo.moderated_by_id = manager.id
+    photo.moderated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(photo)
+    return present_sugar_photo_admin(photo)
 
 
 @app.patch("/api/admin/users/{user_id}/task-limit", response_model=AdminUserOut)
@@ -1707,14 +2115,14 @@ def update_user_role(
     manager: User = Depends(get_role_manager),
     db: Session = Depends(get_db),
 ):
-    """管理员可设置全部角色；店员只能把非管理员账号设为普通用户或志愿者。"""
+    """超级管理员可设置全部角色；管理员只能把非管理员账号设为普通用户或志愿者。"""
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="用户不存在")
     if user.is_admin:
         raise HTTPException(status_code=409, detail="管理员账号的权限等级不可修改")
     if not manager.is_admin and payload.role == UserRole.STAFF:
-        raise HTTPException(status_code=403, detail="只有管理员可以授予店员权限")
+        raise HTTPException(status_code=403, detail="只有超级管理员可以授予管理员权限")
     if payload.role == UserRole.VOLUNTEER and user.role != UserRole.VOLUNTEER:
         user.qq_public = False
     user.role = payload.role

@@ -5,12 +5,17 @@ import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import { roleLabel, ROLE_HINTS } from '../constants'
+import UserAvatar from '../components/UserAvatar.vue'
+
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024
+const AVATAR_TYPES = new Set(['image/jpeg', 'image/png'])
 
 const auth = useAuthStore()
 const toast = useToast()
 const busy = ref(false)
 const passwordBusy = ref(false)
 const photoBusy = ref(false)
+const avatarBusy = ref(false)
 const photos = ref(auth.user.photos || [])
 const remaining = computed(() => Math.max(0, 3 - photos.value.length))
 const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
@@ -65,6 +70,32 @@ async function deletePhoto(photo) {
     toast.success('图片已删除')
   } catch (error) { toast.error(errorMessage(error)) } finally { photoBusy.value = false }
 }
+function applyAvatar(data) {
+  auth.updateUser({ ...auth.user, avatar_url: data.avatar_url, avatar_visible: data.avatar_visible })
+}
+async function uploadAvatar(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  if (file.size > MAX_AVATAR_BYTES) return toast.error('头像图片不能超过 2 MB')
+  if (!AVATAR_TYPES.has(file.type)) return toast.error('头像仅支持 PNG 或 JPG 格式')
+  avatarBusy.value = true
+  try {
+    const body = new FormData()
+    body.append('avatar', file)
+    const { data } = await api.post('/users/me/avatar', body)
+    applyAvatar(data)
+    toast.success('头像已上传，等待管理员审核')
+  } catch (error) { toast.error(imageUploadErrorMessage(error)) } finally { avatarBusy.value = false }
+}
+async function deleteAvatar() {
+  avatarBusy.value = true
+  try {
+    const { data } = await api.delete('/users/me/avatar')
+    applyAvatar(data)
+    toast.success('头像已删除')
+  } catch (error) { toast.error(errorMessage(error)) } finally { avatarBusy.value = false }
+}
 </script>
 
 <template>
@@ -72,10 +103,18 @@ async function deletePhoto(photo) {
     <div class="page-title"><div><span class="eyebrow">PERSONAL SETTINGS</span><h1>个人设置</h1><p>管理公开资料、权限等级与协作联系方式。</p></div></div>
     <div class="profile-layout">
       <aside class="profile-summary">
-        <span class="profile-avatar">{{ auth.user.nickname.slice(0, 1) }}</span>
+        <UserAvatar :user="auth.user" :size="96" />
+        <div class="avatar-actions">
+          <label class="button secondary small avatar-upload" :class="{ disabled: avatarBusy }">
+            <ImagePlus :size="15" />{{ avatarBusy ? '上传中…' : auth.user.avatar_url ? '更换头像' : '上传头像' }}
+            <input type="file" accept="image/png,image/jpeg" :disabled="avatarBusy" @change="uploadAvatar" />
+          </label>
+          <button v-if="auth.user.avatar_url" class="icon-button" type="button" title="删除头像" aria-label="删除头像" :disabled="avatarBusy" @click="deleteAvatar"><Trash2 :size="16" /></button>
+        </div>
+        <p class="avatar-hint muted">仅支持 PNG / JPG，最大 2 MB；上传后需管理员审核通过才会公开展示。</p>
         <h2>{{ auth.user.nickname }}</h2><p>@{{ auth.user.username }}</p>
         <div class="profile-role-tags">
-          <span v-if="auth.isAdmin" class="admin-tag"><ShieldCheck :size="15" />管理员</span>
+          <span v-if="auth.isAdmin" class="admin-tag"><ShieldCheck :size="15" />超级管理员</span>
           <span v-else class="role-tag" :class="`role-${auth.user.role}`">
             <Store v-if="auth.user.role === 'staff'" :size="15" />
             <Heart v-else-if="auth.user.role === 'volunteer'" :size="15" />
@@ -90,7 +129,7 @@ async function deletePhoto(photo) {
         <div class="section-heading compact"><div><span class="section-index">01</span><h2>公开资料</h2><p>昵称和简介会展示在委托中</p></div></div>
         <form class="form-stack" @submit.prevent="save">
           <label>昵称<input v-model.trim="form.nickname" required maxlength="32" /></label>
-          <label>QQ 号<input v-model.trim="form.qq" inputmode="numeric" pattern="[0-9]{5,20}" maxlength="20" placeholder="接单人需要靠它联系你" /><small>{{ auth.user.role === 'staff' ? '店员 QQ 会在成员名录中向所有访客公开' : '委托双方始终可以看到彼此的 QQ，用于协作联系' }}</small></label>
+          <label>QQ 号<input v-model.trim="form.qq" inputmode="numeric" pattern="[0-9]{5,20}" maxlength="20" placeholder="接单人需要靠它联系你" /><small>{{ auth.user.role === 'staff' ? '管理员 QQ 会在成员名录中向所有访客公开' : '委托双方始终可以看到彼此的 QQ，用于协作联系' }}</small></label>
           <label v-if="auth.user.role === 'volunteer'" class="checkbox-inline profile-qq-public"><input v-model="form.qq_public" type="checkbox" /><span>在成员名录中公开 QQ 号</span></label>
           <label>个人简介<textarea v-model.trim="form.bio" maxlength="300" rows="6" placeholder="简单介绍你擅长的事情、空闲时间等"></textarea><small>{{ form.bio.length }}/300</small></label>
           <div><button class="button" :disabled="busy"><Save :size="17" />{{ busy ? '保存中…' : '保存更改' }}</button></div>
@@ -121,3 +160,42 @@ async function deletePhoto(photo) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.profile-summary .u-avatar {
+  display: flex;
+  margin: 0 auto 12px;
+}
+
+.avatar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.avatar-upload {
+  position: relative;
+  overflow: hidden;
+}
+
+.avatar-upload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.avatar-upload.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.avatar-hint {
+  max-width: 240px;
+  margin: 0 auto 14px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+</style>

@@ -81,6 +81,8 @@ main { min-height: calc(100vh - 72px); }
 .fb-state::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .fb-state.state-pending { color: var(--yellow); background: var(--yellow-soft); }
 .fb-state.state-handled { color: var(--blue); background: var(--blue-soft); }
+.fb-state.state-approved { color: #1d6649; background: var(--green-soft); }
+.fb-state.state-rejected { color: var(--red); background: var(--red-soft); }
 .feedback-dialog .form-stack { margin-top: 24px; }
 .hall-stats { display: grid; grid-template-columns: repeat(3, 98px); align-self: flex-end; margin-bottom: 35px; }
 .hall-stats div { padding-left: 18px; border-left: 1px solid var(--line); }
