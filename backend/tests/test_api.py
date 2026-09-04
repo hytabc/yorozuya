@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta
+from errno import ENOSPC
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -1018,6 +1020,23 @@ def test_user_profile_photos_upload_limits_task_visibility_and_moderation(monkey
             files=[("photos", ("large.png", b"\x89PNG\r\n\x1a\n" + b"0" * (5 * 1024 * 1024), "image/png"))],
         )
         assert too_large.status_code == 422
+        assert too_large.json()["detail"] == "单张照片不能超过 5 MiB"
+
+        empty_file = client.post(
+            "/api/users/me/photos",
+            headers=viewer,
+            files=[("photos", ("empty.png", b"", "image/png"))],
+        )
+        assert empty_file.status_code == 422
+        assert empty_file.json()["detail"] == "上传的照片不能为空"
+
+        invalid_format = client.post(
+            "/api/users/me/photos",
+            headers=viewer,
+            files=[("photos", ("not-an-image.png", b"not an image", "image/png"))],
+        )
+        assert invalid_format.status_code == 422
+        assert invalid_format.json()["detail"] == "仅支持 JPEG、PNG、GIF 或 WebP 图片"
 
         # 图片会随委托中的用户摘要返回，便于接取前查看委托人资料。
         task = create_task(client, owner, password=None, required=1, title="带个人图片的委托")
@@ -1052,6 +1071,24 @@ def test_user_profile_photos_upload_limits_task_visibility_and_moderation(monkey
         deleted = client.delete(f"/api/users/me/photos/{photo_id}", headers=owner)
         assert deleted.status_code == 200
         assert len(deleted.json()["photos"]) == 2
+
+
+def test_image_upload_reports_storage_space_error(monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "sugar_upload_dir", str(tmp_path / "uploads"))
+
+    def no_space_left(_: Path, __: bytes) -> int:
+        raise OSError(ENOSPC, "No space left on device")
+
+    monkeypatch.setattr(Path, "write_bytes", no_space_left)
+    with TestClient(app) as client:
+        user = auth(client, "photo_storage_error")
+        response = client.post(
+            "/api/users/me/photos",
+            headers=user,
+            files=[("photos", ("portrait.png", TINY_PNG, "image/png"))],
+        )
+        assert response.status_code == 500
+        assert response.json()["detail"] == "服务器存储空间不足，请稍后重试"
 
 
 def test_designated_single_member_accepts_or_declines_without_password():

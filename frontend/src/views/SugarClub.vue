@@ -1,12 +1,13 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { Camera, Crown, HeartHandshake, ImagePlus, MessageCircle, Pencil, Save, Trash2, X } from 'lucide-vue-next'
-import { api, errorMessage } from '../api'
+import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 const MAX_PHOTOS = 6
+const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
 const auth = useAuthStore()
 const toast = useToast()
 const profiles = ref([])
@@ -58,8 +59,8 @@ function selectPhotos(event) {
       toast.error(`${file.name} 超过 5 MiB`)
       continue
     }
-    if (!file.type.startsWith('image/')) {
-      toast.error(`${file.name} 不是图片`)
+    if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
+      toast.error(`${file.name} 仅支持 JPEG、PNG、GIF 或 WebP 格式`)
       continue
     }
     accepted.push({ file, url: URL.createObjectURL(file) })
@@ -105,7 +106,7 @@ async function saveProfile() {
     await load()
     toast.success('砂糖社档案已保存')
   } catch (error) {
-    toast.error(errorMessage(error))
+    toast.error(pendingPhotos.value.length ? imageUploadErrorMessage(error) : errorMessage(error))
   } finally {
     saving.value = false
   }

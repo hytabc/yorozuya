@@ -1,7 +1,7 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { CalendarDays, EyeOff, Heart, ImagePlus, KeyRound, Save, ShieldCheck, Store, Trash2, UserRound } from 'lucide-vue-next'
-import { api, errorMessage } from '../api'
+import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import { roleLabel, ROLE_HINTS } from '../constants'
@@ -13,6 +13,7 @@ const passwordBusy = ref(false)
 const photoBusy = ref(false)
 const photos = ref(auth.user.photos || [])
 const remaining = computed(() => Math.max(0, 3 - photos.value.length))
+const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
 const form = reactive({
   nickname: auth.user.nickname,
   qq: auth.user.qq || '',
@@ -44,6 +45,7 @@ async function uploadPhotos(event) {
   if (!files.length) return
   if (files.length > remaining.value) return toast.error(`还可以上传 ${remaining.value} 张图片`)
   if (files.some((file) => file.size > 5 * 1024 * 1024)) return toast.error('单张图片不能超过 5 MiB')
+  if (files.some((file) => !SUPPORTED_IMAGE_TYPES.has(file.type))) return toast.error('仅支持 JPEG、PNG、GIF 或 WebP 图片')
   const body = new FormData()
   files.forEach((file) => body.append('photos', file))
   photoBusy.value = true
@@ -52,7 +54,7 @@ async function uploadPhotos(event) {
     photos.value = data.photos
     auth.updateUser({ ...auth.user, photos: data.photos })
     toast.success('图片已上传')
-  } catch (error) { toast.error(errorMessage(error)) } finally { photoBusy.value = false }
+  } catch (error) { toast.error(imageUploadErrorMessage(error)) } finally { photoBusy.value = false }
 }
 async function deletePhoto(photo) {
   photoBusy.value = true

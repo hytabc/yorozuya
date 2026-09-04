@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
+from errno import EACCES, ENOSPC, EPERM, EROFS
 from pathlib import Path
 from typing import Annotated
 from uuid import uuid4
@@ -484,6 +485,14 @@ async def read_sugar_images(photos: list[UploadFile]) -> list[tuple[str, bytes]]
     return images
 
 
+def image_storage_error_detail(error: OSError) -> str:
+    if error.errno == ENOSPC:
+        return "服务器存储空间不足，请稍后重试"
+    if error.errno in (EACCES, EPERM, EROFS):
+        return "服务器暂时无法写入图片，请稍后重试"
+    return "图片保存失败，请稍后重试"
+
+
 def store_sugar_images(profile: SugarProfile, images: list[tuple[str, bytes]]) -> list[SugarPhoto]:
     settings.ensure_storage_directory()
     stored: list[tuple[str, str]] = []
@@ -500,7 +509,7 @@ def store_sugar_images(profile: SugarProfile, images: list[tuple[str, bytes]]) -
                 Path(destination).unlink(missing_ok=True)
             except OSError:
                 pass
-        raise HTTPException(status_code=500, detail="照片保存失败，请稍后重试") from error
+        raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
     records = [SugarPhoto(profile=profile, file_path=file_path) for file_path, _ in stored]
     return records
 
@@ -640,7 +649,7 @@ def store_user_images(user: User, images: list[tuple[str, bytes]]) -> list[UserP
     except OSError as error:
         for _, destination in stored:
             destination.unlink(missing_ok=True)
-        raise HTTPException(status_code=500, detail="图片保存失败，请稍后重试") from error
+        raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
     return [UserPhoto(user=user, file_path=file_path) for file_path, _ in stored]
 
 
