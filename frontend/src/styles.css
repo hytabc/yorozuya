@@ -305,6 +305,8 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .admin-toolbar h2 { display: inline; margin: 0 10px 0 0; font-size: 18px; }
 .admin-toolbar > div span { color: var(--muted); font-size: 11px; }
 .admin-toolbar .search-field { width: 260px; min-height: 40px; }
+.report-limit-box { display: flex; align-items: center; gap: 8px; }
+.report-limit-box > span { color: var(--muted); font-size: 12px; }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
 th { padding: 13px 16px; color: #79827e; background: #f7f8f7; text-align: left; font-size: 10px; font-weight: 650; }

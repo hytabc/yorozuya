@@ -20,14 +20,18 @@ const selected = ref(null)
 const showCreate = ref(false)
 const showFeedback = ref(false)
 const busy = ref(false)
-const filters = reactive({ search: '', category: '', status: '', pay_type: '' })
+const filters = reactive({ search: '', category: '', status: auth.isAdmin || auth.isStaff ? '' : 'published', pay_type: '' })
 const categories = CATEGORIES
 const payOptions = [
   { value: '', label: '全部报酬' },
   { value: 'paid', label: '有偿' },
   { value: 'free', label: '无偿' },
 ]
-const statuses = [{ value: '', label: '全部状态' }, { value: 'published', label: '招募中' }, { value: 'accepted', label: '处理中' }, { value: 'awaiting', label: '待确认' }, { value: 'cancelling', label: '取消确认中' }, { value: 'completed', label: '已完成' }, { value: 'expired', label: '已过期' }]
+const isManager = computed(() => auth.isAdmin || auth.isStaff)
+// 普通用户在大厅只能查看招募中的委托；管理员/店员可查看全部状态。
+const statuses = computed(() => isManager.value
+  ? [{ value: '', label: '全部状态' }, { value: 'published', label: '招募中' }, { value: 'accepted', label: '处理中' }, { value: 'awaiting', label: '待确认' }, { value: 'cancelling', label: '取消确认中' }, { value: 'completed', label: '已完成' }, { value: 'expired', label: '已过期' }]
+  : [{ value: 'published', label: '招募中' }])
 
 const stats = computed(() => ({
   open: tasks.value.filter((item) => item.status === 'published').length,
@@ -51,6 +55,10 @@ function create() {
 }
 function search() { clearTimeout(timer); timer = setTimeout(load, 280) }
 function created(task) { showCreate.value = false; tasks.value.unshift(task) }
+function reported() {
+  selected.value = null
+  load()
+}
 
 async function action(key, payload = {}) {
   if (key === 'login') return router.push({ path: '/login', query: { redirect: '/' } })
@@ -133,7 +141,7 @@ onMounted(load)
           <p>本网站仅为信息撮合平台，提供委托需求发布、志愿者接单申请的信息展示服务。平台不参与、不担保、不介入任何委托的执行、报酬交易、线下沟通。所有委托内容由发布用户自行编写，平台不对委托内容真实性、合法性做前置人工审核，违规内容依靠用户举报机制进行处理。</p>
         </div>
         <div class="disclaimer-part">
-          <h3>二、关于无偿委托</h3>
+          <h3>二、关于委托</h3>
           <ol>
             <li>平台不收取任何服务费、抽成，不接收、不处理任何资金流转。委托人与志愿者之间的报酬、转账、押金等全部由双方私下自行协商完成。</li>
             <li>平台不对资金安全、交易履约做任何担保。请用户提高警惕，谨防诈骗，拒绝任何提前缴纳押金、预付款等要求。</li>
@@ -164,7 +172,7 @@ onMounted(load)
       </div>
     </section>
     <CreateTaskDialog v-if="showCreate" @close="showCreate = false" @created="created" />
-    <TaskDialog v-if="selected" :task="selected" :busy="busy" @close="selected = null" @action="action" />
+    <TaskDialog v-if="selected" :task="selected" :busy="busy" @close="selected = null" @action="action" @reported="reported" />
     <FeedbackDialog v-if="showFeedback" @close="showFeedback = false" />
   </div>
 </template>

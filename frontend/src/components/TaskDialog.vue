@@ -1,17 +1,19 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { CalendarClock, Coins, KeyRound, LockOpen, MessageCircle, Store, UserRound, UsersRound, X } from 'lucide-vue-next'
+import { CalendarClock, Coins, Flag, KeyRound, LockOpen, MessageCircle, Store, UserRound, UsersRound, X } from 'lucide-vue-next'
 import { api } from '../api'
 import { useAuthStore } from '../stores/auth'
+import ReportDialog from './ReportDialog.vue'
 import StatusBadge from './StatusBadge.vue'
 import UserProfileCard from './UserProfileCard.vue'
 
 const props = defineProps({ task: { type: Object, required: true }, busy: Boolean })
-const emit = defineEmits(['close', 'action'])
+const emit = defineEmits(['close', 'action', 'reported'])
 const auth = useAuthStore()
 const password = ref('')
 const profileUserId = ref(null)
 const staffGroupId = ref('')
+const showReport = ref(false)
 
 function openProfile(userId) {
   if (!auth.isLoggedIn) return emit('action', 'login')
@@ -22,6 +24,7 @@ const isPublisher = computed(() => auth.user?.id === props.task.publisher_id)
 const meMember = computed(() => props.task.members?.find((m) => m.user.id === auth.user?.id))
 const isMember = computed(() => Boolean(meMember.value))
 const isParticipant = computed(() => isPublisher.value || meMember.value?.response_status === 'accepted')
+const canReport = computed(() => auth.isLoggedIn && !auth.isAdmin && !auth.isStaff && !isParticipant.value)
 const published = computed(() => props.task.status === 'published')
 const designated = computed(() => Boolean(props.task.is_designated))
 const working = computed(() => props.task.status === 'accepted' || props.task.status === 'awaiting')
@@ -215,9 +218,11 @@ function resetPassword() {
       </div>
 
       <div v-if="!task.is_visible" class="notice error-notice">该委托已被管理人员屏蔽：{{ task.admin_note || '未填写原因' }}</div>
+      <div v-if="task.reported && (isParticipant || auth.isAdmin || auth.isStaff)" class="notice risk-notice">该委托已被举报，正在等待店员/管理员处理。</div>
       <footer class="dialog-footer">
         <span class="muted">发布于 {{ format(task.created_at) }}<template v-if="task.started_at"> · 开始于 {{ format(task.started_at) }}</template><template v-if="task.status === 'cancelling'"> · 取消请求发起于 {{ format(task.cancel_requested_at) }}</template></span>
         <div class="dialog-actions">
+          <button v-if="canReport" class="button secondary small" :disabled="busy" @click="showReport = true"><Flag :size="14" />举报</button>
           <button v-if="published && isPublisher && !isMember && !designated" class="button" :disabled="busy || joinedCount === 0" @click="$emit('action', 'start')">{{ busy ? '处理中…' : '开始委托任务' }}</button>
           <button v-if="published && isPublisher && !isMember && !designated" class="button secondary small" :disabled="busy" @click="resetPassword">{{ requiresPassword ? '重设接取密码' : '设置接取密码' }}</button>
           <button v-if="published && isMember && !isPublisher && !designated && !cancelling" class="button danger small" :disabled="busy" @click="$emit('action', 'leave')">{{ busy ? '处理中…' : '退出接取' }}</button>
@@ -231,6 +236,7 @@ function resetPassword() {
           <button v-if="published && !auth.isLoggedIn" class="button" @click="$emit('action', 'login')">{{ requiresPassword ? '登录后联系委托人' : '登录后直接接取' }}</button>
         </div>
       </footer>
+      <ReportDialog v-if="showReport" :task="task" @close="showReport = false" @reported="$emit('reported')" />
     </section>
   </div>
 </template>

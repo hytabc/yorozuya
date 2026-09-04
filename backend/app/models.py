@@ -38,6 +38,11 @@ class FeedbackStatus(str, Enum):
     HANDLED = "handled"  # 已处理
 
 
+class ReportStatus(str, Enum):
+    PENDING = "pending"  # 待处理
+    HANDLED = "handled"  # 已处理
+
+
 class UserRole(str, Enum):
     USER = "user"  # 普通用户：可发布委托，也可接取无密码委托
     VOLUNTEER = "volunteer"  # 志愿者：可发布并接取全部委托（管理员账号可升级）
@@ -155,6 +160,11 @@ class Task(Base):
         cascade="all, delete-orphan",
         order_by="TaskMember.joined_at",
     )
+    reports: Mapped[list["TaskReport"]] = relationship(
+        back_populates="task",
+        cascade="all, delete-orphan",
+        order_by="TaskReport.created_at",
+    )
 
     # ---- 便捷判断 ----
     @property
@@ -203,6 +213,37 @@ class TaskMember(Base):
 
     task: Mapped[Task] = relationship(back_populates="members")
     user: Mapped[User] = relationship(foreign_keys=[user_id], back_populates="memberships")
+
+
+class TaskReport(Base):
+    """委托举报：被举报的委托不进入大厅，仅由店员/管理员处理。"""
+
+    __tablename__ = "task_reports"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"), index=True)
+    reporter_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    reason: Mapped[str] = mapped_column(String(200))
+    status: Mapped[ReportStatus] = mapped_column(
+        SqlEnum(ReportStatus, values_callable=lambda values: [item.value for item in values]),
+        default=ReportStatus.PENDING,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    handled_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    handled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    task: Mapped[Task] = relationship(foreign_keys=[task_id], back_populates="reports")
+    reporter: Mapped[User] = relationship(foreign_keys=[reporter_id])
+
+
+class AppSetting(Base):
+    """平台级配置（键值对），例如每日举报上限。"""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(String(255))
 
 
 class Feedback(Base):

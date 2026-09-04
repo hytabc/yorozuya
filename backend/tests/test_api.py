@@ -499,8 +499,9 @@ def test_expired_task_is_updated_when_listed():
                 )
             )
             db.commit()
-        tasks = client.get("/api/tasks", headers=publisher).json()
-        assert tasks[0]["status"] == "expired"
+        # 大厅对普通用户仅展示招募中；过期委托通过“我的委托”验证自动过期。
+        mine = client.get("/api/tasks/mine", headers=publisher).json()
+        assert mine[0]["status"] == "expired"
 
 
 def test_task_expiry_only_accepts_fixed_day_options():
@@ -1317,3 +1318,155 @@ def test_anonymous_designated_task_shows_only_own_pending_status_until_accept():
         assert accepted["publisher_id"] == created["publisher_id"]
         assert accepted["publisher"]["nickname"] != "匿名委托人"
         assert accepted["contact_qq"] == "10086031"
+
+
+def test_hall_only_shows_published_for_regular_users():
+    with TestClient(app) as client:
+        publisher = auth(client, "hall_pub")
+        taker = auth(client, "hall_taker", role="volunteer")
+        admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
+        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        published_task = create_task(client, publisher, password="pw-hall-1", required=1)
+        processing = create_task(client, publisher, password="pw-hall-2", required=1)
+        client.post(f"/api/tasks/{processing['id']}/accept", headers=taker, json={"password": "pw-hall-2"}).json()
+
+        # 普通用户（志愿者）在大厅只能看到招募中的委托
+        hall = client.get("/api/tasks", headers=taker).json()
+        ids = [item["id"] for item in hall]
+        assert published_task["id"] in ids
+        assert processing["id"] not in ids
+        assert all(item["status"] == "published" for item in hall)
+
+        # 未登录同样只能看到招募中的委托
+        anon_hall = client.get("/api/tasks").json()
+        assert all(item["status"] == "published" for item in anon_hall)
+
+        # 管理员可查看全部状态
+        admin_hall = client.get("/api/tasks", headers=admin).json()
+        admin_ids = [item["id"] for item in admin_hall]
+        assert published_task["id"] in admin_ids
+        assert processing["id"] in admin_ids
+
+        # 处理中的委托详情仅委托双方可见
+        assert client.get(f"/api/tasks/{processing['id']}", headers=publisher).status_code == 200
+        assert client.get(f"/api/tasks/{processing['id']}", headers=taker).status_code == 200
+        stranger = auth(client, "hall_stranger")
+        assert client.get(f"/api/tasks/{processing['id']}", headers=stranger).status_code == 404
+        assert client.get(f"/api/tasks/{processing['id']}").status_code == 404
+
+
+def test_report_flow_daily_limit_and_resolve():
+    with TestClient(app) as client:
+        publisher = auth(client, "report_pub")
+        reporter = auth(client, "report_reporter")
+        second = auth(client, "report_second")
+
+        task1 = create_task(client, publisher, password="pw-report-1", required=1)
+        task2 = create_task(client, publisher, password="pw-report-2", required=1)
+        task3 = create_task(client, publisher, password="pw-report-3", required=1)
+
+        # 不能举报自己的委托
+        own = client.post(f"/api/tasks/{task1['id']}/report", headers=publisher, json={"reason": "自己举报自己"})
+        assert own.status_code == 422
+
+        # 未登录不能举报
+        assert client.post(f"/api/tasks/{task1['id']}/report", json={"reason": "匿名举报"}).status_code == 401
+
+        # 默认每日最多 2 个
+        r1 = client.post(f"/api/tasks/{task1['id']}/report", headers=reporter, json={"reason": "违规内容测试"})
+        assert r1.status_code == 201
+        r2 = client.post(f"/api/tasks/{task2['id']}/report", headers=reporter, json={"reason": "诈骗嫌疑测试"})
+        assert r2.status_code == 201
+        r3 = client.post(f"/api/tasks/{task3['id']}/report", headers=reporter, json={"reason": "超限举报测试"})
+        assert r3.status_code == 429
+
+        # 同一委托重复举报被拒
+        dup = client.post(f"/api/tasks/{task1['id']}/report", headers=reporter, json={"reason": "重复举报"})
+        assert dup.status_code == 409
+
+        # 被举报的委托不显示在大厅
+        hall = client.get("/api/tasks", headers=second).json()
+        hall_ids = [item["id"] for item in hall]
+        assert task1["id"] not in hall_ids
+        assert task2["id"] not in hall_ids
+
+        # 被举报的委托详情：普通第三方不可见，委托双方可见
+        assert client.get(f"/api/tasks/{task1['id']}", headers=second).status_code == 404
+        assert client.get(f"/api/tasks/{task1['id']}", headers=publisher).status_code == 200
+
+        # 普通用户不能访问举报管理接口
+        assert client.get("/api/admin/reports", headers=reporter).status_code == 403
+        assert client.get("/api/admin/settings/report-limit", headers=reporter).status_code == 403
+
+        # 店员可查看举报并处理
+        staff = auth(client, "report_staff")
+        staff_id = client.get("/api/auth/me", headers=staff).json()["id"]
+        admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
+        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+        promote_staff = client.patch(f"/api/admin/users/{staff_id}/role", headers=admin, json={"role": "staff"})
+        assert promote_staff.status_code == 200
+
+        reports = client.get("/api/admin/reports", headers=staff).json()
+        assert len(reports) == 2
+        assert all(item["status"] == "pending" for item in reports)
+
+        # 关闭举报：委托恢复显示
+        close_report = next(item for item in reports if item["task_id"] == task1["id"])
+        closed = client.post(f"/api/admin/reports/{close_report['id']}/resolve", headers=staff, json={"action": "close"})
+        assert closed.status_code == 200
+        assert closed.json()["status"] == "handled"
+        hall_after = client.get("/api/tasks", headers=second).json()
+        assert task1["id"] in [item["id"] for item in hall_after]
+
+        # 屏蔽委托：要求理由，委托从大厅与详情消失
+        hide_report = next(item for item in reports if item["task_id"] == task2["id"])
+        no_note = client.post(f"/api/admin/reports/{hide_report['id']}/resolve", headers=staff, json={"action": "hide"})
+        assert no_note.status_code == 422
+        hidden = client.post(
+            f"/api/admin/reports/{hide_report['id']}/resolve", headers=staff,
+            json={"action": "hide", "admin_note": "核实为违规内容"},
+        )
+        assert hidden.status_code == 200
+        hidden_task = client.get(f"/api/tasks/{task2['id']}", headers=staff).json()
+        assert hidden_task["is_visible"] is False
+        assert hidden_task["admin_note"] == "核实为违规内容"
+        assert client.get(f"/api/tasks/{task2['id']}", headers=second).status_code == 404
+
+        # 重新放开：委托恢复可见
+        reopened = client.post(
+            f"/api/admin/reports/{hide_report['id']}/resolve", headers=staff,
+            json={"action": "restore"},
+        )
+        assert reopened.status_code == 200
+        reopened_task = client.get(f"/api/tasks/{task2['id']}", headers=staff).json()
+        assert reopened_task["is_visible"] is True
+        assert client.get(f"/api/tasks/{task2['id']}", headers=second).status_code == 200
+
+
+def test_report_daily_limit_configurable():
+    with TestClient(app) as client:
+        publisher = auth(client, "limit_pub")
+        reporter = auth(client, "limit_reporter")
+        staff = auth(client, "limit_staff")
+        staff_id = client.get("/api/auth/me", headers=staff).json()["id"]
+        admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
+        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+        assert client.patch(f"/api/admin/users/{staff_id}/role", headers=admin, json={"role": "staff"}).status_code == 200
+
+        # 默认上限 2
+        assert client.get("/api/admin/settings/report-limit", headers=staff).json()["daily_limit"] == 2
+        tasks = [create_task(client, publisher, password=f"pw-limit-{i}", required=1) for i in range(3)]
+        client.post(f"/api/tasks/{tasks[0]['id']}/report", headers=reporter, json={"reason": "第一条"})
+        client.post(f"/api/tasks/{tasks[1]['id']}/report", headers=reporter, json={"reason": "第二条"})
+        assert client.post(f"/api/tasks/{tasks[2]['id']}/report", headers=reporter, json={"reason": "第三条"}).status_code == 429
+
+        # 店员/管理员可调整上限
+        updated = client.patch("/api/admin/settings/report-limit", headers=staff, json={"daily_limit": 5})
+        assert updated.status_code == 200
+        assert updated.json()["daily_limit"] == 5
+        assert client.get("/api/admin/settings/report-limit", headers=staff).json()["daily_limit"] == 5
+        assert client.post(f"/api/tasks/{tasks[2]['id']}/report", headers=reporter, json={"reason": "第三条重试"}).status_code == 201
+
+        # 非法值被拒绝
+        assert client.patch("/api/admin/settings/report-limit", headers=staff, json={"daily_limit": 0}).status_code == 422

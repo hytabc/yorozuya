@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, Image as ImageIcon, KeyRound, MessageCircle, RotateCcw, Save, Search, ShieldCheck, Store, UsersRound, X } from 'lucide-vue-next'
+import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, Flag, Image as ImageIcon, KeyRound, MessageCircle, RotateCcw, Save, Search, ShieldCheck, Store, UsersRound, X } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
@@ -15,6 +15,11 @@ const tasks = ref([])
 const users = ref([])
 const feedbacks = ref([])
 const photoUsers = ref([])
+const reports = ref([])
+const reportLimit = ref(2)
+const reportLimitInput = ref(2)
+const savingReportLimit = ref(false)
+const savingReportId = ref(null)
 const userLimits = reactive({})
 const stats = ref({ users: 0, tasks: 0, processing: 0, completed: 0, hidden: 0 })
 const activeTab = ref('tasks')
@@ -29,6 +34,8 @@ const resetPasswordForm = reactive({ password: '', confirm: '' })
 const filteredTasks = computed(() => tasks.value.filter((task) => `${task.title}${task.publisher.nickname}`.toLowerCase().includes(taskSearch.value.toLowerCase())))
 const filteredUsers = computed(() => users.value.filter((user) => `${user.username}${user.nickname}`.toLowerCase().includes(userSearch.value.toLowerCase())))
 const pendingFeedbacks = computed(() => feedbacks.value.filter((item) => item.status === 'pending').length)
+const pendingReports = computed(() => reports.value.filter((item) => item.status === 'pending').length)
+const sortedReports = computed(() => [...reports.value].sort((a, b) => (a.status === 'pending' ? -1 : 1) - (b.status === 'pending' ? -1 : 1)))
 const statItems = computed(() => [
   { label: '注册用户', value: stats.value.users, icon: UsersRound },
   { label: '全部委托', value: stats.value.tasks, icon: ClipboardList },
@@ -39,25 +46,33 @@ async function load() {
   loading.value = true
   try {
     if (!auth.isAdmin) {
-      const [taskRes, userRes, photoRes] = await Promise.all([api.get('/admin/tasks'), api.get('/admin/users'), api.get('/admin/photos')])
+      const [taskRes, userRes, photoRes, reportRes, limitRes] = await Promise.all([api.get('/admin/tasks'), api.get('/admin/users'), api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/settings/report-limit')])
       tasks.value = taskRes.data
       stats.value.hidden = tasks.value.filter((task) => !task.is_visible).length
       users.value = userRes.data
       photoUsers.value = photoRes.data
+      reports.value = reportRes.data
+      reportLimit.value = limitRes.data.daily_limit
+      reportLimitInput.value = limitRes.data.daily_limit
       return
     }
-    const [taskRes, userRes, statRes, feedbackRes, photoRes] = await Promise.all([
+    const [taskRes, userRes, statRes, feedbackRes, photoRes, reportRes, limitRes] = await Promise.all([
       api.get('/admin/tasks'),
       api.get('/admin/users'),
       api.get('/admin/stats'),
       api.get('/admin/feedback'),
       api.get('/admin/photos'),
+      api.get('/admin/reports'),
+      api.get('/admin/settings/report-limit'),
     ])
     tasks.value = taskRes.data
     users.value = userRes.data
     stats.value = statRes.data
     feedbacks.value = feedbackRes.data
     photoUsers.value = photoRes.data
+    reports.value = reportRes.data
+    reportLimit.value = limitRes.data.daily_limit
+    reportLimitInput.value = limitRes.data.daily_limit
     users.value.forEach((user) => { userLimits[user.id] = user.max_concurrent_tasks })
   } catch (error) {
     toast.error(errorMessage(error))
@@ -163,6 +178,33 @@ async function reopenFeedback(item) {
   } catch (error) { toast.error(errorMessage(error)) }
 }
 
+async function resolveReport(report, action) {
+  let adminNote = null
+  if (action === 'hide') {
+    adminNote = window.prompt('请输入屏蔽理由（将展示给委托人）', report.task_title ? '' : '')
+    if (adminNote === null) return
+    if (!adminNote.trim()) return toast.error('屏蔽委托时必须填写理由')
+  }
+  savingReportId.value = report.id
+  try {
+    const { data } = await api.post(`/admin/reports/${report.id}/resolve`, { action, admin_note: action === 'hide' ? adminNote.trim() : null })
+    reports.value[reports.value.findIndex((r) => r.id === report.id)] = data
+    toast.success(action === 'close' ? '举报已关闭' : action === 'hide' ? '委托已屏蔽' : '委托已重新放开')
+  } catch (error) { toast.error(errorMessage(error)) } finally { savingReportId.value = null }
+}
+
+async function saveReportLimit() {
+  const value = Number(reportLimitInput.value)
+  if (!Number.isInteger(value) || value < 1) return toast.error('每日举报上限需为不小于 1 的整数')
+  savingReportLimit.value = true
+  try {
+    const { data } = await api.patch('/admin/settings/report-limit', { daily_limit: value })
+    reportLimit.value = data.daily_limit
+    reportLimitInput.value = data.daily_limit
+    toast.success('每日举报上限已更新')
+  } catch (error) { toast.error(errorMessage(error)) } finally { savingReportLimit.value = false }
+}
+
 const date = (value) => new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 const authorOf = (item) => (item.user ? item.user.nickname : item.contact || '游客')
 onMounted(load)
@@ -175,10 +217,36 @@ onMounted(load)
 
     <div class="tabs admin-tabs" role="tablist" aria-label="后台管理内容">
       <button :class="{ active: activeTab === 'tasks' }" role="tab" :aria-selected="activeTab === 'tasks'" @click="activeTab = 'tasks'">委托管理</button>
+      <button :class="{ active: activeTab === 'reports' }" role="tab" :aria-selected="activeTab === 'reports'" @click="activeTab = 'reports'">举报处理<span v-if="pendingReports">{{ pendingReports }}</span></button>
       <button :class="{ active: activeTab === 'users' }" role="tab" :aria-selected="activeTab === 'users'" @click="activeTab = 'users'">用户与权限</button>
       <button :class="{ active: activeTab === 'photos' }" role="tab" :aria-selected="activeTab === 'photos'" @click="activeTab = 'photos'">图片管理</button>
       <button v-if="auth.isAdmin" :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
     </div>
+
+    <section v-if="activeTab === 'reports'" class="admin-table-section">
+      <div class="admin-toolbar"><div><h2>举报处理</h2><span>待处理 {{ pendingReports }} 条</span></div>
+        <div class="report-limit-box"><span>每日举报上限</span><input v-model.number="reportLimitInput" class="limit-input" type="number" min="1" max="100" aria-label="每日举报上限" /><button class="button secondary small" :disabled="savingReportLimit || reportLimitInput === reportLimit" @click="saveReportLimit"><Save :size="15" />{{ savingReportLimit ? '保存中…' : '保存' }}</button></div>
+      </div>
+      <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
+      <ul v-else-if="sortedReports.length" class="feedback-admin-list">
+        <li v-for="item in sortedReports" :key="item.id" :class="{ handled: item.status === 'handled' }">
+          <div class="fb-head">
+            <span class="fb-state" :class="`state-${item.status}`">{{ item.status === 'pending' ? '待处理' : '已处理' }}</span>
+            <strong>#{{ item.task_id }} {{ item.task_title }}</strong>
+            <span class="muted">举报人：{{ item.reporter.nickname }}</span>
+            <time class="muted">{{ date(item.created_at) }}</time>
+          </div>
+          <p class="fb-content">原因：{{ item.reason }}</p>
+          <div class="fb-actions">
+            <button v-if="item.status === 'pending'" class="button secondary small" :disabled="savingReportId === item.id" @click="resolveReport(item, 'close')"><Check :size="15" />关闭举报</button>
+            <button v-if="item.status === 'pending'" class="button secondary small" :disabled="savingReportId === item.id" @click="resolveReport(item, 'hide')"><EyeOff :size="15" />屏蔽委托</button>
+            <button v-if="item.status === 'pending'" class="button secondary small" :disabled="savingReportId === item.id" @click="resolveReport(item, 'restore')"><RotateCcw :size="15" />重新放开</button>
+            <span v-if="item.status === 'handled'" class="muted"><Flag :size="14" /> 已处理</span>
+          </div>
+        </li>
+      </ul>
+      <div v-else class="feedback-admin-empty"><Flag :size="28" />暂无举报</div>
+    </section>
 
     <section v-if="activeTab === 'tasks'" class="admin-table-section">
       <div class="admin-toolbar"><div><h2>全部委托</h2><span>隐藏 {{ stats.hidden }} 项</span></div><label class="search-field"><Search :size="17" /><input v-model="taskSearch" placeholder="搜索标题或发布人" /></label></div>

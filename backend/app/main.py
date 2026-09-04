@@ -18,8 +18,10 @@ from .config import settings
 from .database import Base, SessionLocal, engine, get_db
 from .dependencies import get_admin, get_current_user, get_optional_user, get_role_manager
 from .models import (
+    AppSetting,
     Feedback,
     FeedbackStatus,
+    ReportStatus,
     SugarPair,
     SugarPairStatus,
     SugarPhoto,
@@ -27,6 +29,7 @@ from .models import (
     Task,
     TaskMember,
     TaskMemberResponse,
+    TaskReport,
     TaskStatus,
     User,
     UserPhoto,
@@ -45,10 +48,15 @@ from .schemas import (
     FeedbackUpdate,
     LoginRequest,
     PasswordUpdate,
+    ReportCreate,
+    ReportLimitOut,
+    ReportLimitUpdate,
+    ReportResolveRequest,
     RegisterRequest,
     TaskCreate,
     TaskMemberOut,
     TaskOut,
+    TaskReportOut,
     StaffDirectoryOut,
     SugarPairOut,
     SugarPhotoOut,
@@ -230,6 +238,7 @@ def task_query():
     return select(Task).options(
         joinedload(Task.publisher).joinedload(User.photos),
         joinedload(Task.members).joinedload(TaskMember.user).joinedload(User.photos),
+        joinedload(Task.reports),
     )
 
 
@@ -287,6 +296,7 @@ def present_members(task: Task, viewer: User | None) -> list[TaskMemberOut]:
 
 def present_task(task: Task, viewer: User | None = None) -> TaskOut:
     data = TaskOut.model_validate(task)
+    data.reported = any(report.status == ReportStatus.PENDING for report in task.reports)
     can_see_hidden = viewer is not None and (
         viewer.is_admin or viewer.role == UserRole.STAFF or viewer.id == task.publisher_id
     )
@@ -357,6 +367,48 @@ def get_task_or_404(db: Session, task_id: int) -> Task:
 def can_view_hidden_task(task: Task, viewer: User | None) -> bool:
     return viewer is not None and (
         viewer.is_admin or viewer.role == UserRole.STAFF or viewer.id == task.publisher_id
+    )
+
+
+def is_task_manager(viewer: User | None) -> bool:
+    return viewer is not None and (viewer.is_admin or viewer.role == UserRole.STAFF)
+
+
+def is_task_participant(task: Task, viewer: User | None) -> bool:
+    return viewer is not None and (
+        viewer.id == task.publisher_id or any(m.user_id == viewer.id for m in task.members)
+    )
+
+
+def get_setting_int(db: Session, key: str, default: int) -> int:
+    setting = db.get(AppSetting, key)
+    if setting is None:
+        return default
+    try:
+        return int(setting.value)
+    except (TypeError, ValueError):
+        return default
+
+
+def set_setting(db: Session, key: str, value: str) -> None:
+    setting = db.get(AppSetting, key)
+    if setting is None:
+        db.add(AppSetting(key=key, value=value))
+    else:
+        setting.value = value
+
+
+def present_report(report: TaskReport) -> TaskReportOut:
+    return TaskReportOut(
+        id=report.id,
+        task_id=report.task_id,
+        task_title=report.task.title if report.task else '',
+        task_status=report.task.status if report.task else TaskStatus.PUBLISHED,
+        reporter=present_user_public(report.reporter),
+        reason=report.reason,
+        status=report.status,
+        created_at=report.created_at,
+        handled_at=report.handled_at,
     )
 
 
@@ -1093,13 +1145,17 @@ def list_tasks(
     db: Session = Depends(get_db),
 ):
     expire_due_tasks(db)
-    query = task_query().where(Task.is_visible.is_(True))
+    reported_ids = select(TaskReport.task_id).where(TaskReport.status == ReportStatus.PENDING)
+    query = task_query().where(Task.is_visible.is_(True), ~Task.id.in_(reported_ids))
     if search:
         query = query.where(or_(Task.title.contains(search), Task.description.contains(search)))
     if category:
         query = query.where(Task.category == category)
-    if task_status:
+    # 普通用户只能浏览招募中的委托；管理员/店员可查看全部状态。
+    if task_status and is_task_manager(viewer):
         query = query.where(Task.status == task_status)
+    elif not is_task_manager(viewer):
+        query = query.where(Task.status == TaskStatus.PUBLISHED)
     if pay_type in ("paid", "free"):
         query = query.where(Task.pay_type == pay_type)
     tasks = db.scalars(query.order_by(Task.created_at.desc()).limit(200)).unique().all()
@@ -1129,6 +1185,16 @@ def task_detail(task_id: int, viewer: User | None = Depends(get_optional_user), 
     task = get_task_or_404(db, task_id)
     if not task.is_visible and not can_view_hidden_task(task, viewer):
         raise HTTPException(status_code=404, detail="委托不存在")
+    reported = db.scalar(
+        select(TaskReport.id).where(
+            TaskReport.task_id == task_id,
+            TaskReport.status == ReportStatus.PENDING,
+        ).limit(1)
+    ) is not None
+    # 被举报的委托仅店员/管理员/委托双方可见；处理中或已完成的委托仅委托双方可见。
+    if reported or task.status != TaskStatus.PUBLISHED:
+        if not is_task_manager(viewer) and not is_task_participant(task, viewer):
+            raise HTTPException(status_code=404, detail="委托不存在")
     return present_task(task, viewer)
 
 
@@ -1178,6 +1244,106 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
         )
     db.commit()
     return present_task(get_task_or_404(db, task.id), user)
+
+
+@app.post("/api/tasks/{task_id}/report", response_model=TaskReportOut, status_code=status.HTTP_201_CREATED)
+def report_task(
+    task_id: int,
+    payload: ReportCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """举报委托：被举报的委托不进入大厅，仅由店员/管理员处理。"""
+    task = get_task_or_404(db, task_id)
+    if task.publisher_id == user.id:
+        raise HTTPException(status_code=422, detail="不能举报自己发布的委托")
+    existing = db.scalar(
+        select(TaskReport).where(
+            TaskReport.task_id == task_id,
+            TaskReport.reporter_id == user.id,
+        )
+    )
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="你已经举报过该委托")
+    daily_limit = get_setting_int(db, "report_daily_limit", 2)
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_count = db.scalar(
+        select(func.count()).select_from(TaskReport).where(
+            TaskReport.reporter_id == user.id,
+            TaskReport.created_at >= today_start,
+        )
+    ) or 0
+    if today_count >= daily_limit:
+        raise HTTPException(status_code=429, detail=f"今日举报次数已达上限（{daily_limit} 次）")
+    report = TaskReport(task_id=task_id, reporter_id=user.id, reason=payload.reason.strip())
+    db.add(report)
+    db.commit()
+    return present_report(db.get(TaskReport, report.id))
+
+
+@app.get("/api/admin/reports", response_model=list[TaskReportOut])
+def admin_reports(_: User = Depends(get_role_manager), db: Session = Depends(get_db)):
+    reports = db.scalars(
+        select(TaskReport)
+        .options(joinedload(TaskReport.task), joinedload(TaskReport.reporter))
+        .order_by(TaskReport.created_at.desc())
+        .limit(500)
+    ).unique().all()
+    return [present_report(report) for report in reports]
+
+
+@app.post("/api/admin/reports/{report_id}/resolve", response_model=TaskReportOut)
+def resolve_report(
+    report_id: int,
+    payload: ReportResolveRequest,
+    manager: User = Depends(get_role_manager),
+    db: Session = Depends(get_db),
+):
+    """处理被举报的委托：close 关闭举报 / hide 屏蔽委托 / restore 重新放开。"""
+    report = db.get(TaskReport, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="举报不存在")
+    task = report.task
+    if payload.action == "hide":
+        note = payload.admin_note.strip() if payload.admin_note else None
+        if not note:
+            raise HTTPException(status_code=422, detail="屏蔽委托时必须填写理由")
+        task.is_visible = False
+        task.admin_note = note
+    elif payload.action == "restore":
+        task.is_visible = True
+        task.admin_note = None
+    now = datetime.utcnow()
+    pending = db.scalars(
+        select(TaskReport).where(
+            TaskReport.task_id == task.id,
+            TaskReport.status == ReportStatus.PENDING,
+        )
+    ).all()
+    for item in pending:
+        item.status = ReportStatus.HANDLED
+        item.handled_by_id = manager.id
+        item.handled_at = now
+    task.updated_at = now
+    db.commit()
+    db.refresh(report)
+    return present_report(report)
+
+
+@app.get("/api/admin/settings/report-limit", response_model=ReportLimitOut)
+def get_report_limit(_: User = Depends(get_role_manager), db: Session = Depends(get_db)):
+    return ReportLimitOut(daily_limit=get_setting_int(db, "report_daily_limit", 2))
+
+
+@app.patch("/api/admin/settings/report-limit", response_model=ReportLimitOut)
+def set_report_limit(
+    payload: ReportLimitUpdate,
+    _: User = Depends(get_role_manager),
+    db: Session = Depends(get_db),
+):
+    set_setting(db, "report_daily_limit", str(payload.daily_limit))
+    db.commit()
+    return ReportLimitOut(daily_limit=payload.daily_limit)
 
 
 @app.post("/api/tasks/{task_id}/accept", response_model=TaskOut)
