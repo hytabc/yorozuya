@@ -2,9 +2,45 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { api } from '../api'
 
+const AUTH_CACHE_VERSION = '2'
+const LOGIN_MAX_AGE_MS = 24 * 60 * 60 * 1000
+
+function clearAuthCache() {
+  localStorage.removeItem('wsw_token')
+  localStorage.removeItem('wsw_user')
+  localStorage.removeItem('wsw_auth_version')
+  localStorage.removeItem('wsw_login_at')
+}
+
+function readCachedUser() {
+  try {
+    return JSON.parse(localStorage.getItem('wsw_user') || 'null')
+  } catch {
+    return null
+  }
+}
+
+function readPersistedAuth() {
+  const cachedToken = localStorage.getItem('wsw_token')
+  const cachedUser = readCachedUser()
+  const loginAt = Number(localStorage.getItem('wsw_login_at'))
+  const age = Date.now() - loginAt
+  const valid = Boolean(
+    cachedToken && cachedUser && localStorage.getItem('wsw_auth_version') === AUTH_CACHE_VERSION
+    && Number.isFinite(loginAt) && loginAt > 0 && age >= 0 && age < LOGIN_MAX_AGE_MS,
+  )
+  if (!valid) {
+    // 缺少版本/时间标记的缓存来自旧版本，默认视为需要重新登录。
+    clearAuthCache()
+    return { token: null, user: null }
+  }
+  return { token: cachedToken, user: cachedUser }
+}
+
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref(localStorage.getItem('wsw_token'))
-  const user = ref(JSON.parse(localStorage.getItem('wsw_user') || 'null'))
+  const persisted = readPersistedAuth()
+  const token = ref(persisted.token)
+  const user = ref(persisted.user)
   const ready = ref(false)
 
   const isLoggedIn = computed(() => Boolean(token.value && user.value))
@@ -17,6 +53,8 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = payload.user
     localStorage.setItem('wsw_token', token.value)
     localStorage.setItem('wsw_user', JSON.stringify(user.value))
+    localStorage.setItem('wsw_auth_version', AUTH_CACHE_VERSION)
+    localStorage.setItem('wsw_login_at', String(Date.now()))
   }
 
   async function login(credentials) {
@@ -30,7 +68,11 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function restore() {
-    if (!token.value) {
+    const loginAt = Number(localStorage.getItem('wsw_login_at'))
+    const age = Date.now() - loginAt
+    if (!token.value || !user.value || localStorage.getItem('wsw_auth_version') !== AUTH_CACHE_VERSION
+      || !Number.isFinite(loginAt) || loginAt <= 0 || age < 0 || age >= LOGIN_MAX_AGE_MS) {
+      logout()
       ready.value = true
       return
     }
@@ -55,6 +97,8 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
     localStorage.removeItem('wsw_token')
     localStorage.removeItem('wsw_user')
+    localStorage.removeItem('wsw_auth_version')
+    localStorage.removeItem('wsw_login_at')
   }
 
   window.addEventListener('auth-expired', logout)

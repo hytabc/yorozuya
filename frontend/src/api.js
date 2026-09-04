@@ -14,6 +14,8 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && localStorage.getItem('wsw_token')) {
       localStorage.removeItem('wsw_token')
       localStorage.removeItem('wsw_user')
+      localStorage.removeItem('wsw_auth_version')
+      localStorage.removeItem('wsw_login_at')
       window.dispatchEvent(new Event('auth-expired'))
     }
     return Promise.reject(error)
@@ -25,4 +27,3 @@ export function errorMessage(error, fallback = '操作失败，请稍后重试')
   if (Array.isArray(detail)) return detail[0]?.msg || fallback
   return detail || fallback
 }
-

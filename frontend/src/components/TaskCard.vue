@@ -2,16 +2,18 @@
 import { computed } from 'vue'
 import { CalendarClock, Coins, EyeOff, LockOpen, UserRound, UsersRound } from 'lucide-vue-next'
 import StatusBadge from './StatusBadge.vue'
+import { useAuthStore } from '../stores/auth'
 
 const props = defineProps({ task: { type: Object, required: true }, showRole: Boolean, hint: String })
 defineEmits(['select'])
 
-const me = JSON.parse(localStorage.getItem('wsw_user') || 'null')
+const auth = useAuthStore()
 const deadline = computed(() => new Intl.DateTimeFormat('zh-CN', {
   month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
 }).format(new Date(props.task.expires_at)))
 
 const role = computed(() => {
+  const me = auth.user
   if (!me) return ''
   if (me.id === props.task.publisher_id) return '我发布的'
   if (props.task.members?.some((m) => m.user.id === me.id)) return '我接取的'
