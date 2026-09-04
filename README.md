@@ -19,7 +19,36 @@
 - 成员名录和委托详情支持查看用户图片；店员及管理员可在监管台屏蔽或恢复不适合展示的图片
 - 砂糖社：登记带照片的公开档案，查看卡片后通过仅对查看双方开放的 QQ 线下交流；双方确认后成为砂糖，任一方可结束关系，展示维持最久的前三对（含已结束记录）
 - 管理员统计、委托隐藏与恢复；隐藏原因对相关用户可见
+- 看板娘「小白」：PC 端左上角常驻的站内 AI 助手，可聊天、答疑，自带倾听与心理支持模式（可配置，见下文）
 - Docker Compose 一键部署与 FRP TCP 内网穿透
+
+## 🤖 看板娘「小白」（可选 AI 助手）
+
+看板娘是本站的可选功能：PC 端（≥768px）左上角常驻一个可对话的站内助手，介绍功能、陪你聊天；**不配置 API Key 时聊天框显示“未启用”，不影响站点其它任何功能**。
+
+**模型怎么配？** 小白对接的是**任意 OpenAI 兼容端点**，不用改代码，只需在 `.env` 里填三行：
+
+```env
+# 例 1:Moonshot
+MASCOT_API_BASE=https://api.moonshot.cn/v1
+MASCOT_API_KEY=sk-你的key
+MASCOT_MODEL=kimi-k2.7-code-highspeed
+
+# 例 2:DeepSeek(换服务只改这三行)
+# MASCOT_API_BASE=https://api.deepseek.com/v1
+# MASCOT_API_KEY=sk-你的key
+# MASCOT_MODEL=deepseek-chat
+```
+
+| 配置 | 含义 |
+|---|---|
+| `MASCOT_API_BASE` | OpenAI 兼容接口地址(默认 Moonshot) |
+| `MASCOT_API_KEY` | 你的 API Key;**留空 = 关闭看板娘聊天** |
+| `MASCOT_MODEL` | 模型名(默认 kimi-k2.7-code-highspeed) |
+| `MASCOT_MAX_TOKENS` | 单次回复上限(默认 1500) |
+
+- 人设与开场白修改：后端 `backend/app/mascot.py` 的 `PERSONA`、前端 `frontend/src/components/KanbanNiang.vue`
+- 会向模型发送最近的 16 条消息；本功能**不读取数据库**，不会泄露任何委托/用户数据
 
 ## Docker Compose 部署
 

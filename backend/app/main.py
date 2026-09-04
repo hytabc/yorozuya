@@ -203,6 +203,11 @@ app.add_middleware(
 )
 app.mount("/uploads", StaticFiles(directory=settings.sugar_upload_path), name="uploads")
 
+# 万事屋看板娘(站内 AI 助手)
+from .mascot import router as mascot_router  # noqa: E402
+
+app.include_router(mascot_router)
+
 
 def expire_due_tasks(db: Session) -> None:
     result = db.execute(
