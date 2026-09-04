@@ -806,6 +806,119 @@ def test_sugar_photo_moderation():
         assert client.patch("/api/admin/sugar/photos/99999", headers=admin, json={"is_visible": True}).status_code == 404
 
 
+def test_vr_map_flow():
+    with TestClient(app) as client:
+        alice = auth(client, "map_pub")
+        bob = promote(client, auth(client, "map_fan"))
+        carol = auth(client, "map_watcher")
+        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+
+        # 未登录不能提交/点赞/举报/传图
+        assert client.post("/api/vr-maps", json={"name": "游客地图", "description": "游客不能提交地图信息哦", "category": "休闲"}).status_code == 401
+
+        # 类型不合法 → 422
+        bad_cat = client.post("/api/vr-maps", headers=alice, json={"name": "地图A", "description": "这是一个用于测试的地图介绍", "category": "不存在的类型"})
+        assert bad_cat.status_code == 422
+
+        # alice 提交两张地图，bob 提交一张
+        map_a = client.post("/api/vr-maps", headers=alice, json={"name": "午夜天台", "description": "城市夜景天台，适合拍照和闲聊。", "category": "风景"}).json()
+        map_b = client.post("/api/vr-maps", headers=alice, json={"name": "迷宫钟楼", "description": "解谜向地图，藏着不少彩蛋房间。", "category": "解谜"}).json()
+        map_c = client.post("/api/vr-maps", headers=bob, json={"name": "雪原小屋", "description": "围炉夜话的休闲小屋，支持多人游戏。", "category": "休闲"}).json()
+
+        # 点赞：bob 赞 map_c 两张、alice 赞 map_a
+        client.post(f"/api/vr-maps/{map_c['id']}/like", headers=bob)
+        client.post(f"/api/vr-maps/{map_b['id']}/like", headers=bob)
+        client.post(f"/api/vr-maps/{map_a['id']}/like", headers=alice)
+
+        # 重复点赞=取消；再点一次=重新点赞
+        first = client.post(f"/api/vr-maps/{map_c['id']}/like", headers=alice).json()
+        assert first == {"like_count": 2, "liked": True}
+        second = client.post(f"/api/vr-maps/{map_c['id']}/like", headers=alice).json()
+        assert second == {"like_count": 1, "liked": False}
+
+        # 列表按点赞数降序，同票数时新地图在前：map_c(2) → map_b(1) → map_a(1)
+        listing = client.get("/api/vr-maps").json()
+        assert [m["id"] for m in listing[:3]] == [map_c["id"], map_b["id"], map_a["id"]]
+        assert all(m["liked_by_me"] is False for m in listing)
+
+        # 举报：carol 举报 map_c；重复举报 409；不能举报自己的地图
+        reported = client.post(f"/api/vr-maps/{map_c['id']}/report", headers=carol, json={"reason": "简介与实际内容不符"})
+        assert reported.status_code == 201, reported.text
+        assert client.post(f"/api/vr-maps/{map_c['id']}/report", headers=carol, json={"reason": "再举报一次"}).status_code == 409
+        assert client.post(f"/api/vr-maps/{map_a['id']}/report", headers=alice, json={"reason": "举报自己的地图"}).status_code == 422
+
+        # 被举报待审的地图退出公开列表；主人和管理员仍可见
+        public_list = client.get("/api/vr-maps").json()
+        assert map_c["id"] not in [m["id"] for m in public_list]
+        bob_list = client.get("/api/vr-maps", headers=bob).json()
+        own_flagged = next(m for m in bob_list if m["id"] == map_c["id"])
+        assert own_flagged["has_pending_report"] is True and own_flagged["reported_by_me"] is False
+        admin_list = client.get("/api/vr-maps", headers=admin).json()
+        assert map_c["id"] in [m["id"] for m in admin_list]
+
+        # 管理员审核库可见举报，关闭举报后恢复公开
+        reports = client.get("/api/admin/vr-map-reports", headers=admin).json()
+        assert len(reports) == 1 and reports[0]["map_name"] == "雪原小屋"
+        assert reports[0]["reporter"]["nickname"] == "用户map_watcher"
+        assert client.get(f"/api/admin/vr-map-reports", headers=carol).status_code == 403
+        closed = client.post(f"/api/admin/vr-map-reports/{reports[0]['id']}/resolve", headers=admin, json={"action": "close"})
+        assert closed.status_code == 200 and closed.json()["status"] == "handled"
+        assert map_c["id"] in [m["id"] for m in client.get("/api/vr-maps").json()]
+
+        # 二次举报（换其他用户，每人限一次）→ 屏蔽（必填理由）→ 公众不可见 → 重新放开
+        client.post(f"/api/vr-maps/{map_c['id']}/report", headers=alice, json={"reason": "再次提交举报"})
+        pending_report = next(
+            r for r in client.get("/api/admin/vr-map-reports", headers=admin).json()
+            if r["map_id"] == map_c["id"] and r["status"] == "pending"
+        )
+        assert client.post(f"/api/admin/vr-map-reports/{pending_report['id']}/resolve", headers=admin, json={"action": "hide"}).status_code == 422
+        hidden = client.post(
+            f"/api/admin/vr-map-reports/{pending_report['id']}/resolve",
+            headers=admin,
+            json={"action": "hide", "admin_note": "确认违规，予以屏蔽"},
+        )
+        assert hidden.status_code == 200
+        assert map_c["id"] not in [m["id"] for m in client.get("/api/vr-maps").json()]
+        assert client.get(f"/api/vr-maps/{map_c['id']}").status_code == 404
+        assert client.get(f"/api/vr-maps/{map_c['id']}", headers=bob).json()["is_visible"] is False
+        restored = client.post(f"/api/admin/vr-map-reports/{pending_report['id']}/resolve", headers=admin, json={"action": "restore"})
+        assert restored.status_code == 200
+        assert map_c["id"] in [m["id"] for m in client.get("/api/vr-maps").json()]
+
+        # 照片上传：超 10MB → 422；GIF → 422
+        oversized = b"\x89PNG\r\n\x1a\n" + b"\x00" * (10 * 1024 * 1024)
+        assert client.post(f"/api/vr-maps/{map_a['id']}/photos", headers=bob, files={"photo": ("big.png", oversized, "image/png")}).status_code == 422
+        assert client.post(f"/api/vr-maps/{map_a['id']}/photos", headers=bob, files={"photo": ("a.gif", b"GIF89a" + b"\x00" * 32, "image/gif")}).status_code == 422
+
+        # bob 上传待审照片：公众列表看不到，bob 和管理员能看到（审核中）
+        uploaded = client.post(f"/api/vr-maps/{map_a['id']}/photos", headers=bob, files={"photo": ("shot.png", TINY_PNG, "image/png")})
+        assert uploaded.status_code == 201, uploaded.text
+        photo_id = uploaded.json()["photos"][0]["id"]
+        assert uploaded.json()["photos"][0]["is_visible"] is False
+        guest_photos = client.get(f"/api/vr-maps/{map_a['id']}").json()["photos"]
+        assert guest_photos == []
+        assert len(client.get(f"/api/vr-maps/{map_a['id']}", headers=bob).json()["photos"]) == 1
+
+        # 管理员审核通过后公开
+        pending = client.get("/api/admin/vr-map-photos", headers=admin).json()
+        target = next(p for p in pending if p["id"] == photo_id)
+        assert target["map_name"] == "午夜天台"
+        approved = client.patch(f"/api/admin/vr-map-photos/{photo_id}", headers=admin, json={"is_visible": True})
+        assert approved.status_code == 200 and approved.json()["is_visible"] is True
+        assert len(client.get(f"/api/vr-maps/{map_a['id']}").json()["photos"]) == 1
+
+        # bob 重复上传替换（仍只有一张），驳回后公众不可见
+        replaced = client.post(f"/api/vr-maps/{map_a['id']}/photos", headers=bob, files={"photo": ("shot2.jpg", b"\xff\xd8\xff\xe0" + b"\x00" * 64, "image/jpeg")})
+        assert replaced.status_code == 201
+        new_photo_id = replaced.json()["photos"][0]["id"]
+        # 替换后重置审核状态，需要重新审核
+        assert replaced.json()["photos"][0]["is_visible"] is False
+        assert replaced.json()["photos"][0]["moderated"] is False
+        assert len(replaced.json()["photos"]) == 1
+        client.patch(f"/api/admin/vr-map-photos/{new_photo_id}", headers=admin, json={"is_visible": False})
+        assert client.get(f"/api/vr-maps/{map_a['id']}").json()["photos"] == []
+
+
 def test_expired_task_is_updated_when_listed():
     with TestClient(app) as client:
         publisher = auth(client, "expirer")

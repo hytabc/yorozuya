@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, Flag, HeartHandshake, Image as ImageIcon, KeyRound, MessageCircle, RotateCcw, Save, Search, ShieldCheck, Store, UsersRound, X } from 'lucide-vue-next'
+import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, Flag, HeartHandshake, Image as ImageIcon, KeyRound, Map as MapIcon, MessageCircle, RotateCcw, Save, Search, ShieldCheck, Store, UsersRound, X } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
@@ -17,7 +17,11 @@ const feedbacks = ref([])
 const applications = ref([])
 const photoUsers = ref([])
 const sugarPhotos = ref([])
+const vrMapReports = ref([])
+const vrMapPhotos = ref([])
 const moderatingSugarId = ref(null)
+const moderatingVrPhotoId = ref(null)
+const resolvingVrReportId = ref(null)
 const reports = ref([])
 const reportLimit = ref(2)
 const reportLimitInput = ref(2)
@@ -39,6 +43,8 @@ const filteredTasks = computed(() => tasks.value.filter((task) => `${task.title}
 const filteredUsers = computed(() => users.value.filter((user) => `${user.username}${user.nickname}`.toLowerCase().includes(userSearch.value.toLowerCase())))
 const pendingFeedbacks = computed(() => feedbacks.value.filter((item) => item.status === 'pending').length)
 const pendingApplications = computed(() => applications.value.filter((item) => item.status === 'pending').length)
+const pendingVrMapReports = computed(() => vrMapReports.value.filter((item) => item.status === 'pending').length)
+const pendingVrMapPhotos = computed(() => vrMapPhotos.value.filter((item) => !item.moderated).length)
 const pendingReports = computed(() => reports.value.filter((item) => item.status === 'pending').length)
 const sortedReports = computed(() => [...reports.value].sort((a, b) => (a.status === 'pending' ? -1 : 1) - (b.status === 'pending' ? -1 : 1)))
 const statItems = computed(() => [
@@ -51,7 +57,7 @@ async function load() {
   loading.value = true
   try {
     if (!auth.isAdmin) {
-      const [taskRes, userRes, photoRes, reportRes, limitRes, feedbackRes, applicationRes, sugarPhotoRes] = await Promise.all([api.get('/admin/tasks'), api.get('/admin/users'), api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/settings/report-limit'), api.get('/admin/feedback'), api.get('/admin/volunteer-applications'), api.get('/admin/sugar/photos')])
+      const [taskRes, userRes, photoRes, reportRes, limitRes, feedbackRes, applicationRes, sugarPhotoRes, vrReportRes, vrPhotoRes] = await Promise.all([api.get('/admin/tasks'), api.get('/admin/users'), api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/settings/report-limit'), api.get('/admin/feedback'), api.get('/admin/volunteer-applications'), api.get('/admin/sugar/photos'), api.get('/admin/vr-map-reports'), api.get('/admin/vr-map-photos')])
       tasks.value = taskRes.data
       stats.value.hidden = tasks.value.filter((task) => !task.is_visible).length
       users.value = userRes.data
@@ -62,9 +68,11 @@ async function load() {
       feedbacks.value = feedbackRes.data
       applications.value = applicationRes.data
       sugarPhotos.value = sugarPhotoRes.data
+      vrMapReports.value = vrReportRes.data
+      vrMapPhotos.value = vrPhotoRes.data
       return
     }
-    const [taskRes, userRes, statRes, feedbackRes, photoRes, reportRes, limitRes, applicationRes, sugarPhotoRes] = await Promise.all([
+    const [taskRes, userRes, statRes, feedbackRes, photoRes, reportRes, limitRes, applicationRes, sugarPhotoRes, vrReportRes, vrPhotoRes] = await Promise.all([
       api.get('/admin/tasks'),
       api.get('/admin/users'),
       api.get('/admin/stats'),
@@ -74,6 +82,8 @@ async function load() {
       api.get('/admin/settings/report-limit'),
       api.get('/admin/volunteer-applications'),
       api.get('/admin/sugar/photos'),
+      api.get('/admin/vr-map-reports'),
+      api.get('/admin/vr-map-photos'),
     ])
     tasks.value = taskRes.data
     users.value = userRes.data
@@ -83,6 +93,8 @@ async function load() {
     reports.value = reportRes.data
     applications.value = applicationRes.data
     sugarPhotos.value = sugarPhotoRes.data
+    vrMapReports.value = vrReportRes.data
+    vrMapPhotos.value = vrPhotoRes.data
     reportLimit.value = limitRes.data.daily_limit
     reportLimitInput.value = limitRes.data.daily_limit
     users.value.forEach((user) => { userLimits[user.id] = user.max_concurrent_tasks })
@@ -241,6 +253,30 @@ async function moderateSugarPhoto(photo, isVisible) {
     toast.success(isVisible ? '照片已恢复展示' : '照片已屏蔽')
   } catch (error) { toast.error(errorMessage(error)) } finally { moderatingSugarId.value = null }
 }
+async function resolveVrMapReport(report, action) {
+  let adminNote = null
+  if (action === 'hide') {
+    adminNote = window.prompt('请输入屏蔽理由（必要）', '')
+    if (adminNote === null) return
+    if (!adminNote.trim()) return toast.error('屏蔽地图时必须填写理由')
+  }
+  resolvingVrReportId.value = report.id
+  try {
+    const { data } = await api.post(`/admin/vr-map-reports/${report.id}/resolve`, { action, admin_note: action === 'hide' ? adminNote.trim() : null })
+    vrMapReports.value[vrMapReports.value.findIndex((item) => item.id === report.id)] = data
+    toast.success(action === 'close' ? '举报已关闭，地图恢复公开' : action === 'hide' ? '地图已屏蔽' : '地图已重新放开')
+  } catch (error) { toast.error(errorMessage(error)) } finally { resolvingVrReportId.value = null }
+}
+
+async function moderateVrMapPhoto(photo, isVisible) {
+  moderatingVrPhotoId.value = photo.id
+  try {
+    const { data } = await api.patch(`/admin/vr-map-photos/${photo.id}`, { is_visible: isVisible })
+    vrMapPhotos.value[vrMapPhotos.value.findIndex((item) => item.id === photo.id)] = data
+    toast.success(isVisible ? '照片已通过审核' : '照片已驳回')
+  } catch (error) { toast.error(errorMessage(error)) } finally { moderatingVrPhotoId.value = null }
+}
+
 async function saveReportLimit() {
   const value = Number(reportLimitInput.value)
   if (!Number.isInteger(value) || value < 1) return toast.error('每日举报上限需为不小于 1 的整数')
@@ -267,6 +303,7 @@ onMounted(load)
       <button :class="{ active: activeTab === 'tasks' }" role="tab" :aria-selected="activeTab === 'tasks'" @click="activeTab = 'tasks'">委托管理</button>
       <button :class="{ active: activeTab === 'reports' }" role="tab" :aria-selected="activeTab === 'reports'" @click="activeTab = 'reports'">举报处理<span v-if="pendingReports">{{ pendingReports }}</span></button>
       <button :class="{ active: activeTab === 'applications' }" role="tab" :aria-selected="activeTab === 'applications'" @click="activeTab = 'applications'">志愿者申请<span v-if="pendingApplications">{{ pendingApplications }}</span></button>
+      <button :class="{ active: activeTab === 'vrmaps' }" role="tab" :aria-selected="activeTab === 'vrmaps'" @click="activeTab = 'vrmaps'">地图推荐<span v-if="pendingVrMapReports + pendingVrMapPhotos">{{ pendingVrMapReports + pendingVrMapPhotos }}</span></button>
       <button :class="{ active: activeTab === 'users' }" role="tab" :aria-selected="activeTab === 'users'" @click="activeTab = 'users'">用户与权限</button>
       <button :class="{ active: activeTab === 'photos' }" role="tab" :aria-selected="activeTab === 'photos'" @click="activeTab = 'photos'">图片管理</button>
       <button :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
@@ -318,6 +355,44 @@ onMounted(load)
         </li>
       </ul>
       <div v-else class="feedback-admin-empty"><HeartHandshake :size="28" />还没有收到志愿者申请</div>
+    </section>
+
+    <section v-if="activeTab === 'vrmaps'" class="admin-table-section">
+      <div class="admin-toolbar"><div><h2>地图举报</h2><span>待处理 {{ pendingVrMapReports }} 条</span></div><span class="muted"><MapIcon :size="15" /> 有待处理举报的地图已暂停公开展示</span></div>
+      <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
+      <ul v-else-if="vrMapReports.length" class="feedback-admin-list">
+        <li v-for="item in vrMapReports" :key="item.id" :class="{ handled: item.status === 'handled' }">
+          <div class="fb-head">
+            <span class="fb-state" :class="`state-${item.status}`">{{ item.status === 'pending' ? '待处理' : '已处理' }}</span>
+            <strong>#{{ item.map_id }} {{ item.map_name }}</strong>
+            <span class="muted">举报人：{{ item.reporter.nickname }}</span>
+            <time class="muted">{{ date(item.created_at) }}</time>
+          </div>
+          <p class="fb-content">原因：{{ item.reason }}</p>
+          <div class="fb-actions">
+            <button v-if="item.status === 'pending'" class="button secondary small" :disabled="resolvingVrReportId === item.id" @click="resolveVrMapReport(item, 'close')"><Check :size="15" />关闭举报（放开）</button>
+            <button v-if="item.status === 'pending'" class="button secondary small" :disabled="resolvingVrReportId === item.id" @click="resolveVrMapReport(item, 'hide')"><EyeOff :size="15" />屏蔽地图</button>
+            <button v-else class="button secondary small" :disabled="resolvingVrReportId === item.id" @click="resolveVrMapReport(item, 'restore')"><RotateCcw :size="15" />重新放开</button>
+          </div>
+        </li>
+      </ul>
+      <div v-else class="feedback-admin-empty"><MapIcon :size="28" />暂无地图举报</div>
+
+      <div class="admin-toolbar vrmap-photo-toolbar"><div><h2>地图实拍照片审核</h2><span>待审核 {{ pendingVrMapPhotos }} 张</span></div><span class="muted">通过后照片会在地图详情页公开展示</span></div>
+      <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
+      <div v-else-if="vrMapPhotos.length" class="moderation-photo-grid vrmap-photo-grid">
+        <figure v-for="photo in vrMapPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
+          <img :src="photo.image_url" :alt="`${photo.map_name} 的实拍照片`" />
+          <span v-if="!photo.moderated" class="photo-blocked vrmap-photo-state"><Clock3 :size="14" />审核中</span>
+          <span v-else-if="!photo.is_visible" class="photo-blocked vrmap-photo-state"><EyeOff :size="14" />已驳回</span>
+          <div class="fb-actions vrmap-photo-actions">
+            <button v-if="!photo.is_visible" class="button secondary small" :disabled="moderatingVrPhotoId === photo.id" @click="moderateVrMapPhoto(photo, true)"><Check :size="15" />通过</button>
+            <button v-else class="button secondary small" :disabled="moderatingVrPhotoId === photo.id" @click="moderateVrMapPhoto(photo, false)"><EyeOff :size="15" />驳回</button>
+          </div>
+          <figcaption class="muted">{{ photo.map_name }} · {{ photo.user.nickname }}</figcaption>
+        </figure>
+      </div>
+      <div v-else class="feedback-admin-empty"><ImageIcon :size="28" />暂无地图照片</div>
     </section>
 
     <section v-if="activeTab === 'tasks'" class="admin-table-section">
@@ -453,6 +528,37 @@ onMounted(load)
 </template>
 
 <style scoped>
+.vrmap-photo-toolbar {
+  margin-top: 24px;
+}
+
+.vrmap-photo-grid figure {
+  aspect-ratio: auto;
+  overflow: visible;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.vrmap-photo-grid img {
+  border-radius: 4px;
+}
+
+.vrmap-photo-state {
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  white-space: normal;
+}
+
+.vrmap-photo-actions {
+  margin-top: 6px;
+}
+
+.vrmap-photo-grid figcaption {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
 .moderation-avatar-row {
   display: flex;
   align-items: flex-end;

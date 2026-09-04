@@ -337,6 +337,95 @@ class BoardComment(Base):
     user: Mapped[User] = relationship(foreign_keys=[user_id])
 
 
+class VrMap(Base):
+    """VRChat 地图推荐：用户提交，按点赞数排序；被举报待审/被屏蔽时不公开。"""
+
+    __tablename__ = "vr_maps"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(80), index=True)
+    description: Mapped[str] = mapped_column(Text)
+    category: Mapped[str] = mapped_column(String(16), index=True)
+    uploader_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    like_count: Mapped[int] = mapped_column(default=0)
+    is_visible: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    admin_note: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    uploader: Mapped[User] = relationship(foreign_keys=[uploader_id])
+    likes: Mapped[list["VrMapLike"]] = relationship(
+        back_populates="map",
+        cascade="all, delete-orphan",
+    )
+    photos: Mapped[list["VrMapPhoto"]] = relationship(
+        back_populates="map",
+        cascade="all, delete-orphan",
+        order_by="VrMapPhoto.created_at",
+    )
+    reports: Mapped[list["VrMapReport"]] = relationship(
+        back_populates="map",
+        cascade="all, delete-orphan",
+        order_by="VrMapReport.created_at",
+    )
+
+
+class VrMapLike(Base):
+    """地图点赞：一人对同一张地图只能点赞一次（取消后可重新点赞）。"""
+
+    __tablename__ = "vr_map_likes"
+    __table_args__ = (UniqueConstraint("map_id", "user_id", name="uq_vr_map_like"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    map_id: Mapped[int] = mapped_column(ForeignKey("vr_maps.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    map: Mapped[VrMap] = relationship(back_populates="likes")
+
+
+class VrMapReport(Base):
+    """地图举报：待处理举报使地图退出公开列表，由管理员关闭（放开）或屏蔽。"""
+
+    __tablename__ = "vr_map_reports"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    map_id: Mapped[int] = mapped_column(ForeignKey("vr_maps.id"), index=True)
+    reporter_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    reason: Mapped[str] = mapped_column(String(200))
+    status: Mapped[ReportStatus] = mapped_column(
+        SqlEnum(ReportStatus, values_callable=lambda values: [item.value for item in values]),
+        default=ReportStatus.PENDING,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    handled_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    handled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    map: Mapped[VrMap] = relationship(back_populates="reports")
+    reporter: Mapped[User] = relationship(foreign_keys=[reporter_id])
+
+
+class VrMapPhoto(Base):
+    """地图实拍照片：每人对每张地图最多 1 张，需管理员审核后才公开展示。"""
+
+    __tablename__ = "vr_map_photos"
+    __table_args__ = (UniqueConstraint("map_id", "user_id", name="uq_vr_map_photo"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    map_id: Mapped[int] = mapped_column(ForeignKey("vr_maps.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    # 仅存相对上传目录的路径，文件本体由服务端本地磁盘保存。
+    file_path: Mapped[str] = mapped_column(String(255), unique=True)
+    is_visible: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    moderated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    moderated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    map: Mapped[VrMap] = relationship(back_populates="photos")
+    user: Mapped[User] = relationship(foreign_keys=[user_id])
+    moderated_by: Mapped[User | None] = relationship(foreign_keys=[moderated_by_id])
+
+
 class SugarProfile(Base):
     """砂糖社公开档案；联系信息仍复用用户资料中的 QQ。"""
 

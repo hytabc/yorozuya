@@ -345,6 +345,72 @@ class SugarPhotoModerateUpdate(RequestModel):
     admin_note: str | None = Field(default=None, max_length=200)
 
 
+class VrMapCreate(RequestModel):
+    name: str = Field(min_length=1, max_length=80)
+    description: str = Field(min_length=10, max_length=2000)
+    category: str = Field(min_length=1, max_length=16)
+
+
+class VrMapLikeState(BaseModel):
+    like_count: int
+    liked: bool
+
+
+class VrMapPhotoOut(BaseModel):
+    id: int
+    image_url: str
+    # is_visible=False 的照片仅上传者和管理员组会收到；moderated_at 为空表示审核中
+    is_visible: bool = False
+    moderated: bool = False
+
+
+class VrMapOut(ApiModel):
+    id: int
+    name: str
+    description: str
+    category: str
+    like_count: int = 0
+    liked_by_me: bool = False
+    reported_by_me: bool = False
+    has_pending_report: bool = False
+    is_visible: bool = True
+    admin_note: str | None = None
+    uploader: UserPublic
+    photos: list[VrMapPhotoOut] = []
+    created_at: datetime
+
+
+class VrMapReportCreate(RequestModel):
+    reason: str = Field(min_length=2, max_length=200)
+
+
+class VrMapReportOut(ApiModel):
+    id: int
+    map_id: int
+    map_name: str = ''
+    reporter: UserPublic
+    reason: str
+    status: ReportStatus = ReportStatus.PENDING
+    created_at: datetime
+    handled_at: datetime | None = None
+
+
+class VrMapReportResolveRequest(RequestModel):
+    action: Literal["close", "hide", "restore"]
+    admin_note: str | None = Field(default=None, max_length=200)
+
+
+class VrMapPhotoAdminOut(ApiModel):
+    id: int
+    image_url: str
+    is_visible: bool
+    moderated: bool
+    map_id: int
+    map_name: str
+    user: UserPublic
+    created_at: datetime
+
+
 class SugarProfileCardOut(ApiModel):
     id: int
     user: UserPublic
