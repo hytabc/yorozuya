@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, Flag, Image as ImageIcon, KeyRound, MessageCircle, RotateCcw, Save, Search, ShieldCheck, Store, UsersRound, X } from 'lucide-vue-next'
+import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, Flag, HeartHandshake, Image as ImageIcon, KeyRound, MessageCircle, RotateCcw, Save, Search, ShieldCheck, Store, UsersRound, X } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
@@ -14,6 +14,7 @@ const router = useRouter()
 const tasks = ref([])
 const users = ref([])
 const feedbacks = ref([])
+const applications = ref([])
 const photoUsers = ref([])
 const reports = ref([])
 const reportLimit = ref(2)
@@ -28,12 +29,14 @@ const userSearch = ref('')
 const loading = ref(true)
 const savingUserId = ref(null)
 const savingRoleId = ref(null)
+const reviewAppId = ref(null)
 const resetUser = ref(null)
 const resetPasswordBusy = ref(false)
 const resetPasswordForm = reactive({ password: '', confirm: '' })
 const filteredTasks = computed(() => tasks.value.filter((task) => `${task.title}${task.publisher.nickname}`.toLowerCase().includes(taskSearch.value.toLowerCase())))
 const filteredUsers = computed(() => users.value.filter((user) => `${user.username}${user.nickname}`.toLowerCase().includes(userSearch.value.toLowerCase())))
 const pendingFeedbacks = computed(() => feedbacks.value.filter((item) => item.status === 'pending').length)
+const pendingApplications = computed(() => applications.value.filter((item) => item.status === 'pending').length)
 const pendingReports = computed(() => reports.value.filter((item) => item.status === 'pending').length)
 const sortedReports = computed(() => [...reports.value].sort((a, b) => (a.status === 'pending' ? -1 : 1) - (b.status === 'pending' ? -1 : 1)))
 const statItems = computed(() => [
@@ -46,7 +49,7 @@ async function load() {
   loading.value = true
   try {
     if (!auth.isAdmin) {
-      const [taskRes, userRes, photoRes, reportRes, limitRes, feedbackRes] = await Promise.all([api.get('/admin/tasks'), api.get('/admin/users'), api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/settings/report-limit'), api.get('/admin/feedback')])
+      const [taskRes, userRes, photoRes, reportRes, limitRes, feedbackRes, applicationRes] = await Promise.all([api.get('/admin/tasks'), api.get('/admin/users'), api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/settings/report-limit'), api.get('/admin/feedback'), api.get('/admin/volunteer-applications')])
       tasks.value = taskRes.data
       stats.value.hidden = tasks.value.filter((task) => !task.is_visible).length
       users.value = userRes.data
@@ -55,9 +58,10 @@ async function load() {
       reportLimit.value = limitRes.data.daily_limit
       reportLimitInput.value = limitRes.data.daily_limit
       feedbacks.value = feedbackRes.data
+      applications.value = applicationRes.data
       return
     }
-    const [taskRes, userRes, statRes, feedbackRes, photoRes, reportRes, limitRes] = await Promise.all([
+    const [taskRes, userRes, statRes, feedbackRes, photoRes, reportRes, limitRes, applicationRes] = await Promise.all([
       api.get('/admin/tasks'),
       api.get('/admin/users'),
       api.get('/admin/stats'),
@@ -65,6 +69,7 @@ async function load() {
       api.get('/admin/photos'),
       api.get('/admin/reports'),
       api.get('/admin/settings/report-limit'),
+      api.get('/admin/volunteer-applications'),
     ])
     tasks.value = taskRes.data
     users.value = userRes.data
@@ -72,6 +77,7 @@ async function load() {
     feedbacks.value = feedbackRes.data
     photoUsers.value = photoRes.data
     reports.value = reportRes.data
+    applications.value = applicationRes.data
     reportLimit.value = limitRes.data.daily_limit
     reportLimitInput.value = limitRes.data.daily_limit
     users.value.forEach((user) => { userLimits[user.id] = user.max_concurrent_tasks })
@@ -194,6 +200,20 @@ async function resolveReport(report, action) {
   } catch (error) { toast.error(errorMessage(error)) } finally { savingReportId.value = null }
 }
 
+async function reviewApplication(item, action) {
+  let note = null
+  if (action === 'reject') {
+    note = window.prompt('请输入拒绝理由（会展示给申请人，可留空）', item.review_note || '')
+    if (note === null) return
+  }
+  reviewAppId.value = item.id
+  try {
+    const { data } = await api.post(`/admin/volunteer-applications/${item.id}/review`, { action, note: note?.trim() || null })
+    applications.value[applications.value.findIndex((a) => a.id === item.id)] = data
+    toast.success(action === 'approve' ? `已通过 ${data.user.nickname} 的志愿者申请` : '已拒绝该志愿者申请')
+  } catch (error) { toast.error(errorMessage(error)) } finally { reviewAppId.value = null }
+}
+
 async function saveReportLimit() {
   const value = Number(reportLimitInput.value)
   if (!Number.isInteger(value) || value < 1) return toast.error('每日举报上限需为不小于 1 的整数')
@@ -219,6 +239,7 @@ onMounted(load)
     <div class="tabs admin-tabs" role="tablist" aria-label="后台管理内容">
       <button :class="{ active: activeTab === 'tasks' }" role="tab" :aria-selected="activeTab === 'tasks'" @click="activeTab = 'tasks'">委托管理</button>
       <button :class="{ active: activeTab === 'reports' }" role="tab" :aria-selected="activeTab === 'reports'" @click="activeTab = 'reports'">举报处理<span v-if="pendingReports">{{ pendingReports }}</span></button>
+      <button :class="{ active: activeTab === 'applications' }" role="tab" :aria-selected="activeTab === 'applications'" @click="activeTab = 'applications'">志愿者申请<span v-if="pendingApplications">{{ pendingApplications }}</span></button>
       <button :class="{ active: activeTab === 'users' }" role="tab" :aria-selected="activeTab === 'users'" @click="activeTab = 'users'">用户与权限</button>
       <button :class="{ active: activeTab === 'photos' }" role="tab" :aria-selected="activeTab === 'photos'" @click="activeTab = 'photos'">图片管理</button>
       <button :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
@@ -247,6 +268,29 @@ onMounted(load)
         </li>
       </ul>
       <div v-else class="feedback-admin-empty"><Flag :size="28" />暂无举报</div>
+    </section>
+
+    <section v-if="activeTab === 'applications'" class="admin-table-section">
+      <div class="admin-toolbar"><div><h2>志愿者申请</h2><span>待审核 {{ pendingApplications }} 条</span></div><span class="muted"><HeartHandshake :size="15" /> 通过后申请人将升级为志愿者</span></div>
+      <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
+      <ul v-else-if="applications.length" class="feedback-admin-list">
+        <li v-for="item in applications" :key="item.id" :class="{ handled: item.status !== 'pending' }">
+          <div class="fb-head">
+            <span class="fb-state" :class="`state-${item.status}`">{{ item.status === 'pending' ? '待审核' : item.status === 'approved' ? '已通过' : '已拒绝' }}</span>
+            <strong>{{ item.user.nickname }}</strong>
+            <time class="muted">{{ date(item.created_at) }}</time>
+          </div>
+          <p class="fb-content">{{ item.reason }}</p>
+          <div class="fb-actions">
+            <span v-if="item.status !== 'pending' && item.review_note" class="fb-reply-admin">审核说明：{{ item.review_note }}</span>
+            <template v-if="item.status === 'pending'">
+              <button class="button secondary small" :disabled="reviewAppId === item.id" @click="reviewApplication(item, 'approve')"><Check :size="15" />通过</button>
+              <button class="button secondary small" :disabled="reviewAppId === item.id" @click="reviewApplication(item, 'reject')"><X :size="15" />拒绝</button>
+            </template>
+          </div>
+        </li>
+      </ul>
+      <div v-else class="feedback-admin-empty"><HeartHandshake :size="28" />还没有收到志愿者申请</div>
     </section>
 
     <section v-if="activeTab === 'tasks'" class="admin-table-section">

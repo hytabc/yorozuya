@@ -1,11 +1,14 @@
 <script setup>
-import { onMounted, ref } from 'vue'
-import { CalendarDays, Check, Copy, Heart, MessageCircle, Store } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
+import { CalendarDays, Check, Copy, Heart, HeartHandshake, MessageCircle, Store } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
+import { useAuthStore } from '../stores/auth'
 import UserProfileCard from '../components/UserProfileCard.vue'
+import VolunteerApplyDialog from '../components/VolunteerApplyDialog.vue'
 
 const toast = useToast()
+const auth = useAuthStore()
 const loading = ref(true)
 const error = ref('')
 const groupChatId = ref('')
@@ -13,6 +16,12 @@ const staff = ref([])
 const volunteers = ref([])
 const copied = ref(false)
 const selectedUser = ref(null)
+const showApplyDialog = ref(false)
+const myApplication = ref(null)
+
+const canApply = computed(() =>
+  auth.user && !auth.user.is_admin && auth.user.role === 'user' && myApplication.value?.status !== 'pending'
+)
 
 const joined = (value) =>
   new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' }).format(new Date(value))
@@ -29,6 +38,14 @@ async function copyGroupId() {
   }
 }
 
+async function loadMyApplication() {
+  if (!auth.user) return
+  try {
+    const { data } = await api.get('/volunteer-applications/mine')
+    myApplication.value = data
+  } catch { /* 未登录或加载失败时不展示申请状态 */ }
+}
+
 onMounted(async () => {
   try {
     const { data } = await api.get('/staff')
@@ -40,14 +57,27 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+  loadMyApplication()
 })
 </script>
 
 <template>
   <div class="page inner-page staff-page">
     <div class="page-title staff-title">
-      <div><span class="eyebrow"><Store :size="15" /> MEMBER DIRECTORY</span><h1>管理员与志愿者</h1><p>公开展示服务成员资料；需要提升权限时，可联系任意管理员申请加入群聊。</p></div>
+      <div><span class="eyebrow"><Store :size="15" /> MEMBER DIRECTORY</span><h1>管理员与志愿者</h1><p>公开展示服务成员资料；想成为志愿者，普通用户可直接在下方提交申请。</p></div>
     </div>
+
+    <section v-if="canApply" class="apply-section" aria-label="志愿者申请">
+      <div v-if="myApplication?.status === 'pending'" class="apply-banner pending">
+        <HeartHandshake :size="18" /><span>你的志愿者申请正在审核中，请耐心等待管理员处理。</span>
+      </div>
+      <template v-else>
+        <div v-if="myApplication?.status === 'rejected'" class="apply-banner rejected">
+          <span>上一次申请未通过{{ myApplication.review_note ? `：${myApplication.review_note}` : '' }}，欢迎补充理由后再次申请。</span>
+        </div>
+        <button class="button" type="button" @click="showApplyDialog = true"><HeartHandshake :size="16" />申请成为志愿者</button>
+      </template>
+    </section>
 
     <section class="staff-group-band" aria-label="群聊信息">
       <div><MessageCircle :size="21" /><span><small>权限申请群聊 ID</small><strong>{{ groupChatId || '暂未配置' }}</strong></span></div>
@@ -98,5 +128,36 @@ onMounted(async () => {
     <div v-if="selectedUser" class="modal-backdrop" @mousedown.self="selectedUser = null">
       <UserProfileCard :initial-user="selectedUser" class="directory-profile-dialog" @close="selectedUser = null" />
     </div>
+    <VolunteerApplyDialog v-if="showApplyDialog" @close="showApplyDialog = false" @submitted="myApplication = $event" />
   </div>
 </template>
+
+<style scoped>
+.apply-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.apply-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+.apply-banner.pending {
+  color: var(--accent, #6c5ce7);
+  background: color-mix(in srgb, var(--accent, #6c5ce7) 10%, transparent);
+}
+
+.apply-banner.rejected {
+  color: inherit;
+  background: var(--surface-muted, rgba(128, 128, 128, 0.12));
+}
+</style>

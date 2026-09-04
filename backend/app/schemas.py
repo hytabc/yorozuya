@@ -5,7 +5,15 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
-from .models import FeedbackStatus, ReportStatus, SugarPairStatus, TaskMemberResponse, TaskStatus, UserRole
+from .models import (
+    ApplicationStatus,
+    FeedbackStatus,
+    ReportStatus,
+    SugarPairStatus,
+    TaskMemberResponse,
+    TaskStatus,
+    UserRole,
+)
 
 
 class ApiModel(BaseModel):
@@ -263,6 +271,30 @@ class ReportResolveRequest(RequestModel):
 
 class ReportLimitOut(BaseModel):
     daily_limit: int
+
+
+class VolunteerApplicationCreate(RequestModel):
+    reason: str = Field(min_length=10, max_length=500)
+
+
+class VolunteerApplicationReview(RequestModel):
+    """管理员审核志愿者申请：approve 通过（升为志愿者）/ reject 拒绝。"""
+    action: Literal["approve", "reject"]
+    note: str | None = Field(default=None, max_length=500)
+
+
+class VolunteerApplicationOut(ApiModel):
+    id: int
+    reason: str
+    status: ApplicationStatus
+    review_note: str | None = None
+    created_at: datetime
+    handled_at: datetime | None = None
+    user: UserPublic
+
+
+class VolunteerApplicationAdminOut(VolunteerApplicationOut):
+    handled_by: UserPublic | None = None
 
 
 class ReportLimitUpdate(RequestModel):

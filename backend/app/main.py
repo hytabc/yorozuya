@@ -19,6 +19,7 @@ from .database import Base, SessionLocal, engine, get_db
 from .dependencies import get_admin, get_current_user, get_optional_user, get_role_manager
 from .models import (
     AppSetting,
+    ApplicationStatus,
     Feedback,
     FeedbackStatus,
     ReportStatus,
@@ -34,6 +35,7 @@ from .models import (
     User,
     UserPhoto,
     UserRole,
+    VolunteerApplication,
 )
 from .schemas import (
     AcceptRequest,
@@ -69,6 +71,10 @@ from .schemas import (
     UserPhotoOut,
     UserSelf,
     UserUpdate,
+    VolunteerApplicationAdminOut,
+    VolunteerApplicationCreate,
+    VolunteerApplicationOut,
+    VolunteerApplicationReview,
 )
 from .security import create_access_token, hash_password, verify_password
 
@@ -1133,6 +1139,101 @@ def handle_feedback(
     feedback.handled_at = datetime.utcnow() if feedback.status == FeedbackStatus.HANDLED else feedback.handled_at
     db.commit()
     return present_feedback(feedback)
+
+
+def present_application(
+    application: VolunteerApplication, viewer: User | None = None
+) -> VolunteerApplicationAdminOut:
+    return VolunteerApplicationAdminOut(
+        id=application.id,
+        reason=application.reason,
+        status=application.status,
+        review_note=application.review_note,
+        created_at=application.created_at,
+        handled_at=application.handled_at,
+        user=present_user_public(application.user, viewer),
+        handled_by=present_user_public(application.handled_by, viewer) if application.handled_by else None,
+    )
+
+
+@app.post("/api/volunteer-applications", response_model=VolunteerApplicationOut, status_code=status.HTTP_201_CREATED)
+def create_volunteer_application(
+    payload: VolunteerApplicationCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """普通用户申请成为志愿者，需提交理由，由管理员组审核。"""
+    if user.is_admin or user.role != UserRole.USER:
+        raise HTTPException(status_code=403, detail="只有普通用户可以申请成为志愿者")
+    pending = db.scalar(
+        select(VolunteerApplication).where(
+            VolunteerApplication.user_id == user.id,
+            VolunteerApplication.status == ApplicationStatus.PENDING,
+        )
+    )
+    if pending is not None:
+        raise HTTPException(status_code=409, detail="你已提交过申请，请等待管理员处理")
+    application = VolunteerApplication(user_id=user.id, reason=payload.reason.strip())
+    db.add(application)
+    db.commit()
+    db.refresh(application)
+    return present_application(application, viewer=user)
+
+
+@app.get("/api/volunteer-applications/mine", response_model=VolunteerApplicationOut | None)
+def my_volunteer_application(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """当前用户最近一次志愿者申请及审核状态。"""
+    application = db.scalars(
+        select(VolunteerApplication)
+        .where(VolunteerApplication.user_id == user.id)
+        .order_by(VolunteerApplication.created_at.desc(), VolunteerApplication.id.desc())
+        .limit(1)
+    ).first()
+    return present_application(application, viewer=user) if application else None
+
+
+@app.get("/api/admin/volunteer-applications", response_model=list[VolunteerApplicationAdminOut])
+def admin_volunteer_applications(
+    manager: User = Depends(get_role_manager), db: Session = Depends(get_db)
+):
+    applications = db.scalars(
+        select(VolunteerApplication)
+        .options(joinedload(VolunteerApplication.user), joinedload(VolunteerApplication.handled_by))
+        .order_by(VolunteerApplication.created_at.desc(), VolunteerApplication.id.desc())
+        .limit(500)
+    ).all()
+    return [present_application(item, viewer=manager) for item in applications]
+
+
+@app.post("/api/admin/volunteer-applications/{application_id}/review", response_model=VolunteerApplicationAdminOut)
+def review_volunteer_application(
+    application_id: int,
+    payload: VolunteerApplicationReview,
+    manager: User = Depends(get_role_manager),
+    db: Session = Depends(get_db),
+):
+    """管理员组审核志愿者申请：通过则申请人升为志愿者。"""
+    application = db.get(VolunteerApplication, application_id)
+    if application is None:
+        raise HTTPException(status_code=404, detail="申请不存在")
+    if application.status != ApplicationStatus.PENDING:
+        raise HTTPException(status_code=409, detail="该申请已处理过")
+    if payload.action == "approve":
+        applicant = db.get(User, application.user_id)
+        if applicant is None:
+            raise HTTPException(status_code=404, detail="申请用户不存在")
+        if applicant.role != UserRole.VOLUNTEER:
+            applicant.role = UserRole.VOLUNTEER
+            applicant.qq_public = False
+        application.status = ApplicationStatus.APPROVED
+    else:
+        application.status = ApplicationStatus.REJECTED
+    application.review_note = payload.note.strip() if payload.note else None
+    application.handled_by_id = manager.id
+    application.handled_at = datetime.utcnow()
+    db.commit()
+    db.refresh(application)
+    return present_application(application, viewer=manager)
 
 
 @app.get("/api/tasks", response_model=list[TaskOut])

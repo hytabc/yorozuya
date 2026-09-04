@@ -482,6 +482,101 @@ def test_feedback_flow():
         assert after[0]["reply"] == "已记录，深色模式已在规划中"
 
 
+def test_volunteer_application_flow():
+    with TestClient(app) as client:
+        user = auth(client, "applicant")
+        volunteer = auth(client, "helper", role="volunteer")
+        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+        # 造一个管理员（staff）账号参与评审
+        staff_user = auth(client, "chief")
+        staff_id = client.get("/api/auth/me", headers=staff_user).json()["id"]
+        assert client.patch(f"/api/admin/users/{staff_id}/role", headers=admin, json={"role": "staff"}).status_code == 200
+        staff = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'chief', 'password': 'Password123!'}).json()['access_token']}"}
+
+        # 理由太短 → 422
+        short = client.post("/api/volunteer-applications", headers=user, json={"reason": "想帮忙"})
+        assert short.status_code == 422
+
+        # 普通用户提交申请
+        created = client.post(
+            "/api/volunteer-applications", headers=user, json={"reason": "经常在线，愿意帮忙处理社区委托"}
+        )
+        assert created.status_code == 201, created.text
+        app_id = created.json()["id"]
+        assert created.json()["status"] == "pending"
+        assert created.json()["user"]["nickname"] == "用户applicant"
+
+        # 有待审申请时重复提交 → 409
+        duplicate = client.post(
+            "/api/volunteer-applications", headers=user, json={"reason": "再提交一次理由要足够长才可以通过"}
+        )
+        assert duplicate.status_code == 409
+
+        # 志愿者/超级管理员不能申请
+        assert client.post(
+            "/api/volunteer-applications", headers=volunteer, json={"reason": "志愿者不能再申请志愿者"}
+        ).status_code == 403
+        assert client.post(
+            "/api/volunteer-applications", headers=admin, json={"reason": "超级管理员不需要申请志愿者"}
+        ).status_code == 403
+
+        # 本人可查看最近一次申请
+        mine = client.get("/api/volunteer-applications/mine", headers=user)
+        assert mine.status_code == 200 and mine.json()["id"] == app_id
+
+        # 普通用户不能访问管理列表；staff 与超管都可以
+        assert client.get("/api/admin/volunteer-applications", headers=user).status_code == 403
+        staff_list = client.get("/api/admin/volunteer-applications", headers=staff)
+        assert staff_list.status_code == 200 and len(staff_list.json()) == 1
+
+        # staff 审核通过 → 申请人升为志愿者
+        approved = client.post(
+            f"/api/admin/volunteer-applications/{app_id}/review",
+            headers=staff,
+            json={"action": "approve"},
+        )
+        assert approved.status_code == 200, approved.text
+        assert approved.json()["status"] == "approved"
+        assert approved.json()["handled_at"] is not None
+        assert approved.json()["handled_by"]["nickname"] == "用户chief"
+        me = client.get("/api/auth/me", headers=user).json()
+        assert me["role"] == "volunteer"
+
+        # 已处理申请重复审核 → 409
+        again = client.post(
+            f"/api/admin/volunteer-applications/{app_id}/review",
+            headers=staff,
+            json={"action": "approve"},
+        )
+        assert again.status_code == 409
+
+        # 通过后进入成员名录志愿者组
+        directory = client.get("/api/staff").json()
+        assert any(v["id"] == me["id"] for v in directory["volunteers"])
+
+        # 被拒绝后可以重新申请
+        other = auth(client, "retry")
+        first = client.post(
+            "/api/volunteer-applications", headers=other, json={"reason": "第一次申请理由要写满十个字以上"}
+        )
+        assert first.status_code == 201
+        rejected = client.post(
+            f"/api/admin/volunteer-applications/{first.json()['id']}/review",
+            headers=admin,
+            json={"action": "reject", "note": "活跃度不足，欢迎下次再申请"},
+        )
+        assert rejected.status_code == 200
+        assert rejected.json()["status"] == "rejected"
+        assert rejected.json()["review_note"] == "活跃度不足，欢迎下次再申请"
+        assert client.get("/api/auth/me", headers=other).json()["role"] == "user"
+        second = client.post(
+            "/api/volunteer-applications", headers=other, json={"reason": "被拒绝后再次提交申请的理由"}
+        )
+        assert second.status_code == 201, second.text
+        mine_list = client.get("/api/admin/volunteer-applications", headers=admin).json()
+        assert len(mine_list) == 3
+
+
 def test_expired_task_is_updated_when_listed():
     with TestClient(app) as client:
         publisher = auth(client, "expirer")

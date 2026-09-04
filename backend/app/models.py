@@ -38,6 +38,12 @@ class FeedbackStatus(str, Enum):
     HANDLED = "handled"  # 已处理
 
 
+class ApplicationStatus(str, Enum):
+    PENDING = "pending"  # 待审核
+    APPROVED = "approved"  # 已通过：申请人升为志愿者
+    REJECTED = "rejected"  # 已拒绝：可重新提交申请
+
+
 class ReportStatus(str, Enum):
     PENDING = "pending"  # 待处理
     HANDLED = "handled"  # 已处理
@@ -235,6 +241,28 @@ class TaskReport(Base):
 
     task: Mapped[Task] = relationship(foreign_keys=[task_id], back_populates="reports")
     reporter: Mapped[User] = relationship(foreign_keys=[reporter_id])
+
+
+class VolunteerApplication(Base):
+    """志愿者申请：普通用户在成员展示页提交理由，由管理员/超级管理员审核。"""
+
+    __tablename__ = "volunteer_applications"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    reason: Mapped[str] = mapped_column(Text)
+    status: Mapped[ApplicationStatus] = mapped_column(
+        SqlEnum(ApplicationStatus, values_callable=lambda values: [item.value for item in values]),
+        default=ApplicationStatus.PENDING,
+        index=True,
+    )
+    review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    handled_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    handled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    user: Mapped[User] = relationship(foreign_keys=[user_id])
+    handled_by: Mapped[User | None] = relationship(foreign_keys=[handled_by_id])
 
 
 class AppSetting(Base):
