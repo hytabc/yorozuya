@@ -16,6 +16,8 @@ const users = ref([])
 const feedbacks = ref([])
 const applications = ref([])
 const photoUsers = ref([])
+const sugarPhotos = ref([])
+const moderatingSugarId = ref(null)
 const reports = ref([])
 const reportLimit = ref(2)
 const reportLimitInput = ref(2)
@@ -49,7 +51,7 @@ async function load() {
   loading.value = true
   try {
     if (!auth.isAdmin) {
-      const [taskRes, userRes, photoRes, reportRes, limitRes, feedbackRes, applicationRes] = await Promise.all([api.get('/admin/tasks'), api.get('/admin/users'), api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/settings/report-limit'), api.get('/admin/feedback'), api.get('/admin/volunteer-applications')])
+      const [taskRes, userRes, photoRes, reportRes, limitRes, feedbackRes, applicationRes, sugarPhotoRes] = await Promise.all([api.get('/admin/tasks'), api.get('/admin/users'), api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/settings/report-limit'), api.get('/admin/feedback'), api.get('/admin/volunteer-applications'), api.get('/admin/sugar/photos')])
       tasks.value = taskRes.data
       stats.value.hidden = tasks.value.filter((task) => !task.is_visible).length
       users.value = userRes.data
@@ -59,9 +61,10 @@ async function load() {
       reportLimitInput.value = limitRes.data.daily_limit
       feedbacks.value = feedbackRes.data
       applications.value = applicationRes.data
+      sugarPhotos.value = sugarPhotoRes.data
       return
     }
-    const [taskRes, userRes, statRes, feedbackRes, photoRes, reportRes, limitRes, applicationRes] = await Promise.all([
+    const [taskRes, userRes, statRes, feedbackRes, photoRes, reportRes, limitRes, applicationRes, sugarPhotoRes] = await Promise.all([
       api.get('/admin/tasks'),
       api.get('/admin/users'),
       api.get('/admin/stats'),
@@ -70,6 +73,7 @@ async function load() {
       api.get('/admin/reports'),
       api.get('/admin/settings/report-limit'),
       api.get('/admin/volunteer-applications'),
+      api.get('/admin/sugar/photos'),
     ])
     tasks.value = taskRes.data
     users.value = userRes.data
@@ -78,6 +82,7 @@ async function load() {
     photoUsers.value = photoRes.data
     reports.value = reportRes.data
     applications.value = applicationRes.data
+    sugarPhotos.value = sugarPhotoRes.data
     reportLimit.value = limitRes.data.daily_limit
     reportLimitInput.value = limitRes.data.daily_limit
     users.value.forEach((user) => { userLimits[user.id] = user.max_concurrent_tasks })
@@ -222,6 +227,20 @@ async function reviewApplication(item, action) {
   } catch (error) { toast.error(errorMessage(error)) } finally { reviewAppId.value = null }
 }
 
+async function moderateSugarPhoto(photo, isVisible) {
+  let note = null
+  if (!isVisible) {
+    note = window.prompt('请输入屏蔽理由（将展示给照片主人）', photo.admin_note || '')
+    if (note === null) return
+    if (!note.trim()) return toast.error('屏蔽照片时必须填写理由')
+  }
+  moderatingSugarId.value = photo.id
+  try {
+    const { data } = await api.patch(`/admin/sugar/photos/${photo.id}`, { is_visible: isVisible, admin_note: isVisible ? null : note.trim() })
+    sugarPhotos.value[sugarPhotos.value.findIndex((item) => item.id === photo.id)] = data
+    toast.success(isVisible ? '照片已恢复展示' : '照片已屏蔽')
+  } catch (error) { toast.error(errorMessage(error)) } finally { moderatingSugarId.value = null }
+}
 async function saveReportLimit() {
   const value = Number(reportLimitInput.value)
   if (!Number.isInteger(value) || value < 1) return toast.error('每日举报上限需为不小于 1 的整数')
@@ -351,30 +370,50 @@ onMounted(load)
     <section v-else-if="activeTab === 'photos'" class="admin-table-section">
       <div class="admin-toolbar"><div><h2>用户介绍图片</h2><span>不适合展示的图片可手动屏蔽</span></div></div>
       <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
-      <div v-else-if="photoUsers.length" class="moderation-users">
-        <section v-for="user in photoUsers" :key="user.id" class="moderation-user">
-          <header><strong>{{ user.nickname }}</strong><span>#{{ user.id }} · {{ roleLabel(user) }}</span></header>
-          <div v-if="user.avatar_url" class="moderation-avatar-row">
-            <figure class="moderation-avatar" :class="{ blocked: !user.avatar_visible }">
-              <img :src="user.avatar_url" :alt="`${user.nickname} 的头像`" />
-              <span v-if="!user.avatar_visible" class="photo-blocked"><Clock3 :size="14" />审核中</span>
-              <button class="button secondary small" type="button" @click="moderateAvatar(user)">
-                <Check v-if="!user.avatar_visible" :size="15" /><EyeOff v-else :size="15" />{{ user.avatar_visible ? '驳回' : '通过' }}
+      <template v-else>
+        <div v-if="photoUsers.length" class="moderation-users">
+          <section v-for="user in photoUsers" :key="user.id" class="moderation-user">
+            <header><strong>{{ user.nickname }}</strong><span>#{{ user.id }} · {{ roleLabel(user) }}</span></header>
+            <div v-if="user.avatar_url" class="moderation-avatar-row">
+              <figure class="moderation-avatar" :class="{ blocked: !user.avatar_visible }">
+                <img :src="user.avatar_url" :alt="`${user.nickname} 的头像`" />
+                <span v-if="!user.avatar_visible" class="photo-blocked"><Clock3 :size="14" />审核中</span>
+                <button class="button secondary small" type="button" @click="moderateAvatar(user)">
+                  <Check v-if="!user.avatar_visible" :size="15" /><EyeOff v-else :size="15" />{{ user.avatar_visible ? '驳回' : '通过' }}
+                </button>
+              </figure>
+              <span class="muted">头像</span>
+            </div>
+            <div v-if="user.photos.length" class="moderation-photo-grid">
+              <figure v-for="photo in user.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
+                <img :src="photo.image_url" :alt="`${user.nickname} 的介绍图片`" />
+                <button class="button secondary small" type="button" @click="togglePhoto(user, photo)">
+                  <EyeOff v-if="photo.is_visible" :size="15" /><Eye v-else :size="15" />{{ photo.is_visible ? '屏蔽' : '恢复' }}
+                </button>
+              </figure>
+            </div>
+          </section>
+        </div>
+        <div v-else-if="!sugarPhotos.length" class="feedback-admin-empty"><ImageIcon :size="28" />暂无用户图片</div>
+
+        <div class="admin-toolbar sugar-photos-toolbar"><div><h2>砂糖社照片</h2><span>屏蔽时需填写理由，理由会展示给照片主人</span></div></div>
+        <div v-if="sugarPhotos.length" class="moderation-photo-grid sugar-photos">
+          <figure v-for="photo in sugarPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
+            <img :src="photo.image_url" :alt="`${photo.user.nickname} 的砂糖社照片`" />
+            <span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.admin_note }}</span>
+            <div class="sugar-photo-actions">
+              <button class="button secondary small" type="button" :disabled="moderatingSugarId === photo.id" @click="moderateSugarPhoto(photo, false)">
+                <EyeOff :size="15" />屏蔽
               </button>
-            </figure>
-            <span class="muted">头像</span>
-          </div>
-          <div v-if="user.photos.length" class="moderation-photo-grid">
-            <figure v-for="photo in user.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
-              <img :src="photo.image_url" :alt="`${user.nickname} 的介绍图片`" />
-              <button class="button secondary small" type="button" @click="togglePhoto(user, photo)">
-                <EyeOff v-if="photo.is_visible" :size="15" /><Eye v-else :size="15" />{{ photo.is_visible ? '屏蔽' : '恢复' }}
+              <button v-if="!photo.is_visible" class="button secondary small" type="button" :disabled="moderatingSugarId === photo.id" @click="moderateSugarPhoto(photo, true)">
+                <Eye :size="15" />恢复
               </button>
-            </figure>
-          </div>
-        </section>
-      </div>
-      <div v-else class="feedback-admin-empty"><ImageIcon :size="28" />暂无用户图片</div>
+            </div>
+            <figcaption class="muted">{{ photo.user.nickname }}</figcaption>
+          </figure>
+        </div>
+        <div v-else class="feedback-admin-empty"><ImageIcon :size="28" />暂无砂糖社照片</div>
+      </template>
     </section>
 
     <section v-else-if="activeTab === 'feedback'" class="admin-table-section">
@@ -414,6 +453,66 @@ onMounted(load)
 </template>
 
 <style scoped>
+.moderation-avatar-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.sugar-photos-toolbar {
+  margin-top: 24px;
+}
+
+.sugar-photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.sugar-photos figure {
+  position: relative;
+  aspect-ratio: auto;
+  overflow: visible;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+.sugar-photos figure img {
+  width: 100%;
+  height: 120px;
+  border-radius: 4px;
+  object-fit: cover;
+  display: block;
+}
+
+.sugar-photos figure.blocked img {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+
+.sugar-photos .photo-blocked {
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  white-space: normal;
+}
+
+.sugar-photo-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.sugar-photos figcaption {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
 .moderation-avatar-row {
   display: flex;
   align-items: flex-end;

@@ -325,6 +325,24 @@ class TaskStats(BaseModel):
 class SugarPhotoOut(BaseModel):
     id: int
     image_url: str
+    # is_visible=False 的照片仅主人和管理员组会收到；admin_note 为屏蔽理由
+    is_visible: bool = True
+    admin_note: str | None = None
+
+
+class SugarPhotoAdminOut(ApiModel):
+    id: int
+    image_url: str
+    is_visible: bool
+    admin_note: str | None = None
+    created_at: datetime
+    user: UserPublic
+
+
+class SugarPhotoModerateUpdate(RequestModel):
+    """砂糖社照片审核：屏蔽时必须提供理由，恢复时可清空。"""
+    is_visible: bool
+    admin_note: str | None = Field(default=None, max_length=200)
 
 
 class SugarProfileCardOut(ApiModel):

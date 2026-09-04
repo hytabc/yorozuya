@@ -64,7 +64,9 @@ from .schemas import (
     TaskStats,
     StaffDirectoryOut,
     SugarPairOut,
+    SugarPhotoAdminOut,
     SugarPhotoOut,
+    SugarPhotoModerateUpdate,
     SugarProfileCardOut,
     SugarProfileDetailOut,
     TokenResponse,
@@ -216,6 +218,16 @@ def migrate_schema() -> None:
                 connection.execute(text("ALTER TABLE user_photos ADD COLUMN moderated_by_id INTEGER"))
             if "moderated_at" not in photo_columns:
                 connection.execute(text("ALTER TABLE user_photos ADD COLUMN moderated_at DATETIME"))
+        if inspector.has_table("sugar_photos"):
+            sugar_photo_columns = {column["name"] for column in inspector.get_columns("sugar_photos")}
+            if "is_visible" not in sugar_photo_columns:
+                connection.execute(text("ALTER TABLE sugar_photos ADD COLUMN is_visible BOOLEAN NOT NULL DEFAULT 1"))
+            if "admin_note" not in sugar_photo_columns:
+                connection.execute(text("ALTER TABLE sugar_photos ADD COLUMN admin_note VARCHAR(200)"))
+            if "moderated_by_id" not in sugar_photo_columns:
+                connection.execute(text("ALTER TABLE sugar_photos ADD COLUMN moderated_by_id INTEGER"))
+            if "moderated_at" not in sugar_photo_columns:
+                connection.execute(text("ALTER TABLE sugar_photos ADD COLUMN moderated_at DATETIME"))
 
 
 @asynccontextmanager
@@ -552,9 +564,20 @@ def photo_url(photo: SugarPhoto) -> str:
     return f"/uploads/{photo.file_path}"
 
 
+def present_sugar_photos(profile: SugarProfile, viewer: User | None) -> list[SugarPhotoOut]:
+    """被屏蔽的照片仅主人和管理员组可见（附带屏蔽理由），对其他查看者隐藏。"""
+    can_manage = viewer is not None and (viewer.id == profile.user_id or can_moderate(viewer))
+    return [
+        SugarPhotoOut(id=photo.id, image_url=photo_url(photo), is_visible=photo.is_visible, admin_note=photo.admin_note)
+        for photo in profile.photos
+        if photo.is_visible or can_manage
+    ]
+
+
 def present_sugar_profile(
     profile: SugarProfile,
     *,
+    viewer: User | None = None,
     qq: str | None = None,
     relationship: SugarPair | None = None,
     detailed: bool = False,
@@ -563,7 +586,7 @@ def present_sugar_profile(
         "id": profile.id,
         "user": profile.user,
         "about": profile.about,
-        "photos": [SugarPhotoOut(id=photo.id, image_url=photo_url(photo)) for photo in profile.photos],
+        "photos": present_sugar_photos(profile, viewer),
         "created_at": profile.created_at,
         "updated_at": profile.updated_at,
     }
@@ -974,7 +997,7 @@ def list_sugar_profiles(user: User = Depends(get_current_user), db: Session = De
         .order_by(SugarProfile.updated_at.desc())
         .limit(200)
     ).unique().all()
-    return [present_sugar_profile(profile) for profile in profiles]
+    return [present_sugar_profile(profile, viewer=user) for profile in profiles]
 
 
 @app.get("/api/sugar/profiles/{user_id}", response_model=SugarProfileDetailOut)
@@ -991,6 +1014,7 @@ def sugar_profile_detail(
     # QQ 不出现在公共列表；此详情请求的查看者与资料主人构成唯一的可见双方。
     return present_sugar_profile(
         profile,
+        viewer=viewer,
         qq=target.qq,
         relationship=relationship,
         detailed=True,
@@ -1041,7 +1065,7 @@ async def save_sugar_profile(
         raise
     saved = get_sugar_profile_or_404(db, user.id)
     response.status_code = status.HTTP_201_CREATED if is_new else status.HTTP_200_OK
-    return present_sugar_profile(saved, qq=user.qq, detailed=True)
+    return present_sugar_profile(saved, viewer=user, qq=user.qq, detailed=True)
 
 
 @app.delete("/api/sugar/photos/{photo_id}", response_model=SugarProfileDetailOut)
@@ -1064,7 +1088,7 @@ def delete_sugar_photo(photo_id: int, user: User = Depends(get_current_user), db
             destination.unlink(missing_ok=True)
         except OSError:
             pass
-    return present_sugar_profile(get_sugar_profile_or_404(db, user.id), qq=user.qq, detailed=True)
+    return present_sugar_profile(get_sugar_profile_or_404(db, user.id), viewer=user, qq=user.qq, detailed=True)
 
 
 @app.delete("/api/sugar/profile", status_code=status.HTTP_204_NO_CONTENT)
@@ -2002,6 +2026,50 @@ def moderate_user_photo(
     db.commit()
     user = db.scalar(user_with_photos_query().where(User.id == photo.user_id))
     return present_user_profile(user, manager)
+
+
+def present_sugar_photo_admin(photo: SugarPhoto) -> SugarPhotoAdminOut:
+    return SugarPhotoAdminOut(
+        id=photo.id,
+        image_url=photo_url(photo),
+        is_visible=photo.is_visible,
+        admin_note=photo.admin_note,
+        created_at=photo.created_at,
+        user=present_user_public(photo.profile.user),
+    )
+
+
+@app.get("/api/admin/sugar/photos", response_model=list[SugarPhotoAdminOut])
+def admin_sugar_photos(_: User = Depends(get_role_manager), db: Session = Depends(get_db)):
+    photos = db.scalars(
+        select(SugarPhoto)
+        .options(joinedload(SugarPhoto.profile).joinedload(SugarProfile.user))
+        .order_by(SugarPhoto.created_at.desc())
+        .limit(500)
+    ).unique().all()
+    return [present_sugar_photo_admin(photo) for photo in photos]
+
+
+@app.patch("/api/admin/sugar/photos/{photo_id}", response_model=SugarPhotoAdminOut)
+def moderate_sugar_photo(
+    photo_id: int,
+    payload: SugarPhotoModerateUpdate,
+    manager: User = Depends(get_role_manager),
+    db: Session = Depends(get_db),
+):
+    """管理员组屏蔽/恢复砂糖社照片：屏蔽必须填写理由，恢复时清空理由。"""
+    photo = db.get(SugarPhoto, photo_id)
+    if photo is None:
+        raise HTTPException(status_code=404, detail="照片不存在")
+    if not payload.is_visible and not (payload.admin_note or "").strip():
+        raise HTTPException(status_code=422, detail="屏蔽照片时必须填写理由")
+    photo.is_visible = payload.is_visible
+    photo.admin_note = payload.admin_note.strip() if payload.admin_note and payload.admin_note.strip() else None
+    photo.moderated_by_id = manager.id
+    photo.moderated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(photo)
+    return present_sugar_photo_admin(photo)
 
 
 @app.patch("/api/admin/users/{user_id}/task-limit", response_model=AdminUserOut)

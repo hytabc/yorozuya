@@ -745,6 +745,67 @@ def test_avatar_upload_and_moderation():
         assert client.patch(f"/api/admin/users/{me['id']}/avatar", headers=admin, json={"is_visible": True}).status_code == 404
 
 
+def test_sugar_photo_moderation():
+    with TestClient(app) as client:
+        alice = auth(client, "sugar_own")
+        bob = auth(client, "sugar_other")
+        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+
+        profile = register_sugar_profile(client, alice)
+        photo_id = profile["photos"][0]["id"]
+
+        # 管理端能看到砂糖照片及主人
+        listed = client.get("/api/admin/sugar/photos", headers=admin)
+        assert listed.status_code == 200
+        assert listed.json()[0]["id"] == photo_id
+        assert listed.json()[0]["user"]["nickname"] == "用户sugar_own"
+        assert listed.json()[0]["is_visible"] is True
+
+        # 屏蔽时不填理由 → 422
+        missing_note = client.patch(f"/api/admin/sugar/photos/{photo_id}", headers=admin, json={"is_visible": False})
+        assert missing_note.status_code == 422
+        assert "理由" in missing_note.json()["detail"]
+
+        # 普通用户不能审核
+        assert client.patch(f"/api/admin/sugar/photos/{photo_id}", headers=bob, json={"is_visible": False, "admin_note": "乱填"}).status_code == 403
+
+        # 带理由屏蔽
+        hidden = client.patch(
+            f"/api/admin/sugar/photos/{photo_id}",
+            headers=admin,
+            json={"is_visible": False, "admin_note": "照片包含无关广告水印"},
+        )
+        assert hidden.status_code == 200, hidden.text
+        assert hidden.json()["is_visible"] is False
+        assert hidden.json()["admin_note"] == "照片包含无关广告水印"
+
+        # 主人详情里照片仍在原位，且能拿到屏蔽理由
+        own_detail = client.get(f"/api/sugar/profiles/{profile['user']['id']}", headers=alice).json()
+        assert len(own_detail["photos"]) == 1
+        assert own_detail["photos"][0]["is_visible"] is False
+        assert own_detail["photos"][0]["admin_note"] == "照片包含无关广告水印"
+
+        # 其他用户的名片列表与详情都看不到被屏蔽照片
+        other_list = client.get("/api/sugar/profiles", headers=bob).json()
+        assert other_list[0]["photos"] == []
+        other_detail = client.get(f"/api/sugar/profiles/{profile['user']['id']}", headers=bob).json()
+        assert other_detail["photos"] == []
+
+        # 管理员查看与主人一致（能看到被屏蔽照片与理由）
+        admin_detail = client.get(f"/api/sugar/profiles/{profile['user']['id']}", headers=admin).json()
+        assert len(admin_detail["photos"]) == 1 and admin_detail["photos"][0]["is_visible"] is False
+
+        # 恢复展示后理由清空，他人重新可见
+        restored = client.patch(f"/api/admin/sugar/photos/{photo_id}", headers=admin, json={"is_visible": True, "admin_note": None})
+        assert restored.status_code == 200
+        assert restored.json()["is_visible"] is True
+        assert restored.json()["admin_note"] is None
+        assert len(client.get("/api/sugar/profiles", headers=bob).json()[0]["photos"]) == 1
+
+        # 照片不存在 → 404
+        assert client.patch("/api/admin/sugar/photos/99999", headers=admin, json={"is_visible": True}).status_code == 404
+
+
 def test_expired_task_is_updated_when_listed():
     with TestClient(app) as client:
         publisher = auth(client, "expirer")

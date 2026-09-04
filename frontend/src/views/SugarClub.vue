@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { Camera, Crown, HeartHandshake, ImagePlus, MessageCircle, Pencil, Save, Trash2, X } from 'lucide-vue-next'
+import { Camera, Crown, HeartHandshake, ImagePlus, EyeOff, MessageCircle, Pencil, Save, Trash2, X } from 'lucide-vue-next'
 import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
@@ -223,7 +223,7 @@ onBeforeUnmount(clearPendingPhotos)
           <label>介绍<textarea v-model="form.about" rows="5" maxlength="1000" placeholder="写下想让别人认识的你" /><small>{{ form.about.length }}/1000</small></label>
           <div class="photo-field"><span>照片 <small>单张不超过 5 MiB，最多 {{ MAX_PHOTOS }} 张</small></span>
             <div class="photo-grid edit">
-              <figure v-for="photo in ownProfile?.photos || []" :key="photo.id"><img :src="photo.image_url" alt="已上传照片" /><button class="icon-button photo-delete" type="button" title="删除照片" aria-label="删除照片" @click="deletePhoto(photo)"><Trash2 :size="15" /></button></figure>
+              <figure v-for="photo in ownProfile?.photos || []" :key="photo.id" :class="{ blocked: !photo.is_visible }"><img :src="photo.image_url" alt="已上传照片" /><span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />已屏蔽：{{ photo.admin_note || '未说明理由' }}</span><button class="icon-button photo-delete" type="button" title="删除照片" aria-label="删除照片" @click="deletePhoto(photo)"><Trash2 :size="15" /></button></figure>
               <figure v-for="(photo, index) in pendingPhotos" :key="photo.url"><img :src="photo.url" alt="待上传照片" /><button class="icon-button photo-delete" type="button" title="移除照片" aria-label="移除照片" @click="removePending(index)"><X :size="15" /></button></figure>
               <label v-if="canAddPhotos" class="photo-add"><ImagePlus :size="22" /><input type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple @change="selectPhotos" /></label>
             </div>
@@ -239,7 +239,12 @@ onBeforeUnmount(clearPendingPhotos)
         <p v-if="detailLoading" class="muted">正在加载资料…</p>
         <template v-else-if="detail">
           <div class="dialog-heading"><span class="eyebrow">SUGAR PROFILE</span><h2>{{ detail.user.nickname }}</h2></div>
-          <div class="photo-grid detail"><img v-for="photo in detail.photos" :key="photo.id" :src="photo.image_url" :alt="`${detail.user.nickname} 的照片`" /></div>
+          <div class="photo-grid detail">
+            <figure v-for="photo in detail.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
+              <img :src="photo.image_url" :alt="`${detail.user.nickname} 的照片`" />
+              <span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />已屏蔽：{{ photo.admin_note || '未说明理由' }}</span>
+            </figure>
+          </div>
           <p class="sugar-about">{{ detail.about }}</p>
           <div class="sugar-qq"><MessageCircle :size="17" /><span><small>QQ</small><strong>{{ detail.qq || '暂未填写' }}</strong></span></div>
           <div v-if="detail.user.id !== auth.user.id" class="dialog-footer sugar-detail-actions">
@@ -253,3 +258,12 @@ onBeforeUnmount(clearPendingPhotos)
     </div>
   </div>
 </template>
+
+<style scoped>
+.sugar-blocked {
+  right: auto;
+  max-width: 85%;
+  white-space: normal;
+  line-height: 1.5;
+}
+</style>

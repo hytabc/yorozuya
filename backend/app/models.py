@@ -361,9 +361,15 @@ class SugarPhoto(Base):
     profile_id: Mapped[int] = mapped_column(ForeignKey("sugar_profiles.id"), index=True)
     # 仅存相对上传目录的路径，文件本体由服务端本地磁盘保存。
     file_path: Mapped[str] = mapped_column(String(255), unique=True)
+    # 管理员屏蔽状态：屏蔽时必须填写 admin_note，对主人展示遮罩与理由，对其他人隐藏。
+    is_visible: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    admin_note: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    moderated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    moderated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     profile: Mapped[SugarProfile] = relationship(back_populates="photos")
+    moderated_by: Mapped[User | None] = relationship(foreign_keys=[moderated_by_id])
 
 
 class SugarPair(Base):
