@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     sugar_upload_dir: str = ""
     cors_origins: str = "http://localhost:5173,http://localhost:8080"
 
+    # 万事屋看板娘(站内 AI 助手):不填 MASCOT_API_KEY 则聊天接口优雅降级为“未启用”
+    mascot_api_base: str = "https://api.moonshot.cn/v1"
+    mascot_api_key: str = ""
+    mascot_model: str = "kimi-k2.7-code-highspeed"
+    mascot_max_tokens: int = 1500
+    mascot_timeout_seconds: int = 120
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property
