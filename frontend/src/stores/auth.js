@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { api } from '../api'
 
-const AUTH_CACHE_VERSION = '2'
+const AUTH_CACHE_VERSION = '3'
 const LOGIN_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
 function clearAuthCache() {

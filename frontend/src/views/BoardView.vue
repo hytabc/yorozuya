@@ -4,6 +4,7 @@ import { MessagesSquare, Send, Trash2 } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
 import { useAuthStore } from '../stores/auth'
+import UserAvatar from '../components/UserAvatar.vue'
 
 const toast = useToast()
 const auth = useAuthStore()
@@ -115,14 +116,14 @@ onMounted(load)
     <ul v-else class="board-list">
       <li v-for="message in messages" :key="message.id" class="board-item">
         <header class="board-head">
-          <span class="board-avatar">{{ message.user.nickname.slice(0, 1) }}</span>
+          <UserAvatar :user="message.user" :size="36" />
           <div class="board-meta"><strong>{{ message.user.nickname }}</strong><time class="muted">{{ time(message.created_at) }}</time></div>
           <button v-if="message.can_delete" class="icon-button" :disabled="deletingId === message.id" title="删除留言" aria-label="删除留言" @click="deleteMessage(message)"><Trash2 :size="17" /></button>
         </header>
         <p class="board-content">{{ message.content }}</p>
         <div class="board-comments">
           <div v-for="comment in message.comments" :key="comment.id" class="board-comment">
-            <span class="board-avatar small">{{ comment.user.nickname.slice(0, 1) }}</span>
+            <UserAvatar :user="comment.user" :size="28" />
             <div class="comment-body">
               <div class="board-meta"><strong>{{ comment.user.nickname }}</strong><time class="muted">{{ time(comment.created_at) }}</time><button v-if="comment.can_delete" class="icon-button tiny" :disabled="deletingId === comment.id" title="删除评论" aria-label="删除评论" @click="deleteComment(message, comment)"><Trash2 :size="14" /></button></div>
               <p>{{ comment.content }}</p>
@@ -200,25 +201,6 @@ onMounted(load)
 
 .board-head .icon-button {
   margin-left: auto;
-}
-
-.board-avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: var(--green-soft);
-  color: var(--green);
-  font-weight: 700;
-}
-
-.board-avatar.small {
-  width: 28px;
-  height: 28px;
-  font-size: 13px;
 }
 
 .board-meta {

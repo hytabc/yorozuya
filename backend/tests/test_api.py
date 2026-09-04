@@ -679,6 +679,72 @@ def test_task_stats_endpoint():
         assert client.get(f"/api/tasks/{staying['id']}").json()["id"] == staying["id"]
 
 
+def test_avatar_upload_and_moderation():
+    with TestClient(app) as client:
+        alice = auth(client, "avatar_user")
+        bob = auth(client, "avatar_viewer")
+        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+
+        # 上传 PNG 成功，默认待审核
+        uploaded = client.post("/api/users/me/avatar", headers=alice, files={"avatar": ("a.png", TINY_PNG, "image/png")})
+        assert uploaded.status_code == 201, uploaded.text
+        assert uploaded.json()["avatar_url"].startswith("/uploads/avatars/")
+        assert uploaded.json()["avatar_visible"] is False
+
+        # 本人可以看到自己的待审头像
+        me = client.get("/api/auth/me", headers=alice).json()
+        assert me["avatar_url"]
+
+        # 未过审时其他用户看不到
+        assert client.get(f"/api/users/{me['id']}", headers=bob).json()["avatar_url"] is None
+
+        # 超过 2MB → 422
+        oversized = b"\x89PNG\r\n\x1a\n" + b"\x00" * (2 * 1024 * 1024)
+        too_big = client.post("/api/users/me/avatar", headers=alice, files={"avatar": ("big.png", oversized, "image/png")})
+        assert too_big.status_code == 422
+        assert "2 MB" in too_big.json()["detail"]
+
+        # 非 PNG/JPG（GIF）→ 422
+        gif = client.post("/api/users/me/avatar", headers=alice, files={"avatar": ("a.gif", b"GIF89a" + b"\x00" * 32, "image/gif")})
+        assert gif.status_code == 422
+        assert "PNG 或 JPG" in gif.json()["detail"]
+
+        # 管理员在图片管理列表中能看到待审头像（审核者可见未过审头像）
+        photos = client.get("/api/admin/photos", headers=admin).json()
+        target = next(item for item in photos if item["id"] == me["id"])
+        assert target["avatar_url"]
+
+        # 普通用户不能审核头像
+        assert client.patch(f"/api/admin/users/{me['id']}/avatar", headers=bob, json={"is_visible": True}).status_code == 403
+
+        # 审核通过后对其他用户可见
+        approved = client.patch(f"/api/admin/users/{me['id']}/avatar", headers=admin, json={"is_visible": True})
+        assert approved.status_code == 200, approved.text
+        assert approved.json()["avatar_visible"] is True
+        assert client.get(f"/api/users/{me['id']}", headers=bob).json()["avatar_url"]
+
+        # 驳回后再次仅本人可见
+        client.patch(f"/api/admin/users/{me['id']}/avatar", headers=admin, json={"is_visible": False})
+        assert client.get(f"/api/users/{me['id']}", headers=bob).json()["avatar_url"] is None
+        assert client.get("/api/auth/me", headers=alice).json()["avatar_url"]
+
+        # JPG 重新上传会替换并重置审核状态
+        jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 64
+        replaced = client.post("/api/users/me/avatar", headers=alice, files={"avatar": ("b.jpg", jpeg, "image/jpeg")})
+        assert replaced.status_code == 201, replaced.text
+        assert replaced.json()["avatar_url"].endswith(".jpg")
+        assert replaced.json()["avatar_visible"] is False
+
+        # 删除头像后清空
+        deleted = client.delete("/api/users/me/avatar", headers=alice)
+        assert deleted.status_code == 200
+        assert deleted.json()["avatar_url"] is None
+        assert client.get("/api/auth/me", headers=alice).json()["avatar_url"] is None
+
+        # 没有头像时审核接口 404
+        assert client.patch(f"/api/admin/users/{me['id']}/avatar", headers=admin, json={"is_visible": True}).status_code == 404
+
+
 def test_expired_task_is_updated_when_listed():
     with TestClient(app) as client:
         publisher = auth(client, "expirer")

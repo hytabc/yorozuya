@@ -94,6 +94,14 @@ async function togglePhoto(user, photo) {
     toast.success(photo.is_visible ? '图片已屏蔽' : '图片已恢复展示')
   } catch (error) { toast.error(errorMessage(error)) }
 }
+async function moderateAvatar(user) {
+  const approve = !user.avatar_visible
+  try {
+    const { data } = await api.patch(`/admin/users/${user.id}/avatar`, { is_visible: approve })
+    photoUsers.value[photoUsers.value.findIndex((item) => item.id === user.id)] = data
+    toast.success(approve ? `已通过 ${data.nickname} 的头像审核` : `已驳回 ${data.nickname} 的头像`)
+  } catch (error) { toast.error(errorMessage(error)) }
+}
 async function saveUserLimit(user) {
   savingUserId.value = user.id
   try {
@@ -346,7 +354,17 @@ onMounted(load)
       <div v-else-if="photoUsers.length" class="moderation-users">
         <section v-for="user in photoUsers" :key="user.id" class="moderation-user">
           <header><strong>{{ user.nickname }}</strong><span>#{{ user.id }} · {{ roleLabel(user) }}</span></header>
-          <div class="moderation-photo-grid">
+          <div v-if="user.avatar_url" class="moderation-avatar-row">
+            <figure class="moderation-avatar" :class="{ blocked: !user.avatar_visible }">
+              <img :src="user.avatar_url" :alt="`${user.nickname} 的头像`" />
+              <span v-if="!user.avatar_visible" class="photo-blocked"><Clock3 :size="14" />审核中</span>
+              <button class="button secondary small" type="button" @click="moderateAvatar(user)">
+                <Check v-if="!user.avatar_visible" :size="15" /><EyeOff v-else :size="15" />{{ user.avatar_visible ? '驳回' : '通过' }}
+              </button>
+            </figure>
+            <span class="muted">头像</span>
+          </div>
+          <div v-if="user.photos.length" class="moderation-photo-grid">
             <figure v-for="photo in user.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
               <img :src="photo.image_url" :alt="`${user.nickname} 的介绍图片`" />
               <button class="button secondary small" type="button" @click="togglePhoto(user, photo)">
@@ -394,3 +412,41 @@ onMounted(load)
     </div>
   </div>
 </template>
+
+<style scoped>
+.moderation-avatar-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.moderation-avatar {
+  position: relative;
+  width: 84px;
+  margin: 0;
+  text-align: center;
+}
+
+.moderation-avatar img {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  margin: 0 auto 6px;
+}
+
+.moderation-avatar .photo-blocked {
+  top: 46px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.moderation-avatar.blocked img {
+  filter: grayscale(0.7);
+  opacity: 0.75;
+}
+</style>

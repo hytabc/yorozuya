@@ -71,6 +71,9 @@ class UserPublic(ApiModel):
     nickname: str
     bio: str | None = None
     photos: list[UserPhotoOut] = []
+    # avatar_url 仅在查看者有权看到时由后端填充；未过审头像仅本人和管理员组可见
+    avatar_url: str | None = None
+    avatar_visible: bool = False
 
 
 class UserProfileOut(ApiModel):
@@ -84,6 +87,8 @@ class UserProfileOut(ApiModel):
     role: UserRole = UserRole.USER
     created_at: datetime
     photos: list[UserPhotoOut] = []
+    avatar_url: str | None = None
+    avatar_visible: bool = False
 
 
 class UserSelf(UserPublic):

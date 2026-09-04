@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { BriefcaseBusiness, HeartHandshake, LogOut, Menu, MessagesSquare, ShieldCheck, Store, UserRound, X } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
+import UserAvatar from './UserAvatar.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -35,7 +36,7 @@ function logout() {
       <div class="header-actions">
         <template v-if="auth.isLoggedIn">
           <RouterLink to="/profile" class="user-chip">
-            <span class="avatar">{{ auth.user?.nickname?.slice(0, 1) }}</span>
+            <UserAvatar :user="auth.user" :size="30" />
             <span>{{ auth.user?.nickname }}</span>
           </RouterLink>
           <button class="icon-button desktop-only" title="退出登录" aria-label="退出登录" @click="logout">

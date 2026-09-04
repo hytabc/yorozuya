@@ -5,6 +5,7 @@ import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
 import { useAuthStore } from '../stores/auth'
 import UserProfileCard from '../components/UserProfileCard.vue'
+import UserAvatar from '../components/UserAvatar.vue'
 import VolunteerApplyDialog from '../components/VolunteerApplyDialog.vue'
 
 const toast = useToast()
@@ -95,7 +96,7 @@ onMounted(async () => {
         <div v-else class="staff-grid">
           <button v-for="member in staff" :key="member.id" class="staff-card" type="button" @click="selectedUser = member">
             <header>
-              <span class="user-avatar-lg">{{ member.nickname.slice(0, 1) }}</span>
+              <UserAvatar :user="member" :size="50" />
               <div><h3>{{ member.nickname }}</h3><span class="role-tag role-staff"><Store :size="13" />管理员</span></div>
             </header>
             <p class="staff-bio">{{ member.bio || '这位管理员还没有填写个人简介。' }}</p>
@@ -113,7 +114,7 @@ onMounted(async () => {
         <div v-else class="staff-grid">
           <button v-for="member in volunteers" :key="member.id" class="staff-card volunteer-card" type="button" @click="selectedUser = member">
             <header>
-              <span class="user-avatar-lg">{{ member.nickname.slice(0, 1) }}</span>
+              <UserAvatar :user="member" :size="50" />
               <div><h3>{{ member.nickname }}</h3><span class="role-tag role-volunteer"><Heart :size="13" />志愿者</span></div>
             </header>
             <p class="staff-bio">{{ member.bio || '这位志愿者还没有填写个人简介。' }}</p>

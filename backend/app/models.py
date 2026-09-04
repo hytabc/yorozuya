@@ -80,6 +80,14 @@ class User(Base):
     )
     max_concurrent_tasks: Mapped[int] = mapped_column(default=2)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    # 头像：仅存相对 uploads 目录的路径；上传后需管理员审核（avatar_visible）才公开展示。
+    avatar_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    avatar_visible: Mapped[bool] = mapped_column(Boolean, default=False)
+    avatar_moderated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    @property
+    def avatar_url(self) -> str | None:
+        return f"/uploads/{self.avatar_path}" if self.avatar_path else None
 
     published_tasks: Mapped[list["Task"]] = relationship(
         foreign_keys="Task.publisher_id", back_populates="publisher"

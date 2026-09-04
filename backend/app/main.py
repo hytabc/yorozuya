@@ -127,6 +127,12 @@ def migrate_schema() -> None:
                 connection.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(16) NOT NULL DEFAULT 'user'"))
             if "qq_public" not in user_columns:
                 connection.execute(text("ALTER TABLE users ADD COLUMN qq_public BOOLEAN NOT NULL DEFAULT 0"))
+            if "avatar_path" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN avatar_path VARCHAR(255)"))
+            if "avatar_visible" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN avatar_visible BOOLEAN NOT NULL DEFAULT 0"))
+            if "avatar_moderated_at" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN avatar_moderated_at DATETIME"))
         if not inspector.has_table("tasks"):
             return
         task_columns = {column["name"] for column in inspector.get_columns("tasks")}
@@ -265,8 +271,20 @@ def visible_user_photos(user: User, viewer: User | None = None) -> list[UserPhot
     ]
 
 
+def visible_avatar(user: User, viewer: User | None = None) -> str | None:
+    """头像 URL：审核通过后对所有人可见，未过审时仅本人和管理员组可见。"""
+    if not user.avatar_path:
+        return None
+    if user.avatar_visible or (viewer is not None and (viewer.id == user.id or can_moderate(viewer))):
+        return user.avatar_url
+    return None
+
+
 def present_user_public(user: User, viewer: User | None = None) -> UserPublic:
-    return UserPublic(id=user.id, nickname=user.nickname, bio=user.bio, photos=visible_user_photos(user, viewer))
+    return UserPublic(
+        id=user.id, nickname=user.nickname, bio=user.bio, photos=visible_user_photos(user, viewer),
+        avatar_url=visible_avatar(user, viewer), avatar_visible=user.avatar_visible,
+    )
 
 
 ANONYMOUS_PUBLISHER = UserPublic(id=0, nickname="匿名委托人", bio=None, photos=[])
@@ -277,6 +295,7 @@ def present_user_profile(user: User, viewer: User | None = None) -> UserProfileO
         id=user.id, nickname=user.nickname, bio=user.bio, qq=user.qq, qq_public=user.qq_public,
         is_admin=user.is_admin,
         role=user.role, created_at=user.created_at, photos=visible_user_photos(user, viewer),
+        avatar_url=visible_avatar(user, viewer), avatar_visible=user.avatar_visible,
     )
 
 
@@ -511,6 +530,13 @@ IMAGE_SIGNATURES = (
     (b"\x89PNG\r\n\x1a\n", ".png"),
     (b"GIF87a", ".gif"),
     (b"GIF89a", ".gif"),
+)
+
+# 头像：仅 PNG/JPG，最大 2 MB，上传后需管理员审核
+MAX_AVATAR_BYTES = 2 * 1024 * 1024
+AVATAR_SIGNATURES = (
+    (b"\xff\xd8\xff", ".jpg"),
+    (b"\x89PNG\r\n\x1a\n", ".png"),
 )
 
 
@@ -823,6 +849,87 @@ def delete_user_photo(photo_id: int, user: User = Depends(get_current_user), db:
             pass
     db.refresh(user)
     return present_user_profile(user, user)
+
+
+def avatar_extension(content: bytes) -> str | None:
+    for signature, extension in AVATAR_SIGNATURES:
+        if content.startswith(signature):
+            return extension
+    return None
+
+
+def clear_avatar_file(user: User) -> None:
+    """移除旧头像文件并清空头像字段（重新上传换头像、删除头像时复用）。"""
+    if not user.avatar_path:
+        return
+    root = settings.sugar_upload_path.resolve()
+    destination = (root / user.avatar_path).resolve()
+    if destination.is_relative_to(root):
+        try:
+            destination.unlink(missing_ok=True)
+        except OSError:
+            pass
+    user.avatar_path = None
+    user.avatar_visible = False
+    user.avatar_moderated_at = None
+
+
+@app.post("/api/users/me/avatar", response_model=UserProfileOut, status_code=status.HTTP_201_CREATED)
+async def upload_avatar(
+    avatar: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """上传头像：仅支持 PNG/JPG、最大 2 MB；需管理员审核通过后才公开展示。"""
+    content = await avatar.read(MAX_AVATAR_BYTES + 1)
+    if not content:
+        raise HTTPException(status_code=422, detail="请选择要上传的头像图片")
+    if len(content) > MAX_AVATAR_BYTES:
+        raise HTTPException(status_code=422, detail="头像图片不能超过 2 MB")
+    extension = avatar_extension(content)
+    if extension is None:
+        raise HTTPException(status_code=422, detail="头像仅支持 PNG 或 JPG 格式")
+    settings.ensure_storage_directory()
+    file_path = f"avatars/{user.id}/{uuid4().hex}{extension}"
+    destination = settings.sugar_upload_path / file_path
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        destination.write_bytes(content)
+    except OSError as error:
+        raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
+    clear_avatar_file(user)
+    user.avatar_path = file_path
+    user.avatar_visible = False
+    user.avatar_moderated_at = None
+    db.commit()
+    db.refresh(user)
+    return present_user_profile(user, user)
+
+
+@app.delete("/api/users/me/avatar", response_model=UserProfileOut)
+def delete_avatar(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    clear_avatar_file(user)
+    db.commit()
+    db.refresh(user)
+    return present_user_profile(user, user)
+
+
+@app.patch("/api/admin/users/{user_id}/avatar", response_model=UserProfileOut)
+def moderate_avatar(
+    user_id: int,
+    payload: AdminPhotoUpdate,
+    manager: User = Depends(get_role_manager),
+    db: Session = Depends(get_db),
+):
+    """管理员组审核头像：通过后公开展示，驳回则仅本人可见。"""
+    target = db.get(User, user_id)
+    if target is None or not target.avatar_path:
+        raise HTTPException(status_code=404, detail="头像不存在")
+    target.avatar_visible = payload.is_visible
+    target.avatar_moderated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(target)
+    return present_user_profile(target, manager)
 
 
 @app.get("/api/users/{user_id}", response_model=UserProfileOut)
@@ -1876,7 +1983,7 @@ def admin_users(manager: User = Depends(get_role_manager), db: Session = Depends
 @app.get("/api/admin/photos", response_model=list[UserProfileOut])
 def admin_photos(_: User = Depends(get_role_manager), db: Session = Depends(get_db)):
     users = db.scalars(user_with_photos_query().order_by(User.created_at.desc())).unique().all()
-    return [present_user_profile(user, _) for user in users if user.photos]
+    return [present_user_profile(user, _) for user in users if user.photos or user.avatar_path]
 
 
 @app.patch("/api/admin/photos/{photo_id}", response_model=UserProfileOut)
