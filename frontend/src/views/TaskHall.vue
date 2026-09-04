@@ -33,11 +33,14 @@ const statuses = computed(() => isManager.value
   ? [{ value: '', label: '全部状态' }, { value: 'published', label: '招募中' }, { value: 'accepted', label: '处理中' }, { value: 'awaiting', label: '待确认' }, { value: 'cancelling', label: '取消确认中' }, { value: 'completed', label: '已完成' }, { value: 'expired', label: '已过期' }]
   : [{ value: 'published', label: '招募中' }])
 
-const stats = computed(() => ({
-  open: tasks.value.filter((item) => item.status === 'published').length,
-  active: tasks.value.filter((item) => ['accepted', 'awaiting'].includes(item.status)).length,
-  done: tasks.value.filter((item) => item.status === 'completed').length,
-}))
+// 顶部统计走独立数量接口，展示全站数量，不受筛选与角色可见性影响
+const stats = ref({ published: 0, processing: 0, completed: 0 })
+
+async function loadStats() {
+  try {
+    stats.value = (await api.get('/tasks/stats')).data
+  } catch { /* 统计加载失败不影响委托列表 */ }
+}
 
 let timer
 async function load() {
@@ -48,6 +51,7 @@ async function load() {
     const { data } = await api.get('/tasks', { params })
     tasks.value = data
   } catch (error) { toast.error(errorMessage(error, '委托加载失败')) } finally { loading.value = false }
+  loadStats()
 }
 function create() {
   if (!auth.isLoggedIn) return router.push({ path: '/login', query: { redirect: '/' } })
@@ -83,6 +87,7 @@ async function action(key, payload = {}) {
       password: '接取密码已更新，请把新密码告知接单人',
     }
     toast.success(messages[key])
+    loadStats()
   } catch (error) { toast.error(errorMessage(error)) } finally { busy.value = false }
 }
 onMounted(load)
@@ -98,9 +103,9 @@ onMounted(load)
         <button class="text-link feedback-entry" type="button" @click="showFeedback = true"><MessageCircle :size="15" />有建议或遇到问题？告诉我们</button>
       </div>
       <div class="hall-stats" aria-label="委托统计">
-        <div><strong>{{ stats.open }}</strong><span>正在招募</span></div>
-        <div><strong>{{ stats.active }}</strong><span>正在处理</span></div>
-        <div><strong>{{ stats.done }}</strong><span>顺利完成</span></div>
+        <div><strong>{{ stats.published }}</strong><span>正在招募</span></div>
+        <div><strong>{{ stats.processing }}</strong><span>正在处理</span></div>
+        <div><strong>{{ stats.completed }}</strong><span>顺利完成</span></div>
       </div>
     </section>
 

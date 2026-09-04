@@ -61,6 +61,7 @@ from .schemas import (
     TaskMemberOut,
     TaskOut,
     TaskReportOut,
+    TaskStats,
     StaffDirectoryOut,
     SugarPairOut,
     SugarPhotoOut,
@@ -1372,6 +1373,28 @@ def list_tasks(
         query = query.where(Task.pay_type == pay_type)
     tasks = db.scalars(query.order_by(Task.created_at.desc()).limit(200)).unique().all()
     return [present_task(task, viewer) for task in tasks]
+
+
+@app.get("/api/tasks/stats", response_model=TaskStats)
+def task_stats(db: Session = Depends(get_db)):
+    """大厅顶部统计：全站数量（正在招募/正在处理/顺利完成），不受筛选影响。
+
+    仅返回数量不返回内容；被后台屏蔽的委托不计入。路由需注册在
+    /api/tasks/{task_id} 之前，避免 "stats" 被当作委托 ID 解析。
+    """
+    expire_due_tasks(db)
+    visible = Task.is_visible.is_(True)
+    return TaskStats(
+        published=db.scalar(
+            select(func.count()).select_from(Task).where(visible, Task.status == TaskStatus.PUBLISHED)
+        ) or 0,
+        processing=db.scalar(
+            select(func.count()).select_from(Task).where(visible, Task.status.in_([TaskStatus.ACCEPTED, TaskStatus.AWAITING]))
+        ) or 0,
+        completed=db.scalar(
+            select(func.count()).select_from(Task).where(visible, Task.status == TaskStatus.COMPLETED)
+        ) or 0,
+    )
 
 
 @app.get("/api/tasks/mine", response_model=list[TaskOut])

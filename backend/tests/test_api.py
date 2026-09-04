@@ -644,6 +644,41 @@ def test_board_flow():
         assert client.delete(f"/api/board/{staff_target.json()['id']}", headers=staff).status_code == 404
 
 
+def test_task_stats_endpoint():
+    with TestClient(app) as client:
+        alice = auth(client, "stat_pub")
+        bob = promote(client, auth(client, "stat_taker"))
+        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+
+        # 游客可访问，初始为空
+        assert client.get("/api/tasks/stats").json() == {"published": 0, "processing": 0, "completed": 0}
+
+        # 一条完成、一条保持招募中、一条将被后台屏蔽
+        finished = create_task(client, alice, required=1, title="统计测试已完成委托")
+        staying = create_task(client, alice, required=None, title="统计测试招募中委托")
+        hidden = create_task(client, alice, required=None, title="统计测试被屏蔽委托")
+        client.post(f"/api/tasks/{finished['id']}/accept", headers=bob, json={"password": "接取密码123"})
+        client.post(f"/api/tasks/{finished['id']}/confirm", headers=alice)
+        client.post(f"/api/tasks/{finished['id']}/confirm", headers=bob)
+        client.patch(f"/api/admin/tasks/{hidden['id']}", headers=admin, json={"is_visible": False, "admin_note": "屏蔽测试"})
+
+        # 全站数量不受大厅筛选/角色影响，且被屏蔽的委托不计入
+        stats = client.get("/api/tasks/stats").json()
+        assert stats == {"published": 1, "processing": 0, "completed": 1}
+        assert staying["status"] == "published"
+
+        # 请求只包含数量字段，不返回委托内容
+        assert set(stats.keys()) == {"published", "processing", "completed"}
+
+        # 再发布一条并接取开始 → 计入正在处理
+        started = create_task(client, alice, required=1, title="统计测试处理中委托")
+        client.post(f"/api/tasks/{started['id']}/accept", headers=bob, json={"password": "接取密码123"})
+        assert client.get("/api/tasks/stats").json() == {"published": 1, "processing": 1, "completed": 1}
+
+        # /api/tasks/{task_id} 仍正常工作（stats 未被误当成 ID）
+        assert client.get(f"/api/tasks/{staying['id']}").json()["id"] == staying["id"]
+
+
 def test_expired_task_is_updated_when_listed():
     with TestClient(app) as client:
         publisher = auth(client, "expirer")

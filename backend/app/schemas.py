@@ -310,6 +310,13 @@ class AdminStats(BaseModel):
     hidden: int
 
 
+class TaskStats(BaseModel):
+    """大厅顶部统计：仅返回数量，不含任何委托内容。"""
+    published: int
+    processing: int
+    completed: int
+
+
 class SugarPhotoOut(BaseModel):
     id: int
     image_url: str
