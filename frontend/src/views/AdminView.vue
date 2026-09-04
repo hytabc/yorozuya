@@ -189,7 +189,7 @@ onMounted(load)
               <td v-if="auth.isAdmin"><input v-model.number="userLimits[user.id]" class="limit-input" type="number" min="0" max="999" :aria-label="`${user.nickname} 的接单上限`" /></td>
               <td>
                 <div class="user-row-actions">
-                  <button v-if="auth.isAdmin" class="button secondary small" title="保存接单上限" aria-label="保存接单上限" :disabled="savingUserId === user.id || userLimits[user.id] === user.max_concurrent_tasks" @click="saveUserLimit(user)"><Save :size="15" /></button>
+                  <button v-if="auth.isAdmin" class="button secondary small" :class="{ 'is-saving': savingUserId === user.id }" :title="savingUserId === user.id ? '保存中…' : '保存接单上限'" aria-label="保存接单上限" :disabled="savingUserId === user.id || userLimits[user.id] === user.max_concurrent_tasks" @click="saveUserLimit(user)">{{ savingUserId === user.id ? '…' : '' }}<Save :size="15" /></button>
                   <select v-if="!user.is_admin" class="role-select" :value="user.role" :disabled="savingRoleId === user.id" :aria-label="`修改 ${user.nickname} 的权限等级`" @change="changeUserRole(user, $event.target.value, $event.target)">
                     <option value="user">普通用户</option>
                     <option value="volunteer">志愿者</option>
