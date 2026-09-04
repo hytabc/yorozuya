@@ -1150,3 +1150,143 @@ def test_designated_multiple_waits_for_all_and_cancels_when_all_decline():
         tid2 = task2["id"]
         assert client.post(f"/api/tasks/{tid2}/leave", headers=one).json()["status"] == "published"
         assert client.post(f"/api/tasks/{tid2}/leave", headers=two).json()["status"] == "cancelled"
+
+
+def test_anonymous_task_hides_publisher_until_accepted_then_reveals_contacts():
+    with TestClient(app) as client:
+        publisher = auth(client, "anon_pub")
+        publisher_id = client.get("/api/auth/me", headers=publisher).json()["id"]
+        set_qq(client, publisher, "10086001")
+        volunteer = auth(client, "anon_taker", role="volunteer")
+        volunteer_id = client.get("/api/auth/me", headers=volunteer).json()["id"]
+        set_qq(client, volunteer, "10086002")
+        outsider = auth(client, "anon_outsider", role="volunteer")
+
+        created = client.post(
+            "/api/tasks",
+            headers=publisher,
+            json={
+                "title": "匿名整理的委托",
+                "description": "这是一份不公开发布人身份的匿名委托内容说明",
+                "category": "其他",
+                "pay_type": "free",
+                "accept_password": "pw-anon-1",
+                "is_anonymous": True,
+                "expires_in_days": 2,
+            },
+        )
+        assert created.status_code == 201, created.text
+        task = created.json()
+        tid = task["id"]
+        assert task["is_anonymous"] is True
+
+        # 委托人自己仍能看到完整信息与自己的真实 id。
+        assert task["publisher_id"] == publisher_id
+        assert task["publisher"]["id"] == publisher_id
+
+        # 未接取时：对外只显示标题和内容，发布人与成员信息全部脱敏。
+        public_detail = client.get(f"/api/tasks/{tid}").json()
+        assert public_detail["publisher_id"] == 0
+        assert public_detail["publisher"]["id"] == 0
+        assert public_detail["publisher"]["nickname"] == "匿名委托人"
+        assert public_detail["members"] == []
+        assert public_detail["contact_qq"] is None
+
+        before = client.get(f"/api/tasks/{tid}", headers=volunteer).json()
+        assert before["publisher_id"] == 0
+        assert before["publisher"]["nickname"] == "匿名委托人"
+        assert before["members"] == []
+        assert before["contact_qq"] is None
+
+        listed = client.get("/api/tasks", headers=volunteer).json()
+        anon_listed = next(item for item in listed if item["id"] == tid)
+        assert anon_listed["publisher"]["nickname"] == "匿名委托人"
+        assert anon_listed["members"] == []
+        assert anon_listed["contact_qq"] is None
+
+        # 接取后：双方联系方式互见。
+        accepted = client.post(f"/api/tasks/{tid}/accept", headers=volunteer, json={"password": "pw-anon-1"}).json()
+        assert accepted["publisher"]["id"] == publisher_id
+        assert accepted["publisher"]["nickname"] != "匿名委托人"
+        assert accepted["contact_qq"] == "10086001"
+        assert [member["user"]["id"] for member in accepted["members"]] == [volunteer_id]
+
+        publisher_view = client.get(f"/api/tasks/{tid}", headers=publisher).json()
+        assert publisher_view["publisher_id"] == publisher_id
+        volunteer_member = next(member for member in publisher_view["members"] if member["user"]["id"] == volunteer_id)
+        assert volunteer_member["qq"] == "10086002"
+
+        # 未参与的其他登录用户仍只能看到脱敏视图。
+        outsider_view = client.get(f"/api/tasks/{tid}", headers=outsider).json()
+        assert outsider_view["publisher_id"] == 0
+        assert outsider_view["publisher"]["nickname"] == "匿名委托人"
+        assert outsider_view["members"] == []
+        assert outsider_view["contact_qq"] is None
+
+
+def test_anonymous_free_task_accept_shows_publisher_contact_to_regular_user():
+    with TestClient(app) as client:
+        publisher = auth(client, "anon_free_pub")
+        publisher_id = client.get("/api/auth/me", headers=publisher).json()["id"]
+        set_qq(client, publisher, "10086123")
+        taker = auth(client, "anon_free_taker")
+        created = client.post(
+            "/api/tasks",
+            headers=publisher,
+            json={
+                "title": "匿名无偿委托",
+                "description": "一份无需密码即可接取的匿名委托内容说明",
+                "category": "其他",
+                "pay_type": "free",
+                "accept_password": None,
+                "is_anonymous": True,
+                "expires_in_days": 1,
+            },
+        ).json()
+        tid = created["id"]
+        assert created["is_anonymous"] is True
+        assert created["publisher"]["id"] == publisher_id
+        assert created["contact_qq"] is None
+        accepted = client.post(f"/api/tasks/{tid}/accept", headers=taker, json={"password": None}).json()
+        assert accepted["publisher"]["nickname"] != "匿名委托人"
+        assert accepted["contact_qq"] == "10086123"
+
+
+def test_anonymous_designated_task_shows_only_own_pending_status_until_accept():
+    with TestClient(app) as client:
+        publisher = auth(client, "anon_design_pub")
+        set_qq(client, publisher, "10086031")
+        volunteer = auth(client, "anon_design_one", role="volunteer")
+        volunteer_id = client.get("/api/auth/me", headers=volunteer).json()["id"]
+        other = auth(client, "anon_design_two", role="volunteer")
+        other_id = client.get("/api/auth/me", headers=other).json()["id"]
+        created = client.post(
+            "/api/tasks",
+            headers=publisher,
+            json={
+                "title": "匿名指定委托",
+                "description": "一份指定专人响应的匿名委托内容说明",
+                "category": "其他",
+                "pay_type": "free",
+                "designated_user_ids": [volunteer_id, other_id],
+                "is_anonymous": True,
+                "expires_in_days": 2,
+            },
+        ).json()
+        tid = created["id"]
+        assert created["is_anonymous"] is True
+        # 被指定者：仅看到自己的待响应状态，发布人与其他成员均不可见。
+        pending_view = client.get(f"/api/tasks/{tid}", headers=volunteer).json()
+        assert pending_view["publisher_id"] == 0
+        assert pending_view["publisher"]["nickname"] == "匿名委托人"
+        assert [member["user"]["id"] for member in pending_view["members"]] == [volunteer_id]
+        assert pending_view["members"][0]["response_status"] == "pending"
+        assert pending_view["contact_qq"] is None
+        # 其他被指定者也看不到他人信息。
+        other_view = client.get(f"/api/tasks/{tid}", headers=other).json()
+        assert [member["user"]["id"] for member in other_view["members"]] == [other_id]
+        # 接受后双方联系方式可见。
+        accepted = client.post(f"/api/tasks/{tid}/accept", headers=volunteer, json={"password": None}).json()
+        assert accepted["publisher_id"] == created["publisher_id"]
+        assert accepted["publisher"]["nickname"] != "匿名委托人"
+        assert accepted["contact_qq"] == "10086031"

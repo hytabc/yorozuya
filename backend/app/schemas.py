@@ -120,6 +120,8 @@ class TaskCreate(RequestModel):
     required_takers: int | None = Field(default=None, ge=1, le=999)
     # 非空时为指定委托，只允许名单内的店员/志愿者响应。
     designated_user_ids: list[int] = Field(default_factory=list, max_length=999)
+    # 匿名发布：大厅仅展示标题和内容，接取后联系方式仅双方可见。
+    is_anonymous: bool = False
     expires_in_days: Literal[1, 2, 3, 5, 10]
 
 
@@ -160,6 +162,7 @@ class TaskOut(ApiModel):
     requires_password: bool
     required_takers: int | None = None
     is_designated: bool = False
+    is_anonymous: bool = False
     members: list[TaskMemberOut] = []
     publisher_id: int
     publisher_confirmed_at: datetime | None = None

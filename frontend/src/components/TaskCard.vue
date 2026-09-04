@@ -43,7 +43,7 @@ const joined = computed(() => props.task.members?.filter((m) => m.response_statu
     <div class="task-meta">
       <span><UserRound :size="15" />{{ task.publisher.nickname }}</span>
       <span><CalendarClock :size="15" />{{ deadline }}</span>
-      <span v-if="task.members?.length || task.required_takers != null"><UsersRound :size="15" />已 {{ joined }}/需 {{ requiredText }} 人</span>
+      <span v-if="!task.is_anonymous && (task.members?.length || task.required_takers != null)"><UsersRound :size="15" />已 {{ joined }}/需 {{ requiredText }} 人</span>
       <span v-if="task.reward"><Coins :size="15" />{{ task.reward }}</span>
     </div>
   </article>

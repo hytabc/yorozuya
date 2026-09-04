@@ -113,6 +113,8 @@ def migrate_schema() -> None:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN required_takers INTEGER"))
         if "is_designated" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN is_designated BOOLEAN NOT NULL DEFAULT 0"))
+        if "is_anonymous" not in task_columns:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN is_anonymous BOOLEAN NOT NULL DEFAULT 0"))
         if "started_at" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN started_at DATETIME"))
         if "pay_type" not in task_columns:
@@ -195,7 +197,7 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title=settings.app_name, version="1.1.0", lifespan=lifespan)
+app = FastAPI(title=settings.app_name, version="1.2.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
@@ -245,6 +247,9 @@ def present_user_public(user: User, viewer: User | None = None) -> UserPublic:
     return UserPublic(id=user.id, nickname=user.nickname, bio=user.bio, photos=visible_user_photos(user, viewer))
 
 
+ANONYMOUS_PUBLISHER = UserPublic(id=0, nickname="匿名委托人", bio=None, photos=[])
+
+
 def present_user_profile(user: User, viewer: User | None = None) -> UserProfileOut:
     return UserProfileOut(
         id=user.id, nickname=user.nickname, bio=user.bio, qq=user.qq, qq_public=user.qq_public,
@@ -255,7 +260,15 @@ def present_user_profile(user: User, viewer: User | None = None) -> UserProfileO
 
 def present_members(task: Task, viewer: User | None) -> list[TaskMemberOut]:
     """成员序列化；qq 只在协作相关方（委托人/成员/管理员）可见。"""
-    can_see_qq = viewer is not None and (viewer.is_admin or viewer.id == task.publisher_id or any(m.user_id == viewer.id for m in task.members))
+    if task.is_anonymous:
+        # 匿名委托：只有委托人、已接取成员或管理员能看到成员联系方式，接取前不可见。
+        can_see_qq = viewer is not None and (
+            viewer.is_admin
+            or viewer.id == task.publisher_id
+            or any(m.user_id == viewer.id and m.response_status == TaskMemberResponse.ACCEPTED for m in task.members)
+        )
+    else:
+        can_see_qq = viewer is not None and (viewer.is_admin or viewer.id == task.publisher_id or any(m.user_id == viewer.id for m in task.members))
     out: list[TaskMemberOut] = []
     for member in task.members:
         item = TaskMemberOut(
@@ -278,6 +291,40 @@ def present_task(task: Task, viewer: User | None = None) -> TaskOut:
     data.admin_note = task.admin_note if (not task.is_visible and can_see_hidden) else None
     data.publisher = present_user_public(task.publisher, viewer)
     data.members = present_members(task, viewer)
+    if task.is_anonymous:
+        # 匿名委托：接取前仅展示标题与内容，个人信息不公开；接取后联系方式仅双方可见。
+        is_collaborator = viewer is not None and (
+            viewer.id == task.publisher_id
+            or any(
+                m.user_id == viewer.id and m.response_status == TaskMemberResponse.ACCEPTED
+                for m in task.members
+            )
+        )
+        is_pending_designated = viewer is not None and any(
+            m.user_id == viewer.id and m.response_status == TaskMemberResponse.PENDING for m in task.members
+        )
+        can_inspect = viewer is not None and (viewer.is_admin or viewer.role == UserRole.STAFF)
+        if not (is_collaborator or is_pending_designated or can_inspect):
+            data.publisher = ANONYMOUS_PUBLISHER
+            data.publisher_id = 0
+            data.members = []
+            return data
+        if is_pending_designated and not is_collaborator:
+            # 匿名指定委托：被指定者仅看到自己的待响应状态，不暴露发布人与其他成员。
+            data.publisher = ANONYMOUS_PUBLISHER
+            data.publisher_id = 0
+            data.members = [member for member in data.members if member.user.id == viewer.id]
+            return data
+        if task.publisher_id == viewer.id:
+            # 委托人：成员 QQ 已由 present_members 填充
+            return data
+        if is_collaborator:
+            # 已接取成员：可见委托人联系方式
+            data.contact_qq = task.publisher.qq
+            return data
+        if viewer.is_admin:
+            data.contact_qq = task.publisher.qq
+        return data
     if viewer is None:
         return data
     if viewer.is_admin:
@@ -1082,6 +1129,7 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
         reward=payload.reward.strip() if payload.reward else None,
         expires_at=now + timedelta(days=payload.expires_in_days),
         publisher_id=user.id,
+        is_anonymous=payload.is_anonymous,
         required_takers=len(designated_user_ids) if designated_user_ids else payload.required_takers,
         # 指定委托无须密码，响应权限由指定名单保证。
         accept_password_hash=None if designated_user_ids else (hash_password(payload.accept_password) if payload.accept_password else None),

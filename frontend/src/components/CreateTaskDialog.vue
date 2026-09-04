@@ -24,6 +24,7 @@ const form = reactive({
   reward: '',
   accept_password: '',
   required_takers: 1,
+  is_anonymous: false,
   expires_in_days: 1,
 })
 
@@ -89,6 +90,10 @@ onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeE
             <p v-if="!designatedUsers.length" class="field-hint">当前没有可指定的店员或志愿者。</p>
             <p v-if="designated && !designatedIds.length" class="field-error">请至少指定一名店员或志愿者</p>
           </div>
+        </div>
+        <div class="anonymous-field">
+          <label class="checkbox-inline"><input v-model="form.is_anonymous" type="checkbox" /><span>匿名发布</span></label>
+          <small class="field-hint">匿名委托在大厅不公开昵称与个人资料，仅显示标题和内容；接取后联系方式仅双方可见。</small>
         </div>
         <div v-if="!designated" class="access-field">
           <span class="taker-label">接取方式</span>

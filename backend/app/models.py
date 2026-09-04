@@ -128,6 +128,8 @@ class Task(Base):
     required_takers: Mapped[int | None] = mapped_column(nullable=True)
     # 指定店员/志愿者的委托不会向大厅开放接取，须等全部指定人员响应后开始。
     is_designated: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # 匿名委托：个人信息不公开显示，接取后联系方式仅双方可见。
+    is_anonymous: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
