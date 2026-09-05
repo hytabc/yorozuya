@@ -5,6 +5,7 @@ import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
 import { useAuthStore } from '../stores/auth'
 import UserAvatar from '../components/UserAvatar.vue'
+import UserProfileCard from '../components/UserProfileCard.vue'
 
 const toast = useToast()
 const auth = useAuthStore()
@@ -16,6 +17,7 @@ const posting = ref(false)
 const commentDrafts = reactive({})
 const commentBusy = reactive({})
 const deletingId = ref(null)
+const viewUser = ref(null)
 
 const canPost = computed(() => auth.isLoggedIn)
 
@@ -116,16 +118,22 @@ onMounted(load)
     <ul v-else class="board-list">
       <li v-for="message in messages" :key="message.id" class="board-item">
         <header class="board-head">
-          <UserAvatar :user="message.user" :size="36" />
-          <div class="board-meta"><strong>{{ message.user.nickname }}</strong><time class="muted">{{ time(message.created_at) }}</time></div>
+          <button class="board-user" type="button" title="查看资料" @click="viewUser = message.user">
+            <UserAvatar :user="message.user" :size="36" />
+            <strong>{{ message.user.nickname }}</strong>
+          </button>
+          <time class="muted">{{ time(message.created_at) }}</time>
           <button v-if="message.can_delete" class="icon-button" :disabled="deletingId === message.id" title="删除留言" aria-label="删除留言" @click="deleteMessage(message)"><Trash2 :size="17" /></button>
         </header>
         <p class="board-content">{{ message.content }}</p>
         <div class="board-comments">
           <div v-for="comment in message.comments" :key="comment.id" class="board-comment">
-            <UserAvatar :user="comment.user" :size="28" />
+            <button class="board-user" type="button" title="查看资料" @click="viewUser = comment.user">
+              <UserAvatar :user="comment.user" :size="28" />
+              <strong class="comment-name">{{ comment.user.nickname }}</strong>
+            </button>
             <div class="comment-body">
-              <div class="board-meta"><strong>{{ comment.user.nickname }}</strong><time class="muted">{{ time(comment.created_at) }}</time><button v-if="comment.can_delete" class="icon-button tiny" :disabled="deletingId === comment.id" title="删除评论" aria-label="删除评论" @click="deleteComment(message, comment)"><Trash2 :size="14" /></button></div>
+              <div class="board-meta"><time class="muted">{{ time(comment.created_at) }}</time><button v-if="comment.can_delete" class="icon-button tiny" :disabled="deletingId === comment.id" title="删除评论" aria-label="删除评论" @click="deleteComment(message, comment)"><Trash2 :size="14" /></button></div>
               <p>{{ comment.content }}</p>
             </div>
           </div>
@@ -136,6 +144,10 @@ onMounted(load)
         </div>
       </li>
     </ul>
+
+    <div v-if="viewUser" class="modal-backdrop" @mousedown.self="viewUser = null">
+      <UserProfileCard :initial-user="viewUser" hide-contact @close="viewUser = null" />
+    </div>
   </div>
 </template>
 
@@ -199,8 +211,41 @@ onMounted(load)
   gap: 10px;
 }
 
-.board-head .icon-button {
+.board-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.board-user strong {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-user:hover strong,
+.board-user:hover .comment-name {
+  text-decoration: underline;
+}
+
+.comment-name {
+  font-size: 13px;
+}
+
+.board-head time {
   margin-left: auto;
+  font-size: 12px;
+}
+
+.board-head .icon-button {
+  margin-left: 0;
 }
 
 .board-meta {
