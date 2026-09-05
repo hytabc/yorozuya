@@ -8,6 +8,8 @@ import UserAvatar from './UserAvatar.vue'
 const props = defineProps({
   userId: { type: Number, default: null },
   initialUser: { type: Object, default: null },
+  // 留言板等公开场景：只展示个人资料，不展示联系方式
+  hideContact: { type: Boolean, default: false },
 })
 const emit = defineEmits(['close'])
 const loading = ref(!props.initialUser)
@@ -50,8 +52,9 @@ onMounted(async () => {
           <span v-if="!photo.is_visible"><EyeOff :size="13" />已屏蔽</span>
         </figure>
       </div>
-      <div v-if="user.qq" class="user-card-qq"><MessageCircle :size="15" /><span><strong>QQ：{{ user.qq }}</strong><small>{{ user.role === 'staff' ? '管理员联系方式对所有人公开' : (user.qq_public ? '该志愿者已选择公开联系方式' : '你们已建立委托协作，联系方式已向你开放') }}</small></span></div>
-      <div v-else class="user-card-qq muted"><KeyRound :size="15" /><span><strong>暂无可见联系方式</strong><small>{{ user.role === 'volunteer' && !user.qq_public ? '该志愿者未在成员名录中公开 QQ' : '仅共同协作者可见对方 QQ' }}</small></span></div>
+      <div v-if="!hideContact && user.qq" class="user-card-qq"><MessageCircle :size="15" /><span><strong>QQ：{{ user.qq }}</strong><small>{{ user.role === 'staff' ? '管理员联系方式对所有人公开' : (user.qq_public ? '该志愿者已选择公开联系方式' : '你们已建立委托协作，联系方式已向你开放') }}</small></span></div>
+      <div v-else-if="!hideContact" class="user-card-qq muted"><KeyRound :size="15" /><span><strong>暂无可见联系方式</strong><small>{{ user.role === 'volunteer' && !user.qq_public ? '该志愿者未在成员名录中公开 QQ' : '仅共同协作者可见对方 QQ' }}</small></span></div>
+      <p v-else class="user-card-privacy muted"><MessageCircle :size="15" />联系方式不在公开资料中展示</p>
     </template>
   </section>
 </template>
