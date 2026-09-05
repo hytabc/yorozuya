@@ -643,6 +643,14 @@ def test_board_flow():
         # 删除后重复删除 → 404
         assert client.delete(f"/api/board/{staff_target.json()['id']}", headers=staff).status_code == 404
 
+        # 公开资料接口：游客可查看（含 created_at），但不含联系方式（staff 的公开 QQ 也不返回）
+        client.post("/api/board", headers=staff_user, json={"content": "这是一条用于检查公开资料的留言"})
+        board_user = client.get("/api/board").json()[0]["user"]
+        public_profile = client.get(f"/api/users/{board_user['id']}/public")
+        assert public_profile.status_code == 200
+        assert public_profile.json()["created_at"]
+        assert public_profile.json()["qq"] is None
+
 
 def test_task_stats_endpoint():
     with TestClient(app) as client:

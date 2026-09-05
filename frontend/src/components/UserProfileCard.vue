@@ -17,7 +17,9 @@ const error = ref('')
 const user = ref(props.initialUser)
 
 const joined = (value) =>
-  new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' }).format(new Date(value))
+  value
+    ? new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' }).format(new Date(value))
+    : ''
 
 onMounted(async () => {
   if (props.initialUser) return

@@ -19,6 +19,15 @@ const commentBusy = reactive({})
 const deletingId = ref(null)
 const viewUser = ref(null)
 
+// 列表里的用户是精简信息（无 created_at 等字段），点击时拉取完整公开资料（不含联系方式）
+async function openProfile(user) {
+  try {
+    viewUser.value = (await api.get(`/users/${user.id}/public`)).data
+  } catch (err) {
+    toast.error(errorMessage(err, '无法加载该用户资料'))
+  }
+}
+
 const canPost = computed(() => auth.isLoggedIn)
 
 const time = (value) =>
@@ -118,7 +127,7 @@ onMounted(load)
     <ul v-else class="board-list">
       <li v-for="message in messages" :key="message.id" class="board-item">
         <header class="board-head">
-          <button class="board-user" type="button" title="查看资料" @click="viewUser = message.user">
+          <button class="board-user" type="button" title="查看资料" @click="openProfile(message.user)">
             <UserAvatar :user="message.user" :size="36" />
             <strong>{{ message.user.nickname }}</strong>
           </button>
@@ -128,7 +137,7 @@ onMounted(load)
         <p class="board-content">{{ message.content }}</p>
         <div class="board-comments">
           <div v-for="comment in message.comments" :key="comment.id" class="board-comment">
-            <button class="board-user" type="button" title="查看资料" @click="viewUser = comment.user">
+            <button class="board-user" type="button" title="查看资料" @click="openProfile(comment.user)">
               <UserAvatar :user="comment.user" :size="28" />
               <strong class="comment-name">{{ comment.user.nickname }}</strong>
             </button>

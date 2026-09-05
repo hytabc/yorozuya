@@ -985,6 +985,17 @@ def user_profile(user_id: int, viewer: User | None = Depends(get_optional_user),
     return data
 
 
+@app.get("/api/users/{user_id}/public", response_model=UserProfileOut)
+def user_public_profile(user_id: int, viewer: User | None = Depends(get_optional_user), db: Session = Depends(get_db)):
+    """公开资料（无联系方式）：留言板等公开场景点击用户时使用，游客可访问。"""
+    target = db.scalar(user_with_photos_query().where(User.id == user_id))
+    if target is None or not target.is_active:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    data = present_user_profile(target, viewer)
+    data.qq = None
+    return data
+
+
 @app.get("/api/staff", response_model=StaffDirectoryOut)
 def staff_directory(db: Session = Depends(get_db)):
     staff = db.scalars(
