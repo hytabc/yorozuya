@@ -8,6 +8,7 @@ services:
     environment:
       DATABASE_URL: sqlite:////data/wsw.db
       SECRET_KEY: ${SECRET_KEY:?请在 .env 中设置 SECRET_KEY}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?请在 .env 中设置 ADMIN_PASSWORD}
       ADMIN_NICKNAME: ${ADMIN_NICKNAME:-万事屋管理员}

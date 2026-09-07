@@ -10,7 +10,7 @@
 
 | 层 | 技术 |
 |---|---|
-| 后端 | Python 3.12 + FastAPI + SQLAlchemy 2.0（ORM）+ Pydantic v2 + pydantic-settings，默认 SQLite（`data/wsw.db`），JWT（HTTPBearer）认证 |
+| 后端 | Python 3.12 + FastAPI + SQLAlchemy 2.0（ORM）+ Pydantic v2 + pydantic-settings，默认 SQLite（`data/wsw.db`），JWT 会话（优先 `HttpOnly` Cookie，保留 Bearer 兼容）认证 |
 | 前端 | Vue 3（`<script setup>`）+ Pinia + Vue Router + Vite + axios + lucide-vue-next 图标 |
 | 部署 | Docker Compose（`docker-compose.yml`，prod/dev 两套）+ FRP 内网穿透（`deploy/frpc.toml`）；根目录 `start.sh` / `start.bat` 一键启动 |
 | 测试 | 后端 pytest（`backend/tests/test_api.py`，TestClient + 内存库，约 34 个用例） |
@@ -27,15 +27,15 @@ backend/app/
   main.py        # 全部 API 路由（~1750 行，单文件）+ 启动时建管理员/SQLite 迁移/静态托管前端
   models.py      # ORM 模型与所有枚举（UserRole、TaskStatus、FeedbackStatus、ReportStatus 等）
   schemas.py     # Pydantic 请求/响应模型（role 用 Literal["user","volunteer","staff"] 校验）
-  dependencies.py# 权限收口：get_current_user / get_optional_user / get_admin / get_role_manager
-  security.py    # PBKDF2 密码哈希 + JWT 签发/校验（24h 会话）
+  dependencies.py# 权限与 Cookie/CSRF 收口：get_current_user / get_optional_user / get_admin / get_role_manager
+  security.py    # PBKDF2 密码哈希 + 含 session_version 的 JWT 签发/校验（24h 会话）
   config.py      # pydantic-settings，读根目录 .env；含数据库备份、砂糖上传目录、看板娘配置
   database.py    # engine/SessionLocal；AppSession 挂自动快照（backup.py，每次写库后备份）
   backup.py      # 数据库自动快照，保留最近 db_backup_keep 份
 frontend/src/
-  api.js         # axios 实例：自动带 token、401 时清缓存并派发 auth-expired
+  api.js         # axios 实例：携带 Cookie，写请求自动附加 CSRF 头，401 时派发 auth-expired
   constants.js   # 角色显示名 ROLE_LABELS / ROLE_HINTS / roleLabel()（⚠️ 改角色文案先看这里）
-  stores/auth.js # Pinia：token/user 持久化到 localStorage；isAdmin / isStaff / canManageRoles
+  stores/auth.js # Pinia：仅内存保存当前用户；刷新时由 HttpOnly Cookie 请求 /auth/me 恢复
   router.js      # 路由守卫（auth / guestOnly / roleManager）
   views/         # TaskHall(大厅) MyTasks ProfileView AdminView(后台) StaffView(名录) SugarClub LoginView
   components/    # TaskDialog(委托详情+接取) CreateTaskDialog ReportDialog FeedbackDialog
@@ -77,6 +77,15 @@ frontend/src/
 10. **砂糖社**：公开档案（照片存 `sugar_upload_path`）→ 互相 confirm 成 pair → 任一方 end；展示维持最久前三对。
 11. **看板娘**：站内 AI 助手，走 Moonshot API（`mascot_*` 配置，未配 key 优雅降级）。
 
+## 安全基线与测试（必做）
+
+- 密码和委托接取密码只能以 `hash_password()` 的 PBKDF2 哈希入库；不得记录密码、JWT、Cookie 或 QQ 到日志。QQ 属于业务必须可读取的信息，数据库、上传目录及自动备份必须由宿主机/卷加密和最小文件权限保护，不能用可逆“混淆”冒充加密。
+- 浏览器认证只允许 `wsw_session` 的 `HttpOnly` Cookie；前端不得把令牌或用户资料写入 `localStorage`/`sessionStorage`。生产 HTTPS 必须配置 `COOKIE_SECURE=true`（Docker Compose 默认 true；本地 HTTP 开发才显式设 false），并让前端与 API 保持同源；Cookie 写请求必须同时通过 `SameSite=Lax` 和 `X-CSRF-Token` 校验。Bearer 仅为非浏览器 API 客户端迁移兼容，不能作为前端实现依据。
+- 修改本人密码或管理员重置密码时必须递增 `session_version`，使旧会话立即失效。新增高权限、停用账号或认证相关改动时，必须复核已有会话是否应一并失效。
+- 上传图片只能通过 `/api/uploads/{path}` 按数据库记录和查看者权限返回；禁止重新挂载可直连的 `/uploads` 静态目录。未审核/被屏蔽图片、被举报或隐藏地图的图片必须在“已知 URL 直接 GET”时仍返回 404；文件路径须限定在上传根目录。
+- QQ 默认仅本人、管理者、公开名录用户或实际协作方可见；砂糖社 QQ 仅本人、管理者、主动公开者和已激活配对双方可见。任何新资料接口都应先定义游客、登录陌生人、协作方、staff、超级管理员五类查看者的字段级可见性。
+- 新增或改动认证、隐私、上传、管理员接口时，必须在 `backend/tests/test_api.py` 增加或更新覆盖：未登录/低权限拒绝、跨用户越权、Cookie 缺失 CSRF 拒绝、旧会话在密码变更后拒绝、响应不含密码哈希/原始 token，以及受限图片 URL 直连拒绝。每次提交至少运行 `cd backend && python -m pytest tests -q` 和 `cd frontend && npm run build`。
+
 ## 启动行为（main.py 顶部）
 
 - 建表 + 若无管理员则按 `ADMIN_USERNAME/PASSWORD` bootstrap 创建；旧 SQLite 库自动 `ALTER TABLE` 补 `role` 列等轻量迁移（改枚举/加列时在此处追加）。
@@ -88,4 +97,4 @@ frontend/src/
 - 配置全部走根目录 `.env`（见 `.env.example`），pydantic-settings 自动读取，环境变量名 = 字段大写。
 - 测试用内存库，不经 AppSession（无自动快照）；测试断言与业务文案强耦合（如断言 detail 含"接取密码不正确"），改文案记得改测试。
 - 本地若无 Python 3.12，用 3.14 跑测试需 SQLAlchemy>=2.0.44（2.0.38 与 3.14 不兼容）；生产 Docker 是 3.12，requirements.txt 版本锁定不要随意升级。
-- 前端登录缓存有版本号 `AUTH_CACHE_VERSION`（stores/auth.js），改 user 对象结构时递增可强制全员重新登录。
+- 认证状态不持久化到浏览器存储；修改 `UserSelf` 或认证 Cookie 行为时，需验证刷新页面后的 `/api/auth/me` 恢复、退出登录和会话失效流程。

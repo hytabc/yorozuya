@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     secret_key: str = "change-this-secret-in-production"
     # 登录会话最多持续 24 小时，超时后必须重新验证密码。
     access_token_minutes: int = 60 * 24
+    # 生产站点必须在 HTTPS 下启用；本地 HTTP 开发可显式设为 false。
+    cookie_secure: bool = False
     # 每次数据库写入后自动快照，保留的最近备份份数
     db_backup_keep: int = 100
     admin_username: str = "admin"
@@ -36,6 +38,13 @@ class Settings(BaseSettings):
         if self.database_url.startswith("sqlite:///"):
             db_path = Path(self.database_url.removeprefix("sqlite:///"))
             db_path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                db_path.parent.chmod(0o700)
+                if db_path.exists():
+                    db_path.chmod(0o600)
+            except OSError:
+                # 某些挂载卷不支持 chmod；部署时仍须由宿主机限制访问权限。
+                pass
 
     @property
     def sugar_upload_path(self) -> Path:
@@ -48,6 +57,10 @@ class Settings(BaseSettings):
 
     def ensure_storage_directory(self) -> None:
         self.sugar_upload_path.mkdir(parents=True, exist_ok=True)
+        try:
+            self.sugar_upload_path.chmod(0o700)
+        except OSError:
+            pass
 
 
 settings = Settings()

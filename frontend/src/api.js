@@ -1,21 +1,26 @@
 import axios from 'axios'
 
-export const api = axios.create({ baseURL: import.meta.env.VITE_API_BASE || '/api' })
+export const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE || '/api',
+  withCredentials: true,
+})
+
+function csrfToken() {
+  return document.cookie.split('; ').find((item) => item.startsWith('wsw_csrf='))?.split('=')[1]
+}
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('wsw_token')
-  if (token) config.headers.Authorization = `Bearer ${token}`
+  if (!['get', 'head', 'options'].includes(config.method?.toLowerCase())) {
+    const token = csrfToken()
+    if (token) config.headers['X-CSRF-Token'] = token
+  }
   return config
 })
 
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && localStorage.getItem('wsw_token')) {
-      localStorage.removeItem('wsw_token')
-      localStorage.removeItem('wsw_user')
-      localStorage.removeItem('wsw_auth_version')
-      localStorage.removeItem('wsw_login_at')
+    if (error.response?.status === 401) {
       window.dispatchEvent(new Event('auth-expired'))
     }
     return Promise.reject(error)

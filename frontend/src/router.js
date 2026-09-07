@@ -28,8 +28,9 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
+  if (!auth.ready) await auth.restore()
   if (to.meta.auth && !auth.isLoggedIn) return { path: '/login', query: { redirect: to.fullPath } }
   if (to.meta.roleManager && !auth.canManageRoles) return '/'
   if (to.meta.guestOnly && auth.isLoggedIn) return '/'

@@ -79,6 +79,8 @@ class User(Base):
         index=True,
     )
     max_concurrent_tasks: Mapped[int] = mapped_column(default=2)
+    # 密码重置时递增，令已签发 JWT 立即失效。
+    session_version: Mapped[int] = mapped_column(default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     # 头像：仅存相对 uploads 目录的路径；上传后需管理员审核（avatar_visible）才公开展示。
     avatar_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -87,7 +89,7 @@ class User(Base):
 
     @property
     def avatar_url(self) -> str | None:
-        return f"/uploads/{self.avatar_path}" if self.avatar_path else None
+        return f"/api/uploads/{self.avatar_path}" if self.avatar_path else None
 
     published_tasks: Mapped[list["Task"]] = relationship(
         foreign_keys="Task.publisher_id", back_populates="publisher"
@@ -120,7 +122,7 @@ class UserPhoto(Base):
 
     @property
     def image_url(self) -> str:
-        return f"/uploads/{self.file_path}"
+        return f"/api/uploads/{self.file_path}"
 
 
 class Task(Base):

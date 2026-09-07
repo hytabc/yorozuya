@@ -44,17 +44,31 @@ def auth(client, username, password="Password123!", role="user"):
         json={"username": username, "password": password, "nickname": f"用户{username}"},
     )
     assert response.status_code == 201, response.text
-    headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
+    headers = session_headers(response)
+    client.cookies.clear()
     if role == "volunteer":
         promote(client, headers)
+    return headers
+
+
+def session_headers(response):
+    token = response.cookies.get("wsw_session")
+    assert token, "登录响应必须设置 HttpOnly 会话 Cookie"
+    return {"Authorization": f"Bearer {token}"}
+
+
+def login_as(client, username, password="Password123!"):
+    response = client.post("/api/auth/login", json={"username": username, "password": password})
+    assert response.status_code == 200, response.text
+    headers = session_headers(response)
+    client.cookies.clear()
     return headers
 
 
 def promote(client, user_headers):
     """管理员把某用户升级为志愿者（测试用，普通用户默认不能接取委托）。"""
     user_id = client.get("/api/auth/me", headers=user_headers).json()["id"]
-    admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
-    admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+    admin = login_as(client, "admin", "Admin123!")
     r = client.patch(f"/api/admin/users/{user_id}/role", headers=admin, json={"role": "volunteer"})
     assert r.status_code == 200, r.text
     return user_headers
@@ -66,6 +80,32 @@ def set_qq(client, headers, qq):
     r = client.patch("/api/users/me", headers=headers, json={"nickname": nickname, "qq": qq, "bio": None})
     assert r.status_code == 200, r.text
     return r.json()
+
+
+def test_cookie_session_csrf_and_password_rotation():
+    with TestClient(app) as client:
+        registered = client.post(
+            "/api/auth/register",
+            json={"username": "cookie_user", "password": "Password123!", "nickname": "Cookie 用户"},
+        )
+        assert registered.status_code == 201
+        assert "access_token" not in registered.json()
+        assert "httponly" in registered.headers["set-cookie"].lower()
+        old_session = session_headers(registered)
+
+        # Cookie 会话的写操作必须带同源页面读取到的 CSRF 值。
+        me = client.get("/api/auth/me").json()
+        payload = {"nickname": me["nickname"], "qq": None, "bio": None}
+        assert client.patch("/api/users/me", json=payload).status_code == 403
+        csrf = client.cookies.get("wsw_csrf")
+        assert client.patch("/api/users/me", json=payload, headers={"X-CSRF-Token": csrf}).status_code == 200
+        assert client.post("/api/auth/logout").status_code == 403
+        assert client.post("/api/auth/logout", headers={"X-CSRF-Token": csrf}).status_code == 204
+
+        client.cookies.clear()
+        changed = client.patch("/api/users/me/password", headers=old_session, json={"password": "NewPassword123!"})
+        assert changed.status_code == 200
+        assert client.get("/api/auth/me", headers=old_session).status_code == 401
 
 
 TINY_PNG = (
@@ -401,13 +441,13 @@ def test_sugar_club_profiles_pairing_and_ranking(tmp_path, monkeypatch):
         alice_id = alice_profile["user"]["id"]
         bob_id = bob_profile["user"]["id"]
 
-        # 公共卡片不返回 QQ，详情只在当前查看人与档案主人之间提供联系方式。
+        # 公共卡片不返回 QQ，未配对的登录用户查看详情也不能取得联系方式。
         cards = client.get("/api/sugar/profiles", headers=alice).json()
         assert {card["user"]["id"] for card in cards} == {alice_id, bob_id}
         assert all("qq" not in card for card in cards)
         detail = client.get(f"/api/sugar/profiles/{bob_id}", headers=alice).json()
-        assert detail["qq"] == "2222222222"
-        assert detail["photos"][0]["image_url"].startswith("/uploads/sugar/")
+        assert detail["qq"] is None
+        assert detail["photos"][0]["image_url"].startswith("/api/uploads/sugar/")
         assert list((tmp_path / "uploads" / "sugar").iterdir())
 
         # 第一次确认进入待确认；第二人确认后才开始计时。
@@ -418,6 +458,7 @@ def test_sugar_club_profiles_pairing_and_ranking(tmp_path, monkeypatch):
         assert active.status_code == 201, active.text
         assert active.json()["status"] == "active"
         pair_id = active.json()["id"]
+        assert client.get(f"/api/sugar/profiles/{bob_id}", headers=alice).json()["qq"] == "2222222222"
 
         ended = client.post(f"/api/sugar/pairs/{pair_id}/end", headers=alice)
         assert ended.status_code == 200
@@ -430,7 +471,7 @@ def test_sugar_club_profiles_pairing_and_ranking(tmp_path, monkeypatch):
 def test_feedback_flow():
     with TestClient(app) as client:
         user = auth(client, "fb_user")
-        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+        admin = login_as(client, "admin", "Admin123!")
 
         # 登录用户提交反馈
         created = client.post(
@@ -486,12 +527,12 @@ def test_volunteer_application_flow():
     with TestClient(app) as client:
         user = auth(client, "applicant")
         volunteer = auth(client, "helper", role="volunteer")
-        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+        admin = login_as(client, "admin", "Admin123!")
         # 造一个管理员（staff）账号参与评审
         staff_user = auth(client, "chief")
         staff_id = client.get("/api/auth/me", headers=staff_user).json()["id"]
         assert client.patch(f"/api/admin/users/{staff_id}/role", headers=admin, json={"role": "staff"}).status_code == 200
-        staff = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'chief', 'password': 'Password123!'}).json()['access_token']}"}
+        staff = login_as(client, "chief")
 
         # 理由太短 → 422
         short = client.post("/api/volunteer-applications", headers=user, json={"reason": "想帮忙"})
@@ -581,7 +622,7 @@ def test_board_flow():
     with TestClient(app) as client:
         alice = auth(client, "alice")
         bob = auth(client, "bob")
-        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+        admin = login_as(client, "admin", "Admin123!")
 
         # 游客可浏览空留言板
         assert client.get("/api/board").json() == []
@@ -635,7 +676,7 @@ def test_board_flow():
         staff_user = auth(client, "mod")
         staff_id = client.get("/api/auth/me", headers=staff_user).json()["id"]
         assert client.patch(f"/api/admin/users/{staff_id}/role", headers=admin, json={"role": "staff"}).status_code == 200
-        staff = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'mod', 'password': 'Password123!'}).json()['access_token']}"}
+        staff = login_as(client, "mod")
         staff_target = client.post("/api/board", headers=bob, json={"content": "这条留言将被管理员删除"})
         assert staff_target.status_code == 201
         assert client.delete(f"/api/board/{staff_target.json()['id']}", headers=staff).status_code == 204
@@ -656,7 +697,7 @@ def test_task_stats_endpoint():
     with TestClient(app) as client:
         alice = auth(client, "stat_pub")
         bob = promote(client, auth(client, "stat_taker"))
-        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+        admin = login_as(client, "admin", "Admin123!")
 
         # 游客可访问，初始为空
         assert client.get("/api/tasks/stats").json() == {"published": 0, "processing": 0, "completed": 0}
@@ -691,12 +732,12 @@ def test_avatar_upload_and_moderation():
     with TestClient(app) as client:
         alice = auth(client, "avatar_user")
         bob = auth(client, "avatar_viewer")
-        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+        admin = login_as(client, "admin", "Admin123!")
 
         # 上传 PNG 成功，默认待审核
         uploaded = client.post("/api/users/me/avatar", headers=alice, files={"avatar": ("a.png", TINY_PNG, "image/png")})
         assert uploaded.status_code == 201, uploaded.text
-        assert uploaded.json()["avatar_url"].startswith("/uploads/avatars/")
+        assert uploaded.json()["avatar_url"].startswith("/api/uploads/avatars/")
         assert uploaded.json()["avatar_visible"] is False
 
         # 本人可以看到自己的待审头像
@@ -757,7 +798,7 @@ def test_sugar_photo_moderation():
     with TestClient(app) as client:
         alice = auth(client, "sugar_own")
         bob = auth(client, "sugar_other")
-        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+        admin = login_as(client, "admin", "Admin123!")
 
         profile = register_sugar_profile(client, alice)
         photo_id = profile["photos"][0]["id"]
@@ -819,7 +860,7 @@ def test_vr_map_flow():
         alice = auth(client, "map_pub")
         bob = promote(client, auth(client, "map_fan"))
         carol = auth(client, "map_watcher")
-        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+        admin = login_as(client, "admin", "Admin123!")
 
         # 未登录不能提交/点赞/举报/传图
         assert client.post("/api/vr-maps", json={"name": "游客地图", "description": "游客不能提交地图信息哦", "category": "休闲"}).status_code == 401
@@ -1040,7 +1081,8 @@ def test_user_task_limit_and_admin_control():
             "/api/auth/login",
             json={"username": "admin", "password": "Admin123!"},
         )
-        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+        admin = session_headers(admin_login)
+        client.cookies.clear()
 
         me = client.get("/api/auth/me", headers=taker)
         assert me.status_code == 200
@@ -1124,7 +1166,8 @@ def test_admin_task_limit_validation():
             "/api/auth/login",
             json={"username": "admin", "password": "Admin123!"},
         )
-        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+        admin = session_headers(admin_login)
+        client.cookies.clear()
 
         negative = client.patch(
             f"/api/admin/users/{user_id}/task-limit",
@@ -1235,7 +1278,8 @@ def test_user_role_permissions():
         pub = auth(client, "role_pub")
         regular = auth(client, "role_regular")
         admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
-        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+        admin = session_headers(admin_login)
+        client.cookies.clear()
         regular_id = client.get("/api/auth/me", headers=regular).json()["id"]
 
         # 默认是普通用户
@@ -1283,7 +1327,8 @@ def test_passwordless_task_can_be_accepted_by_all_non_admin_roles():
         regular = auth(client, "open_regular")
         volunteer = auth(client, "open_volunteer", role="volunteer")
         admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
-        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+        admin = session_headers(admin_login)
+        client.cookies.clear()
 
         task = create_task(client, publisher, password=None, required=2, title="任何用户都能接取的委托")
         assert task["requires_password"] is False
@@ -1316,7 +1361,8 @@ def test_staff_role_management_and_public_directory(monkeypatch):
     monkeypatch.setattr(settings, "staff_group_id", "987654321")
     with TestClient(app) as client:
         admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
-        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+        admin = session_headers(admin_login)
+        client.cookies.clear()
         admin_id = client.get("/api/auth/me", headers=admin).json()["id"]
 
         staff_headers = auth(client, "staff_member")
@@ -1471,13 +1517,14 @@ def test_user_profile_photos_upload_limits_task_visibility_and_moderation(monkey
         viewer = auth(client, "photo_viewer")
         owner_id = client.get("/api/auth/me", headers=owner).json()["id"]
         admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
-        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+        admin = session_headers(admin_login)
+        client.cookies.clear()
 
         files = [("photos", (f"photo-{i}.png", TINY_PNG, "image/png")) for i in range(3)]
         uploaded = client.post("/api/users/me/photos", headers=owner, files=files)
         assert uploaded.status_code == 201, uploaded.text
         assert len(uploaded.json()["photos"]) == 3
-        assert all(photo["image_url"].startswith("/uploads/users/") for photo in uploaded.json()["photos"])
+        assert all(photo["image_url"].startswith("/api/uploads/users/") for photo in uploaded.json()["photos"])
         assert len(list((tmp_path / "uploads" / "users" / str(owner_id)).iterdir())) == 3
 
         over_count = client.post(
@@ -1523,7 +1570,11 @@ def test_user_profile_photos_upload_limits_task_visibility_and_moderation(monkey
             f"/api/admin/photos/{photo_id}", headers=admin, json={"is_visible": False}
         )
         assert hidden.status_code == 200
-        assert next(photo for photo in hidden.json()["photos"] if photo["id"] == photo_id)["is_visible"] is False
+        hidden_photo = next(photo for photo in hidden.json()["photos"] if photo["id"] == photo_id)
+        assert hidden_photo["is_visible"] is False
+        # 已知 URL 不能绕过审核：主人和管理员可见，访客被拒绝。
+        assert client.get(hidden_photo["image_url"], headers=viewer).status_code == 404
+        assert client.get(hidden_photo["image_url"], headers=owner).status_code == 200
 
         # 名录资料对访客公开，但被屏蔽图片不会对普通访客返回；本人仍可管理它。
         public_profile = client.get(f"/api/users/{owner_id}").json()
@@ -1771,7 +1822,8 @@ def test_hall_only_shows_published_for_regular_users():
         publisher = auth(client, "hall_pub")
         taker = auth(client, "hall_taker", role="volunteer")
         admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
-        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+        admin = session_headers(admin_login)
+        client.cookies.clear()
 
         published_task = create_task(client, publisher, password="pw-hall-1", required=1)
         processing = create_task(client, publisher, password="pw-hall-2", required=1)
@@ -1849,7 +1901,8 @@ def test_report_flow_daily_limit_and_resolve():
         staff = auth(client, "report_staff")
         staff_id = client.get("/api/auth/me", headers=staff).json()["id"]
         admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
-        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+        admin = session_headers(admin_login)
+        client.cookies.clear()
         promote_staff = client.patch(f"/api/admin/users/{staff_id}/role", headers=admin, json={"role": "staff"})
         assert promote_staff.status_code == 200
 
@@ -1897,7 +1950,8 @@ def test_report_daily_limit_configurable():
         staff = auth(client, "limit_staff")
         staff_id = client.get("/api/auth/me", headers=staff).json()["id"]
         admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
-        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+        admin = session_headers(admin_login)
+        client.cookies.clear()
         assert client.patch(f"/api/admin/users/{staff_id}/role", headers=admin, json={"role": "staff"}).status_code == 200
 
         # 默认上限 2

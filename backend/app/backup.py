@@ -64,6 +64,10 @@ def _on_after_commit(session: Session) -> None:
 def _next_snapshot_path(db_path: Path) -> Path:
     backup_dir = db_path.parent / BACKUP_DIR_NAME
     backup_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        backup_dir.chmod(0o700)
+    except OSError:
+        pass
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     dest = backup_dir / f"{db_path.stem}-{stamp}.db"
     index = 1
@@ -90,6 +94,11 @@ def take_snapshot(db_path: Path | None = None) -> Path | None:
             target.close()
     finally:
         source.close()
+
+    try:
+        dest.chmod(0o600)
+    except OSError:
+        pass
 
     prune(db_path)
     logger.info("已生成数据库快照：%s", dest)

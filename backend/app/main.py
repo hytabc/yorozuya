@@ -4,19 +4,20 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from errno import EACCES, ENOSPC, EPERM, EROFS
 from pathlib import Path
+from secrets import token_urlsafe
 from typing import Annotated
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BeforeValidator
 from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.orm import Session, joinedload
 
 from .config import settings
 from .database import Base, SessionLocal, engine, get_db
-from .dependencies import get_admin, get_current_user, get_optional_user, get_role_manager
+from .dependencies import CSRF_COOKIE, SESSION_COOKIE, get_admin, get_current_user, get_optional_user, get_role_manager
 from .models import (
     AppSetting,
     ApplicationStatus,
@@ -108,6 +109,8 @@ TaskStatusFilter = Annotated[
 
 def initialize_database() -> None:
     Base.metadata.create_all(bind=engine)
+    # 建表首次创建 SQLite 文件后再收紧其权限。
+    settings.ensure_sqlite_directory()
     migrate_schema()
     with SessionLocal() as db:
         admin = db.scalar(select(User).where(User.username == settings.admin_username))
@@ -137,6 +140,8 @@ def migrate_schema() -> None:
                 connection.execute(
                     text("ALTER TABLE users ADD COLUMN max_concurrent_tasks INTEGER NOT NULL DEFAULT 2")
                 )
+            if "session_version" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 1"))
             if "role" not in user_columns:
                 connection.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(16) NOT NULL DEFAULT 'user'"))
             if "qq_public" not in user_columns:
@@ -256,8 +261,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.mount("/uploads", StaticFiles(directory=settings.sugar_upload_path), name="uploads")
-
 # 万事屋看板娘(站内 AI 助手)
 from .mascot import router as mascot_router  # noqa: E402
 
@@ -577,7 +580,62 @@ def sugar_pair_query():
 
 
 def photo_url(photo: SugarPhoto) -> str:
-    return f"/uploads/{photo.file_path}"
+    return f"/api/uploads/{photo.file_path}"
+
+
+@app.get("/api/uploads/{file_path:path}", include_in_schema=False)
+def serve_upload(
+    file_path: str,
+    viewer: User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    """按数据库记录和审核/归属状态提供图片，禁止通过静态路径绕过资料权限。"""
+    allowed = False
+    user_photo = db.scalar(select(UserPhoto).where(UserPhoto.file_path == file_path))
+    if user_photo is not None:
+        allowed = user_photo.is_visible or (
+            viewer is not None and (viewer.id == user_photo.user_id or can_moderate(viewer))
+        )
+    else:
+        avatar_owner = db.scalar(select(User).where(User.avatar_path == file_path))
+        if avatar_owner is not None:
+            allowed = avatar_owner.avatar_visible or (
+                viewer is not None and (viewer.id == avatar_owner.id or can_moderate(viewer))
+            )
+        else:
+            sugar_photo = db.scalar(
+                select(SugarPhoto).options(joinedload(SugarPhoto.profile)).where(SugarPhoto.file_path == file_path)
+            )
+            if sugar_photo is not None:
+                allowed = sugar_photo.is_visible or (
+                    viewer is not None and (
+                        viewer.id == sugar_photo.profile.user_id or can_moderate(viewer)
+                    )
+                )
+            else:
+                map_photo = db.scalar(
+                    select(VrMapPhoto).options(joinedload(VrMapPhoto.map).joinedload(VrMap.reports)).where(
+                        VrMapPhoto.file_path == file_path
+                    )
+                )
+                if map_photo is not None:
+                    map_is_public = map_photo.map.is_visible and not any(
+                        report.status == ReportStatus.PENDING for report in map_photo.map.reports
+                    )
+                    allowed = (map_photo.is_visible and map_is_public) or (
+                        viewer is not None and (viewer.id == map_photo.user_id or can_moderate(viewer))
+                    )
+    if not allowed:
+        raise HTTPException(status_code=404, detail="图片不存在")
+
+    root = settings.sugar_upload_path.resolve()
+    destination = (root / file_path).resolve()
+    if not destination.is_relative_to(root) or not destination.is_file():
+        raise HTTPException(status_code=404, detail="图片不存在")
+    return FileResponse(
+        destination,
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+    )
 
 
 def present_sugar_photos(profile: SugarProfile, viewer: User | None) -> list[SugarPhotoOut]:
@@ -645,6 +703,15 @@ def pair_between(db: Session, first_user_id: int, second_user_id: int) -> SugarP
         )
         .order_by(SugarPair.initiated_at.desc())
     )
+
+
+def can_view_sugar_qq(viewer: User, target: User, relationship: SugarPair | None) -> bool:
+    """砂糖社详情不因“已登录”而公开联系方式，仅限本人、管理者、主动公开者和已配对双方。"""
+    if viewer.id == target.id or can_moderate(viewer):
+        return True
+    if target.role == UserRole.STAFF or (target.role == UserRole.VOLUNTEER and target.qq_public):
+        return True
+    return relationship is not None and relationship.status == SugarPairStatus.ACTIVE
 
 
 def ongoing_sugar_pair_for(db: Session, user_id: int, exclude_pair_id: int | None = None) -> SugarPair | None:
@@ -759,8 +826,32 @@ def health():
     return {"status": "ok"}
 
 
+def establish_session(response: Response, user: User) -> None:
+    """将 JWT 仅写入 HttpOnly Cookie，避免令牌落入 JavaScript 可读存储。"""
+    lifetime = min(settings.access_token_minutes * 60, 24 * 60 * 60)
+    response.headers["Cache-Control"] = "no-store"
+    response.set_cookie(
+        key=SESSION_COOKIE,
+        value=create_access_token(user.id, user.session_version),
+        max_age=lifetime,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite="lax",
+        path="/",
+    )
+    response.set_cookie(
+        key=CSRF_COOKIE,
+        value=token_urlsafe(32),
+        max_age=lifetime,
+        httponly=False,
+        secure=settings.cookie_secure,
+        samesite="lax",
+        path="/",
+    )
+
+
 @app.post("/api/auth/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+def register(payload: RegisterRequest, response: Response, db: Session = Depends(get_db)):
     if db.scalar(select(User).where(User.username == payload.username)):
         raise HTTPException(status_code=409, detail="用户名已被使用")
     user = User(
@@ -771,17 +862,26 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
-    return TokenResponse(access_token=create_access_token(user.id), user=UserSelf.model_validate(user))
+    establish_session(response, user)
+    return TokenResponse(user=UserSelf.model_validate(user))
 
 
 @app.post("/api/auth/login", response_model=TokenResponse)
-def login(payload: LoginRequest, db: Session = Depends(get_db)):
+def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
     user = db.scalar(select(User).where(User.username == payload.username))
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="用户名或密码错误")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="账号已停用")
-    return TokenResponse(access_token=create_access_token(user.id), user=UserSelf.model_validate(user))
+    establish_session(response, user)
+    return TokenResponse(user=UserSelf.model_validate(user))
+
+
+@app.post("/api/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(response: Response, _user: User | None = Depends(get_optional_user)):
+    response.delete_cookie(SESSION_COOKIE, path="/")
+    response.delete_cookie(CSRF_COOKIE, path="/")
+    return None
 
 
 @app.get("/api/auth/me", response_model=UserSelf)
@@ -803,12 +903,15 @@ def update_profile(payload: UserUpdate, user: User = Depends(get_current_user), 
 @app.patch("/api/users/me/password", response_model=UserSelf)
 def update_my_password(
     payload: UserPasswordUpdate,
+    response: Response,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     user.password_hash = hash_password(payload.password)
+    user.session_version += 1
     db.commit()
     db.refresh(user)
+    establish_session(response, user)
     return user
 
 
@@ -1038,11 +1141,11 @@ def sugar_profile_detail(
         raise HTTPException(status_code=404, detail="用户不存在")
     profile = get_sugar_profile_or_404(db, user_id)
     relationship = pair_between(db, viewer.id, target.id) if viewer.id != target.id else None
-    # QQ 不出现在公共列表；此详情请求的查看者与资料主人构成唯一的可见双方。
+    # QQ 不出现在公共列表，也不因仅登录而公开；配对成功后双方才可互见。
     return present_sugar_profile(
         profile,
         viewer=viewer,
-        qq=target.qq,
+        qq=target.qq if can_view_sugar_qq(viewer, target, relationship) else None,
         relationship=relationship,
         detailed=True,
     )
@@ -1531,7 +1634,7 @@ def present_vr_map_photos(vr_map: VrMap, viewer: User | None) -> list[VrMapPhoto
             photos.append(
                 VrMapPhotoOut(
                     id=photo.id,
-                    image_url=f"/uploads/{photo.file_path}",
+                    image_url=f"/api/uploads/{photo.file_path}",
                     is_visible=photo.is_visible,
                     moderated=photo.moderated_at is not None,
                 )
@@ -1786,7 +1889,7 @@ def admin_vr_map_photos(
     return [
         VrMapPhotoAdminOut(
             id=photo.id,
-            image_url=f"/uploads/{photo.file_path}",
+            image_url=f"/api/uploads/{photo.file_path}",
             is_visible=photo.is_visible,
             moderated=photo.moderated_at is not None,
             map_id=photo.map_id,
@@ -1816,7 +1919,7 @@ def moderate_vr_map_photo(
     db.refresh(photo)
     return VrMapPhotoAdminOut(
         id=photo.id,
-        image_url=f"/uploads/{photo.file_path}",
+        image_url=f"/api/uploads/{photo.file_path}",
         is_visible=photo.is_visible,
         moderated=photo.moderated_at is not None,
         map_id=photo.map_id,
@@ -2448,6 +2551,7 @@ def reset_user_password(
     if user is None:
         raise HTTPException(status_code=404, detail="用户不存在")
     user.password_hash = hash_password(payload.password)
+    user.session_version += 1
     db.commit()
     db.refresh(user)
     return AdminUserOut.model_validate(user).model_copy(

@@ -28,12 +28,13 @@ async function send() {
   scrollBottom()
 
   try {
-    const token = localStorage.getItem('wsw_token')
     const headers = { 'content-type': 'application/json' }
-    if (token) headers.authorization = `Bearer ${token}`
+    const csrf = document.cookie.split('; ').find((item) => item.startsWith('wsw_csrf='))?.split('=')[1]
+    if (csrf) headers['X-CSRF-Token'] = csrf
     const resp = await fetch('/api/mascot/chat', {
       method: 'POST',
       headers,
+      credentials: 'same-origin',
       body: JSON.stringify({ messages: messages.value.slice(-16) })
     })
     const data = await resp.json()
