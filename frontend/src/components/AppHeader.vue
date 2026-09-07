@@ -1,5 +1,6 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { isLifeDesktop } from '../lifeAccess'
 import { useRouter } from 'vue-router'
 import { BriefcaseBusiness, HeartHandshake, LogOut, Menu, ShieldCheck, Store, UserRound, X } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
@@ -7,6 +8,10 @@ import { useAuthStore } from '../stores/auth'
 const auth = useAuthStore()
 const router = useRouter()
 const open = ref(false)
+const lifeDesktop = ref(isLifeDesktop())
+const checkViewport = () => { lifeDesktop.value = isLifeDesktop() }
+onMounted(() => window.addEventListener('resize', checkViewport))
+onBeforeUnmount(() => window.removeEventListener('resize', checkViewport))
 
 function logout() {
   auth.logout()
@@ -27,6 +32,7 @@ function logout() {
         <RouterLink to="/">委托大厅</RouterLink>
         <RouterLink to="/staff">成员名录</RouterLink>
         <RouterLink to="/sugar">砂糖社</RouterLink>
+        <RouterLink v-if="auth.ready && auth.isLoggedIn && auth.isAdmin && lifeDesktop" to="/life">虚拟人生</RouterLink>
         <RouterLink v-if="auth.isLoggedIn" to="/mine">我的委托</RouterLink>
         <RouterLink v-if="auth.canManageRoles" to="/admin">{{ auth.isAdmin ? '监管台' : '权限管理' }}</RouterLink>
       </nav>

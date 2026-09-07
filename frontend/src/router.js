@@ -7,6 +7,7 @@ import ProfileView from './views/ProfileView.vue'
 import AdminView from './views/AdminView.vue'
 import StaffView from './views/StaffView.vue'
 import SugarClub from './views/SugarClub.vue'
+import { isLifeDesktop } from './lifeAccess'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -19,13 +20,20 @@ const router = createRouter({
     { path: '/profile', component: ProfileView, meta: { auth: true } },
     { path: '/staff', component: StaffView },
     { path: '/sugar', component: SugarClub, meta: { auth: true } },
+    { path: '/life', component: () => import('./views/LifeSimulator.vue'), meta: { lifeOnly: true } },
     { path: '/admin', component: AdminView, meta: { roleManager: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
+  if (to.meta.lifeOnly) {
+    if (!isLifeDesktop() || !auth.token) return '/'
+    // Check the server identity, not a cached localStorage admin flag.
+    await auth.restore()
+    if (!auth.isLoggedIn || !auth.isAdmin) return '/'
+  }
   if (to.meta.auth && !auth.isLoggedIn) return { path: '/login', query: { redirect: to.fullPath } }
   if (to.meta.roleManager && !auth.canManageRoles) return '/'
   if (to.meta.guestOnly && auth.isLoggedIn) return '/'
