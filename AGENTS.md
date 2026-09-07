@@ -12,7 +12,7 @@
 |---|---|
 | 后端 | Python 3.12 + FastAPI + SQLAlchemy 2.0（ORM）+ Pydantic v2 + pydantic-settings，默认 SQLite（`data/wsw.db`），JWT 会话（优先 `HttpOnly` Cookie，保留 Bearer 兼容）认证 |
 | 前端 | Vue 3（`<script setup>`）+ Pinia + Vue Router + Vite + axios + lucide-vue-next 图标 |
-| 部署 | Docker Compose（`docker-compose.yml`，prod/dev 两套）+ FRP 内网穿透（`deploy/frpc.toml`）；根目录 `start.sh` / `start.bat` 一键启动 |
+| 部署 | Docker Compose（`docker-compose.yml`，prod/dev 两套），直接绑定服务器端口通过公网 IP 访问；根目录 `start.sh` / `start.bat` 一键启动 |
 | 测试 | 后端 pytest（`backend/tests/test_api.py`，TestClient + 内存库，约 34 个用例） |
 
 命令：

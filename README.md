@@ -21,7 +21,7 @@
 - 砂糖社：登记带照片的公开档案，查看卡片后通过仅对查看双方开放的 QQ 线下交流；双方确认后成为砂糖，任一方可结束关系，展示维持最久的前三对（含已结束记录）
 - 管理员统计、委托隐藏与恢复；隐藏原因对相关用户可见
 - 看板娘「小白」：PC 端左上角常驻的站内 AI 助手，可聊天、答疑，自带倾听与心理支持模式（可配置，见下文）
-- Docker Compose 一键部署与 FRP TCP 内网穿透
+- Docker Compose 一键部署，支持直接通过服务器公网 IP 访问
 
 ## 🤖 看板娘「小白」（可选 AI 助手）
 
@@ -76,21 +76,14 @@ MASCOT_MODEL=kimi-k2.7-code-highspeed
    docker compose up -d --build
    ```
 
-   浏览器访问 `http://localhost:<WEB_PORT>`（默认 `8080`）。首次启动会自动创建 `.env` 中配置的管理员账号。
+   浏览器访问 `http://服务器公网IP:<WEB_PORT>`（默认 `8080`；若将 `WEB_PORT` 设为 `80`，可直接使用 `http://服务器公网IP`）。首次启动会自动创建 `.env` 中配置的管理员账号。
 
    - 数据持久化：数据库通过绑定挂载保存在宿主机 `backend/data/wsw.db`，用户资料及砂糖社上传图片保存在同目录的 `backend/data/uploads/`
      （该目录已被 `.gitignore` 忽略）。详情见下方「数据存储与备份」；
    - 部署代码更新后，运行 `docker compose up -d --build` 重新生成静态文件和镜像；
    - 前端入口不缓存，带内容哈希的 JS/CSS 长期缓存，更新部署后浏览器会加载新版本。
 
-4. 启用 FRP 内网穿透（可选）：先在 `.env` 填写 `FRP_SERVER_ADDR`、`FRP_TOKEN` 和远端端口，再运行：
-
-   ```bash
-   docker compose --profile tunnel up -d
-   ```
-
-   `frpc`（仅该 profile 启动）会把远端 `FRP_REMOTE_PORT` 转发到前端容器的 80 端口。
-   对应的 `frps` 服务端需允许该 TCP 端口。
+4. 确保服务器防火墙或云安全组放行 `WEB_PORT`（默认 `8080`），然后直接使用服务器公网 IP 访问站点，无需额外的内网穿透服务。
 
 ## Docker Compose 热部署开发
 

@@ -39,20 +39,3 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-
-  # 内网穿透（可选）：仅当显式指定 profile 启动
-  #   docker compose --profile tunnel up -d --build
-  frpc:
-    image: snowdreamtech/frpc:0.61.1
-    profiles: ["tunnel"]
-    restart: unless-stopped
-    command: ["-c", "/etc/frp/frpc.toml"]
-    environment:
-      FRP_SERVER_ADDR: ${FRP_SERVER_ADDR}
-      FRP_SERVER_PORT: ${FRP_SERVER_PORT:-7000}
-      FRP_TOKEN: ${FRP_TOKEN}
-      FRP_REMOTE_PORT: ${FRP_REMOTE_PORT:-18080}
-    volumes:
-      - ./deploy/frpc.toml:/etc/frp/frpc.toml:ro
-    depends_on:
-      - frontend
