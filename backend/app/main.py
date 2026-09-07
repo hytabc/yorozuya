@@ -98,6 +98,7 @@ from .schemas import (
     VrMapReportResolveRequest,
 )
 from .security import create_access_token, hash_password, verify_password
+from .virtual_life import router as virtual_life_router
 
 
 TaskStatusFilter = Annotated[
@@ -262,6 +263,7 @@ app.mount("/uploads", StaticFiles(directory=settings.sugar_upload_path), name="u
 from .mascot import router as mascot_router  # noqa: E402
 
 app.include_router(mascot_router)
+app.include_router(virtual_life_router)
 
 
 def expire_due_tasks(db: Session) -> None:
