@@ -395,6 +395,118 @@ export const defaultLifePackContent = {
     { id: 'kiss', label: '亲亲', reward: 3, threshold: 30, reply: '有些害羞地笑了：“这个小小的心意，我收到了。”' },
   ],
   dialogue: normalizeDialogue(dialogue),
+  // 房间事件直接使用最终消息形状，每个事件仅含第 1~7 天。
+  events: [
+    {
+      id: 'beach-rising-tide', roomId: 'beach-1024', title: '涨潮时分', icon: '🌊',
+      scripts: [
+        { messages: [
+          { speaker: { npcId: 'ache' }, lines: ['你看，浪快碰到那块浅色石头了。', '我想拍一组照片，记下这一周的潮水。'], image: null },
+          { speaker: { name: '钓鱼大爷', avatar: '🎣' }, lines: ['就在步道上看吧，涨潮时别往下走。', '我收竿的时候，顺便给你们报个时。'], image: null },
+          { speaker: { npcId: 'ache' }, lines: ['好，那第一张就在这里拍。', '今天的海，先替我们记住了。'], image: null },
+        ] },
+        { messages: [
+          { speaker: { npcId: 'ache' }, lines: ['我带了昨天的照片。你看，石头旁边还是干的。'], image: null },
+          { speaker: { name: '钓鱼大爷', avatar: '🎣' }, lines: ['今天浪来得早些。我的小凳子都往后挪了。'], image: null },
+          { speaker: { npcId: 'ache' }, lines: ['那我们也往里站一点。', '同一个地方，原来每天都有新东西看。'], image: null },
+        ] },
+        { messages: [
+          { speaker: { npcId: 'ache' }, lines: ['第三张了。今天想把等潮水的人也拍进去。'], image: null },
+          { speaker: { name: '钓鱼大爷', avatar: '🎣' }, lines: ['拍我呀？那我把帽子戴正。你们想怎么拍？'], image: null },
+          { choice: { options: [
+            { label: '帮忙找个角度', effects: { stats: { explore: 2, social: 1 } }, reply: [
+              { speaker: { npcId: 'ache' }, lines: ['从栏杆这边拍？嗯，帽檐刚好接住一点光。'], image: null },
+              { speaker: { name: '钓鱼大爷', avatar: '🎣' }, lines: ['那我就坐稳了，今天当一回模特。'], image: null },
+            ] },
+            { label: '陪大爷聊两句', effects: { stats: { social: 2, mood: 1 } }, reply: [
+              { speaker: { name: '钓鱼大爷', avatar: '🎣' }, lines: ['我年轻时也爱拍照。就是每回洗出来，总少半个脑袋。'], image: null },
+            ] },
+          ] } },
+          { speaker: { npcId: 'ache' }, lines: ['拍好了，大爷笑得特别自然。', '今天这张，连等候都有了表情。'], image: null },
+        ] },
+        { messages: [
+          { speaker: { name: '钓鱼大爷', avatar: '🎣' }, lines: ['哟，照片带来了？让我把眼镜找出来。'], image: null },
+          { speaker: { npcId: 'ache' }, lines: ['这张送您。背面写了昨天的日期。'], image: null },
+          { speaker: { name: '钓鱼大爷', avatar: '🎣' }, lines: ['拍得真精神。回去给家里人看看。', '今天没钓到鱼，也不算空手啦。'], image: null },
+          { speaker: { npcId: 'ache' }, lines: ['那今天拍这把空凳子吧。您先回去，路上慢点。'], image: null },
+        ] },
+        { messages: [
+          { speaker: { npcId: 'ache' }, lines: ['风有点大，我把相机带子绕紧了。', '今天就在步道内侧拍，不往海边靠。'], image: null },
+          { speaker: { name: '钓鱼大爷', avatar: '🎣' }, lines: ['我也没带鱼竿，出来走两步。昨天那张照片，家里人很喜欢。'], image: null },
+          { speaker: { npcId: 'ache' }, lines: ['那就好。你看，浪花把那块石头整个盖住了。', '第五张，是海精神十足的一天。'], image: null },
+        ] },
+        { messages: [
+          { speaker: { npcId: 'ache' }, lines: ['已经攒了五张。明天拍完，就能装进小相册了。'], image: null },
+          { speaker: { name: '钓鱼大爷', avatar: '🎣' }, lines: ['相册总得有个名字。要不你们一起想想？'], image: null },
+          { choice: { options: [
+            { label: '叫「等浪来的时候」', effects: { stats: { mood: 3 } }, reply: [
+              { speaker: { npcId: 'ache' }, lines: ['喜欢这个。听起来不用赶时间。'], image: null },
+            ] },
+            { label: '叫「步道上的老朋友」', effects: { stats: { social: 3 } }, reply: [
+              { speaker: { name: '钓鱼大爷', avatar: '🎣' }, lines: ['才几天就成老朋友了？哈哈，这名字亲切。'], image: null },
+              { speaker: { npcId: 'ache' }, lines: ['那封面得给您的小凳子留个位置。'], image: null },
+            ] },
+          ] } },
+          { speaker: { npcId: 'ache' }, lines: ['名字先记在纸上。来，今天这张还没拍呢。', '刚好，浪又到了。'], image: null },
+        ] },
+        { messages: [
+          { speaker: { npcId: 'ache' }, lines: ['最后一张拍好了。七天的海，刚好装满这几页。'], image: null },
+          { speaker: { name: '钓鱼大爷', avatar: '🎣' }, lines: ['第一天还站得远远的，现在都知道来这儿找我了。'], image: null },
+          { speaker: { npcId: 'ache' }, lines: ['相册给您也留了一本。以后翻到它，就想起这周的风。'], image: null },
+          { speaker: { name: '钓鱼大爷', avatar: '🎣' }, lines: ['好，我收着。哪天想看海了，就过来坐坐。', '不带相机也行。'], image: null },
+        ] },
+      ],
+    },
+    {
+      id: 'cafe-counter-chat', roomId: 'cafe-1101', title: '柜台边的闲聊', icon: '☕',
+      scripts: [
+        { messages: [
+          { speaker: { npcId: 'xiaomi' }, lines: ['练完舞过来，连推门都想跟着拍子。', '咦，柜台上多了一本小册子？'], image: null },
+          { speaker: { name: '店主', avatar: '👩‍🍳' }, lines: ['刚放的留言本。想写点什么都可以，今天吃了什么也行。'], image: null },
+          { speaker: { npcId: 'xiaomi' }, lines: ['那我写：今天的热牛奶，救活了一个练舞的人。'], image: null },
+        ] },
+        { messages: [
+          { speaker: { name: '店主', avatar: '👩‍🍳' }, lines: ['你昨天那句话，下面有人画了个小太阳。'], image: null },
+          { speaker: { npcId: 'xiaomi' }, lines: ['真的诶。还画了两条小短腿，像在跳舞。'], image: null },
+          { speaker: { name: '店主', avatar: '👩‍🍳' }, lines: ['笔就在旁边。慢慢看，杯子还烫着呢。'], image: null },
+        ] },
+        { messages: [
+          { speaker: { npcId: 'xiaomi' }, lines: ['今天腿酸，我就给小太阳画把椅子吧。'], image: null },
+          { speaker: { name: '店主', avatar: '👩‍🍳' }, lines: ['也给自己挑把舒服的。靠窗那张刚擦好。'], image: null },
+          { speaker: { npcId: 'xiaomi' }, lines: ['好。今天的留言就写，坐着也能听完一首歌。'], image: null },
+        ] },
+        { messages: [
+          { speaker: { name: '店主', avatar: '👩‍🍳' }, lines: ['有人在椅子旁边画了张桌子。你看，还摆着一杯牛奶。'], image: null },
+          { speaker: { npcId: 'xiaomi' }, lines: ['再画下去，这页要变成我们店里了。', '不过桌子有点歪，跟我刚学转圈时一样。'], image: null },
+          { speaker: { name: '店主', avatar: '👩‍🍳' }, lines: ['歪一点也没事。看得出是张能坐下来聊天的桌子。'], image: null },
+        ] },
+        { messages: [
+          { speaker: { npcId: 'xiaomi' }, lines: ['这页只剩一个小角落了。要不要一起添最后一笔？'], image: null },
+          { speaker: { name: '店主', avatar: '👩‍🍳' }, lines: ['给，笔还有墨水。画画或者写句话，都好。'], image: null },
+          { choice: { options: [
+            { label: '画一只趴着的猫', effects: { stats: { mood: 2, explore: 1 } }, reply: [
+              { speaker: { npcId: 'xiaomi' }, lines: ['尾巴圆圆的，好可爱。它比我还会找地方休息。'], image: null },
+            ] },
+            { label: '写「今天也辛苦啦」', effects: { stats: { mood: 1, social: 2 } }, reply: [
+              { speaker: { name: '店主', avatar: '👩‍🍳' }, lines: ['这句话，我也收到了。谢谢你。'], image: null },
+              { speaker: { npcId: 'xiaomi' }, lines: ['嗯，你也辛苦啦。今天就在这里多坐一会儿。'], image: null },
+            ] },
+          ] } },
+          { speaker: { name: '店主', avatar: '👩‍🍳' }, lines: ['正好填满一页。先摊着，等墨干了再合上。'], image: null },
+        ] },
+        { messages: [
+          { speaker: { name: '店主', avatar: '👩‍🍳' }, lines: ['昨天那页复印了一张，夹在柜台的小相框里了。原本还在册子里。'], image: null },
+          { speaker: { npcId: 'xiaomi' }, lines: ['从一杯牛奶开始，居然画出了这么热闹的一角。'], image: null },
+          { speaker: { name: '店主', avatar: '👩‍🍳' }, lines: ['有客人问是谁画的。我说，是来这里歇脚的人一起画的。'], image: null },
+        ] },
+        { messages: [
+          { speaker: { npcId: 'xiaomi' }, lines: ['一周过得好快。现在推门进来，会先看看这个相框。'], image: null },
+          { speaker: { name: '店主', avatar: '👩‍🍳' }, lines: ['本子翻到新的一页了。不过今天不想写，也没关系。'], image: null },
+          { speaker: { npcId: 'xiaomi' }, lines: ['那今天先喝牛奶，听你们聊一会儿。', '有张熟悉的椅子等着，真好。'], image: null },
+        ] },
+      ],
+    },
+  ],
   initialState: {
     day: 7,
     stats: { mood: 72, energy: 66, social: 34, explore: 28 },
