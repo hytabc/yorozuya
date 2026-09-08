@@ -414,7 +414,7 @@ export function useLifeGame() {
   })
 
   function nextDay() {
-    if (!saveReady.value || saveConflict.value) return
+    if (!saveReady.value || saveConflict.value || day.value >= 7) return
     day.value += 1
     eventProgress.value = normalizeEventProgress(eventProgress.value, day.value)
     stats.value.energy = Math.min(100, stats.value.energy + 10)
@@ -427,6 +427,29 @@ export function useLifeGame() {
     }
     markChanged()
     showToast('新的一天开始了，精力恢复了 10 点')
+  }
+
+  function restartJourney() {
+    if (!saveReady.value || saveConflict.value) return
+    cancelPresentation()
+    day.value = 1
+    completed.value = {}
+    pending.value = {}
+    dialogueNodes.value = {}
+    eventProgress.value = { day: 1, done: [] }
+    // 二周目只重置旅程进度与每日奖励记录，属性、羁绊、好友、标签和手记继承。
+    actionLedger.value = {}
+    actionFeedback.value = ''
+    const fresh = pack.createInitialState()
+    conversations.value = Object.fromEntries(npcs.value.map(npc => {
+      const greeting = fresh.conversations[npc.id]?.[0]
+      return [npc.id, [
+        ...(greeting ? [{ ...greeting, day: 1 }] : []),
+        ...startMessages(scriptForDay(pack.dialogue[npc.id], 1), 1),
+      ]]
+    }))
+    showToast('🔄 新的七天开始了，羁绊与手记都还在')
+    markChanged()
   }
 
   return {
@@ -444,7 +467,7 @@ export function useLifeGame() {
     // 动作
     actionState, performAction, switchNpc, chooseOption, openHistory,
     openEvent, closeEvent, finishEvent,
-    addFriend, selectFriend, joinFriend, exploreWorld, enterRoom, nextDay,
+    addFriend, selectFriend, joinFriend, exploreWorld, enterRoom, nextDay, restartJourney,
     cancelPresentation, showToast, showBondGain, portraitFor,
     // 引导
     prepareTutorial, closeTutorial,

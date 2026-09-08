@@ -17,8 +17,13 @@ const game = useLifeGame()
 const {
   day, stats, toast, showHistory, panel,
   saveReady, saveBusy, saveDirty, saveError, saveConflict, savedAt,
-  save, nextDay, reloadConfirmed, prepareTutorial, closeTutorial,
+  save, nextDay, restartJourney, reloadConfirmed, prepareTutorial, closeTutorial,
 } = game
+
+function restartConfirmed() {
+  if (!saveReady.value || saveConflict.value) return
+  if (window.confirm('七天旅程已结束。重新开始第 1 天？属性、好感、好友与手记都会保留。')) restartJourney()
+}
 </script>
 
 <template>
@@ -39,6 +44,8 @@ const {
         <span>⚡ 精力 {{ stats.energy }}</span>
       </div>
       <div class="header-actions">
+        <button v-if="day < 7" :disabled="!saveReady || saveConflict" @click="nextDay">下一天 ▶</button>
+        <button v-else :disabled="!saveReady || saveConflict" @click="restartConfirmed">🔄 重新开始</button>
         <button :disabled="!saveReady || saveConflict" @click="tutorial?.start()">新手指引</button>
         <button title="内容管理" @click="$router.push('/life-admin')">内容管理</button>
         <button class="icon-btn" title="设置">⚙</button>
@@ -67,7 +74,8 @@ const {
     <!-- 底部操作 -->
     <footer class="life-footer">
       <button @click="save" :disabled="!saveReady || saveConflict || saveBusy">存档</button>
-      <button @click="nextDay" :disabled="!saveReady || saveConflict">下一天</button>
+      <button @click="nextDay" :disabled="!saveReady || saveConflict || day >= 7"
+              :title="day >= 7 ? '七天已结束，请从头栏重新开始' : undefined">下一天</button>
       <small>对话将写入今天的手记</small>
     </footer>
 
@@ -130,7 +138,8 @@ const {
   background: #fff; border: 1px solid #d9dedb;
   font-size: 12px; color: #69736e;
 }
-.header-actions { display: flex; gap: 8px; }
+.header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.header-actions button { white-space: nowrap; }
 .icon-btn {
   width: 36px; height: 36px;
   border: 1px solid #d9dedb; border-radius: 6px;

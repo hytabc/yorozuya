@@ -11,6 +11,21 @@ const tagsText = computed({
   set: value => { initial.value.tags = value.split(/[,，]/).map(t => t.trim()).filter(Boolean) },
 })
 
+// 输入时立即截断、钳制并回写输入框，不依赖原生 min/max 校验。
+function setDay(event) {
+  const raw = event.target.value
+  initial.value.day = raw.trim() === '' || !Number.isFinite(Number(raw))
+    ? 1 : Math.max(1, Math.trunc(Number(raw)))
+  event.target.value = initial.value.day
+}
+function setStat(key, event) {
+  const raw = event.target.value
+  // 四项属性是必填键，空值或非法值回填中间值 50，不删除字段。
+  initial.value.stats[key] = raw.trim() === '' || !Number.isFinite(Number(raw))
+    ? 50 : Math.max(0, Math.min(100, Math.trunc(Number(raw))))
+  event.target.value = initial.value.stats[key]
+}
+
 function greetingOf(npcId) {
   const list = initial.value.conversations[npcId]
   if (!list || !list.length) list && list.push({ from: 'npc', text: '', day: initial.value.day, time: '18:20' })
@@ -30,7 +45,8 @@ function removeDiary(index) {
     <p>新玩家（无存档）进入游戏时的起始数据。已有存档的玩家不受影响。</p>
     <div class="la-grid2 la-form">
       <label>起始天数（第几天开始）
-        <input v-model.number="initial.day" type="number" min="1" />
+        <input :value="initial.day" @input="setDay($event)" type="number" min="1" step="1" />
+        <small class="la-hint">整数且 ≥1，空值或非法值回填 1。</small>
       </label>
       <label>当前世界显示名
         <input v-model="initial.currentWorld" type="text" />
@@ -42,18 +58,19 @@ function removeDiary(index) {
         <input v-model="tagsText" type="text" />
       </label>
       <label>心情 mood（0-100）
-        <input v-model.number="initial.stats.mood" type="number" min="0" max="100" />
+        <input :value="initial.stats.mood" @input="setStat('mood', $event)" type="number" min="0" max="100" step="1" />
       </label>
       <label>精力 energy（0-100）
-        <input v-model.number="initial.stats.energy" type="number" min="0" max="100" />
+        <input :value="initial.stats.energy" @input="setStat('energy', $event)" type="number" min="0" max="100" step="1" />
       </label>
       <label>社交 social（0-100）
-        <input v-model.number="initial.stats.social" type="number" min="0" max="100" />
+        <input :value="initial.stats.social" @input="setStat('social', $event)" type="number" min="0" max="100" step="1" />
       </label>
       <label>探索 explore（0-100）
-        <input v-model.number="initial.stats.explore" type="number" min="0" max="100" />
+        <input :value="initial.stats.explore" @input="setStat('explore', $event)" type="number" min="0" max="100" step="1" />
       </label>
     </div>
+    <p class="la-hint">心情、精力、社交、探索均为 0~100 整数，小数截断，超出范围自动钳制；空值或非法值回填 50。</p>
 
     <h3 class="la-sub">各人物的第一句话（未交谈前的初始消息）</h3>
     <table class="la-table">
