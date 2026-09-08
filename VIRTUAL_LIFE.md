@@ -205,7 +205,9 @@ groups (same shape as 8a dialogue: `speaker` is exactly one of `{npcId}` or a
 free passerby `{name, avatar?}`, non-empty `lines`, optional `/uploads/`
 `image` on the last sentence, lightbox on click) or choice points
 (`{choice:{options:[{label, effects, reply:[groups...]}]}}`). Choice effects
-are `stats`-only (bond is rejected by validation), replies are message groups
+are `stats` (clamped 0-100) plus an optional targeted `bond:{npcId, value}`
+(-100..100, applied to that NPC's 0-100 bond on finish; unknown NPCs or other
+effect keys are rejected by validation), replies are message groups
 only — nested choice points are invalid. Playback: groups appear one at a
 time on click; a choice point pauses, the picked label is inserted as a
 player bubble (right, green), its reply groups play, then the main line
@@ -230,11 +232,13 @@ room (icon/title/room editable, add/remove; removal of a room/world removes
 its events, removal of an NPC rewrites event speakers to 路人), and a LINEAR
 per-day editor (tabs 第 1~7 天) with two card types — message-group cards
 (speaker dropdown NPC/路人, multi-line `lines`, image field, reorder) and
-choice-point cards (options with label, four stat inputs and inline reply
-message groups; no nested choice entry). Both backend
+choice-point cards (options with label, four stat inputs and an optional
+targeted 好感 row (NPC dropdown + value), inline reply message groups; no
+nested choice entry). Dialogue and event numeric inputs hard-clamp on typing
+(对话 bond 0..100, stats -100..100; 事件 bond -100..100). Both backend
 (`validate_pack_content`) and frontend (`validateLifePack`) enforce: event id
-unique, roomId exists, exactly 7 scripts, speaker exactly-one, stats-only
-effects with known keys in -100..100, no nested choice points, image only
+unique, roomId exists, exactly 7 scripts, speaker exactly-one, known stat keys
+in -100..100, bond target NPC exists, no nested choice points, image only
 `/uploads/`. Packs lacking `events` migrate to `events:[]` idempotently. The
 default pack ships two sample events (🌊 涨潮时分 in beach-1024 with choice
 points on days 3/6, ☕ 柜台边的闲聊 in cafe-1101 with one on day 5).
