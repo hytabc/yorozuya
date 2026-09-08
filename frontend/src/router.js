@@ -32,7 +32,7 @@ router.beforeEach(async (to) => {
     if (!isLifeDesktop() || !auth.token) return '/'
     // Check the server identity, not a cached localStorage admin flag.
     await auth.restore()
-    if (!auth.isLoggedIn || !auth.isAdmin) return '/'
+    if (!auth.isLoggedIn || !auth.canManageRoles) return '/'
   }
   if (to.meta.auth && !auth.isLoggedIn) return { path: '/login', query: { redirect: to.fullPath } }
   if (to.meta.roleManager && !auth.canManageRoles) return '/'
