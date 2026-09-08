@@ -1128,6 +1128,60 @@ def test_vr_map_multi_photo_creation_limits_and_moderator_permissions():
         ).status_code == 403
 
 
+def test_vr_map_owner_can_replace_delete_photos_and_delete_recommendation(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "sugar_upload_dir", str(tmp_path / "uploads"))
+    with TestClient(app) as client:
+        owner = auth(client, "map_owner_controls")
+        other = auth(client, "map_other_controls")
+        created = client.post(
+            "/api/vr-maps", headers=owner,
+            data={"name": "可管理地图", "description": "用于验证地图推荐和实拍图片所有权操作。", "category": "休闲"},
+            files=[("photos", ("owner.png", TINY_PNG, "image/png"))],
+        )
+        assert created.status_code == 201, created.text
+        map_id = created.json()["id"]
+        owner_photo = created.json()["photos"][0]
+        owner_path = tmp_path / "uploads" / owner_photo["image_url"].removeprefix("/uploads/")
+        assert owner_path.exists()
+
+        # 其他用户不能更新或删除这张图片，也不能删除整条推荐。
+        assert client.patch(
+            f"/api/vr-maps/{map_id}/photos/{owner_photo['id']}", headers=other,
+            files={"photo": ("other.jpg", b"\xff\xd8\xff\xe0" + b"x" * 32, "image/jpeg")},
+        ).status_code == 403
+        assert client.delete(f"/api/vr-maps/{map_id}/photos/{owner_photo['id']}", headers=other).status_code == 403
+        assert client.delete(f"/api/vr-maps/{map_id}", headers=other).status_code == 403
+
+        replaced = client.patch(
+            f"/api/vr-maps/{map_id}/photos/{owner_photo['id']}", headers=owner,
+            files={"photo": ("replacement.jpg", b"\xff\xd8\xff\xe0" + b"y" * 32, "image/jpeg")},
+        )
+        assert replaced.status_code == 200, replaced.text
+        replaced_photo = replaced.json()["photos"][0]
+        replacement_path = tmp_path / "uploads" / replaced_photo["image_url"].removeprefix("/uploads/")
+        assert replaced_photo["id"] == owner_photo["id"]
+        assert replaced_photo["is_visible"] is False and replaced_photo["moderated"] is False
+        assert replacement_path.exists() and not owner_path.exists()
+
+        # 删除单张图片后可再次使用该地图的上传额度，并且文件同步移除。
+        deleted_photo = client.delete(f"/api/vr-maps/{map_id}/photos/{owner_photo['id']}", headers=owner)
+        assert deleted_photo.status_code == 200
+        assert deleted_photo.json()["photos"] == []
+        assert not replacement_path.exists()
+
+        # 让另一位用户上传一张，再由推荐人删除整条推荐，验证级联记录和文件清理。
+        contributed = client.post(
+            f"/api/vr-maps/{map_id}/photos", headers=other,
+            files={"photo": ("contributed.png", TINY_PNG, "image/png")},
+        )
+        assert contributed.status_code == 201
+        contributed_path = tmp_path / "uploads" / contributed.json()["photos"][0]["image_url"].removeprefix("/uploads/")
+        assert contributed_path.exists()
+        assert client.delete(f"/api/vr-maps/{map_id}", headers=owner).status_code == 204
+        assert client.get(f"/api/vr-maps/{map_id}").status_code == 404
+        assert not contributed_path.exists()
+
+
 def test_expired_task_is_updated_when_listed():
     with TestClient(app) as client:
         publisher = auth(client, "expirer")

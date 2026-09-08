@@ -68,9 +68,20 @@ async function submitCreate() {
   }
 }
 
-function onUpdated(updated) {
+function onUpdated(updated, options = {}) {
+  if (options.keepOpen) {
+    const index = maps.value.findIndex((item) => item.id === updated.id)
+    if (index >= 0) maps.value.splice(index, 1, updated)
+    selected.value = updated
+    return
+  }
   selected.value = null
   load()
+}
+
+function onDeleted(mapId) {
+  maps.value = maps.value.filter((item) => item.id !== mapId)
+  selected.value = null
 }
 
 onMounted(load)
@@ -125,7 +136,7 @@ onMounted(load)
       </section>
     </div>
 
-    <VrMapDetailDialog v-if="selected" :map="selected" @close="selected = null" @updated="onUpdated" />
+    <VrMapDetailDialog v-if="selected" :map="selected" @close="selected = null" @updated="onUpdated" @deleted="onDeleted" />
   </div>
 </template>
 

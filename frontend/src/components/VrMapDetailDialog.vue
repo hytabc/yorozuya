@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { EyeOff, Flag, Heart, ImagePlus, LogIn, Map as MapIcon, Send, X } from 'lucide-vue-next'
+import { EyeOff, Flag, Heart, ImagePlus, LogIn, Map as MapIcon, Pencil, Send, Trash2, X } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
@@ -17,13 +17,17 @@ const toast = useToast()
 const busy = ref(false)
 const liking = ref(false)
 const uploading = ref(false)
+const changingPhotoId = ref(null)
+const deletingPhotoId = ref(null)
+const deletingMap = ref(false)
 const showReport = ref(false)
 const reportReason = ref('')
 const pendingPhotos = ref([])
 
 const UPLOAD_PROMPT = '你也来过这里吗？把镜头里的光影、朋友和难忘瞬间留在这里，让每一次到访都成为这张地图共同的回忆。照片审核通过后公开展示。'
 
-const myPhotos = computed(() => props.map.photos.filter((photo) => photo.uploaded_by_me && !photo.is_visible))
+const isOwner = computed(() => auth.user?.id === props.map.uploader.id)
+const myPrivatePhotos = computed(() => props.map.photos.filter((photo) => photo.uploaded_by_me && !photo.is_visible))
 const publicPhotos = computed(() => props.map.photos.filter((photo) => photo.is_visible))
 const myPhotoCount = computed(() => props.map.photos.filter((photo) => photo.uploaded_by_me).length)
 const remainingPhotos = computed(() => Math.max(0, 5 - myPhotoCount.value))
@@ -71,12 +75,60 @@ async function uploadPhotos(files) {
     files.forEach((file) => body.append('photos', file))
     const { data } = await api.post(`/vr-maps/${props.map.id}/photos`, body)
     toast.success(`${files.length} 张照片已上传，等待管理员审核`)
-    emit('updated', data)
+    emit('updated', data, { keepOpen: true })
   } catch (error) {
     toast.error(imageUploadErrorMessage(error))
   } finally {
     uploading.value = false
     pendingPhotos.value = []
+  }
+}
+
+async function replacePhoto(photo, event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  if (file.size > MAX_PHOTO_BYTES) return toast.error('地图照片不能超过 10 MB')
+  if (!['image/png', 'image/jpeg'].includes(file.type)) return toast.error('地图照片仅支持 PNG 或 JPG 格式')
+  changingPhotoId.value = photo.id
+  try {
+    const body = new FormData()
+    body.append('photo', file)
+    const { data } = await api.patch(`/vr-maps/${props.map.id}/photos/${photo.id}`, body)
+    toast.success('图片已更新，等待管理员重新审核')
+    emit('updated', data, { keepOpen: true })
+  } catch (error) {
+    toast.error(imageUploadErrorMessage(error))
+  } finally {
+    changingPhotoId.value = null
+  }
+}
+
+async function deletePhoto(photo) {
+  if (!window.confirm('确定删除这张地图图片吗？')) return
+  deletingPhotoId.value = photo.id
+  try {
+    const { data } = await api.delete(`/vr-maps/${props.map.id}/photos/${photo.id}`)
+    toast.success('地图图片已删除')
+    emit('updated', data, { keepOpen: true })
+  } catch (error) {
+    toast.error(errorMessage(error))
+  } finally {
+    deletingPhotoId.value = null
+  }
+}
+
+async function deleteMap() {
+  if (!window.confirm(`确定永久删除“${props.map.name}”这条地图推荐吗？其下的图片、点赞和举报记录也会一并删除。`)) return
+  deletingMap.value = true
+  try {
+    await api.delete(`/vr-maps/${props.map.id}`)
+    toast.success('地图推荐已删除')
+    emit('deleted', props.map.id)
+  } catch (error) {
+    toast.error(errorMessage(error))
+  } finally {
+    deletingMap.value = false
   }
 }
 
@@ -102,17 +154,26 @@ function loginToUpload() {
       <p class="map-description">{{ map.description }}</p>
 
       <div v-if="publicPhotos.length" class="map-photos">
-        <figure v-for="photo in publicPhotos" :key="photo.id"><img :src="photo.image_url" :alt="`${map.name} 实拍照片`" /></figure>
+        <figure v-for="photo in publicPhotos" :key="photo.id">
+          <img :src="photo.image_url" :alt="`${map.name} 实拍照片`" />
+          <div v-if="auth.isLoggedIn && photo.uploaded_by_me" class="photo-actions">
+            <label class="icon-button" title="更新图片" aria-label="更新图片" :class="{ disabled: changingPhotoId === photo.id || deletingPhotoId === photo.id }">
+              <Pencil :size="15" /><input type="file" accept="image/png,image/jpeg" :disabled="changingPhotoId === photo.id || deletingPhotoId === photo.id" @change="replacePhoto(photo, $event)" />
+            </label>
+            <button class="icon-button danger-icon" type="button" title="删除图片" aria-label="删除图片" :disabled="changingPhotoId === photo.id || deletingPhotoId === photo.id" @click="deletePhoto(photo)"><Trash2 :size="15" /></button>
+          </div>
+        </figure>
       </div>
 
       <div class="map-actions">
         <button class="button like-button" :class="{ liked: map.liked_by_me }" :disabled="liking" @click="toggleLike">
           <Heart :size="16" />{{ map.liked_by_me ? '已点赞' : '点赞' }} {{ map.like_count }}
         </button>
-        <button v-if="auth.isLoggedIn && !map.reported_by_me" class="button secondary" :disabled="busy" @click="showReport = !showReport">
+        <button v-if="auth.isLoggedIn && !isOwner && !map.reported_by_me" class="button secondary" :disabled="busy" @click="showReport = !showReport">
           <Flag :size="16" />举报
         </button>
         <span v-else-if="map.reported_by_me" class="muted reported-hint"><Flag :size="14" />已举报过这张地图</span>
+        <button v-if="isOwner" class="button danger map-delete" type="button" :disabled="deletingMap" @click="deleteMap"><Trash2 :size="16" />{{ deletingMap ? '删除中…' : '删除推荐' }}</button>
       </div>
 
       <form v-if="showReport" class="form-stack report-form" @submit.prevent="submitReport">
@@ -122,10 +183,16 @@ function loginToUpload() {
 
       <div class="upload-section">
         <template v-if="auth.isLoggedIn">
-          <div v-if="myPhotos.length" class="my-photo">
-            <figure v-for="photo in myPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
+          <div v-if="myPrivatePhotos.length" class="my-photo">
+            <figure v-for="photo in myPrivatePhotos" :key="photo.id" class="blocked">
               <img :src="photo.image_url" alt="我上传的待审核实拍照片" />
               <span class="photo-blocked"><EyeOff :size="14" />{{ photo.moderated ? '未通过审核' : '审核中' }}</span>
+              <div class="photo-actions">
+                <label class="icon-button" title="更新图片" aria-label="更新图片" :class="{ disabled: changingPhotoId === photo.id || deletingPhotoId === photo.id }">
+                  <Pencil :size="15" /><input type="file" accept="image/png,image/jpeg" :disabled="changingPhotoId === photo.id || deletingPhotoId === photo.id" @change="replacePhoto(photo, $event)" />
+                </label>
+                <button class="icon-button danger-icon" type="button" title="删除图片" aria-label="删除图片" :disabled="changingPhotoId === photo.id || deletingPhotoId === photo.id" @click="deletePhoto(photo)"><Trash2 :size="15" /></button>
+              </div>
             </figure>
             <p class="muted">已提交的照片将在审核通过后公开展示。</p>
           </div>
@@ -206,6 +273,26 @@ function loginToUpload() {
   border: 1px solid var(--line);
 }
 
+.photo-actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 5px;
+}
+
+.photo-actions .icon-button {
+  width: 30px;
+  height: 30px;
+  border-color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 2px 8px rgba(24, 34, 29, 0.18);
+  cursor: pointer;
+}
+
+.photo-actions label input { display: none; }
+.photo-actions .disabled { opacity: 0.55; cursor: wait; pointer-events: none; }
+
 .map-photos img {
   width: 100%;
   height: 100%;
@@ -219,6 +306,8 @@ function loginToUpload() {
   gap: 10px;
   margin-top: 14px;
 }
+
+.map-delete { margin-left: auto; }
 
 .like-button.liked {
   color: var(--red);
@@ -267,6 +356,10 @@ function loginToUpload() {
   width: 96px;
   margin: 0;
   flex-shrink: 0;
+}
+
+.my-photo .photo-actions {
+  z-index: 2;
 }
 
 .my-photo img {
