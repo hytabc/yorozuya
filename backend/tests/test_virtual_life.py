@@ -76,7 +76,7 @@ class SaveTests(unittest.TestCase):
         self.engine.dispose()
         self.start()  # new app/engine against same file; no in-memory state survives
         loaded = self.client.get(url, headers=self.headers(1)).json()
-        self.assertEqual(loaded['state'], {**state(), **V2, 'actionLedger': {}, 'friendIds': [], 'interactedNpcIds': [], 'currentRoomId': None})
+        self.assertEqual(loaded['state'], {**state(), **V2, 'actionLedger': {}, 'dialogueNodes': {}, 'friendIds': [], 'interactedNpcIds': [], 'currentRoomId': None})
         newer = state()
         newer['day'] = 10
         self.assertEqual(self.client.put(url, json={'revision': loaded['revision'], 'state': newer}, headers=self.headers(1)).status_code, 200)
@@ -121,7 +121,7 @@ class SaveTests(unittest.TestCase):
         self.client.close()
         self.engine.dispose()
         self.start()
-        self.assertEqual(self.client.get(url, headers=headers).json()['state'], {**saved, **V2, 'friendIds': [], 'interactedNpcIds': [], 'currentRoomId': None})
+        self.assertEqual(self.client.get(url, headers=headers).json()['state'], {**saved, **V2, 'dialogueNodes': {}, 'friendIds': [], 'interactedNpcIds': [], 'currentRoomId': None})
         self.assertIsNone(self.client.get(url, headers=self.headers(2)).json()['state'])
         for invalid in ({'10': {'ache': {'headpat': True}}}, {'9': {'unknown': {'poke': True}}}, {'9': {'ache': {'invalid': True}}}):
             bad = {**saved, 'actionLedger': invalid}
@@ -147,6 +147,18 @@ class SaveTests(unittest.TestCase):
             self.assertEqual(self.client.put(url, json={'revision': 2, 'state': {**saved, **patch}}, headers=headers).status_code, 422)
         saved['npcs'][0]['bond'] = 9
         self.assertEqual(self.client.put(url, json={'revision': 2, 'state': saved}, headers=headers).status_code, 422)
+    def test_dialogue_nodes_roundtrip_and_validation(self):
+        url = '/api/virtual-life/save'
+        headers = self.headers(1)
+        saved = state()
+        saved['dialogueNodes'] = {'ache': 'n1'}
+        self.assertEqual(self.client.put(url, json={'revision': 0, 'state': saved}, headers=headers).status_code, 200)
+        loaded = self.client.get(url, headers=headers).json()['state']
+        self.assertEqual(loaded['dialogueNodes'], {'ache': 'n1'})
+        for bad in ({'ghost': 'n1'}, {'ache': 'gone'}):
+            payload = {**state(), 'dialogueNodes': bad}
+            self.assertEqual(self.client.put(url, json={'revision': 1, 'state': payload}, headers=headers).status_code, 422, str(bad))
+
     def test_pack_schema_v2_and_pack_id_rules(self):
         url = '/api/virtual-life/save'
         headers = self.headers(1)

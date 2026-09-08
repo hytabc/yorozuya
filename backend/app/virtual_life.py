@@ -84,6 +84,8 @@ class GameState(StrictModel):
     interactedNpcIds: list[str] | None = None
     # game day -> NPC -> action id -> rewarded; omitted in earlier v1 saves.
     actionLedger: dict[str, dict[str, dict[str, Literal[True]]]] = Field(default_factory=dict)
+    # NPC -> current dialogue node id (node-graph engine, stage 4c); absent in older saves.
+    dialogueNodes: dict[str, str] = Field(default_factory=dict)
 
     @model_validator(mode='after')
     def check_state(self):
@@ -126,6 +128,12 @@ def validate_state_against_pack(state: GameState, rules: dict) -> None:
         for actions in rewards.values():
             if not set(actions).issubset(action_ids):
                 raise ValueError('Invalid action reward id')
+    dialogue_nodes = rules['dialogueNodes']
+    if not set(state.dialogueNodes).issubset(ids):
+        raise ValueError('Invalid dialogue progress NPC')
+    for npc_id, node_id in state.dialogueNodes.items():
+        if node_id not in dialogue_nodes[npc_id]:
+            raise ValueError('Invalid dialogue node')
 
 
 class SaveRequest(StrictModel):

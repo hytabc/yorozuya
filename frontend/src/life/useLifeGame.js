@@ -3,13 +3,16 @@
 // 阶段 2 起内容(NPC/剧本/初始数据)一律经 Registry 的活动 Pack 提供。
 // 阶段 4b 起挂载时先拉取站点活动 Pack(站长配置),失败回退内置 Pack;
 // 世界/房间/在场/动作数据注入 lifePresence/lifeActions 规则层。
+// 阶段 4c 起对话走节点图引擎:选项 effects 显式生效,next 非空当天推进,
+// 对话进度(dialogueNodes)随存档持久化。
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useLifeSave } from '../composables/lifeSave'
 import { createLifePlayback } from '../composables/lifePlayback'
 import { resolveLifeAction, setLifeActions, currentLifeActions } from '../composables/lifeActions'
 import { presenceFor, sceneRoster, canInteract, planJoin, roomFor, worldFor, roomDecision, migrateSocialState, friendshipDecision, setLifePresenceData, currentRooms } from '../composables/lifePresence'
+import { nodeFor, startLine, resolveDialogueChoice, sanitizeDialogueNodes } from '../composables/lifeDialogue'
 import './builtin'
-import { getActiveLifePack, portraitFor } from './registry'
+import { getActiveLifePack, portraitFor, effectText } from './registry'
 import { loadActiveLifePack } from './packLoader'
 
 // 初始房间:包内第一个有人、未满的非私密房间。
@@ -20,7 +23,8 @@ function firstEnterableRoomId(pack) {
 
 export function useLifeGame() {
   let pack = getActiveLifePack()
-  let dialogueScripts = pack.dialogueScripts
+  // 响应式修订号:applyPack 换包后,依赖包内容的 computed 强制重算。
+  const packRev = ref(0)
   const initial = pack.createInitialState()
 
   // ==== 玩家人生数据 ====
@@ -53,8 +57,13 @@ export function useLifeGame() {
   // ==== 对话历史(每个 NPC 独立保存) ====
   const conversations = ref(initial.conversations)
 
-  // ==== 当前对话剧本 ====
-  const currentDialogue = computed(() => dialogueScripts[currentNpcId.value])
+  // ==== 当前对话节点(阶段 4c 节点图引擎) ====
+  const dialogueNodes = ref({})
+  const currentDialogue = computed(() => {
+    packRev.value // 换包后重算
+    const script = pack.dialogue[currentNpcId.value]
+    return script ? nodeFor(script, dialogueNodes.value[currentNpcId.value]) : null
+  })
   const currentConversation = computed(() => conversations.value[currentNpcId.value] || [])
 
   const completed = ref({})
@@ -98,7 +107,10 @@ export function useLifeGame() {
   const playback = createLifePlayback(value => { speech.value = value }, {
     reducedMotion: () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   })
-  const npcPortrait = computed(() => portraitFor(currentNpcId.value))
+  const npcPortrait = computed(() => {
+    packRev.value // 换包后重算
+    return portraitFor(currentNpcId.value)
+  })
   const showChoices = computed(() => dialogueVisible.value && !speech.value.playing && !completed.value[currentNpcId.value] && !pending.value[currentNpcId.value])
   function cancelPresentation() {
     playback.stop()
@@ -125,7 +137,7 @@ export function useLifeGame() {
     actionFeedback.value = ''
     const conv = conversations.value[npcId]
     if (conv.length === 1) {
-      conv.push({ ...dialogueScripts[npcId].npcLine, day: day.value })
+      conv.push({ ...startLine(pack.dialogue[npcId], day.value) })
     }
     dialogueVisible.value = true
     const latest = [...conv].reverse().find(msg => msg.from === 'npc')
@@ -146,30 +158,37 @@ export function useLifeGame() {
       time: '18:20',
     })
 
-    if (choice.delta) {
-      for (const [k, v] of Object.entries(choice.delta)) {
-        stats.value[k] = Math.max(0, Math.min(100, stats.value[k] + v))
-      }
+    // 节点图引擎:effects 显式生效,不再从文案解析。
+    const result = resolveDialogueChoice(pack.dialogue[npcId], choice)
+    for (const [k, v] of Object.entries(result.stats)) {
+      stats.value[k] = Math.max(0, Math.min(100, stats.value[k] + v))
     }
-
-    const bondGain = Number(choice.effect.match(/好感 \+(\d+)/)?.[1] || 0)
     const npc = npcs.value.find(n => n.id === npcId)
-    if (npc) {
+    if (npc && result.bond) {
       const previousBond = npc.bond
-      npc.bond = Math.min(100, npc.bond + bondGain)
+      npc.bond = Math.min(100, npc.bond + result.bond)
       showBondGain(npc.bond - previousBond)
     }
-    showToast('✦ ' + (choice.effect || '已记录'))
+    showToast('✦ ' + (effectText(choice.effects) || '已记录'))
 
     // Store the complete turn atomically; no delayed reply can be lost on navigation.
     conversations.value[npcId].push({
-      from: 'npc', text: choice.npcReply, day: sentDay, time: '18:20',
+      from: 'npc', text: result.reply, day: sentDay, time: '18:20',
     })
+    const played = [{ from: 'player', text: choice.label }, { from: 'npc', text: result.reply }]
+    if (result.done) {
+      delete dialogueNodes.value[npcId]
+      completed.value[npcId] = true
+    } else {
+      // next 非空:当天推进到下一节点,NPC 接着说下一节点台词。
+      dialogueNodes.value[npcId] = result.nextNodeId
+      conversations.value[npcId].push({ from: 'npc', text: result.nextLine, day: sentDay, time: '18:20' })
+      played.push({ from: 'npc', text: result.nextLine })
+    }
     pending.value[npcId] = false
-    completed.value[npcId] = true
     diaryHistory.value.unshift({ day: sentDay, text: `${currentNpc.value.name}：${choice.label}`, mood: '日常' })
     markChanged()
-    playback.play([{ from: 'player', text: choice.label }, { from: 'npc', text: choice.npcReply }])
+    playback.play(played)
   }
 
   // ==== 对话历史记录 ====
@@ -251,7 +270,7 @@ export function useLifeGame() {
   // ==== 内容包应用(阶段 4b):站点活动 Pack 到达后整体重建初始状态 ====
   function applyPack(nextPack) {
     pack = nextPack
-    dialogueScripts = pack.dialogueScripts
+    packRev.value += 1
     setLifePresenceData({ worlds: pack.worlds, rooms: pack.rooms, presence: pack.presence })
     setLifeActions(pack.actions)
     const fresh = pack.createInitialState()
@@ -270,6 +289,7 @@ export function useLifeGame() {
     completed.value = {}
     actionLedger.value = {}
     pending.value = {}
+    dialogueNodes.value = {}
     historyNpcId.value = pack.npcIds[0]
     selectedWorldId.value = pack.worlds[0].id
     actionFeedback.value = ''
@@ -281,7 +301,7 @@ export function useLifeGame() {
       currentWorld: currentWorld.value, unlockedWorlds: unlockedWorlds.value,
       currentNpcId: currentNpcId.value, npcs: npcs.value,
       conversations: conversations.value, diary: diaryHistory.value, completed: completed.value,
-      actionLedger: actionLedger.value,
+      actionLedger: actionLedger.value, dialogueNodes: dialogueNodes.value,
       currentRoomId: currentRoomId.value, friendIds: friendIds.value, interactedNpcIds: interactedNpcIds.value,
     }))
   }
@@ -289,7 +309,7 @@ export function useLifeGame() {
     cancelPresentation()
     // v1 为无 packId 的旧存档;v2 必须声明当前活动 Pack。
     if (![1, 2].includes(state.schemaVersion) || !state.npcs?.length ||
-        state.npcs.some(n => !dialogueScripts[n.id]) ||
+        state.npcs.some(n => !pack.dialogue[n.id]) ||
         !state.npcs.some(n => n.id === state.currentNpcId)) throw new Error('存档版本或人物不兼容')
     if (state.packId && state.packId !== pack.id) throw new Error('存档内容包与当前站点内容不匹配')
     day.value = state.day
@@ -307,6 +327,7 @@ export function useLifeGame() {
     diaryHistory.value = state.diary
     completed.value = state.completed
     actionLedger.value = state.actionLedger || {}
+    dialogueNodes.value = sanitizeDialogueNodes(pack.dialogue, state.dialogueNodes)
     actionFeedback.value = ''
     pending.value = {}
   }
@@ -336,8 +357,9 @@ export function useLifeGame() {
     cancelPresentation()
     pending.value = {}
     completed.value = {}
+    dialogueNodes.value = {}
     for (const npcId in conversations.value) {
-      conversations.value[npcId].push({ ...dialogueScripts[npcId].npcLine, day: day.value })
+      conversations.value[npcId].push({ ...startLine(pack.dialogue[npcId], day.value) })
     }
     markChanged()
     showToast('新的一天开始了，精力恢复了 10 点')
@@ -346,7 +368,7 @@ export function useLifeGame() {
   return {
     // 状态
     day, stats, tags, currentWorld, unlockedWorlds, npcs, currentNpcId,
-    conversations, completed, actionLedger, pending, diaryHistory,
+    conversations, completed, actionLedger, pending, diaryHistory, dialogueNodes,
     currentRoomId, friendIds, interactedNpcIds,
     // 计算
     friends, sceneNpcs, worldPopulation, currentRoom, currentWorldDef, currentNpc, currentDialogue,

@@ -13,10 +13,10 @@
 //     actions: [{id,label,reward,threshold,reply}],
 //     dialogue: {npcId: {start, nodes:{nodeId:{line, choices:[{label,effects,reply,next}]}}}},
 //     initialState: object,      // 全新人生的初始数据(纯 JSON)
-//     dialogueScripts: 派生的旧式剧本视图(4c 前引擎消费),
 //     createInitialState(): object,  // 返回 initialState 的全新深拷贝
 //   }
 // A 方案:内容由站长配置,全站共享同一活动 Pack;API 拉取失败时回退内置 Pack。
+// 对话引擎(4c)直接消费 dialogue 节点图;选项效果文案由 effectText 渲染。
 
 const packs = new Map()
 let activeId = null
@@ -122,8 +122,8 @@ export function portraitFor(npcId) {
 }
 
 // ==== 从原始 JSON 内容构建运行时 Pack(阶段 4b) ====
-// content 与后端 validate_pack_content 同构;派生旧式 dialogueScripts
-// 视图供 4c 之前的对话引擎消费,createInitialState 深拷贝 initialState。
+// content 与后端 validate_pack_content 同构;对话引擎直接消费节点图,
+// createInitialState 深拷贝 initialState。
 
 export const LIFE_STAT_LABELS = { mood: '心情', energy: '精力', social: '社交', explore: '探索' }
 
@@ -139,22 +139,6 @@ export function effectText(effects = {}) {
 export function createLifePackFromContent({ id, version, content }) {
   if (!content || typeof content !== 'object') fail('缺少 content')
   const initial = content.initialState
-  const dialogueScripts = {}
-  for (const npcId of content.npcIds || []) {
-    const script = content.dialogue?.[npcId]
-    const startNode = script?.nodes?.[script.start]
-    if (!startNode) fail('NPC 剧本起点无效: ' + npcId)
-    dialogueScripts[npcId] = {
-      npcLine: { from: 'npc', text: startNode.line, day: initial?.day ?? 1, time: '18:20' },
-      choices: startNode.choices.map(choice => ({
-        label: choice.label,
-        effect: effectText(choice.effects),
-        delta: { ...(choice.effects?.stats || {}) },
-        npcReply: choice.reply,
-        next: choice.next ?? null,
-      })),
-    }
-  }
   const pack = {
     id,
     version,
@@ -167,7 +151,6 @@ export function createLifePackFromContent({ id, version, content }) {
     actions: content.actions,
     dialogue: content.dialogue,
     initialState: initial,
-    dialogueScripts,
     createInitialState() {
       return JSON.parse(JSON.stringify(initial))
     },

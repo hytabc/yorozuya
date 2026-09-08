@@ -182,6 +182,7 @@ def derive_save_rules(content: dict) -> dict:
         'actionIds': [a['id'] for a in content['actions']],
         'roomIds': [r['id'] for r in enterable],
         'roomWorlds': {r['id']: world_name[r['worldId']] for r in enterable},
+        'dialogueNodes': {npc_id: set(script['nodes']) for npc_id, script in content['dialogue'].items()},
     }
 
 

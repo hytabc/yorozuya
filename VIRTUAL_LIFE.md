@@ -20,7 +20,9 @@ own save. This feature does not change global roles or promote any account.
   primary key `user_id`, JSON state, integer revision, UTC updated timestamp.
   Table is created by existing startup `Base.metadata.create_all`.
 - State: `schemaVersion:2` with `packId`; day, stats (mood/energy/social/explore), tags,
-  currentWorld, unlockedWorlds, currentNpcId, npcs, conversations, diary, completed.
+  currentWorld, unlockedWorlds, currentNpcId, npcs, conversations, diary, completed,
+  actionLedger and `dialogueNodes` (NPC -> current dialogue node id; stage 4c,
+  defaults `{}` in older saves).
   Legacy `schemaVersion:1` writes (no packId) are upgraded to v2 on write; v2
   must declare the site's active pack id. NPC/room/action whitelists are derived
   from the ACTIVE content pack stored in the `virtual_life_packs` table (stage
@@ -97,6 +99,28 @@ token. Route leave awaits saving, and failures require confirmation to discard.
 Hard reload prompts for unsaved changes; responsive forced unmount attempts a final
 save. Abrupt process/browser termination before acknowledgement cannot guarantee
 saving. Conflicts require explicit reload; unsaved changes show an error/retry UI.
+
+## Dialogue node-graph engine (stage 4c)
+
+Each NPC script is a node graph `{start, nodes:{id:{line, choices}}}` from the
+active pack. Pure rules live in `frontend/src/composables/lifeDialogue.js`
+(`nodeFor`/`startLine`/`resolveDialogueChoice`/`sanitizeDialogueNodes`); state
+and mutations stay in `useLifeGame`. Semantics per NPC per game day:
+
+- The chain starts at `start`; the start node's line is the daily greeting.
+- A choice applies its `effects` explicitly (`bond` added to the NPC bond,
+  `stats` clamped 0-100) — no text parsing. The toast text is rendered from
+  effects via `effectText`.
+- `next` non-null advances to that node THE SAME day: the NPC's reply and the
+  next node's line are appended atomically and played in order; `completed`
+  stays false and the new node's choices are offered. `next: null` marks the
+  day complete (choices hide, actions remain available).
+- Position (`dialogueNodes`) is persisted in the save, so a mid-chain reload
+  resumes at the exact node; hydration drops positions pointing at nodes that
+  no longer exist. Server validation rejects unknown NPCs/node ids.
+- `nextDay` clears positions and completion; every NPC greets from `start`
+  again. Choice effects apply per choice click — replaying a finished chain
+  next day yields its effects again, as before.
 
 ## Reply actions
 

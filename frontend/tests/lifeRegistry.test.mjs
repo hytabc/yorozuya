@@ -31,14 +31,13 @@ test('default pack content is complete for every declared npc', () => {
     assert.ok(defaultLifePack.portraits[id].startsWith('/life-assets/'), 'portrait: ' + id)
     assert.ok(defaultLifePack.presence[id], 'presence: ' + id)
     const script = defaultLifePack.dialogue[id]
-    assert.ok(script.nodes[script.start], 'dialogue start: ' + id)
-    const legacy = defaultLifePack.dialogueScripts[id]
-    assert.equal(legacy.npcLine.from, 'npc')
-    assert.equal(legacy.npcLine.text, script.nodes[script.start].line)
-    assert.ok(legacy.choices.length >= 2, 'choices: ' + id)
-    for (const choice of legacy.choices) {
+    const start = script.nodes[script.start]
+    assert.ok(start, 'dialogue start: ' + id)
+    assert.equal(typeof start.line, 'string')
+    assert.ok(start.choices.length >= 2, 'choices: ' + id)
+    for (const choice of start.choices) {
       assert.equal(typeof choice.label, 'string')
-      assert.equal(typeof choice.npcReply, 'string')
+      assert.equal(typeof choice.reply, 'string')
     }
   }
   assert.ok(defaultLifePack.worlds.length >= 1)
@@ -47,18 +46,15 @@ test('default pack content is complete for every declared npc', () => {
   assert.equal(portraitFor('ache'), defaultLifePack.portraits.ache)
 })
 
-test('factory derives legacy effect text from node-graph effects', () => {
+test('effectText renders node-graph choice effects as display text', () => {
   assert.equal(effectText({ bond: 2, stats: { social: 2, mood: 2 } }), '好感 +2 · 社交 +2 · 心情 +2')
   assert.equal(effectText({ stats: { energy: -4 } }), '精力 -4')
   assert.equal(effectText({}), '')
   assert.equal(effectText(), '')
-  const ache = defaultLifePack.dialogueScripts.ache
-  assert.equal(ache.choices[0].effect, '好感 +2 · 社交 +2 · 心情 +2')
-  assert.deepEqual(ache.choices[0].delta, { social: 2, mood: 2 })
   const pack = createLifePackFromContent({ id: 'copy-pack', version: 3, content: defaultLifePackContent })
   assert.equal(pack.id, 'copy-pack')
   assert.equal(pack.version, 3)
-  assert.equal(pack.dialogueScripts.yu.npcLine.text, defaultLifePackContent.dialogue.yu.nodes.n1.line)
+  assert.equal(pack.dialogue.yu.nodes.n1.line, defaultLifePackContent.dialogue.yu.nodes.n1.line)
 })
 
 test('createInitialState returns isolated deep copies', () => {

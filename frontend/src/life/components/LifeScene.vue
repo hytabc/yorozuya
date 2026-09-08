@@ -78,7 +78,7 @@ const {
             <small v-if="bondDelta > 0" class="bond-gain" role="status">好感 +{{ bondDelta }}</small>
           </div>
           <div v-if="replyTab === 'dialogue'" id="reply-dialogue" role="tabpanel" aria-labelledby="reply-dialogue-tab" class="reply-content">
-            <div v-if="showChoices && currentDialogue.choices" class="reply-options">
+            <div v-if="showChoices && currentDialogue?.choices" class="reply-options">
               <button v-for="(choice, i) in currentDialogue.choices" :key="i" class="reply-option" :disabled="!saveReady || saveConflict || speech.playing" @click="chooseOption(choice)">
                 <span class="option-index">{{ String(i + 1).padStart(2, '0') }}</span><span>{{ choice.label }}</span><span class="option-arrow">↗</span>
               </button>
