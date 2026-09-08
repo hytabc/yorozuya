@@ -81,7 +81,10 @@ all players share it).
 shared `AdminImageField`).
 The route uses the same `lifeOnly` guard as the game (role manager + desktop);
 the game header links to it via 内容管理. The admin edits one pack at a time in
-structured forms: NPC profiles/portraits/presence, worlds (incl. background
+structured forms: NPC profiles/portraits/presence (the 头像 cell previews the
+uploaded portrait thumbnail, the emoji input remains as a fallback glyph) and
+per-NPC 默认回复 (fallback replies with min-bond tiers, edited in a panel
+opened from each NPC row), worlds (incl. background
 upload) and rooms, actions, the per-NPC dialogue node graph and the initial
 player state. Dialogue is edited PER DAY (stage 5): tabs 第 1~7 天 switch the
 day script being edited; packs with fewer than 7 days are padded by cloning
@@ -181,6 +184,13 @@ state and mutations stay in `useLifeGame`. Semantics per NPC per game day:
 - A choice applies its `effects` explicitly (`bond` added to the NPC bond,
   `stats` clamped 0-100) — no text parsing. The toast text is rendered from
   effects via `effectText`.
+- FALLBACK REPLIES: each NPC may configure `fallbackReplies:[{text, minBond?}]`
+  (default `[]`, migrated in place; minBond defaults 0, int 0..100). Once the
+  day's chain is completed, clicking that NPC's avatar again plays one reply:
+  `pickFallbackReply` takes the entries whose minBond the current bond
+  reaches, keeps only the HIGHEST minBond tier and picks randomly within it
+  (no effects, plain text, appended to the conversation and saved). With no
+  configured/eligible entry the click just switches as before.
 - `next` non-null advances to that node THE SAME day: the NPC's reply group
   and the next node's group are appended atomically and played in order;
   `completed` stays false and the new node's choices are offered. `next:
