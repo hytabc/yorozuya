@@ -73,6 +73,7 @@ export async function selectPack(id) {
 export const LIFE_DIALOGUE_DAYS = 7
 
 function normalizeContent(content) {
+  content.events ||= []
   for (const [npcId, days] of Object.entries(content.dialogue || {})) {
     const list = (Array.isArray(days) ? days : [days]).filter(Boolean)
     if (!list.length) list.push({ start: 'n1', nodes: { n1: { line: '……', choices: [{ label: '你好', effects: {}, reply: '你好呀。', next: null }] } } })
@@ -202,6 +203,18 @@ export function removeNpc(id) {
   delete c.presence[id]
   delete c.dialogue[id]
   delete c.initialState.conversations[id]
+  for (const event of c.events || []) {
+    for (const script of event.scripts || []) {
+      for (const message of script.messages || []) {
+        if (message.speaker?.npcId === id) message.speaker = { name: '路人' }
+        for (const option of message.choice?.options || []) {
+          for (const reply of option.reply || []) {
+            if (reply.speaker?.npcId === id) reply.speaker = { name: '路人' }
+          }
+        }
+      }
+    }
+  }
   return ''
 }
 
@@ -219,6 +232,7 @@ export function removeWorld(id) {
   const roomIds = new Set(c.rooms.filter(r => r.worldId === id).map(r => r.id))
   c.worlds = c.worlds.filter(w => w.id !== id)
   c.rooms = c.rooms.filter(r => !roomIds.has(r.id))
+  c.events = (c.events || []).filter(event => !roomIds.has(event.roomId))
   for (const p of Object.values(c.presence)) {
     if (roomIds.has(p.roomId)) { p.roomId = null; p.status = 'offline' }
   }
@@ -236,10 +250,56 @@ export function removeRoom(id) {
   const c = adminState.content
   if (!c) return ''
   c.rooms = c.rooms.filter(r => r.id !== id)
+  c.events = (c.events || []).filter(event => event.roomId !== id)
   for (const p of Object.values(c.presence)) {
     if (p.roomId === id) { p.roomId = null; p.status = 'offline' }
   }
   return ''
+}
+
+// 事件操作:每个事件独立初始化 7 天剧本。
+export function addEvent(content, roomId) {
+  if (!content) return ''
+  content.events ||= []
+  if (!content.rooms?.some(room => room.id === roomId)) return ''
+  const slug = roomId.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'room'
+  let i = 1
+  while (content.events.some(event => event.id === `evt-${slug}-${i}`)) i += 1
+  const id = `evt-${slug}-${i}`
+  content.events.push({
+    id, roomId, title: '新事件', icon: '❗',
+    scripts: Array.from({ length: LIFE_DIALOGUE_DAYS }, () => ({
+      messages: [{ speaker: { name: '旁白', avatar: '📢' }, lines: ['……'], image: null }],
+    })),
+  })
+  return id
+}
+
+export function removeEvent(content, eventId) {
+  if (!content) return ''
+  content.events ||= []
+  content.events = content.events.filter(event => event.id !== eventId)
+  return ''
+}
+
+export function addEventMessage(dayScript) {
+  if (!dayScript) return
+  dayScript.messages ||= []
+  dayScript.messages.push({ speaker: { name: '路人' }, lines: ['……'], image: null })
+}
+
+export function addEventChoice(dayScript) {
+  if (!dayScript) return
+  dayScript.messages ||= []
+  dayScript.messages.push({ choice: { options: [{
+    label: '继续', effects: { stats: {} },
+    reply: [{ speaker: { name: '路人' }, lines: ['……'], image: null }],
+  }] } })
+}
+
+export function removeEventItem(dayScript, index) {
+  if (!dayScript || !Array.isArray(dayScript.messages) || !Number.isInteger(index) || index < 0 || index >= dayScript.messages.length) return
+  dayScript.messages.splice(index, 1)
 }
 
 // 剧本节点操作(作用于传入的某天剧本)

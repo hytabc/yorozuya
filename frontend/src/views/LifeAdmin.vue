@@ -10,6 +10,7 @@ import AdminNpcs from '../life/admin/AdminNpcs.vue'
 import AdminWorlds from '../life/admin/AdminWorlds.vue'
 import AdminActions from '../life/admin/AdminActions.vue'
 import AdminDialogue from '../life/admin/AdminDialogue.vue'
+import AdminEvents from '../life/admin/AdminEvents.vue'
 import AdminInitial from '../life/admin/AdminInitial.vue'
 
 const sections = [
@@ -17,6 +18,7 @@ const sections = [
   { id: 'worlds', label: '世界与房间' },
   { id: 'actions', label: '动作' },
   { id: 'dialogue', label: '剧本' },
+  { id: 'events', label: '事件' },
   { id: 'initial', label: '初始状态' },
 ]
 
@@ -75,6 +77,7 @@ onMounted(() => loadPacks())
       <AdminWorlds v-else-if="adminState.section === 'worlds'" />
       <AdminActions v-else-if="adminState.section === 'actions'" />
       <AdminDialogue v-else-if="adminState.section === 'dialogue'" />
+      <AdminEvents v-else-if="adminState.section === 'events'" />
       <AdminInitial v-else-if="adminState.section === 'initial'" />
     </template>
     <p v-else-if="adminState.loading" class="la-hint">载入中…</p>
