@@ -174,6 +174,32 @@ class PackTests(unittest.TestCase):
         # 迁移后的包通过校验,可以激活。
         self.assertEqual(self.client.post('/api/virtual-life/packs/legacy-pack/activate', headers=self.headers(1)).status_code, 200)
 
+    def test_activation_migrates_compatible_saves(self):
+        h = self.headers(1)
+        # Save under the default pack.
+        self.assertEqual(self.client.put('/api/virtual-life/save', json={'revision': 0, 'state': state()}, headers=h).status_code, 200)
+        # An incompatible pack (different NPCs): migration skips the save, untouched.
+        self.client.post('/api/virtual-life/packs', json={'id': 'neo-pack', 'name': '新人物包', 'content': mini_pack(['neo'])}, headers=h)
+        resp = self.client.post('/api/virtual-life/packs/neo-pack/activate', headers=h)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['saveMigration'], {'migrated': 0, 'skipped': 1})
+        saved = self.client.get('/api/virtual-life/save', headers=h).json()
+        self.assertEqual(saved['state']['packId'], 'wsw-default-life')
+        # A compatible pack (same NPC ids): the save is repointed and keeps working.
+        self.client.post('/api/virtual-life/packs', json={'id': 'clone-pack', 'name': '同人包',
+                                                          'content': mini_pack(['ache', 'xiaomi', 'maoyou', 'yu'])}, headers=h)
+        resp = self.client.post('/api/virtual-life/packs/clone-pack/activate', headers=h)
+        self.assertEqual(resp.json()['saveMigration'], {'migrated': 1, 'skipped': 0})
+        saved = self.client.get('/api/virtual-life/save', headers=h).json()
+        self.assertEqual(saved['state']['packId'], 'clone-pack')
+        migrated_state = state()
+        migrated_state['packId'] = 'clone-pack'
+        response = self.client.put('/api/virtual-life/save', json={'revision': saved['revision'], 'state': migrated_state}, headers=h)
+        self.assertEqual(response.status_code, 200, response.text)
+        # Re-activating the same pack is a no-op for already-migrated saves.
+        resp = self.client.post('/api/virtual-life/packs/clone-pack/activate', headers=h)
+        self.assertEqual(resp.json()['saveMigration'], {'migrated': 0, 'skipped': 0})
+
     def test_asset_upload(self):
         from unittest.mock import patch
         import app.virtual_life_packs as vlp

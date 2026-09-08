@@ -351,7 +351,10 @@ def activate_pack(pack_id: str, user: User = Depends(get_role_manager), db: Sess
     pack.is_active = True
     pack.updated_at = _utcnow()
     db.commit()
-    return _detail(pack)
+    # 平滑迁移:仍指向旧包的存档,与新包兼容的就地改指(阶段 7;延迟导入避免循环依赖)。
+    from .virtual_life import migrate_saves_to_active_pack
+    migration = migrate_saves_to_active_pack(db)
+    return _detail(pack) | {'saveMigration': migration}
 
 
 @router.post('/packs/{pack_id}/duplicate', status_code=201)

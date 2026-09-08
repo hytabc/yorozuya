@@ -51,7 +51,13 @@ site-wide (A-scheme: the site admin configures content; all players share it).
   `/packs/{id}`, POST `/packs/{id}/activate` (exactly one active; activating
   revalidates), POST `/packs/{id}/duplicate`. Content updates bump `version`.
   The active pack cannot be deleted. Save validation follows the active pack
-  immediately after activation.
+  immediately after activation. Activation additionally MIGRATES existing
+  saves in place (stage 7): every save whose `packId` differs is re-pointed
+  at the new pack and re-validated (`GameState` + cross-checks); compatible
+  saves are rewritten with their `revision` untouched (client CAS is not
+  disturbed), incompatible ones are left as-is and keep the pre-existing
+  graceful cross-pack error path. The activate response carries
+  `saveMigration: {migrated, skipped}` and the admin toast reports both.
 - POST `/api/virtual-life/assets` (stage 4d): single image upload for world
   backgrounds and NPC portraits — magic-byte sniffing (JPEG/PNG/GIF/WebP),
   5 MiB cap, stored under the uploads mount as `life/<uuid>.<ext>` and served
@@ -85,7 +91,8 @@ for every NPC on all 7 days. Saving PUTs the whole content; server-side
 validation errors are surfaced verbatim, and content edits bump the pack
 version. Pack list operations: select, duplicate,
 activate (exactly one active, player side and save validation follow
-immediately), delete (inactive only). NPC/world/room removal cascades
+immediately; stage 7 also migrates compatible existing saves in place and
+the toast reports 迁移 N 份 / 不兼容 M 份), delete (inactive only). NPC/world/room removal cascades
 references (presence, dialogue, initial conversations); node removal rewrites
 jump targets to day-end.
 

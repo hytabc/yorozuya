@@ -119,9 +119,14 @@ export async function savePack() {
 export async function activatePack(id) {
   adminState.error = ''
   try {
-    await api.post(`/virtual-life/packs/${id}/activate`)
+    const { data } = await api.post(`/virtual-life/packs/${id}/activate`)
     await loadPacks()
-    showAdminToast('已激活为全站内容包，玩家端与存档校验立即生效')
+    // 阶段 7:激活时后端已把兼容的旧存档就地改指到新包,这里把结果告诉管理员。
+    const migration = data?.saveMigration
+    const note = migration && (migration.migrated || migration.skipped)
+      ? `；旧存档迁移 ${migration.migrated} 份${migration.skipped ? `，${migration.skipped} 份不兼容保留原样` : ''}`
+      : ''
+    showAdminToast(`已激活为全站内容包，玩家端与存档校验立即生效${note}`)
   } catch (e) {
     adminState.error = '激活失败：' + errText(e)
   }

@@ -14,7 +14,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from sqlalchemy import Integer, Text, update
+from sqlalchemy import Integer, Text, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
@@ -187,3 +187,35 @@ def write_save(payload: SaveRequest, user: User = Depends(get_role_manager), db:
             raise HTTPException(409, '存档已被其他页面更新，请重新载入后继续')
         db.commit()
     return {'revision': revision, 'updatedAt': now}
+
+
+def migrate_saves_to_active_pack(db: Session) -> dict:
+    """Pack switch follow-up: repoint compatible saves to the active pack (stage 7).
+
+    Every stored save is re-validated against the NEW active pack's rules;
+    compatible ones get packId (and v1→v2 schema) rewritten in place with the
+    revision untouched, so the client compare-and-swap keeps working and the
+    next load simply succeeds. Incompatible saves are left alone — their
+    owners keep the graceful pack-mismatch error until a pack that fits them
+    becomes active again.
+    """
+    rules = get_save_rules(db)
+    migrated = skipped = 0
+    for row in db.scalars(select(VirtualLifeSave)).all():
+        state = json.loads(row.state_json)
+        if state.get('schemaVersion') == 2 and state.get('packId') == rules['packId']:
+            continue
+        candidate = dict(state)
+        candidate['schemaVersion'] = 2
+        candidate['packId'] = rules['packId']
+        try:
+            parsed = GameState.model_validate(candidate)
+            validate_state_against_pack(parsed, rules)
+        except ValueError:  # pydantic ValidationError 也是 ValueError 的子类
+            skipped += 1
+            continue
+        row.state_json = json.dumps(parsed.model_dump(by_alias=True), ensure_ascii=False)
+        migrated += 1
+    if migrated:
+        db.commit()
+    return {'migrated': migrated, 'skipped': skipped}
