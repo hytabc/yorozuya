@@ -1,0 +1,76 @@
+<script setup>
+// 左侧角色面板：角色卡 + 属性条。样式从 LifeSimulator.vue 迁出，行为不变。
+const props = defineProps({ game: { type: Object, required: true } })
+const { stats, tags } = props.game
+const labels = { mood: '心情', energy: '精力', social: '社交', explore: '探索' }
+</script>
+
+<template>
+  <aside class="char-panel">
+    <div class="section-title">01 角色</div>
+    <div class="char-card">
+      <div class="avatar">☺</div>
+      <div class="char-info">
+        <h2>白昼梦</h2>
+        <p>新人探索者</p>
+        <div class="tags">
+          <span v-for="t in tags" :key="t">{{ t }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="stats-bars">
+      <div v-for="(val, key) in stats" :key="key" class="stat-row">
+        <span>{{ labels[key] }}</span>
+        <div class="bar"><b :style="{ width: val + '%' }"></b></div>
+        <strong>{{ val }}</strong>
+      </div>
+    </div>
+    <div class="prompt-text">今天，想去哪里看看？</div>
+  </aside>
+</template>
+
+<style scoped>
+.section-title {
+  font-size: 12px; font-weight: 700; color: #237a57;
+  margin-bottom: 12px; letter-spacing: 0.05em;
+}
+.char-panel { display: flex; flex-direction: column; }
+.char-card {
+  display: flex; align-items: center; gap: 16px;
+  padding: 20px; background: #fff;
+  border: 1px solid #d9dedb; border-radius: 8px;
+  margin-bottom: 20px;
+}
+.avatar {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: linear-gradient(145deg, #e5f3eb, #c8e6d4);
+  display: grid; place-items: center;
+  font-size: 28px; border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(25, 38, 32, 0.08);
+}
+.char-info h2 { margin: 0 0 4px; font-size: 20px; font-family: Georgia, serif; }
+.char-info p { margin: 0 0 8px; color: #69736e; font-size: 12px; }
+.tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.tags span {
+  padding: 4px 8px; border-radius: 4px;
+  background: #e5f3eb; color: #237a57;
+  font-size: 10px; font-weight: 600;
+}
+.stats-bars {
+  background: #fff; border: 1px solid #d9dedb;
+  border-radius: 8px; padding: 20px; margin-bottom: 16px;
+}
+.stat-row {
+  display: grid; grid-template-columns: 40px 1fr 32px;
+  align-items: center; gap: 12px; margin-bottom: 12px;
+}
+.stat-row:last-child { margin-bottom: 0; }
+.stat-row span { font-size: 12px; color: #69736e; }
+.stat-row strong { font-size: 13px; color: #18201d; text-align: right; }
+.bar { height: 6px; border-radius: 3px; background: #e5e8e5; overflow: hidden; }
+.bar b { display: block; height: 100%; background: #237a57; border-radius: inherit; transition: width 0.3s ease; }
+.prompt-text {
+  padding: 16px 20px; background: #e5f3eb; border-radius: 8px;
+  color: #237a57; font-size: 13px; font-style: italic;
+}
+</style>

@@ -26,6 +26,22 @@ own save. This feature does not change global roles or promote any account.
 
 ## Frontend
 
+File layout after the stage-1 modular split (behavior unchanged):
+
+- `frontend/src/life/registry.js`: content-pack Registry (stage 2). A pack is
+  `{id, version, npcIds, npcs, portraits, dialogueScripts, createInitialState}`;
+  registration validates completeness. The game consumes content ONLY via the
+  active pack. `frontend/src/life/builtin.js` registers built-in packs;
+  `frontend/src/life/content/defaultPack.js` is the built-in default pack
+  (NPC defs, portraits, dialogue scripts, initial life state).
+- `frontend/src/life/useLifeGame.js`: all game state, mutations, tutorial
+  wiring and save plumbing; returns a single `game` object.
+- `frontend/src/life/components/`: `LifeCharPanel`, `LifeScene`,
+  `LifeMenuPanel`, `LifeHistoryDrawer`, `LifeFeatureDrawer` — presentational,
+  receive `game` via prop; each carries its own scoped styles.
+- `frontend/src/views/LifeSimulator.vue`: shell only — header, save status,
+  three-column layout, footer, drawer overlays, tutorial mount, toast.
+
 Entry restores server save before any mutation is allowed. Failed loads do not
 initialize/overwrite server data. Manual save reports success only after PUT.
 Choices, NPC switching, next day trigger 700 ms debounced autosave. Requests are
