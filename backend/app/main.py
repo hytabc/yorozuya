@@ -35,6 +35,7 @@ from .schemas import (
     AcceptRequest,
     AdminStats,
     AdminTaskUpdate,
+    AdminUserBetaTesterUpdate,
     AdminUserLimitUpdate,
     AdminUserOut,
     AdminUserRoleUpdate,
@@ -108,6 +109,8 @@ def migrate_schema() -> None:
                 connection.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(16) NOT NULL DEFAULT 'user'"))
             if "qq_public" not in user_columns:
                 connection.execute(text("ALTER TABLE users ADD COLUMN qq_public BOOLEAN NOT NULL DEFAULT 0"))
+            if "is_beta_tester" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN is_beta_tester BOOLEAN NOT NULL DEFAULT 0"))
         if not inspector.has_table("tasks"):
             return
         task_columns = {column["name"] for column in inspector.get_columns("tasks")}
@@ -252,7 +255,7 @@ def present_user_public(user: User, viewer: User | None = None) -> UserPublic:
 def present_user_profile(user: User, viewer: User | None = None) -> UserProfileOut:
     return UserProfileOut(
         id=user.id, nickname=user.nickname, bio=user.bio, qq=user.qq, qq_public=user.qq_public,
-        is_admin=user.is_admin,
+        is_admin=user.is_admin, is_beta_tester=user.is_beta_tester,
         role=user.role, created_at=user.created_at, photos=visible_user_photos(user, viewer),
     )
 
@@ -1355,6 +1358,26 @@ def update_user_task_limit(
     if user is None:
         raise HTTPException(status_code=404, detail="用户不存在")
     user.max_concurrent_tasks = payload.max_concurrent_tasks
+    db.commit()
+    db.refresh(user)
+    return AdminUserOut.model_validate(user).model_copy(
+        update={"active_task_count": active_task_count(db, user.id)}
+    )
+
+
+@app.patch("/api/admin/users/{user_id}/beta-tester", response_model=AdminUserOut)
+def update_user_beta_tester(
+    user_id: int,
+    payload: AdminUserBetaTesterUpdate,
+    _: User = Depends(get_admin),
+    db: Session = Depends(get_db),
+):
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    if user.is_admin:
+        raise HTTPException(status_code=409, detail="管理员账号的内测资格不可修改")
+    user.is_beta_tester = payload.is_beta_tester
     db.commit()
     db.refresh(user)
     return AdminUserOut.model_validate(user).model_copy(

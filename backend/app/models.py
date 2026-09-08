@@ -61,6 +61,7 @@ class User(Base):
     qq_public: Mapped[bool] = mapped_column(Boolean, default=False)
     bio: Mapped[str | None] = mapped_column(String(300), nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_beta_tester: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     role: Mapped[UserRole] = mapped_column(
         SqlEnum(UserRole, values_callable=lambda values: [item.value for item in values]),

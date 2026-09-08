@@ -1,4 +1,4 @@
-"""One private virtual-life save per authenticated administrator.
+"""One private virtual-life save per authorized player.
 
 No caller-supplied owner id. Revision compare-and-swap prevents stale tabs from
 silently overwriting newer saves. This table is independent of other businesses.
@@ -19,7 +19,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from .database import Base, get_db
-from .dependencies import get_role_manager
+from .dependencies import get_life_player
 from .models import User
 from .virtual_life_packs import get_save_rules
 
@@ -159,7 +159,7 @@ router = APIRouter(prefix='/api/virtual-life', tags=['virtual-life'])
 
 
 @router.get('/save')
-def read_save(user: User = Depends(get_role_manager), db: Session = Depends(get_db)):
+def read_save(user: User = Depends(get_life_player), db: Session = Depends(get_db)):
     row = db.get(VirtualLifeSave, user.id)
     if row is None:
         return {'revision': 0, 'state': None, 'updatedAt': None}
@@ -167,7 +167,7 @@ def read_save(user: User = Depends(get_role_manager), db: Session = Depends(get_
 
 
 @router.put('/save')
-def write_save(payload: SaveRequest, user: User = Depends(get_role_manager), db: Session = Depends(get_db)):
+def write_save(payload: SaveRequest, user: User = Depends(get_life_player), db: Session = Depends(get_db)):
     rules = get_save_rules(db)
     if payload.state.schemaVersion == 2:
         if payload.state.packId != rules['packId']:

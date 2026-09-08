@@ -73,6 +73,7 @@ class UserProfileOut(ApiModel):
     qq: str | None = None
     qq_public: bool = False
     is_admin: bool = False
+    is_beta_tester: bool = False
     role: UserRole = UserRole.USER
     created_at: datetime
     photos: list[UserPhotoOut] = []
@@ -83,6 +84,7 @@ class UserSelf(UserPublic):
     qq: str | None = None
     qq_public: bool = False
     is_admin: bool
+    is_beta_tester: bool = False
     is_active: bool
     role: UserRole = UserRole.USER
     max_concurrent_tasks: int
@@ -180,12 +182,17 @@ class AdminUserOut(ApiModel):
     username: str
     nickname: str
     is_admin: bool
+    is_beta_tester: bool = False
     is_active: bool
     role: UserRole = UserRole.USER
     max_concurrent_tasks: int
     active_task_count: int = 0
     created_at: datetime
     photos: list[UserPhotoOut] = []
+
+
+class AdminUserBetaTesterUpdate(RequestModel):
+    is_beta_tester: bool
 
 
 class AdminUserRoleUpdate(RequestModel):

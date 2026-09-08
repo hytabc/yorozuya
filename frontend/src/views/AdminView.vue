@@ -23,6 +23,7 @@ const userSearch = ref('')
 const loading = ref(true)
 const savingUserId = ref(null)
 const savingRoleId = ref(null)
+const savingBetaId = ref(null)
 const filteredTasks = computed(() => tasks.value.filter((task) => `${task.title}${task.publisher.nickname}`.toLowerCase().includes(taskSearch.value.toLowerCase())))
 const filteredUsers = computed(() => users.value.filter((user) => `${user.username}${user.nickname}`.toLowerCase().includes(userSearch.value.toLowerCase())))
 const pendingFeedbacks = computed(() => feedbacks.value.filter((item) => item.status === 'pending').length)
@@ -105,6 +106,19 @@ async function changeUserRole(user, targetRole, select) {
     savingRoleId.value = null
   }
 }
+async function toggleBetaTester(user) {
+  if (!auth.isAdmin || user.is_admin || savingBetaId.value !== null) return
+  savingBetaId.value = user.id
+  try {
+    const { data } = await api.patch(`/admin/users/${user.id}/beta-tester`, { is_beta_tester: !user.is_beta_tester })
+    users.value[users.value.findIndex((item) => item.id === user.id)] = data
+    toast.success(`已${data.is_beta_tester ? '授予' : '取消'} ${data.nickname} 的内测资格`)
+  } catch (error) {
+    toast.error(errorMessage(error))
+  } finally {
+    savingBetaId.value = null
+  }
+}
 async function toggle(task) {
   let note = task.admin_note
   if (task.is_visible) {
@@ -179,12 +193,16 @@ onMounted(load)
       <div class="admin-toolbar"><div><h2>用户管理</h2><span>共 {{ users.length }} 人</span></div><label class="search-field"><Search :size="17" /><input v-model="userSearch" placeholder="搜索账号或昵称" /></label></div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>用户</th><th>权限等级</th><th v-if="auth.isAdmin">当前接单</th><th v-if="auth.isAdmin">接单上限</th><th><span class="sr-only">操作</span></th></tr></thead>
+          <thead><tr><th>用户</th><th>权限等级</th><th v-if="auth.isAdmin">内测</th><th v-if="auth.isAdmin">当前接单</th><th v-if="auth.isAdmin">接单上限</th><th><span class="sr-only">操作</span></th></tr></thead>
           <tbody>
-            <tr v-if="loading"><td :colspan="auth.isAdmin ? 5 : 3" class="table-loading">正在加载…</td></tr>
+            <tr v-if="loading"><td :colspan="auth.isAdmin ? 6 : 3" class="table-loading">正在加载…</td></tr>
             <tr v-for="user in filteredUsers" v-else :key="user.id">
               <td><strong>{{ user.nickname }}</strong><small>@{{ user.username }} · #{{ user.id }}</small></td>
               <td><span v-if="user.is_admin" class="admin-tag"><ShieldCheck :size="13" />管理员</span><span v-else class="role-tag" :class="`role-${user.role}`"><Store v-if="user.role === 'staff'" :size="13" />{{ roleLabel(user) }}</span></td>
+              <td v-if="auth.isAdmin">
+                <span v-if="user.is_admin" class="muted">无需内测资格</span>
+                <button v-else class="button secondary small" :aria-pressed="user.is_beta_tester" :aria-label="`切换 ${user.nickname} 的内测资格`" :disabled="savingBetaId !== null" @click="toggleBetaTester(user)">{{ user.is_beta_tester ? '取消内测' : '授予内测' }}</button>
+              </td>
               <td v-if="auth.isAdmin"><span class="limit-usage" :class="{ full: user.active_task_count >= user.max_concurrent_tasks }">{{ user.active_task_count }} / {{ user.max_concurrent_tasks }}</span></td>
               <td v-if="auth.isAdmin"><input v-model.number="userLimits[user.id]" class="limit-input" type="number" min="0" max="999" :aria-label="`${user.nickname} 的接单上限`" /></td>
               <td>

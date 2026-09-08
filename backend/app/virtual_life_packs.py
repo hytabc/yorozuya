@@ -18,7 +18,7 @@ from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from .config import settings
 from .database import Base, get_db
-from .dependencies import get_role_manager
+from .dependencies import get_life_player, get_role_manager
 from .models import User
 
 SEED_DIR = Path(__file__).resolve().parent / 'life_packs'
@@ -448,7 +448,7 @@ def _get_pack_or_404(db: Session, pack_id: str) -> VirtualLifePack:
 
 
 @router.get('/pack')
-def read_active_pack(user: User = Depends(get_role_manager), db: Session = Depends(get_db)):
+def read_active_pack(user: User = Depends(get_life_player), db: Session = Depends(get_db)):
     return _detail(get_active_pack(db))
 
 

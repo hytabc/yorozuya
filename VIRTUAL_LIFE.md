@@ -1,11 +1,13 @@
 # Virtual life private save (v1)
 
-One private save per authenticated administrator: online `role=staff` means
-管理员 and `is_admin=true` means 超级管理员; both are eligible. Virtual-life
-navigation, route and page visibility use the existing `auth.canManageRoles`;
-the save API independently uses the existing active-user `get_role_manager`
-dependency. Ordinary users and volunteers get 403; unauthenticated requests get
-401. Desktop-only UI restrictions remain (viewport >=901px and non-mobile UA).
+One private save per authorized player: online `role=staff` means 管理员,
+`is_admin=true` means 超级管理员, and `is_beta_tester=true` marks an 内测用户;
+all three are eligible to play. Virtual-life navigation, the `/life` route and
+page visibility use `auth.canPlayLife`; the save API and the player-facing
+active-pack read independently use the active-user `get_life_player` dependency.
+Pack management APIs and asset uploads still require `get_role_manager`.
+Ordinary users and volunteers get 403; unauthenticated requests get 401.
+Desktop-only UI restrictions remain (viewport >=901px and non-mobile UA).
 No caller-supplied user id is accepted, and eligible users can access only their
 own save. This feature does not change global roles or promote any account.
 
@@ -56,10 +58,11 @@ all players share it).
   Startup seeding migrates legacy shapes in place (`migrate_pack_content`,
   idempotent): single-script `dialogue[npcId]` → day arrays, `line`→`lines`,
   `reply`→`replies`, image defaults filled.
-- Admin API (all gated by `get_role_manager`): GET `/api/virtual-life/pack`
-  (active pack detail), GET/POST `/api/virtual-life/packs`, GET/PUT/DELETE
-  `/packs/{id}`, POST `/packs/{id}/activate` (exactly one active; activating
-  revalidates), POST `/packs/{id}/duplicate`. Content updates bump `version`.
+- Player API: GET `/api/virtual-life/pack` (active pack detail) is gated by
+  `get_life_player`. Admin API (all gated by `get_role_manager`): GET/POST
+  `/api/virtual-life/packs`, GET/PUT/DELETE `/packs/{id}`, POST
+  `/packs/{id}/activate` (exactly one active; activating revalidates), POST
+  `/packs/{id}/duplicate`. Content updates bump `version`.
   The active pack cannot be deleted. Save validation follows the active pack
   immediately after activation. Activation additionally MIGRATES existing
   saves in place (stage 7): every save whose `packId` differs is re-pointed
@@ -79,8 +82,8 @@ all players share it).
 `useLifeAdmin.js` singleton, sections `AdminNpcs` / `AdminWorlds` /
 `AdminActions` / `AdminDialogue` / `AdminEvents` (stage 8b) / `AdminInitial`,
 shared `AdminImageField`).
-The route uses the same `lifeOnly` guard as the game (role manager + desktop);
-the game header links to it via 内容管理. The admin edits one pack at a time in
+The route uses the separate `lifeManager` guard (role manager + desktop); the
+game header links to it via 内容管理 only when `auth.canManageRoles`. The admin edits one pack at a time in
 structured forms: NPC profiles/portraits/presence (the 头像 cell previews the
 uploaded portrait thumbnail, the emoji input remains as a fallback glyph) and
 per-NPC 默认回复 (fallback replies with min-bond tiers, edited in a panel

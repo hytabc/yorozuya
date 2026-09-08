@@ -103,6 +103,80 @@ def member_ids(task):
     return [m["user"]["id"] for m in task["members"]]
 
 
+def test_admin_beta_tester_toggle_and_response_propagation():
+    with TestClient(app) as client:
+        registered = client.post('/api/auth/register', json={
+            'username': 'beta_player', 'password': 'Password123!', 'nickname': '内测用户',
+        })
+        assert registered.status_code == 201, registered.text
+        assert registered.json()['user']['is_beta_tester'] is False
+        player = {'Authorization': f"Bearer {registered.json()['access_token']}"}
+        user_id = registered.json()['user']['id']
+        admin_login = client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'})
+        admin = {'Authorization': f"Bearer {admin_login.json()['access_token']}"}
+        publisher = auth(client, 'beta_publisher')
+        task = create_task(client, publisher, password=None)
+        accepted = client.post(f"/api/tasks/{task['id']}/accept", headers=player, json={})
+        assert accepted.status_code == 200, accepted.text
+        url = f'/api/admin/users/{user_id}/beta-tester'
+        for enabled in (True, False):
+            changed = client.patch(url, headers=admin, json={'is_beta_tester': enabled})
+            assert changed.status_code == 200, changed.text
+            assert changed.json()['is_beta_tester'] is enabled
+            assert changed.json()['active_task_count'] == 1
+            assert changed.json()['role'] == 'user'
+            assert changed.json()['is_admin'] is False
+            assert client.get('/api/auth/me', headers=player).json()['is_beta_tester'] is enabled
+            login = client.post('/api/auth/login', json={'username': 'beta_player', 'password': 'Password123!'})
+            assert login.json()['user']['is_beta_tester'] is enabled
+            updated = client.patch('/api/users/me', headers=player, json={'nickname': '内测用户'})
+            assert updated.status_code == 200, updated.text
+            assert updated.json()['is_beta_tester'] is enabled
+            profile = client.get(f'/api/users/{user_id}', headers=player)
+            assert profile.status_code == 200, profile.text
+            assert profile.json()['is_beta_tester'] is enabled
+            users = client.get('/api/admin/users', headers=admin).json()
+            assert next(user for user in users if user['id'] == user_id)['is_beta_tester'] is enabled
+            limit = client.patch(f'/api/admin/users/{user_id}/task-limit', headers=admin,
+                                 json={'max_concurrent_tasks': 3})
+            assert limit.status_code == 200, limit.text
+            assert limit.json()['is_beta_tester'] is enabled
+            role = client.patch(f'/api/admin/users/{user_id}/role', headers=admin, json={'role': 'user'})
+            assert role.status_code == 200, role.text
+            assert role.json()['is_beta_tester'] is enabled
+        with TestingSession() as db:
+            assert db.get(User, user_id).is_beta_tester is False
+
+
+def test_beta_tester_update_requires_admin_and_rejects_admin_or_missing_target():
+    with TestClient(app) as client:
+        player = auth(client, 'beta_target')
+        staff = auth(client, 'beta_staff')
+        user_id = client.get('/api/auth/me', headers=player).json()['id']
+        staff_id = client.get('/api/auth/me', headers=staff).json()['id']
+        login = client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'})
+        admin = {'Authorization': f"Bearer {login.json()['access_token']}"}
+        admin_id = login.json()['user']['id']
+        promoted = client.patch(f'/api/admin/users/{staff_id}/role', headers=admin, json={'role': 'staff'})
+        assert promoted.status_code == 200, promoted.text
+        url = f'/api/admin/users/{user_id}/beta-tester'
+        for headers, expected in (({}, 401), (player, 403), (staff, 403)):
+            for enabled in (True, False):
+                response = client.patch(url, headers=headers, json={'is_beta_tester': enabled})
+                assert response.status_code == expected, response.text
+        for target, expected in ((admin_id, 409), (999999, 404)):
+            for enabled in (True, False):
+                response = client.patch(f'/api/admin/users/{target}/beta-tester', headers=admin,
+                                        json={'is_beta_tester': enabled})
+                assert response.status_code == expected, response.text
+        for payload in ({}, {'is_beta_tester': None}, {'is_beta_tester': 'invalid'}):
+            assert client.patch(url, headers=admin, json=payload).status_code == 422
+        assert client.get('/api/auth/me', headers=player).json()['is_beta_tester'] is False
+        # 内测资格不附带管理权限，已有 token 也不能给自己取消/授予资格。
+        assert client.patch(url, headers=admin, json={'is_beta_tester': True}).status_code == 200
+        assert client.patch(url, headers=player, json={'is_beta_tester': False}).status_code == 403
+
+
 def test_accept_fills_up_until_auto_start():
     with TestClient(app) as client:
         pub = auth(client, "pub")

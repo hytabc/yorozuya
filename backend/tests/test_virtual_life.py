@@ -12,7 +12,7 @@ from app.database import Base, get_db
 from app.models import User, UserRole
 from app.security import create_access_token
 from app.virtual_life import GameState, router
-from app.virtual_life_packs import get_active_pack, seed_virtual_life_packs, validate_pack_content
+from app.virtual_life_packs import get_active_pack, router as packs_router, seed_virtual_life_packs, validate_pack_content
 
 
 def state():
@@ -48,6 +48,7 @@ class SaveTests(unittest.TestCase):
         self.sessions = sessionmaker(bind=self.engine)
         app = FastAPI()
         app.include_router(router)
+        app.include_router(packs_router)
         def database():
             with self.sessions() as db:
                 yield db
@@ -182,6 +183,60 @@ class SaveTests(unittest.TestCase):
             self.assertEqual(saved['revision'], 1)
         self.assertEqual(self.client.put(url, json={**payload, 'user_id': 1}, headers=self.headers(4)).status_code, 422)
         self.assertIsNone(self.client.get(url, headers=self.headers(2)).json()['state'])
+
+    def test_beta_user_can_save_and_read_active_pack_then_loses_access(self):
+        headers = self.headers(3)
+        with self.sessions() as db:
+            db.get(User, 3).is_beta_tester = True
+            db.commit()
+        response = self.client.get('/api/virtual-life/pack', headers=headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['id'], V2['packId'])
+        url = '/api/virtual-life/save'
+        self.assertIsNone(self.client.get(url, headers=headers).json()['state'])
+        response = self.client.put(url, json={'revision': 0, 'state': state()}, headers=headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        loaded = self.client.get(url, headers=headers).json()
+        self.assertEqual(loaded['revision'], 1)
+        self.assertEqual(loaded['state']['day'], 9)
+        self.assertIsNone(self.client.get(url, headers=self.headers(1)).json()['state'])
+        response = self.client.put(url, json={'revision': 1, 'state': {**state(), 'day': 10}}, headers=headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        with self.sessions() as db:
+            user = db.get(User, 3)
+            self.assertEqual(user.role, UserRole.USER)
+            user.is_beta_tester = False
+            db.commit()
+        for method, path, kwargs in (
+            ('get', url, {}),
+            ('put', url, {'json': {'revision': 2, 'state': state()}}),
+            ('get', '/api/virtual-life/pack', {}),
+        ):
+            response = self.client.request(method, path, headers=headers, **kwargs)
+            self.assertEqual(response.status_code, 403, response.text)
+            self.assertEqual(response.json()['detail'], '需要内测资格')
+
+    def test_beta_user_cannot_manage_any_pack_endpoint_or_upload_assets(self):
+        with self.sessions() as db:
+            db.get(User, 3).is_beta_tester = True
+            content = json.loads(get_active_pack(db).content_json)
+            db.commit()
+        base = '/api/virtual-life/packs'
+        pack = base + '/' + V2['packId']
+        for method, path, kwargs in (
+            ('get', base, {}),
+            ('post', base, {'json': {'id': 'beta-created', 'name': 'Beta', 'content': content}}),
+            ('get', pack, {}),
+            ('put', pack, {'json': {'name': 'Beta rename'}}),
+            ('post', pack + '/activate', {}),
+            ('post', pack + '/duplicate', {'json': {'id': 'beta-copy', 'name': 'Copy'}}),
+            ('delete', pack, {}),
+            ('post', '/api/virtual-life/assets', {'files': {'file': ('test.png', b'\x89PNG\r\n\x1a\n', 'image/png')}}),
+        ):
+            with self.subTest(method=method, path=path):
+                response = self.client.request(method, path, headers=self.headers(3), **kwargs)
+                self.assertEqual(response.status_code, 403, response.text)
+                self.assertEqual(response.json()['detail'], '需要管理员或店员权限')
 
     def test_action_ledger_compatibility_and_roundtrip(self):
         url = '/api/virtual-life/save'

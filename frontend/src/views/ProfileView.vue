@@ -65,6 +65,7 @@ async function deletePhoto(photo) {
             <Heart v-else-if="auth.user.role === 'volunteer'" :size="15" />
             <UserRound v-else :size="15" />{{ roleLabel(auth.user) }}
           </span>
+          <span v-if="auth.user.is_beta_tester" class="role-tag beta-tag">内测用户</span>
         </div>
         <p v-if="!auth.isAdmin" class="role-hint muted">{{ ROLE_HINTS[auth.user.role] }}</p>
         <div class="profile-divider" />
@@ -97,3 +98,7 @@ async function deletePhoto(photo) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.role-tag.beta-tag { color: var(--green); background: var(--green-soft); }
+</style>

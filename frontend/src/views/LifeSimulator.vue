@@ -50,7 +50,7 @@ function resetTodayConfirmed() {
         <button v-if="day < 7" :disabled="!saveReady || saveConflict" @click="nextDay">下一天 ▶</button>
         <button v-else :disabled="!saveReady || saveConflict" @click="endingOpen = true">🌅 查看结局</button>
         <button :disabled="!saveReady || saveConflict" @click="tutorial?.start()">新手指引</button>
-        <button title="内容管理" @click="$router.push('/life-admin')">内容管理</button>
+        <button v-if="auth.canManageRoles" title="内容管理" @click="$router.push('/life-admin')">内容管理</button>
         <button class="icon-btn" title="设置">⚙</button>
         <button class="icon-btn" title="返回" @click="$router.back()">↩</button>
       </div>
