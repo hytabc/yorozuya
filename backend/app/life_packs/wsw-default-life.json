@@ -189,7 +189,7 @@
                   }
                 },
                 "reply": "太好了！那我调整一下角度……好了，笑一个！",
-                "next": null
+                "next": "n2"
               },
               {
                 "label": "我来帮你拍一张",
@@ -200,8 +200,8 @@
                     "energy": -2
                   }
                 },
-                "reply": "欸？可以吗？那就麻烦你了……这张照片我会好好保存的。",
-                "next": null
+                "reply": "欸？可以吗？那就麻烦你了……先别动，这个光线正好。",
+                "next": "n3"
               },
               {
                 "label": "想先安静看一会儿海",
@@ -212,6 +212,60 @@
                   }
                 },
                 "reply": "嗯，海边确实很适合发呆。那我就先去拍别处了，回头见！",
+                "next": null
+              }
+            ]
+          },
+          "n2": {
+            "line": "拍好了！你看，浪刚好在你身后碎成一圈金边。这张洗出来送你一份？",
+            "choices": [
+              {
+                "label": "好啊，谢谢！",
+                "effects": {
+                  "bond": 2,
+                  "stats": {
+                    "mood": 2
+                  }
+                },
+                "reply": "那就说定了。今天谢谢你陪我等到这么好的光。",
+                "next": null
+              },
+              {
+                "label": "能再拍一张背影吗",
+                "effects": {
+                  "bond": 1,
+                  "stats": {
+                    "mood": 3,
+                    "energy": -2
+                  }
+                },
+                "reply": "当然可以。背对海站好……三、二、一！",
+                "next": null
+              }
+            ]
+          },
+          "n3": {
+            "line": "这张把我拍得很好诶，快门时机刚刚好。你以前玩过相机吗？",
+            "choices": [
+              {
+                "label": "玩过一点",
+                "effects": {
+                  "bond": 2,
+                  "stats": {
+                    "social": 2
+                  }
+                },
+                "reply": "真的？那下次交流一下参数，我带两台机器出来！",
+                "next": null
+              },
+              {
+                "label": "完全没有，凭感觉",
+                "effects": {
+                  "stats": {
+                    "mood": 2
+                  }
+                },
+                "reply": "那你的感觉很好。这张照片我会好好保存的。",
                 "next": null
               }
             ]
@@ -225,38 +279,51 @@
             "line": "今天的云很低，拍出来像油画。要试试吗？",
             "choices": [
               {
-                "label": "好啊，一起拍吧",
+                "label": "试试",
                 "effects": {
-                  "bond": 2,
+                  "bond": 1,
                   "stats": {
-                    "social": 2,
                     "mood": 2
                   }
                 },
-                "reply": "太好了！那我调整一下角度……好了，笑一个！",
+                "reply": "好！你站在那块礁石旁边，云就压在你头顶了。",
+                "next": "n2"
+              },
+              {
+                "label": "今天想偷个懒",
+                "effects": {
+                  "stats": {
+                    "mood": 3
+                  }
+                },
+                "reply": "哈哈好，那我拍云，你负责当观众。",
+                "next": null
+              }
+            ]
+          },
+          "n2": {
+            "line": "这张怎么样？我觉得云的形状很像一只展翅的鸟。",
+            "choices": [
+              {
+                "label": "真的很像",
+                "effects": {
+                  "bond": 2,
+                  "stats": {
+                    "mood": 2
+                  }
+                },
+                "reply": "对吧！能看到一样的形状，说明我们挺合拍的。",
                 "next": null
               },
               {
-                "label": "我来帮你拍一张",
+                "label": "我觉得更像鲸鱼",
                 "effects": {
-                  "bond": 3,
+                  "bond": 1,
                   "stats": {
-                    "social": 3,
-                    "energy": -2
+                    "mood": 3
                   }
                 },
-                "reply": "欸？可以吗？那就麻烦你了……这张照片我会好好保存的。",
-                "next": null
-              },
-              {
-                "label": "想先安静看一会儿海",
-                "effects": {
-                  "stats": {
-                    "mood": 4,
-                    "explore": 1
-                  }
-                },
-                "reply": "嗯，海边确实很适合发呆。那我就先去拍别处了，回头见！",
+                "reply": "鲸鱼吗……哈哈，也不错！那这张就叫《鲸》好了。",
                 "next": null
               }
             ]
@@ -270,38 +337,51 @@
             "line": "昨天那张照片洗出来了，效果意外地好。想不想看看？",
             "choices": [
               {
-                "label": "好啊，一起拍吧",
+                "label": "快给我看看",
                 "effects": {
                   "bond": 2,
                   "stats": {
-                    "social": 2,
                     "mood": 2
                   }
                 },
-                "reply": "太好了！那我调整一下角度……好了，笑一个！",
-                "next": null
+                "reply": "给——就是这张。你笑得比本人还自然。",
+                "next": "n2"
               },
               {
-                "label": "我来帮你拍一张",
+                "label": "下次再看吧",
+                "effects": {
+                  "stats": {
+                    "social": 1
+                  }
+                },
+                "reply": "好，那我先收着，你想看的时候随时说。",
+                "next": null
+              }
+            ]
+          },
+          "n2": {
+            "line": "其实我偷偷多洗了一张，打算自己留着。你不介意吧？",
+            "choices": [
+              {
+                "label": "当然不介意",
                 "effects": {
                   "bond": 3,
                   "stats": {
-                    "social": 3,
-                    "energy": -2
+                    "mood": 2
                   }
                 },
-                "reply": "欸？可以吗？那就麻烦你了……这张照片我会好好保存的。",
+                "reply": "太好了。那这张照片就是我的收藏第一号。",
                 "next": null
               },
               {
-                "label": "想先安静看一会儿海",
+                "label": "介意，快销毁",
                 "effects": {
+                  "bond": 1,
                   "stats": {
-                    "mood": 4,
-                    "explore": 1
+                    "mood": 4
                   }
                 },
-                "reply": "嗯，海边确实很适合发呆。那我就先去拍别处了，回头见！",
+                "reply": "欸——？！哈哈哈，晚了，已经过塑了。",
                 "next": null
               }
             ]
@@ -315,38 +395,52 @@
             "line": "听说今晚有晚霞，要不要一起去占个好位置？",
             "choices": [
               {
-                "label": "好啊，一起拍吧",
+                "label": "走，现在就去",
                 "effects": {
                   "bond": 2,
                   "stats": {
                     "social": 2,
-                    "mood": 2
-                  }
-                },
-                "reply": "太好了！那我调整一下角度……好了，笑一个！",
-                "next": null
-              },
-              {
-                "label": "我来帮你拍一张",
-                "effects": {
-                  "bond": 3,
-                  "stats": {
-                    "social": 3,
                     "energy": -2
                   }
                 },
-                "reply": "欸？可以吗？那就麻烦你了……这张照片我会好好保存的。",
+                "reply": "等等，带上这个——折叠椅和热茶，占位可是持久战。",
+                "next": "n2"
+              },
+              {
+                "label": "今天有点累",
+                "effects": {
+                  "stats": {
+                    "mood": 3
+                  }
+                },
+                "reply": "那你好好休息。如果晚霞够美，我拍下来带给你。",
+                "next": null
+              }
+            ]
+          },
+          "n2": {
+            "line": "其实占位置是借口。这个角度看海，云烧起来的时候，人都会变安静。我想和你再看一次。",
+            "choices": [
+              {
+                "label": "那我不说话，陪你安静看",
+                "effects": {
+                  "bond": 3,
+                  "stats": {
+                    "mood": 3
+                  }
+                },
+                "reply": "……嗯。谢谢。",
                 "next": null
               },
               {
-                "label": "想先安静看一会儿海",
+                "label": "我负责讲今天的事",
                 "effects": {
+                  "bond": 2,
                   "stats": {
-                    "mood": 4,
-                    "explore": 1
+                    "social": 2
                   }
                 },
-                "reply": "嗯，海边确实很适合发呆。那我就先去拍别处了，回头见！",
+                "reply": "也行，那等云烧起来之前，先听你讲讲今天的事吧。",
                 "next": null
               }
             ]
@@ -360,38 +454,51 @@
             "line": "海风今天有点大，三脚架都在晃。你那边还好吗？",
             "choices": [
               {
-                "label": "好啊，一起拍吧",
+                "label": "我来帮你扶着",
                 "effects": {
                   "bond": 2,
                   "stats": {
                     "social": 2,
-                    "mood": 2
-                  }
-                },
-                "reply": "太好了！那我调整一下角度……好了，笑一个！",
-                "next": null
-              },
-              {
-                "label": "我来帮你拍一张",
-                "effects": {
-                  "bond": 3,
-                  "stats": {
-                    "social": 3,
                     "energy": -2
                   }
                 },
-                "reply": "欸？可以吗？那就麻烦你了……这张照片我会好好保存的。",
+                "reply": "谢谢！就扶那条腿……好，稳了！",
+                "next": "n2"
+              },
+              {
+                "label": "我这边挺好的",
+                "effects": {
+                  "stats": {
+                    "mood": 2
+                  }
+                },
+                "reply": "那就好。风大的时候海特别有精神，你看那排浪！",
+                "next": null
+              }
+            ]
+          },
+          "n2": {
+            "line": "风大也有风大的好处——长曝光拍出来，浪会像牛奶一样丝滑。要不要试试？",
+            "choices": [
+              {
+                "label": "怎么试？",
+                "effects": {
+                  "bond": 1,
+                  "stats": {
+                    "explore": 2
+                  }
+                },
+                "reply": "你按快门，我数秒。三秒钟，别呼吸……开玩笑的，呼吸照常。",
                 "next": null
               },
               {
-                "label": "想先安静看一会儿海",
+                "label": "听起来很玄学",
                 "effects": {
                   "stats": {
-                    "mood": 4,
-                    "explore": 1
+                    "mood": 3
                   }
                 },
-                "reply": "嗯，海边确实很适合发呆。那我就先去拍别处了，回头见！",
+                "reply": "摄影本来就是一半技术一半玄学嘛。",
                 "next": null
               }
             ]
@@ -405,38 +512,51 @@
             "line": "整理相册才发现，这星期拍了好多天空。要不要翻翻看？",
             "choices": [
               {
-                "label": "好啊，一起拍吧",
+                "label": "好啊，翻翻",
                 "effects": {
-                  "bond": 2,
+                  "bond": 1,
                   "stats": {
-                    "social": 2,
                     "mood": 2
                   }
                 },
-                "reply": "太好了！那我调整一下角度……好了，笑一个！",
-                "next": null
+                "reply": "这张是星期一，这张是星期三……你猜我最喜欢哪张？",
+                "next": "n2"
               },
               {
-                "label": "我来帮你拍一张",
+                "label": "天空有什么好看的",
+                "effects": {
+                  "stats": {
+                    "mood": 1
+                  }
+                },
+                "reply": "你这人……等你看到那张火烧云再评价吧。",
+                "next": null
+              }
+            ]
+          },
+          "n2": {
+            "line": "是这张——其实也没什么特别的构图，但那天你在旁边，所以记得特别清楚。",
+            "choices": [
+              {
+                "label": "原来照片是这样记住事情的",
                 "effects": {
                   "bond": 3,
                   "stats": {
-                    "social": 3,
-                    "energy": -2
+                    "mood": 3
                   }
                 },
-                "reply": "欸？可以吗？那就麻烦你了……这张照片我会好好保存的。",
+                "reply": "对啊。相机记画面，人记感觉。",
                 "next": null
               },
               {
-                "label": "想先安静看一会儿海",
+                "label": "这张确实最好看",
                 "effects": {
+                  "bond": 1,
                   "stats": {
-                    "mood": 4,
-                    "explore": 1
+                    "mood": 2
                   }
                 },
-                "reply": "嗯，海边确实很适合发呆。那我就先去拍别处了，回头见！",
+                "reply": "嘿嘿，眼光不错。",
                 "next": null
               }
             ]
@@ -450,38 +570,51 @@
             "line": "周末的海滩人多起来了。要不要试试拍人像？",
             "choices": [
               {
-                "label": "好啊，一起拍吧",
+                "label": "拍我吧",
                 "effects": {
                   "bond": 2,
                   "stats": {
-                    "social": 2,
-                    "mood": 2
+                    "social": 3
                   }
                 },
-                "reply": "太好了！那我调整一下角度……好了，笑一个！",
-                "next": null
+                "reply": "好啊！站到光里去……对，就那里，回头看我。",
+                "next": "n2"
               },
               {
-                "label": "我来帮你拍一张",
+                "label": "拍别人多尴尬",
+                "effects": {
+                  "stats": {
+                    "social": 1
+                  }
+                },
+                "reply": "也是。那我们去拍风筝和狗，狗不尴尬。",
+                "next": null
+              }
+            ]
+          },
+          "n2": {
+            "line": "你面对镜头的时候一点都不僵，很难得。下周还愿意当我的模特吗？",
+            "choices": [
+              {
+                "label": "愿意",
                 "effects": {
                   "bond": 3,
                   "stats": {
-                    "social": 3,
-                    "energy": -2
+                    "mood": 2
                   }
                 },
-                "reply": "欸？可以吗？那就麻烦你了……这张照片我会好好保存的。",
+                "reply": "太好了，那说好了。下周的主题我都想好了。",
                 "next": null
               },
               {
-                "label": "想先安静看一会儿海",
+                "label": "收费的哦",
                 "effects": {
+                  "bond": 1,
                   "stats": {
-                    "mood": 4,
-                    "explore": 1
+                    "mood": 4
                   }
                 },
-                "reply": "嗯，海边确实很适合发呆。那我就先去拍别处了，回头见！",
+                "reply": "哈哈，报酬是洗出来的全套照片，成交吗？",
                 "next": null
               }
             ]
@@ -505,7 +638,7 @@
                   }
                 },
                 "reply": "哈哈，你的动作好可爱！",
-                "next": null
+                "next": "n2"
               },
               {
                 "label": "我在旁边看就好",
@@ -515,6 +648,33 @@
                   }
                 },
                 "reply": "没问题！那我就开始了哦。",
+                "next": null
+              }
+            ]
+          },
+          "n2": {
+            "line": "来，跟我做——手抬高，转身！……对对，就是这样！你学得很快嘛。",
+            "choices": [
+              {
+                "label": "是老师教得好",
+                "effects": {
+                  "bond": 2,
+                  "stats": {
+                    "mood": 2
+                  }
+                },
+                "reply": "嘴真甜！那老师奖励你再学一个八拍。",
+                "next": null
+              },
+              {
+                "label": "不行了，喘口气",
+                "effects": {
+                  "stats": {
+                    "mood": 3,
+                    "energy": 2
+                  }
+                },
+                "reply": "哈哈好，休息休息。跳舞最重要的就是开心。",
                 "next": null
               }
             ]
@@ -528,24 +688,51 @@
             "line": "昨天练了新动作，今天想试试顺不顺。来看看？",
             "choices": [
               {
-                "label": "好啊，一起跳",
+                "label": "来了来了",
                 "effects": {
+                  "bond": 1,
                   "stats": {
-                    "social": 3,
-                    "energy": -4
+                    "social": 2
                   }
                 },
-                "reply": "哈哈，你的动作好可爱！",
-                "next": null
+                "reply": "看好了——预备，起！……怎么样怎么样？",
+                "next": "n2"
               },
               {
-                "label": "我在旁边看就好",
+                "label": "今天想当安静的观众",
                 "effects": {
                   "stats": {
                     "mood": 2
                   }
                 },
-                "reply": "没问题！那我就开始了哦。",
+                "reply": "好呀，观众席第一排留给你。",
+                "next": null
+              }
+            ]
+          },
+          "n2": {
+            "line": "刚才那个转身我自己也不太满意，脚底下有点飘。你看得出来吗？",
+            "choices": [
+              {
+                "label": "看不出来，已经很好了",
+                "effects": {
+                  "bond": 2,
+                  "stats": {
+                    "mood": 2
+                  }
+                },
+                "reply": "真的？……谢谢，你这么说我就有信心了。",
+                "next": null
+              },
+              {
+                "label": "确实有一点点晃",
+                "effects": {
+                  "bond": 1,
+                  "stats": {
+                    "mood": 1
+                  }
+                },
+                "reply": "对吧！果然是这里。我再多练几遍，你帮我数拍子？",
                 "next": null
               }
             ]
@@ -559,24 +746,76 @@
             "line": "腿有点酸，但还是想动一动。你呢，今天有安排吗？",
             "choices": [
               {
-                "label": "好啊，一起跳",
+                "label": "陪你做拉伸吧",
                 "effects": {
+                  "bond": 2,
                   "stats": {
-                    "social": 3,
-                    "energy": -4
+                    "social": 2
                   }
                 },
-                "reply": "哈哈，你的动作好可爱！",
-                "next": null
+                "reply": "好呀，那就低强度恢复日。来，跟我压腿——慢点，别硬来。",
+                "next": "n2"
               },
               {
-                "label": "我在旁边看就好",
+                "label": "建议彻底休息",
                 "effects": {
                   "stats": {
                     "mood": 2
                   }
                 },
-                "reply": "没问题！那我就开始了哦。",
+                "reply": "嗯……你说得对，那今天就偷个懒，聊聊天吧。",
+                "next": "n3"
+              }
+            ]
+          },
+          "n2": {
+            "line": "呼——拉伸完整个人都松了。你柔韧性不错诶，以前练过什么？",
+            "choices": [
+              {
+                "label": "什么都没练过",
+                "effects": {
+                  "stats": {
+                    "mood": 2
+                  }
+                },
+                "reply": "那就是天赋！要不要考虑跟我学舞？",
+                "next": null
+              },
+              {
+                "label": "以前体育课勉强及格",
+                "effects": {
+                  "bond": 1,
+                  "stats": {
+                    "mood": 3
+                  }
+                },
+                "reply": "哈哈哈哈，那我们现在算是共同进步了。",
+                "next": null
+              }
+            ]
+          },
+          "n3": {
+            "line": "其实腿酸的时候最适合聊舞蹈以外的事。你平时不跳舞的时候都做什么？",
+            "choices": [
+              {
+                "label": "发呆、看海",
+                "effects": {
+                  "stats": {
+                    "mood": 3
+                  }
+                },
+                "reply": "听起来就很好。下次带我一起发呆。",
+                "next": null
+              },
+              {
+                "label": "到处逛逛",
+                "effects": {
+                  "bond": 1,
+                  "stats": {
+                    "explore": 2
+                  }
+                },
+                "reply": "那等你发现好地方，要第一个告诉我哦。",
                 "next": null
               }
             ]
@@ -590,24 +829,52 @@
             "line": "咖啡馆那边有人在放音乐，节奏超好，想去听听吗？",
             "choices": [
               {
-                "label": "好啊，一起跳",
+                "label": "走啊",
                 "effects": {
+                  "bond": 1,
                   "stats": {
-                    "social": 3,
-                    "energy": -4
+                    "social": 2
                   }
                 },
-                "reply": "哈哈，你的动作好可爱！",
-                "next": null
+                "reply": "等等我拿个外套！……好了，出发！",
+                "next": "n2"
               },
               {
-                "label": "我在旁边看就好",
+                "label": "人多的地方我有点怵",
                 "effects": {
                   "stats": {
                     "mood": 2
                   }
                 },
-                "reply": "没问题！那我就开始了哦。",
+                "reply": "那我们就站在门口听，不进去。这样行吗？",
+                "next": null
+              }
+            ]
+          },
+          "n2": {
+            "line": "你听这个鼓点——脚是不是已经自己想动了？我刚刚在门口悄悄比划了两下。",
+            "choices": [
+              {
+                "label": "看到了，很可爱",
+                "effects": {
+                  "bond": 2,
+                  "stats": {
+                    "mood": 3
+                  }
+                },
+                "reply": "欸？！被看到了吗……那、那你就当没看到！",
+                "next": null
+              },
+              {
+                "label": "进去跳一段？",
+                "effects": {
+                  "bond": 1,
+                  "stats": {
+                    "social": 3,
+                    "energy": -3
+                  }
+                },
+                "reply": "你认真的吗？！……好啊，反正音乐这么好。",
                 "next": null
               }
             ]
@@ -621,24 +888,49 @@
             "line": "今天想慢慢练基本功，要不要一起？",
             "choices": [
               {
-                "label": "好啊，一起跳",
+                "label": "一起",
                 "effects": {
+                  "bond": 1,
                   "stats": {
-                    "social": 3,
-                    "energy": -4
+                    "social": 2,
+                    "energy": -3
                   }
                 },
-                "reply": "哈哈，你的动作好可爱！",
-                "next": null
+                "reply": "那就从最简单的开始——站姿、呼吸、重心。别小看这些哦。",
+                "next": "n2"
               },
               {
-                "label": "我在旁边看就好",
+                "label": "基本功好枯燥",
                 "effects": {
+                  "stats": {
+                    "mood": 1
+                  }
+                },
+                "reply": "枯燥是枯燥，但它会在某个转身里救你一命。",
+                "next": null
+              }
+            ]
+          },
+          "n2": {
+            "line": "你看，同样的动作，重心稳了看起来就完全不一样。舞蹈没有捷径，但每一步都算数。",
+            "choices": [
+              {
+                "label": "这句话我要记下来",
+                "effects": {
+                  "bond": 2,
                   "stats": {
                     "mood": 2
                   }
                 },
-                "reply": "没问题！那我就开始了哦。",
+                "reply": "哈哈，记吧记吧，下次我再说点更帅的。",
+                "next": null
+              },
+              {
+                "label": "那我明天还能来吗",
+                "effects": {
+                  "bond": 3
+                },
+                "reply": "当然可以！明天继续，我等你。",
                 "next": null
               }
             ]
@@ -652,24 +944,50 @@
             "line": "我录了一段练习视频，等下你帮我看看好不好？",
             "choices": [
               {
-                "label": "好啊，一起跳",
+                "label": "没问题",
                 "effects": {
+                  "bond": 1,
                   "stats": {
-                    "social": 3,
-                    "energy": -4
+                    "social": 1
                   }
                 },
-                "reply": "哈哈，你的动作好可爱！",
+                "reply": "给——重点看第二段，那个转圈我总觉得差点什么。",
+                "next": "n2"
+              },
+              {
+                "label": "我怕我看不出门道",
+                "effects": {
+                  "stats": {
+                    "mood": 1
+                  }
+                },
+                "reply": "没关系，你就说「哪里好看哪里怪」，直觉最准了。",
+                "next": null
+              }
+            ]
+          },
+          "n2": {
+            "line": "你说这里手再打开一点会更好看？……哇，真的诶！你眼睛好毒。",
+            "choices": [
+              {
+                "label": "瞎说的，蒙对了",
+                "effects": {
+                  "stats": {
+                    "mood": 3
+                  }
+                },
+                "reply": "蒙的也这么准，下次还问你。",
                 "next": null
               },
               {
-                "label": "我在旁边看就好",
+                "label": "多看就懂了",
                 "effects": {
+                  "bond": 2,
                   "stats": {
-                    "mood": 2
+                    "social": 1
                   }
                 },
-                "reply": "没问题！那我就开始了哦。",
+                "reply": "那以后我的视频都先给你过目！",
                 "next": null
               }
             ]
@@ -683,24 +1001,53 @@
             "line": "周末想编一支新舞，正好缺个观众！",
             "choices": [
               {
-                "label": "好啊，一起跳",
+                "label": "观众就位",
                 "effects": {
+                  "bond": 2,
+                  "stats": {
+                    "mood": 2
+                  }
+                },
+                "reply": "好！那我开始咯……这支舞的名字还没定，你看完帮我想一个？",
+                "next": "n2"
+              },
+              {
+                "label": "缺伴舞吗",
+                "effects": {
+                  "bond": 1,
                   "stats": {
                     "social": 3,
                     "energy": -4
                   }
                 },
-                "reply": "哈哈，你的动作好可爱！",
+                "reply": "欸？！你认真的？来来来，C 位让给你一半！",
                 "next": null
-              },
+              }
+            ]
+          },
+          "n2": {
+            "line": "……呼，跳完了！怎么样怎么样？哪里印象最深？",
+            "choices": [
               {
-                "label": "我在旁边看就好",
+                "label": "最后那个定格",
                 "effects": {
+                  "bond": 2,
                   "stats": {
                     "mood": 2
                   }
                 },
-                "reply": "没问题！那我就开始了哦。",
+                "reply": "英雄所见略同！那个动作我练了三天。",
+                "next": null
+              },
+              {
+                "label": "全程都很好看",
+                "effects": {
+                  "bond": 1,
+                  "stats": {
+                    "mood": 3
+                  }
+                },
+                "reply": "谢谢——有观众的练习，果然不一样。",
                 "next": null
               }
             ]
@@ -725,12 +1072,64 @@
                   }
                 },
                 "reply": "太好了！那就拜托你了。",
-                "next": null
+                "next": "n2"
               },
               {
                 "label": "我不会诶",
                 "effects": {},
-                "reply": "啊……没关系，我再想想办法。",
+                "reply": "啊……没关系。",
+                "next": "n3"
+              }
+            ]
+          },
+          "n2": {
+            "line": "你看这里，关节的限位器装反了，所以手臂抬不起来。帮我递一下那把蓝色钳子？",
+            "choices": [
+              {
+                "label": "递过去",
+                "effects": {
+                  "bond": 2,
+                  "stats": {
+                    "mood": 1
+                  }
+                },
+                "reply": "谢谢。……好了！你看，抬起来了。",
+                "next": null
+              },
+              {
+                "label": "蓝色的是哪把",
+                "effects": {
+                  "stats": {
+                    "mood": 2
+                  }
+                },
+                "reply": "呃，左边数第二把……对就是它。看来我们还需要磨合。",
+                "next": null
+              }
+            ]
+          },
+          "n3": {
+            "line": "那……我拆给你看？反正也要重装。你可以帮我记一下零件顺序吗？",
+            "choices": [
+              {
+                "label": "好，我记",
+                "effects": {
+                  "bond": 2,
+                  "stats": {
+                    "social": 1
+                  }
+                },
+                "reply": "拜托了。第一步，卸下肩胛的外甲……",
+                "next": null
+              },
+              {
+                "label": "我看着就好",
+                "effects": {
+                  "stats": {
+                    "mood": 1
+                  }
+                },
+                "reply": "也行。那你坐着，别碰那瓶胶水就行。",
                 "next": null
               }
             ]
@@ -744,21 +1143,51 @@
             "line": "昨晚想到一个改造方案，今天想验证一下。你有空吗？",
             "choices": [
               {
-                "label": "我可以试试",
+                "label": "有，说来听听",
                 "effects": {
-                  "bond": 2,
+                  "bond": 1,
                   "stats": {
-                    "social": 2,
-                    "energy": -3
+                    "social": 2
                   }
                 },
-                "reply": "太好了！那就拜托你了。",
+                "reply": "简单说，就是把腰部的球形关节换成双段式的，可动范围能大一圈。",
+                "next": "n2"
+              },
+              {
+                "label": "今天只想摸鱼",
+                "effects": {
+                  "stats": {
+                    "mood": 2
+                  }
+                },
+                "reply": "……好吧。那我自己先画图纸，你摸鱼的时候帮我看着点胶水别干。",
+                "next": null
+              }
+            ]
+          },
+          "n2": {
+            "line": "理论上可行，但换完要重新调平衡。你觉得我是先改腰，还是先改腿？",
+            "choices": [
+              {
+                "label": "先改腰",
+                "effects": {
+                  "bond": 1,
+                  "stats": {
+                    "explore": 1
+                  }
+                },
+                "reply": "嗯，中心先定下来，四肢就好调了。就这么办。",
                 "next": null
               },
               {
-                "label": "我不会诶",
-                "effects": {},
-                "reply": "啊……没关系，我再想想办法。",
+                "label": "先改腿",
+                "effects": {
+                  "bond": 1,
+                  "stats": {
+                    "explore": 1
+                  }
+                },
+                "reply": "也行，站得稳才能摆姿势。听你的。",
                 "next": null
               }
             ]
@@ -772,21 +1201,50 @@
             "line": "零件终于到了，今天有得忙了。要不要来看看？",
             "choices": [
               {
-                "label": "我可以试试",
+                "label": "来了",
+                "effects": {
+                  "bond": 1,
+                  "stats": {
+                    "social": 1
+                  }
+                },
+                "reply": "给，你拆这个小的，我拆大的。小心别崩飞了——上次一颗螺丝找了半小时。",
+                "next": "n2"
+              },
+              {
+                "label": "拆快递最快乐",
+                "effects": {
+                  "stats": {
+                    "mood": 3
+                  }
+                },
+                "reply": "对吧对吧！你果然懂。",
+                "next": "n2"
+              }
+            ]
+          },
+          "n2": {
+            "line": "零件全对，一个没缺！今天运气不错。照这个进度，周末就能试着合体了。",
+            "choices": [
+              {
+                "label": "期待成品",
                 "effects": {
                   "bond": 2,
                   "stats": {
-                    "social": 2,
-                    "energy": -3
+                    "mood": 2
                   }
                 },
-                "reply": "太好了！那就拜托你了。",
+                "reply": "嗯！到时候第一个给你看。",
                 "next": null
               },
               {
-                "label": "我不会诶",
-                "effects": {},
-                "reply": "啊……没关系，我再想想办法。",
+                "label": "缺了你打算怎么办",
+                "effects": {
+                  "stats": {
+                    "mood": 2
+                  }
+                },
+                "reply": "缺了？那就只能自己打磨一个了……千万别缺。",
                 "next": null
               }
             ]
@@ -800,21 +1258,48 @@
             "line": "这台机体的平衡还是不太对……你有什么想法吗？",
             "choices": [
               {
-                "label": "我可以试试",
+                "label": "脚掌加重试试",
                 "effects": {
                   "bond": 2,
                   "stats": {
-                    "social": 2,
-                    "energy": -3
+                    "explore": 2
                   }
                 },
-                "reply": "太好了！那就拜托你了。",
+                "reply": "加重……有道理！重心下移到脚掌，站得就稳了。我去找配重块。",
+                "next": "n2"
+              },
+              {
+                "label": "换个姿势摆",
+                "effects": {
+                  "stats": {
+                    "mood": 1
+                  }
+                },
+                "reply": "嗯，也是一种思路——平衡不够，姿势来凑。",
+                "next": null
+              }
+            ]
+          },
+          "n2": {
+            "line": "你看，加了配重之后单脚都能站住了！……就是脚掌厚了一圈，有点像拖鞋。",
+            "choices": [
+              {
+                "label": "拖鞋也可爱",
+                "effects": {
+                  "bond": 2,
+                  "stats": {
+                    "mood": 3
+                  }
+                },
+                "reply": "哈哈，那就当它是居家款机体吧。",
                 "next": null
               },
               {
-                "label": "我不会诶",
-                "effects": {},
-                "reply": "啊……没关系，我再想想办法。",
+                "label": "实用最重要",
+                "effects": {
+                  "bond": 1
+                },
+                "reply": "对，站得稳比好看重要……大概。",
                 "next": null
               }
             ]
@@ -828,21 +1313,51 @@
             "line": "工具箱整理好了，效率应该会高一点。今天改哪台好呢。",
             "choices": [
               {
-                "label": "我可以试试",
+                "label": "改最喜欢的那台",
+                "effects": {
+                  "bond": 1,
+                  "stats": {
+                    "mood": 2
+                  }
+                },
+                "reply": "最喜欢的是这台初代机……有点下不去手。但你说得对，好机体就该被好好对待。",
+                "next": "n2"
+              },
+              {
+                "label": "改最旧的那台",
+                "effects": {
+                  "stats": {
+                    "explore": 1
+                  }
+                },
+                "reply": "最旧的……这台螺丝都锈了。也好，复活老伙计最有成就感。",
+                "next": "n2"
+              }
+            ]
+          },
+          "n2": {
+            "line": "决定了。你帮我打个下手？今天应该能改完一半。",
+            "choices": [
+              {
+                "label": "好",
                 "effects": {
                   "bond": 2,
                   "stats": {
                     "social": 2,
-                    "energy": -3
+                    "energy": -2
                   }
                 },
-                "reply": "太好了！那就拜托你了。",
+                "reply": "谢了。那就开始吧。",
                 "next": null
               },
               {
-                "label": "我不会诶",
-                "effects": {},
-                "reply": "啊……没关系，我再想想办法。",
+                "label": "我负责加油",
+                "effects": {
+                  "stats": {
+                    "mood": 3
+                  }
+                },
+                "reply": "……也行，精神上的扳手也很重要。",
                 "next": null
               }
             ]
@@ -856,21 +1371,50 @@
             "line": "改造进度过半了，要不要看看半成品？",
             "choices": [
               {
-                "label": "我可以试试",
+                "label": "看",
+                "effects": {
+                  "bond": 1,
+                  "stats": {
+                    "mood": 1
+                  }
+                },
+                "reply": "当当——虽然现在还插着一堆线，但你看这个肩部的可动！",
+                "next": "n2"
+              },
+              {
+                "label": "半成品有什么好看",
+                "effects": {
+                  "stats": {
+                    "mood": 1
+                  }
+                },
+                "reply": "你不懂，半成品才有「正在变成什么」的感觉。",
+                "next": null
+              }
+            ]
+          },
+          "n2": {
+            "line": "昨天试转的时候它差点散架，吓死我了。不过改造就是这样，失败九十九次，成功一次。",
+            "choices": [
+              {
+                "label": "那成功的那次给我看",
                 "effects": {
                   "bond": 2,
                   "stats": {
-                    "social": 2,
-                    "energy": -3
+                    "mood": 2
                   }
                 },
-                "reply": "太好了！那就拜托你了。",
+                "reply": "一言为定。",
                 "next": null
               },
               {
-                "label": "我不会诶",
-                "effects": {},
-                "reply": "啊……没关系，我再想想办法。",
+                "label": "九十九次也太多了",
+                "effects": {
+                  "stats": {
+                    "mood": 3
+                  }
+                },
+                "reply": "哈哈，习惯就好。",
                 "next": null
               }
             ]
@@ -884,21 +1428,50 @@
             "line": "周末适合慢慢打磨细节。你来帮我递工具吗？",
             "choices": [
               {
-                "label": "我可以试试",
+                "label": "来了",
                 "effects": {
                   "bond": 2,
                   "stats": {
-                    "social": 2,
-                    "energy": -3
+                    "social": 2
                   }
                 },
-                "reply": "太好了！那就拜托你了。",
+                "reply": "好。今天打磨水口——砂纸从粗到细，换的时候我喊你。",
+                "next": "n2"
+              },
+              {
+                "label": "打磨是什么",
+                "effects": {
+                  "stats": {
+                    "social": 1
+                  }
+                },
+                "reply": "呃，就是把零件表面的毛刺磨平……你来看一眼就知道了。",
+                "next": "n2"
+              }
+            ]
+          },
+          "n2": {
+            "line": "你听，砂纸的声音从沙沙变成嘶嘶，就说明快磨好了。是不是很治愈？",
+            "choices": [
+              {
+                "label": "有点困",
+                "effects": {
+                  "stats": {
+                    "mood": 3
+                  }
+                },
+                "reply": "喂！……算了，打磨确实催眠。困就靠一会儿吧。",
                 "next": null
               },
               {
-                "label": "我不会诶",
-                "effects": {},
-                "reply": "啊……没关系，我再想想办法。",
+                "label": "治愈",
+                "effects": {
+                  "bond": 2,
+                  "stats": {
+                    "mood": 2
+                  }
+                },
+                "reply": "对吧。周末就该这样过。",
                 "next": null
               }
             ]
@@ -923,7 +1496,7 @@
                   }
                 },
                 "reply": "哈哈，那我们算是同好了！",
-                "next": null
+                "next": "n2"
               },
               {
                 "label": "偶尔来，这里很放松",
@@ -933,6 +1506,59 @@
                   }
                 },
                 "reply": "嗯嗯，我也是这样觉得的。",
+                "next": "n3"
+              }
+            ]
+          },
+          "n2": {
+            "line": "那正好！两个新人一起迷路，总比一个人迷路强。你想先去哪里？",
+            "choices": [
+              {
+                "label": "海边",
+                "effects": {
+                  "bond": 1,
+                  "stats": {
+                    "explore": 2
+                  }
+                },
+                "reply": "好耶，海边！听说那里的日落很厉害。",
+                "next": null
+              },
+              {
+                "label": "咖啡馆",
+                "effects": {
+                  "bond": 1,
+                  "stats": {
+                    "social": 1
+                  }
+                },
+                "reply": "走！探索的第一步是先补充咖啡因。",
+                "next": null
+              }
+            ]
+          },
+          "n3": {
+            "line": "那你一定有推荐的地方吧？带我走一遍你的路线，我请你喝东西！",
+            "choices": [
+              {
+                "label": "成交",
+                "effects": {
+                  "bond": 2,
+                  "stats": {
+                    "social": 2
+                  }
+                },
+                "reply": "耶！那就说定了，向导大人。",
+                "next": null
+              },
+              {
+                "label": "路线保密",
+                "effects": {
+                  "stats": {
+                    "mood": 3
+                  }
+                },
+                "reply": "欸——小气！那我自己探索，发现了也不告诉你。……开玩笑的啦。",
                 "next": null
               }
             ]
@@ -946,25 +1572,77 @@
             "line": "昨天去的那个世界也不错，但还是这里最让我放松。",
             "choices": [
               {
-                "label": "我也是第一次来",
+                "label": "这里确实舒服",
                 "effects": {
                   "bond": 1,
                   "stats": {
-                    "social": 1,
-                    "mood": 1
+                    "mood": 2
                   }
                 },
-                "reply": "哈哈，那我们算是同好了！",
+                "reply": "对吧！我已经把这里标记成「常驻地」了。",
+                "next": "n2"
+              },
+              {
+                "label": "昨天那个什么样",
+                "effects": {
+                  "stats": {
+                    "explore": 2
+                  }
+                },
+                "reply": "那边是雪山主题，好看是好看，就是冷得我直跺脚。",
+                "next": "n3"
+              }
+            ]
+          },
+          "n2": {
+            "line": "你觉得这里的哪个角落最好？我在选我的「秘密基地」。",
+            "choices": [
+              {
+                "label": "防波堤尽头",
+                "effects": {
+                  "bond": 2,
+                  "stats": {
+                    "explore": 2
+                  }
+                },
+                "reply": "哦——！那里看海确实一绝。那它就是候选一号了。",
                 "next": null
               },
               {
-                "label": "偶尔来，这里很放松",
+                "label": "咖啡馆窗边",
                 "effects": {
+                  "bond": 1,
                   "stats": {
-                    "social": 2
+                    "mood": 2
                   }
                 },
-                "reply": "嗯嗯，我也是这样觉得的。",
+                "reply": "嗯，适合下雨天待着的基地。记下了。",
+                "next": null
+              }
+            ]
+          },
+          "n3": {
+            "line": "雪山上有条路走到一半会突然看到整片云海，当时我就哇出声了。",
+            "choices": [
+              {
+                "label": "想去看看",
+                "effects": {
+                  "bond": 1,
+                  "stats": {
+                    "explore": 2
+                  }
+                },
+                "reply": "是吧！改天带你去，我认路。",
+                "next": null
+              },
+              {
+                "label": "怕冷",
+                "effects": {
+                  "stats": {
+                    "mood": 2
+                  }
+                },
+                "reply": "哈哈，那还是这里好，四季如春。",
                 "next": null
               }
             ]
@@ -978,25 +1656,51 @@
             "line": "今天打算去探索没去过的房间，要一起吗？",
             "choices": [
               {
-                "label": "我也是第一次来",
+                "label": "一起",
                 "effects": {
                   "bond": 1,
                   "stats": {
-                    "social": 1,
-                    "mood": 1
+                    "explore": 2,
+                    "energy": -2
                   }
                 },
-                "reply": "哈哈，那我们算是同好了！",
+                "reply": "好！我列了三个候选，你抽签决定先去哪个。",
+                "next": "n2"
+              },
+              {
+                "label": "今天想宅着",
+                "effects": {
+                  "stats": {
+                    "mood": 2
+                  }
+                },
+                "reply": "好吧，那我探完回来跟你汇报。",
+                "next": null
+              }
+            ]
+          },
+          "n2": {
+            "line": "抽到这个——#3000 号房，备注写着「什么都没有」。什么都没有的房间，你不觉得最可疑吗？",
+            "choices": [
+              {
+                "label": "确实可疑",
+                "effects": {
+                  "bond": 2,
+                  "stats": {
+                    "explore": 2
+                  }
+                },
+                "reply": "对吧！走，现在就去。",
                 "next": null
               },
               {
-                "label": "偶尔来，这里很放松",
+                "label": "也可能真的什么都没有",
                 "effects": {
                   "stats": {
-                    "social": 2
+                    "mood": 2
                   }
                 },
-                "reply": "嗯嗯，我也是这样觉得的。",
+                "reply": "那我们就当第一个证明它「什么都没有」的人！",
                 "next": null
               }
             ]
@@ -1010,25 +1714,50 @@
             "line": "我列了个探索清单，已经完成大半了！",
             "choices": [
               {
-                "label": "我也是第一次来",
+                "label": "我看看",
                 "effects": {
                   "bond": 1,
                   "stats": {
-                    "social": 1,
-                    "mood": 1
+                    "social": 1
                   }
                 },
-                "reply": "哈哈，那我们算是同好了！",
+                "reply": "给——划掉的都是去过的。剩下这三个，你帮我挑一个？",
+                "next": "n2"
+              },
+              {
+                "label": "好厉害",
+                "effects": {
+                  "stats": {
+                    "mood": 2
+                  }
+                },
+                "reply": "嘿嘿，都是一步一步走出来的嘛。",
+                "next": null
+              }
+            ]
+          },
+          "n2": {
+            "line": "「在日落时分的防波堤上坐着发呆」……这条是谁写的？哦，是我昨天加的。阿澈推荐的。",
+            "choices": [
+              {
+                "label": "那今天就去完成它",
+                "effects": {
+                  "bond": 2,
+                  "stats": {
+                    "explore": 2
+                  }
+                },
+                "reply": "好！正好今天天气不错。",
                 "next": null
               },
               {
-                "label": "偶尔来，这里很放松",
+                "label": "发呆也算探索？",
                 "effects": {
                   "stats": {
-                    "social": 2
+                    "mood": 3
                   }
                 },
-                "reply": "嗯嗯，我也是这样觉得的。",
+                "reply": "算！高质量的探索包括高质量的发呆。",
                 "next": null
               }
             ]
@@ -1042,25 +1771,75 @@
             "line": "听说聚会大厅晚上很热闹，你去过吗？",
             "choices": [
               {
-                "label": "我也是第一次来",
-                "effects": {
-                  "bond": 1,
-                  "stats": {
-                    "social": 1,
-                    "mood": 1
-                  }
-                },
-                "reply": "哈哈，那我们算是同好了！",
-                "next": null
-              },
-              {
-                "label": "偶尔来，这里很放松",
+                "label": "去过几次",
                 "effects": {
                   "stats": {
                     "social": 2
                   }
                 },
-                "reply": "嗯嗯，我也是这样觉得的。",
+                "reply": "真的吗？那里的人多吗？我稍微有点紧张……",
+                "next": "n2"
+              },
+              {
+                "label": "没有，不敢去",
+                "effects": {
+                  "stats": {
+                    "mood": 1
+                  }
+                },
+                "reply": "我也是！那……要不要结伴壮胆？",
+                "next": "n3"
+              }
+            ]
+          },
+          "n2": {
+            "line": "要不今晚你带我一次？你负责打招呼，我负责在旁边笑。",
+            "choices": [
+              {
+                "label": "分工明确",
+                "effects": {
+                  "bond": 2,
+                  "stats": {
+                    "social": 2
+                  }
+                },
+                "reply": "耶，完美搭档！",
+                "next": null
+              },
+              {
+                "label": "我也只会笑",
+                "effects": {
+                  "stats": {
+                    "mood": 3
+                  }
+                },
+                "reply": "那完了，我们两个社恐。……那就一起去门口看看就走！",
+                "next": null
+              }
+            ]
+          },
+          "n3": {
+            "line": "就这么定了！人多有个伴就不慌了。听说大厅晚上有即兴表演？",
+            "choices": [
+              {
+                "label": "小弥会去跳舞",
+                "effects": {
+                  "bond": 1,
+                  "stats": {
+                    "social": 2
+                  }
+                },
+                "reply": "诶？那必须去捧场了！",
+                "next": null
+              },
+              {
+                "label": "去了才知道",
+                "effects": {
+                  "stats": {
+                    "explore": 1
+                  }
+                },
+                "reply": "也是，探索精神！",
                 "next": null
               }
             ]
@@ -1074,25 +1853,51 @@
             "line": "发现了一个新世界，先记下来，改天一起去？",
             "choices": [
               {
-                "label": "我也是第一次来",
+                "label": "什么世界",
                 "effects": {
                   "bond": 1,
                   "stats": {
-                    "social": 1,
-                    "mood": 1
+                    "explore": 1
                   }
                 },
-                "reply": "哈哈，那我们算是同好了！",
+                "reply": "好像是个深夜食堂主题的世界，这个点说出来我都有点饿了。",
+                "next": "n2"
+              },
+              {
+                "label": "好啊，记我一票",
+                "effects": {
+                  "bond": 2,
+                  "stats": {
+                    "social": 1
+                  }
+                },
+                "reply": "一票收到！候选名单上你的名字排第一个。",
+                "next": "n2"
+              }
+            ]
+          },
+          "n2": {
+            "line": "等我把路线摸熟了就带你去。新世界第一天通常有很多彩蛋，去晚了就没了。",
+            "choices": [
+              {
+                "label": "那你快去摸",
+                "effects": {
+                  "stats": {
+                    "mood": 2
+                  }
+                },
+                "reply": "好嘞！等我消息。",
                 "next": null
               },
               {
-                "label": "偶尔来，这里很放松",
+                "label": "别一个人乱跑",
                 "effects": {
+                  "bond": 2,
                   "stats": {
-                    "social": 2
+                    "mood": 1
                   }
                 },
-                "reply": "嗯嗯，我也是这样觉得的。",
+                "reply": "……放心啦，我会小心的。",
                 "next": null
               }
             ]
@@ -1106,25 +1911,77 @@
             "line": "探索了一周，最喜欢的还是这里。你呢？",
             "choices": [
               {
-                "label": "我也是第一次来",
+                "label": "我也是",
                 "effects": {
-                  "bond": 1,
+                  "bond": 3,
                   "stats": {
-                    "social": 1,
-                    "mood": 1
+                    "mood": 2
                   }
                 },
-                "reply": "哈哈，那我们算是同好了！",
+                "reply": "真的？！那……下周也在这里集合？老地方，老时间。",
+                "next": "n2"
+              },
+              {
+                "label": "我还想去更多地方",
+                "effects": {
+                  "stats": {
+                    "explore": 2
+                  }
+                },
+                "reply": "也对，世界这么大。那这里就当我们的据点？",
+                "next": "n3"
+              }
+            ]
+          },
+          "n2": {
+            "line": "那就说定了。下周见的时候，我要把这一周的探索手记都讲给你听。",
+            "choices": [
+              {
+                "label": "我等着",
+                "effects": {
+                  "bond": 2,
+                  "stats": {
+                    "mood": 2
+                  }
+                },
+                "reply": "嗯！一言为定。",
                 "next": null
               },
               {
-                "label": "偶尔来，这里很放松",
+                "label": "我也攒了一周的故事",
                 "effects": {
+                  "bond": 2,
                   "stats": {
                     "social": 2
                   }
                 },
-                "reply": "嗯嗯，我也是这样觉得的。",
+                "reply": "太好了，那要聊到天黑了。",
+                "next": null
+              }
+            ]
+          },
+          "n3": {
+            "line": "据点里要有暗号。敲门三长两短，怎么样？",
+            "choices": [
+              {
+                "label": "幼稚",
+                "effects": {
+                  "stats": {
+                    "mood": 3
+                  }
+                },
+                "reply": "哈哈，幼稚才好玩嘛。",
+                "next": null
+              },
+              {
+                "label": "好，三长两短",
+                "effects": {
+                  "bond": 2,
+                  "stats": {
+                    "mood": 2
+                  }
+                },
+                "reply": "成交！据点就拜托你常来看看了。",
                 "next": null
               }
             ]

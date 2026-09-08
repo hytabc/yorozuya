@@ -240,10 +240,11 @@ export function removeRoom(id) {
 // 剧本节点操作(作用于传入的某天剧本)
 // 注意:新建节点的 effects 必须带 stats: {},否则编辑表单的 v-model 绑定会在渲染时炸掉。
 export function addDialogueNode(script) {
-  if (!script) return
+  if (!script) return ''
   let i = Object.keys(script.nodes).length + 1
   while (script.nodes[`n${i}`]) i += 1
   script.nodes[`n${i}`] = { line: '……', choices: [{ label: '继续', effects: { stats: {} }, reply: '……', next: null }] }
+  return `n${i}`
 }
 
 // 删除节点:指向它的选项改为当天结束;删的是起点则把起点让给剩余的第一个节点;

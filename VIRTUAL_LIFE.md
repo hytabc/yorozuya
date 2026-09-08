@@ -67,13 +67,19 @@ the game header links to it via 内容管理. The admin edits one pack at a time
 structured forms: NPC profiles/portraits/presence, worlds (incl. background
 upload) and rooms, actions, the per-NPC dialogue node graph and the initial
 player state. Dialogue is edited PER DAY (stage 5): tabs 第 1~7 天 switch the
-day script being edited (nodes, choices, effects, jump targets, start node);
-packs with fewer than 7 days are padded by cloning their last day on load.
+day script being edited; packs with fewer than 7 days are padded by cloning
+their last day on load. Each day is edited through a TREE overview (stage 6):
+the chain expands from the start node along choice jumps with indentation,
+clicking a node opens its edit panel (line, choices, effects, jump targets);
+a choice's jump dropdown offers "＋ 新建节点…" to create-and-link in one
+step, any node can be made the start, cycle/revisit rows collapse to a
+selectable reference, and orphaned nodes are listed for recovery.
 Node add/delete applies to the current day only; deleting the start node
 hands the start over to the first remaining node, and the last node of a day
-cannot be deleted. Saving PUTs the whole content; server-side validation
-errors are surfaced verbatim, and content edits bump the pack version. Pack
-list operations: select, duplicate,
+cannot be deleted. The default pack ships 2-3 node chains (with branches)
+for every NPC on all 7 days. Saving PUTs the whole content; server-side
+validation errors are surfaced verbatim, and content edits bump the pack
+version. Pack list operations: select, duplicate,
 activate (exactly one active, player side and save validation follow
 immediately), delete (inactive only). NPC/world/room removal cascades
 references (presence, dialogue, initial conversations); node removal rewrites
@@ -140,8 +146,8 @@ any later game day keeps using the last day script. Pure rules live in
 state and mutations stay in `useLifeGame`. Semantics per NPC per game day:
 
 - The chain starts at `start`; the start node's line is the daily greeting.
-  Different days can have entirely different chains (stage 5: the default pack
-  ships 7 distinct daily greetings per NPC).
+  Different days can have entirely different chains (the default pack ships
+  2-3 node chains with distinct greetings per NPC for all 7 days).
 - A choice applies its `effects` explicitly (`bond` added to the NPC bond,
   `stats` clamped 0-100) — no text parsing. The toast text is rendered from
   effects via `effectText`.
