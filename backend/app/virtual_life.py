@@ -48,6 +48,8 @@ class Message(StrictModel):
     text: str = Field(max_length=4000)
     day: int = Field(ge=1)
     time: str = Field(max_length=20)
+    # stage 8a: optional site-local image attached to the message.
+    image: str | None = Field(default=None, max_length=300)
 
 
 class Diary(StrictModel):

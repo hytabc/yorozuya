@@ -137,16 +137,26 @@ def validate_pack_content(content) -> dict:
             if script.get('start') not in nodes:
                 _fail(f"{where} 的剧本起点无效")
             for node_id, node in nodes.items():
-                if not isinstance(node.get('line'), str) or not node['line']:
-                    _fail(f"{where}/{node_id} 缺少台词")
+                lines = node.get('lines')
+                if not isinstance(lines, list) or not lines or \
+                        any(not isinstance(l, str) or not l for l in lines):
+                    _fail(f"{where}/{node_id} 台词必须是非空句子数组")
+                image = node.get('image')
+                if image is not None and (not isinstance(image, str) or not image.startswith('/uploads/')):
+                    _fail(f"{where}/{node_id} 图片必须是 /uploads/ 站内路径")
                 choices = node.get('choices')
                 if not isinstance(choices, list) or not choices:
                     _fail(f"{where}/{node_id} 缺少选项")
                 for choice in choices:
                     if not isinstance(choice.get('label'), str) or not choice['label']:
                         _fail(f"{where}/{node_id} 存在无文案选项")
-                    if not isinstance(choice.get('reply'), str) or not choice['reply']:
+                    replies = choice.get('replies')
+                    if not isinstance(replies, list) or not replies or \
+                            any(not isinstance(r, str) or not r for r in replies):
                         _fail(f"{where}/{node_id} 存在无回复选项")
+                    reply_image = choice.get('replyImage')
+                    if reply_image is not None and (not isinstance(reply_image, str) or not reply_image.startswith('/uploads/')):
+                        _fail(f"{where}/{node_id} 回复图片必须是 /uploads/ 站内路径")
                     if choice.get('next') is not None and choice.get('next') not in nodes:
                         _fail(f"{where}/{node_id} 选项跳转到未知节点 {choice.get('next')}")
                     effects = choice.get('effects') or {}
@@ -207,15 +217,42 @@ def get_save_rules(db: Session) -> dict:
 
 
 def migrate_pack_content(content: dict) -> bool:
-    """Upgrade the pre-daily dialogue shape ({npc: script}) to per-day lists
-    ({npc: [script]}). A single-day list cycles every day, preserving behavior."""
+    """Upgrade legacy dialogue shapes in place (idempotent):
+    {npc: script} -> {npc: [script]}; node.line -> lines[]; choice.reply ->
+    replies[]; fill image/replyImage defaults (stage 8a message groups)."""
     changed = False
     dialogue = content.get('dialogue')
-    if isinstance(dialogue, dict):
-        for npc_id, script in dialogue.items():
-            if isinstance(script, dict) and 'nodes' in script:
-                dialogue[npc_id] = [script]
-                changed = True
+    if not isinstance(dialogue, dict):
+        return changed
+    for npc_id, script in dialogue.items():
+        if isinstance(script, dict) and 'nodes' in script:
+            dialogue[npc_id] = [script]
+            changed = True
+    for days in dialogue.values():
+        if not isinstance(days, list):
+            continue
+        for script in days:
+            nodes = script.get('nodes') if isinstance(script, dict) else None
+            if not isinstance(nodes, dict):
+                continue
+            for node in nodes.values():
+                if not isinstance(node, dict):
+                    continue
+                if isinstance(node.get('line'), str):
+                    node['lines'] = [node.pop('line')]
+                    changed = True
+                if 'image' not in node:
+                    node['image'] = None
+                    changed = True
+                for choice in node.get('choices') or []:
+                    if not isinstance(choice, dict):
+                        continue
+                    if isinstance(choice.get('reply'), str):
+                        choice['replies'] = [choice.pop('reply')]
+                        changed = True
+                    if 'replyImage' not in choice:
+                        choice['replyImage'] = None
+                        changed = True
     return changed
 
 
@@ -226,6 +263,7 @@ def seed_virtual_life_packs(db: Session) -> None:
         now = datetime.now(timezone.utc).isoformat()
         for path in sorted(SEED_DIR.glob('*.json')):
             content = json.loads(path.read_text(encoding='utf-8'))
+            migrate_pack_content(content)  # 种子可能是旧形状,先归一化再校验
             validate_pack_content(content)
             db.add(VirtualLifePack(
                 id=path.stem, name='默认内容包', version=1,

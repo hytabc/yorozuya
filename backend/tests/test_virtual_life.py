@@ -19,7 +19,7 @@ def state():
     return dict(schemaVersion=1, day=9, stats=dict(mood=72, energy=66, social=34, explore=28),
                 currentWorld='beach', unlockedWorlds=8, currentNpcId='ache', tags=['test'],
                 npcs=[dict(id=i, name=i, role='test', avatar='', status='', bond=12) for i in ids],
-                conversations={i: [{'from': 'npc', 'text': 'persisted', 'day': 9, 'time': '18:20'}] for i in ids},
+                conversations={i: [{'from': 'npc', 'text': 'persisted', 'day': 9, 'time': '18:20', 'image': None}] for i in ids},
                 diary=[dict(day=9, text='saved diary', mood='calm')], completed={'ache': True})
 
 
@@ -82,6 +82,18 @@ class SaveTests(unittest.TestCase):
         self.assertEqual(self.client.put(url, json={'revision': loaded['revision'], 'state': newer}, headers=self.headers(1)).status_code, 200)
         self.assertEqual(self.client.put(url, json={'revision': 1, 'state': state()}, headers=self.headers(1)).status_code, 409)
         self.assertEqual(self.client.get(url, headers=self.headers(1)).json()['state']['day'], 10)
+
+    def test_save_message_with_image_roundtrip(self):
+        url = '/api/virtual-life/save'
+        s = state()
+        s['conversations']['ache'].append(
+            {'from': 'npc', 'text': '看这张', 'day': 9, 'time': '18:20', 'image': '/uploads/life/a.png'})
+        r = self.client.put(url, json={'revision': 0, 'state': s}, headers=self.headers(1))
+        self.assertEqual(r.status_code, 200, r.text)
+        got = self.client.get(url, headers=self.headers(1)).json()
+        self.assertEqual(got['state']['conversations']['ache'][-1]['image'], '/uploads/life/a.png')
+        # 不带图片的消息序列化为 image: None,不丢字段也不炸校验。
+        self.assertIsNone(got['state']['conversations']['ache'][0]['image'])
         invalid = state()
         invalid['currentNpcId'] = 'unknown'
         self.assertEqual(self.client.put(url, json={'revision': 2, 'state': invalid}, headers=self.headers(1)).status_code, 422)

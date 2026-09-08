@@ -12,7 +12,8 @@ from app.database import Base, get_db
 from app.models import User, UserRole
 from app.security import create_access_token
 from app.virtual_life import router as save_router
-from app.virtual_life_packs import router as packs_router, seed_virtual_life_packs
+from app.virtual_life_packs import router as packs_router, seed_virtual_life_packs, \
+    validate_pack_content, migrate_pack_content, PackContentError
 
 SEED = json.loads((Path(__file__).resolve().parent.parent / 'app' / 'life_packs' / 'wsw-default-life.json').read_text(encoding='utf-8'))
 
@@ -36,8 +37,8 @@ def mini_pack(npc_ids):
         'rooms': [{'id': 'w1-1', 'worldId': 'w1', 'label': '#1', 'private': False, 'capacity': 8, 'occupants': 1}],
         'presence': {i: {'status': 'green', 'roomId': 'w1-1', 'intro': ''} for i in npc_ids},
         'actions': [{'id': 'wave', 'label': '挥手', 'reward': 1, 'threshold': 0, 'reply': '笑了笑'}],
-        'dialogue': {i: [{'start': 'n1', 'nodes': {'n1': {'line': '你好', 'choices': [
-            {'label': '你好', 'effects': {}, 'reply': '嗯', 'next': None}]}}}] for i in npc_ids},
+        'dialogue': {i: [{'start': 'n1', 'nodes': {'n1': {'lines': ['你好'], 'image': None, 'choices': [
+            {'label': '你好', 'effects': {}, 'replies': ['嗯'], 'replyImage': None, 'next': None}]}}}] for i in npc_ids},
         'initialState': {'day': 1, 'stats': {'mood': 50, 'energy': 50, 'social': 50, 'explore': 50},
                          'tags': [], 'currentWorld': '世界一', 'unlockedWorlds': 1,
                          'conversations': {i: [] for i in npc_ids}, 'diary': []},
@@ -170,9 +171,35 @@ class PackTests(unittest.TestCase):
         migrated = self.client.get('/api/virtual-life/packs/legacy-pack', headers=self.headers(1)).json()
         days = migrated['content']['dialogue']['neo']
         self.assertIsInstance(days, list)
-        self.assertEqual(days[0]['nodes']['n1']['line'], '你好')
+        self.assertEqual(days[0]['nodes']['n1']['lines'], ['你好'])
+        self.assertIsNone(days[0]['nodes']['n1']['image'])
         # 迁移后的包通过校验,可以激活。
         self.assertEqual(self.client.post('/api/virtual-life/packs/legacy-pack/activate', headers=self.headers(1)).status_code, 200)
+
+    def test_migrate_upgrades_single_line_shape_idempotent(self):
+        content = mini_pack(['ache'])
+        node = content['dialogue']['ache'][0]['nodes']['n1']
+        node['line'] = node.pop('lines')[0]
+        node.pop('image')
+        node['choices'][0]['reply'] = node['choices'][0].pop('replies')[0]
+        node['choices'][0].pop('replyImage')
+        self.assertIs(migrate_pack_content(content), True)
+        self.assertEqual(node['lines'], ['你好'])
+        self.assertIsNone(node['image'])
+        self.assertEqual(node['choices'][0]['replies'], ['嗯'])
+        self.assertIsNone(node['choices'][0]['replyImage'])
+        self.assertIs(migrate_pack_content(content), False)  # 幂等
+        validate_pack_content(content)  # 迁移后必须通过校验
+
+    def test_validate_rejects_external_image_and_empty_lines(self):
+        content = mini_pack(['ache'])
+        content['dialogue']['ache'][0]['nodes']['n1']['image'] = 'https://evil.com/x.png'
+        with self.assertRaises(PackContentError):
+            validate_pack_content(content)
+        content = mini_pack(['ache'])
+        content['dialogue']['ache'][0]['nodes']['n1']['lines'] = []
+        with self.assertRaises(PackContentError):
+            validate_pack_content(content)
 
     def test_activation_migrates_compatible_saves(self):
         h = self.headers(1)
