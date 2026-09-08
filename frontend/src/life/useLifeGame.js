@@ -10,7 +10,7 @@ import { useLifeSave } from '../composables/lifeSave'
 import { createLifePlayback } from '../composables/lifePlayback'
 import { resolveLifeAction, setLifeActions, currentLifeActions } from '../composables/lifeActions'
 import { presenceFor, sceneRoster, canInteract, planJoin, roomFor, worldFor, roomDecision, migrateSocialState, friendshipDecision, setLifePresenceData, currentRooms } from '../composables/lifePresence'
-import { scriptForDay, nodeFor, startLine, resolveDialogueChoice, sanitizeDialogueNodes } from '../composables/lifeDialogue'
+import { scriptForDay, nodeFor, startMessages, resolveDialogueChoice, sanitizeDialogueNodes, groupMessages } from '../composables/lifeDialogue'
 import './builtin'
 import { getActiveLifePack, portraitFor, effectText } from './registry'
 import { loadActiveLifePack } from './packLoader'
@@ -137,7 +137,7 @@ export function useLifeGame() {
     actionFeedback.value = ''
     const conv = conversations.value[npcId]
     if (conv.length === 1) {
-      conv.push({ ...startLine(scriptForDay(pack.dialogue[npcId], day.value), day.value) })
+      conv.push(...startMessages(scriptForDay(pack.dialogue[npcId], day.value), day.value))
     }
     dialogueVisible.value = true
     const latest = [...conv].reverse().find(msg => msg.from === 'npc')
@@ -171,19 +171,19 @@ export function useLifeGame() {
     }
     showToast('✦ ' + (effectText(choice.effects) || '已记录'))
 
-    // Store the complete turn atomically; no delayed reply can be lost on navigation.
-    conversations.value[npcId].push({
-      from: 'npc', text: result.reply, day: sentDay, time: '18:20',
-    })
-    const played = [{ from: 'player', text: choice.label }, { from: 'npc', text: result.reply }]
+    // 回复消息组(8a 多句连播;图片挂最后一句)。完整轮次原子写入,导航不丢回复。
+    const replyMsgs = groupMessages(result.replies, result.replyImage, sentDay)
+    conversations.value[npcId].push(...replyMsgs)
+    const played = [{ from: 'player', text: choice.label }, ...replyMsgs]
     if (result.done) {
       delete dialogueNodes.value[npcId]
       completed.value[npcId] = true
     } else {
-      // next 非空:当天推进到下一节点,NPC 接着说下一节点台词。
+      // next 非空:当天推进到下一节点,NPC 接着说下一节点台词组。
       dialogueNodes.value[npcId] = result.nextNodeId
-      conversations.value[npcId].push({ from: 'npc', text: result.nextLine, day: sentDay, time: '18:20' })
-      played.push({ from: 'npc', text: result.nextLine })
+      const nextMsgs = groupMessages(result.nextLines, result.nextImage, sentDay)
+      conversations.value[npcId].push(...nextMsgs)
+      played.push(...nextMsgs)
     }
     pending.value[npcId] = false
     diaryHistory.value.unshift({ day: sentDay, text: `${currentNpc.value.name}：${choice.label}`, mood: '日常' })

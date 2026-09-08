@@ -1,10 +1,12 @@
-// 节点图对话规则（阶段 4c/5）。纯函数，不依赖 vue，供 useLifeGame 与测试消费。
+// 节点图对话规则（阶段 4c/5/8a）。纯函数，不依赖 vue，供 useLifeGame 与测试消费。
 // 剧本结构: pack.dialogue[npcId] = [dayScript, ...] (1-7 天),
-//   dayScript = {start, nodes: {nodeId: {line, choices: [{label, effects, reply, next}]}}}
+//   dayScript = {start, nodes: {nodeId: {lines: [...], image, choices: [{label, effects, replies: [...], replyImage, next}]}}}
 // 语义: 每天每个 NPC 一条链,第 1~7 天各用各的剧本;超过剧本天数后一直沿用最后一天
 //   (剧本内容到第 7 天为止,不循环)。每天从 start 开始;
 // 选项的 next 非空则当天推进到下一节点,next 为空(或指向失效节点)则当天对话完成;
 // nextDay 重置回当天的 start。
+// 消息组(8a):节点台词 lines 与选项回复 replies 都是多句数组,逐句连播;
+// 图片挂在该组最后一句的消息条目上(说完才展示图)。
 
 // 取某一天的剧本(钳制:超出天数沿用最后一天;days 为 1-7 天数组)。
 export function scriptForDay(days, day) {
@@ -17,21 +19,33 @@ export function nodeFor(script, nodeId) {
   return (nodeId && script.nodes[nodeId]) ? script.nodes[nodeId] : script.nodes[script.start]
 }
 
-// 开场/每日重置台词(来自 start 节点)。
-export function startLine(script, day = 1) {
-  return { from: 'npc', text: script.nodes[script.start].line, day, time: '18:20' }
+// 消息组展开:多句台词逐条成消息,图片挂在最后一句(说完才展示图)。
+export function groupMessages(texts, image, day, from = 'npc') {
+  return texts.map((text, i) => ({
+    from, text, day, time: '18:20',
+    image: i === texts.length - 1 ? (image || null) : null,
+  }))
+}
+
+// 开场/每日重置消息组(来自 start 节点)。
+export function startMessages(script, day = 1) {
+  const node = script.nodes[script.start]
+  return groupMessages(node.lines, node.image, day)
 }
 
 // 选中选项后的推进结果(纯计算;effects 落账与消息写入由 useLifeGame 完成)。
 export function resolveDialogueChoice(script, choice) {
   const effects = choice.effects || {}
   const next = choice.next && script.nodes[choice.next] ? choice.next : null
+  const nextNode = next ? script.nodes[next] : null
   return {
     bond: effects.bond || 0,
     stats: { ...(effects.stats || {}) },
-    reply: choice.reply,
+    replies: [...choice.replies],
+    replyImage: choice.replyImage || null,
     nextNodeId: next,
-    nextLine: next ? script.nodes[next].line : null,
+    nextLines: nextNode ? [...nextNode.lines] : null,
+    nextImage: nextNode ? (nextNode.image || null) : null,
     done: !next,
   }
 }

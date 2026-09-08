@@ -1,11 +1,11 @@
 // Presentation only: never mutates saves, rewards, or conversation history.
 export function createLifePlayback(emit, { schedule = setTimeout, cancel = clearTimeout, reducedMotion = () => false } = {}) {
   let timer, epoch = 0, queue = [], index = 0, chars = [], count = 0
-  let state = { from: 'npc', text: '', typing: false, playing: false }
+  let state = { from: 'npc', text: '', typing: false, playing: false, image: null }
   const publish = patch => { state = { ...state, ...patch }; emit({ ...state }) }
   function stop() {
     epoch++; cancel(timer); queue = []
-    publish({ text: '', typing: false, playing: false })
+    publish({ text: '', typing: false, playing: false, image: null })
   }
   function later(fn, delay) {
     const own = epoch
@@ -28,13 +28,13 @@ export function createLifePlayback(emit, { schedule = setTimeout, cancel = clear
   function startLine() {
     chars = Array.from(queue[index].text)
     count = 0
-    publish({ from: queue[index].from, text: '', typing: true, playing: true })
+    publish({ from: queue[index].from, text: '', typing: true, playing: true, image: queue[index].image })
     if (!chars.length || reducedMotion()) finishLine()
     else later(tick, 38)
   }
   function play(lines) {
     stop()
-    queue = lines.map(line => ({ from: line.from, text: line.text }))
+    queue = lines.map(line => ({ from: line.from, text: line.text, image: line.image || null }))
     index = 0
     if (queue.length) startLine()
   }
