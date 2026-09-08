@@ -1,7 +1,11 @@
 <script setup>
 // 对话历史抽屉内容：NPC 分页 + 气泡记录。外壳(.drawer/.drawer-content)留在 LifeSimulator.vue。
+// 阶段 8a：历史消息里的图片渲染缩略图，点击全屏灯箱查看。
+import { ref } from 'vue'
+import LifeImageLightbox from './LifeImageLightbox.vue'
 const props = defineProps({ game: { type: Object, required: true } })
 const { npcs, historyNpcId, historyConversation } = props.game
+const lightboxSrc = ref('')
 </script>
 
 <template>
@@ -16,10 +20,14 @@ const { npcs, historyNpcId, historyConversation } = props.game
   <div class="history-messages">
     <div v-for="(msg, i) in historyConversation" :key="i"
          :class="['history-bubble', msg.from]">
-      <div class="bubble-text">{{ msg.text }}</div>
+      <div class="bubble-text">
+        {{ msg.text }}
+        <img v-if="msg.image" :src="msg.image" class="history-thumb" alt="对话图片" @click="lightboxSrc = msg.image" />
+      </div>
       <div class="bubble-time">第 {{ msg.day }} 天 · {{ msg.time }}</div>
     </div>
   </div>
+  <LifeImageLightbox v-if="lightboxSrc" :src="lightboxSrc" alt="对话图片" @close="lightboxSrc = ''" />
 </template>
 
 <style scoped>
@@ -70,5 +78,14 @@ const { npcs, historyNpcId, historyConversation } = props.game
 .history-bubble .bubble-time {
   margin-top: 4px;
   font-size: 9px; color: #9a9fa0;
+}
+.history-thumb {
+  display: block;
+  max-width: 180px;
+  max-height: 120px;
+  border-radius: 8px;
+  margin-top: 6px;
+  cursor: zoom-in;
+  border: 1px solid #d9dedb;
 }
 </style>

@@ -1,6 +1,9 @@
 <script setup>
 // 中央场景：位置标签、场景背景(包内 bg 或占位)、NPC 头像列表、对话浮层与回应面板。
 // 样式从 LifeSimulator.vue 迁出，行为不变。
+// 阶段 8a：气泡内图片缩略图 + 全屏灯箱（点击弹出、再点消失）。
+import { ref } from 'vue'
+import LifeImageLightbox from './LifeImageLightbox.vue'
 const props = defineProps({ game: { type: Object, required: true } })
 const {
   currentWorld, currentRoom, currentWorldDef, sceneNpcs, npcListOpen, worldPopulation,
@@ -10,6 +13,7 @@ const {
   saveReady, saveConflict,
   switchNpc, selectFriend, openHistory, chooseOption, actionState, performAction, portraitFor,
 } = props.game
+const lightboxSrc = ref('')
 </script>
 
 <template>
@@ -62,6 +66,7 @@ const {
           <span class="participant-avatar player-participant" role="img" aria-label="白昼梦的头像">白</span>
           <button class="current-speech" @click="playback.complete" :aria-label="speech.typing ? '显示完整发言' : '当前发言'">
             <span>{{ speech.text || '…' }}</span>
+            <img v-if="speech.image && !speech.typing" :src="speech.image" class="speech-thumb" alt="对话图片" @click.stop="lightboxSrc = speech.image" />
             <small v-if="speech.typing">点击显示全文</small>
           </button>
           <div class="npc-identity">
@@ -97,6 +102,7 @@ const {
         </section>
       </div>
     </div>
+    <LifeImageLightbox v-if="lightboxSrc" :src="lightboxSrc" alt="对话图片" @close="lightboxSrc = ''" />
   </main>
 </template>
 
@@ -133,6 +139,15 @@ const {
 .scene-bg-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 
 /* NPC 头像列表(浮在场景右侧边缘) */
+.speech-thumb {
+  display: block;
+  max-width: 180px;
+  max-height: 120px;
+  border-radius: 8px;
+  margin-top: 6px;
+  cursor: zoom-in;
+  border: 1px solid #d9dedb;
+}
 .npc-avatars {
   position: absolute;
   top: 50%; right: 20px;
