@@ -53,6 +53,12 @@ class UserRole(str, Enum):
     USER = "user"  # 普通用户：可发布委托，凭正确密码也可接取带密码委托
     VOLUNTEER = "volunteer"  # 志愿者：可发布并接取全部委托（管理员账号可升级）
     STAFF = "staff"  # 管理员组（内部值保留 staff）：志愿者能力 + 管理用户等级 + 处理反馈
+    MASCOT = "mascot"  # 看板娘：管理公告并查看社区运营数据，不继承内容审核权限
+
+
+class AnnouncementKind(str, Enum):
+    SITE = "site"
+    EVENT = "event"
 
 
 class SugarPairStatus(str, Enum):
@@ -302,6 +308,41 @@ class Feedback(Base):
     handled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     user: Mapped[User | None] = relationship(foreign_keys=[user_id])
+
+
+class Announcement(Base):
+    """由看板娘维护的网站公告或活动公告。"""
+
+    __tablename__ = "announcements"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[AnnouncementKind] = mapped_column(
+        SqlEnum(AnnouncementKind, values_callable=lambda values: [item.value for item in values]),
+        index=True,
+    )
+    title: Mapped[str] = mapped_column(String(80))
+    content: Mapped[str] = mapped_column(Text)
+    is_published: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    is_pinned: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    starts_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    author: Mapped[User] = relationship(foreign_keys=[author_id])
+
+
+class PageView(Base):
+    """隐私友好的页面访问事件；visitor_key 仅保存账号 ID 或匿名会话摘要。"""
+
+    __tablename__ = "page_views"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    page_key: Mapped[str] = mapped_column(String(32), index=True)
+    visitor_key: Mapped[str] = mapped_column(String(80), index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    viewed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
 
 class BoardMessage(Base):

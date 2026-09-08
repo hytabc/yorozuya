@@ -74,6 +74,97 @@ TINY_PNG = (
 )
 
 
+def test_mascot_operations_announcements_and_analytics():
+    with TestClient(app) as client:
+        mascot = auth(client, "ops_mascot")
+        mascot_id = client.get("/api/auth/me", headers=mascot).json()["id"]
+        regular = auth(client, "ops_regular")
+        admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
+        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        granted = client.patch(
+            f"/api/admin/users/{mascot_id}/role", headers=admin, json={"role": "mascot"}
+        )
+        assert granted.status_code == 200
+        assert granted.json()["role"] == "mascot"
+
+        staff = auth(client, "ops_staff")
+        staff_id = client.get("/api/auth/me", headers=staff).json()["id"]
+        assert client.patch(
+            f"/api/admin/users/{staff_id}/role", headers=admin, json={"role": "staff"}
+        ).status_code == 200
+        cannot_revoke = client.patch(
+            f"/api/admin/users/{mascot_id}/role", headers=staff, json={"role": "user"}
+        )
+        assert cannot_revoke.status_code == 403
+
+        assert client.get("/api/operations/announcements", headers=regular).status_code == 403
+        assert client.get("/api/admin/users", headers=mascot).status_code == 403
+
+        created = client.post(
+            "/api/operations/announcements",
+            headers=mascot,
+            json={
+                "kind": "site",
+                "title": "服务升级通知",
+                "content": "今晚将进行短时服务升级，请留意开放时间。",
+                "is_published": False,
+                "is_pinned": True,
+                "starts_at": None,
+                "ends_at": None,
+            },
+        )
+        assert created.status_code == 201, created.text
+        announcement_id = created.json()["id"]
+        assert client.get("/api/announcements").json() == []
+
+        published = client.put(
+            f"/api/operations/announcements/{announcement_id}",
+            headers=mascot,
+            json={
+                "kind": "event",
+                "title": "周末合影活动",
+                "content": "周六晚在活动世界集合，欢迎社区成员参加。",
+                "is_published": True,
+                "is_pinned": True,
+                "starts_at": None,
+                "ends_at": None,
+            },
+        )
+        assert published.status_code == 200, published.text
+        public_items = client.get("/api/announcements", params={"kind": "event"}).json()
+        assert len(public_items) == 1
+        assert public_items[0]["title"] == "周末合影活动"
+        assert public_items[0]["author_name"] == "用户ops_mascot"
+
+        for page_key, session_id, headers in [
+            ("hall", "anonymous_session_a", None),
+            ("hall", "anonymous_session_a", None),
+            ("sugar", "anonymous_session_b", None),
+            ("hall", "logged_session_value", regular),
+        ]:
+            response = client.post(
+                "/api/analytics/page-view",
+                headers=headers,
+                json={"page_key": page_key, "session_id": session_id},
+            )
+            assert response.status_code == 204
+
+        report = client.get("/api/operations/analytics", headers=mascot, params={"days": 7})
+        assert report.status_code == 200, report.text
+        data = report.json()
+        assert data["today_views"] == 4
+        assert data["today_visitors"] == 3
+        hall = next(item for item in data["pages"] if item["page_key"] == "hall")
+        sugar = next(item for item in data["pages"] if item["page_key"] == "sugar")
+        assert (hall["views"], hall["visitors"]) == (3, 2)
+        assert (sugar["views"], sugar["visitors"]) == (1, 1)
+
+        deleted = client.delete(f"/api/operations/announcements/{announcement_id}", headers=mascot)
+        assert deleted.status_code == 204
+        assert client.get("/api/announcements").json() == []
+
+
 def register_sugar_profile(client, headers, about="喜欢在周末散步"):
     response = client.post(
         "/api/sugar/profile",

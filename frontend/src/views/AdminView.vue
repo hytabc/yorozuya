@@ -432,7 +432,8 @@ onMounted(load)
                   <select v-if="!user.is_admin" class="role-select" :value="user.role" :disabled="savingRoleId === user.id" :aria-label="`修改 ${user.nickname} 的权限等级`" @change="changeUserRole(user, $event.target.value, $event.target)">
                     <option value="user">普通用户</option>
                     <option value="volunteer">志愿者</option>
-                    <option v-if="auth.isAdmin || user.role === 'staff'" value="staff" :disabled="!auth.isAdmin">管理员{{ auth.isAdmin ? '' : '（仅超级管理员可授予）' }}</option>
+                    <option v-if="auth.isAdmin || user.role === 'staff'" value="staff" :disabled="!auth.isAdmin">管理员{{ auth.isAdmin ? '' : '（仅超级管理员可管理）' }}</option>
+                    <option v-if="auth.isAdmin || user.role === 'mascot'" value="mascot" :disabled="!auth.isAdmin">看板娘{{ auth.isAdmin ? '' : '（仅超级管理员可管理）' }}</option>
                   </select>
                 </div>
               </td>

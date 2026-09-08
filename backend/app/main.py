@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta, timezone
 from errno import EACCES, ENOSPC, EPERM, EROFS
+from hashlib import sha256
 from pathlib import Path
 from typing import Annotated
 from uuid import uuid4
@@ -11,19 +12,23 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BeforeValidator
-from sqlalchemy import func, or_, select, text, update
+from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.orm import Session, joinedload
 
 from .config import settings
+from .backup import skip_next_snapshot
 from .database import Base, SessionLocal, engine, get_db
-from .dependencies import get_admin, get_current_user, get_optional_user, get_role_manager
+from .dependencies import get_admin, get_current_user, get_operations_manager, get_optional_user, get_role_manager
 from .models import (
     AppSetting,
     ApplicationStatus,
+    Announcement,
+    AnnouncementKind,
     BoardComment,
     BoardMessage,
     Feedback,
     FeedbackStatus,
+    PageView,
     ReportStatus,
     SugarPair,
     SugarPairStatus,
@@ -45,6 +50,9 @@ from .models import (
 )
 from .schemas import (
     AcceptRequest,
+    AnalyticsOut,
+    AnnouncementOut,
+    AnnouncementWrite,
     AdminStats,
     AdminTaskUpdate,
     AdminUserLimitUpdate,
@@ -56,6 +64,9 @@ from .schemas import (
     FeedbackUpdate,
     LoginRequest,
     PasswordUpdate,
+    PageMetric,
+    PageViewCreate,
+    DailyMetric,
     ReportCreate,
     ReportLimitOut,
     ReportLimitUpdate,
@@ -277,6 +288,41 @@ def expire_due_tasks(db: Session) -> None:
     )
     if result.rowcount:
         db.commit()
+
+
+PAGE_LABELS = {
+    "hall": "委托大厅",
+    "staff": "成员名录",
+    "board": "留言板",
+    "maps": "地图推荐",
+    "sugar": "砂糖社",
+    "announcements": "公告中心",
+    "mine": "我的委托",
+    "profile": "个人设置",
+    "login": "登录注册",
+}
+
+
+def utc_naive(value: datetime | None) -> datetime | None:
+    if value is None or value.tzinfo is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def present_announcement(item: Announcement) -> AnnouncementOut:
+    return AnnouncementOut(
+        id=item.id,
+        kind=item.kind,
+        title=item.title,
+        content=item.content,
+        is_published=item.is_published,
+        is_pinned=item.is_pinned,
+        starts_at=item.starts_at,
+        ends_at=item.ends_at,
+        author_name=item.author.nickname,
+        created_at=item.created_at,
+        updated_at=item.updated_at,
+    )
 
 
 def task_query():
@@ -2318,6 +2364,180 @@ def reject_cancel_task(task_id: int, user: User = Depends(get_current_user), db:
     return present_task(get_task_or_404(db, task_id), user)
 
 
+@app.get("/api/announcements", response_model=list[AnnouncementOut])
+def public_announcements(
+    kind: AnnouncementKind | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    """返回当前展示期内的公告，供游客和登录用户查看。"""
+    now = datetime.utcnow()
+    query = (
+        select(Announcement)
+        .where(
+            Announcement.is_published.is_(True),
+            or_(Announcement.starts_at.is_(None), Announcement.starts_at <= now),
+            or_(Announcement.ends_at.is_(None), Announcement.ends_at > now),
+        )
+        .options(joinedload(Announcement.author))
+        .order_by(Announcement.is_pinned.desc(), Announcement.created_at.desc())
+    )
+    if kind is not None:
+        query = query.where(Announcement.kind == kind)
+    return [present_announcement(item) for item in db.scalars(query).unique().all()]
+
+
+@app.get("/api/operations/announcements", response_model=list[AnnouncementOut])
+def operations_announcements(
+    _: User = Depends(get_operations_manager),
+    db: Session = Depends(get_db),
+):
+    query = (
+        select(Announcement)
+        .options(joinedload(Announcement.author))
+        .order_by(Announcement.updated_at.desc())
+    )
+    return [present_announcement(item) for item in db.scalars(query).unique().all()]
+
+
+@app.post("/api/operations/announcements", response_model=AnnouncementOut, status_code=status.HTTP_201_CREATED)
+def create_announcement(
+    payload: AnnouncementWrite,
+    operator: User = Depends(get_operations_manager),
+    db: Session = Depends(get_db),
+):
+    item = Announcement(
+        kind=payload.kind,
+        title=payload.title,
+        content=payload.content,
+        is_published=payload.is_published,
+        is_pinned=payload.is_pinned,
+        starts_at=utc_naive(payload.starts_at),
+        ends_at=utc_naive(payload.ends_at),
+        author_id=operator.id,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    item.author = operator
+    return present_announcement(item)
+
+
+@app.put("/api/operations/announcements/{announcement_id}", response_model=AnnouncementOut)
+def update_announcement(
+    announcement_id: int,
+    payload: AnnouncementWrite,
+    _: User = Depends(get_operations_manager),
+    db: Session = Depends(get_db),
+):
+    item = db.scalar(
+        select(Announcement)
+        .where(Announcement.id == announcement_id)
+        .options(joinedload(Announcement.author))
+    )
+    if item is None:
+        raise HTTPException(status_code=404, detail="公告不存在")
+    item.kind = payload.kind
+    item.title = payload.title
+    item.content = payload.content
+    item.is_published = payload.is_published
+    item.is_pinned = payload.is_pinned
+    item.starts_at = utc_naive(payload.starts_at)
+    item.ends_at = utc_naive(payload.ends_at)
+    item.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(item)
+    return present_announcement(item)
+
+
+@app.delete("/api/operations/announcements/{announcement_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_announcement(
+    announcement_id: int,
+    _: User = Depends(get_operations_manager),
+    db: Session = Depends(get_db),
+):
+    item = db.get(Announcement, announcement_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="公告不存在")
+    db.delete(item)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.post("/api/analytics/page-view", status_code=status.HTTP_204_NO_CONTENT)
+def track_page_view(
+    payload: PageViewCreate,
+    viewer: User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    visitor_key = f"user:{viewer.id}" if viewer else f"anon:{sha256(payload.session_id.encode()).hexdigest()}"
+    now = datetime.utcnow()
+    skip_next_snapshot(db)
+    db.add(PageView(page_key=payload.page_key, visitor_key=visitor_key, user_id=viewer.id if viewer else None, viewed_at=now))
+    db.execute(delete(PageView).where(PageView.viewed_at < now - timedelta(days=180)))
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.get("/api/operations/analytics", response_model=AnalyticsOut)
+def operations_analytics(
+    days: int = Query(default=7, ge=1, le=90),
+    _: User = Depends(get_operations_manager),
+    db: Session = Depends(get_db),
+):
+    """按北京时间统计页面浏览量和去重访客，不暴露任何访客明细。"""
+    utc_now = datetime.utcnow()
+    local_today = (utc_now + timedelta(hours=8)).date()
+    first_day = local_today - timedelta(days=days - 1)
+    range_start = datetime.combine(first_day, time.min) - timedelta(hours=8)
+    range_end = datetime.combine(local_today + timedelta(days=1), time.min) - timedelta(hours=8)
+    events = db.scalars(
+        select(PageView)
+        .where(PageView.viewed_at >= range_start, PageView.viewed_at < range_end)
+        .order_by(PageView.viewed_at.asc())
+    ).all()
+
+    page_buckets = {key: {"views": 0, "visitors": set()} for key in PAGE_LABELS}
+    daily_buckets = {
+        first_day + timedelta(days=offset): {"views": 0, "visitors": set()}
+        for offset in range(days)
+    }
+    all_visitors: set[str] = set()
+    for event in events:
+        local_day = (event.viewed_at + timedelta(hours=8)).date()
+        if event.page_key not in page_buckets or local_day not in daily_buckets:
+            continue
+        page_buckets[event.page_key]["views"] += 1
+        page_buckets[event.page_key]["visitors"].add(event.visitor_key)
+        daily_buckets[local_day]["views"] += 1
+        daily_buckets[local_day]["visitors"].add(event.visitor_key)
+        all_visitors.add(event.visitor_key)
+
+    pages = [
+        PageMetric(
+            page_key=key,
+            label=PAGE_LABELS[key],
+            views=bucket["views"],
+            visitors=len(bucket["visitors"]),
+        )
+        for key, bucket in page_buckets.items()
+    ]
+    pages.sort(key=lambda item: (-item.visitors, -item.views, item.label))
+    daily = [
+        DailyMetric(date=day.isoformat(), views=bucket["views"], visitors=len(bucket["visitors"]))
+        for day, bucket in daily_buckets.items()
+    ]
+    today_bucket = daily_buckets[local_today]
+    return AnalyticsOut(
+        days=days,
+        total_views=len(events),
+        total_visitors=len(all_visitors),
+        today_views=today_bucket["views"],
+        today_visitors=len(today_bucket["visitors"]),
+        pages=pages,
+        daily=daily,
+    )
+
+
 @app.get("/api/admin/stats", response_model=AdminStats)
 def admin_stats(_: User = Depends(get_admin), db: Session = Depends(get_db)):
     expire_due_tasks(db)
@@ -2464,14 +2684,15 @@ def update_user_role(
     manager: User = Depends(get_role_manager),
     db: Session = Depends(get_db),
 ):
-    """超级管理员可设置全部角色；管理员只能把非管理员账号设为普通用户或志愿者。"""
+    """超级管理员可设置全部角色；管理员只能管理普通用户和志愿者。"""
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="用户不存在")
     if user.is_admin:
         raise HTTPException(status_code=409, detail="管理员账号的权限等级不可修改")
-    if not manager.is_admin and payload.role == UserRole.STAFF:
-        raise HTTPException(status_code=403, detail="只有超级管理员可以授予管理员权限")
+    protected_roles = (UserRole.STAFF, UserRole.MASCOT)
+    if not manager.is_admin and (payload.role in protected_roles or user.role in protected_roles):
+        raise HTTPException(status_code=403, detail="只有超级管理员可以管理管理员和看板娘权限")
     if payload.role == UserRole.VOLUNTEER and user.role != UserRole.VOLUNTEER:
         user.qq_public = False
     user.role = payload.role

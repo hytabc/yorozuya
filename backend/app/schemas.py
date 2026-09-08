@@ -3,10 +3,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
 
 from .models import (
     ApplicationStatus,
+    AnnouncementKind,
     FeedbackStatus,
     ReportStatus,
     SugarPairStatus,
@@ -35,6 +36,8 @@ class ApiModel(BaseModel):
         "initiated_at",
         "activated_at",
         "ended_at",
+        "starts_at",
+        "ends_at",
         check_fields=False,
     )
     def serialize_datetime(self, value: datetime | None):
@@ -211,7 +214,7 @@ class AdminUserOut(ApiModel):
 
 
 class AdminUserRoleUpdate(RequestModel):
-    role: Literal["user", "volunteer", "staff"]
+    role: Literal["user", "volunteer", "staff", "mascot"]
 
 
 class AdminPhotoUpdate(RequestModel):
@@ -320,6 +323,69 @@ class TaskStats(BaseModel):
     published: int
     processing: int
     completed: int
+
+
+class AnnouncementWrite(RequestModel):
+    kind: AnnouncementKind
+    title: str = Field(min_length=2, max_length=80)
+    content: str = Field(min_length=2, max_length=5000)
+    is_published: bool = False
+    is_pinned: bool = False
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+
+    @model_validator(mode="after")
+    def validate_schedule(self):
+        def comparable(value: datetime) -> datetime:
+            if value.tzinfo is None:
+                return value
+            return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+        if self.starts_at and self.ends_at and comparable(self.ends_at) <= comparable(self.starts_at):
+            raise ValueError("结束时间必须晚于开始时间")
+        return self
+
+
+class AnnouncementOut(ApiModel):
+    id: int
+    kind: AnnouncementKind
+    title: str
+    content: str
+    is_published: bool
+    is_pinned: bool
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+    author_name: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class PageViewCreate(RequestModel):
+    page_key: Literal["hall", "staff", "board", "maps", "sugar", "announcements", "mine", "profile", "login"]
+    session_id: str = Field(min_length=16, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
+
+
+class PageMetric(BaseModel):
+    page_key: str
+    label: str
+    views: int
+    visitors: int
+
+
+class DailyMetric(BaseModel):
+    date: str
+    views: int
+    visitors: int
+
+
+class AnalyticsOut(BaseModel):
+    days: int
+    total_views: int
+    total_visitors: int
+    today_views: int
+    today_visitors: int
+    pages: list[PageMetric]
+    daily: list[DailyMetric]
 
 
 class SugarPhotoOut(BaseModel):

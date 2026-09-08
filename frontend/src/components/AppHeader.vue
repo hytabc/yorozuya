@@ -2,7 +2,7 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { isLifeDesktop } from '../lifeAccess'
 import { useRouter } from 'vue-router'
-import { BriefcaseBusiness, HeartHandshake, LogOut, Map, Menu, MessagesSquare, ShieldCheck, Store, UserRound, X } from 'lucide-vue-next'
+import { BarChart3, BriefcaseBusiness, HeartHandshake, LogOut, Map, Megaphone, Menu, MessagesSquare, ShieldCheck, Store, UserRound, X } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import UserAvatar from './UserAvatar.vue'
 
@@ -35,9 +35,11 @@ function logout() {
         <RouterLink to="/board">留言板</RouterLink>
         <RouterLink to="/maps">地图推荐</RouterLink>
         <RouterLink to="/sugar">砂糖社</RouterLink>
+        <RouterLink to="/announcements">公告</RouterLink>
         <RouterLink v-if="auth.ready && auth.isLoggedIn && auth.canManageRoles && lifeDesktop" to="/life">虚拟人生</RouterLink>
         <RouterLink v-if="auth.isLoggedIn" to="/mine">我的委托</RouterLink>
         <RouterLink v-if="auth.canManageRoles" to="/admin">{{ auth.isAdmin ? '监管台' : '权限管理' }}</RouterLink>
+        <RouterLink v-if="auth.canOperate" to="/operations">运营台</RouterLink>
       </nav>
 
       <div class="header-actions">
@@ -65,9 +67,11 @@ function logout() {
       <RouterLink to="/board" @click="open = false"><MessagesSquare :size="18" />留言板</RouterLink>
       <RouterLink to="/maps" @click="open = false"><Map :size="18" />地图推荐</RouterLink>
       <RouterLink to="/sugar" @click="open = false"><HeartHandshake :size="18" />砂糖社</RouterLink>
+      <RouterLink to="/announcements" @click="open = false"><Megaphone :size="18" />公告中心</RouterLink>
       <RouterLink v-if="auth.isLoggedIn" to="/mine" @click="open = false"><BriefcaseBusiness :size="18" />我的委托</RouterLink>
       <RouterLink v-if="auth.isLoggedIn" to="/profile" @click="open = false"><UserRound :size="18" />个人设置</RouterLink>
       <RouterLink v-if="auth.canManageRoles" to="/admin" @click="open = false"><ShieldCheck :size="18" />{{ auth.isAdmin ? '监管台' : '权限管理' }}</RouterLink>
+      <RouterLink v-if="auth.canOperate" to="/operations" @click="open = false"><BarChart3 :size="18" />社区运营</RouterLink>
       <button v-if="auth.isLoggedIn" @click="logout"><LogOut :size="18" />退出登录</button>
       <RouterLink v-else to="/login" @click="open = false"><UserRound :size="18" />登录 / 注册</RouterLink>
     </div>
