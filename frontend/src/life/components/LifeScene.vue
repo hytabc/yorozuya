@@ -2,8 +2,9 @@
 // 中央场景：位置标签、场景背景(包内 bg 或占位)、NPC 头像列表、对话浮层与回应面板。
 // 样式从 LifeSimulator.vue 迁出，行为不变。
 // 阶段 8a：气泡内图片缩略图 + 全屏灯箱（点击弹出、再点消失）。
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import LifeImageLightbox from './LifeImageLightbox.vue'
+import LifeEventModal from './LifeEventModal.vue'
 const props = defineProps({ game: { type: Object, required: true } })
 const {
   currentWorld, currentRoom, currentWorldDef, sceneNpcs, npcListOpen, worldPopulation,
@@ -11,15 +12,55 @@ const {
   dialogueVisible, speech, playback, replyTab, bondDelta,
   showChoices, currentDialogue, actionFeedback, actions,
   saveReady, saveConflict,
+  roomEvents, activeEvent, openEvent, closeEvent, finishEvent, npcs,
   switchNpc, selectFriend, openHistory, chooseOption, actionState, performAction, portraitFor,
 } = props.game
 const lightboxSrc = ref('')
+const pendingEventEffects = ref([])
+
+function resolveEventSpeaker(speaker) {
+  if (speaker?.npcId != null) {
+    const npc = npcs.value.find(npc => npc.id === speaker.npcId)
+    return npc ? { name: npc.name, portrait: portraitFor(speaker.npcId) } : { name: '未知', portrait: '?' }
+  }
+  return { name: speaker?.name, portrait: speaker?.avatar || '' }
+}
+
+// 选项只暂存，完整看完事件后才统一结算。
+function onEventChoice(effects) {
+  pendingEventEffects.value.push(effects?.stats || {})
+}
+
+function onEventFinish() {
+  const merged = {}
+  for (const stats of pendingEventEffects.value) {
+    for (const [key, value] of Object.entries(stats)) {
+      merged[key] = (merged[key] || 0) + value
+    }
+  }
+  finishEvent(merged)
+  pendingEventEffects.value = []
+}
+
+// 同步清空关闭或切换事件的暂存，外部切房间、切人物也不会遗留效果。
+watch(activeEvent, () => {
+  pendingEventEffects.value = []
+}, { flush: 'sync' })
 </script>
 
 <template>
   <main class="scene-container">
     <div class="scene-box">
       <span class="location-tag">📍 {{ currentWorld }} · {{ currentRoom?.label }}</span>
+
+      <!-- 房间事件入口放在位置标签下方，右侧留给人物列表。 -->
+      <div v-if="roomEvents?.length" class="room-events" role="group" aria-label="房间事件">
+        <button v-for="event in roomEvents" :key="event.id" class="room-event-btn" type="button"
+                :disabled="event.done" :title="event.done ? '今天已经看过了，明天再来吧' : event.title"
+                @click="openEvent(event.id)">
+          {{ event.icon }} {{ event.title }}{{ event.done ? ' ✓' : '' }}
+        </button>
+      </div>
 
       <!-- 场景背景:包内配置了 bg 用背景图,否则保持占位 -->
       <div class="scene-bg">
@@ -102,6 +143,9 @@ const lightboxSrc = ref('')
         </section>
       </div>
     </div>
+    <LifeEventModal v-if="activeEvent" :script="activeEvent.script" :title="activeEvent.event.title" :icon="activeEvent.event.icon"
+                    :resolve-speaker="resolveEventSpeaker" player-name="白昼梦"
+                    @choice="onEventChoice" @finish="onEventFinish" @close="closeEvent" />
     <LifeImageLightbox v-if="lightboxSrc" :src="lightboxSrc" alt="对话图片" @close="lightboxSrc = ''" />
   </main>
 </template>
@@ -125,6 +169,20 @@ const lightboxSrc = ref('')
   border: 1px solid #d9dedb; border-radius: 999px;
   font-size: 12px; color: #69736e; z-index: 2;
 }
+/* 事件入口横向滚动，避免多事件挤占下方对话区域。 */
+.room-events {
+  position: absolute; top: 58px; left: 16px; right: 100px; z-index: 2;
+  display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 8px;
+}
+.room-event-btn {
+  flex-shrink: 0; padding: 6px 12px;
+  background: #fff; border: 1px solid #d9dedb; border-radius: 999px;
+  color: #237a57; font-size: 12px; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(25, 38, 32, .08);
+}
+.room-event-btn:hover:not(:disabled) { border-color: #237a57; }
+.room-event-btn:disabled { color: #69736e; opacity: .55; cursor: default; }
+.room-event-btn:focus-visible { outline: 2px solid #237a57; outline-offset: 2px; }
 .scene-bg {
   position: absolute; inset: 0;
   display: flex; flex-direction: column;
