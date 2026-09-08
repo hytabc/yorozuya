@@ -11,6 +11,7 @@ from app.database import Base, get_db
 from app.models import User, UserRole
 from app.security import create_access_token
 from app.virtual_life import router
+from app.virtual_life_packs import seed_virtual_life_packs
 
 
 def state():
@@ -39,6 +40,7 @@ class SaveTests(unittest.TestCase):
                 db.add(User(id=i, username=f'u{i}', password_hash='unused', nickname=f'u{i}',
                             is_admin=i in (1, 2), role=role))
             db.commit()
+            seed_virtual_life_packs(db)
 
     def start(self):
         self.engine = create_engine(self.url, connect_args={'check_same_thread': False})

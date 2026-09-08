@@ -5,8 +5,8 @@ silently overwriting newer saves. This table is independent of other businesses.
 
 Save schema: v1 states (legacy, no packId) are upgraded to v2 on write —
 schemaVersion becomes 2 and packId is filled with the active pack. v2 states
-must declare the site's active pack id. NPC / room / action whitelists come
-from the registered content pack (see life_pack_registry), not from code.
+must declare the site's active pack id. NPC / room / action whitelists are
+derived from the ACTIVE pack stored in the database (virtual_life_packs).
 """
 from datetime import datetime, timezone
 import json
@@ -20,8 +20,8 @@ from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from .database import Base, get_db
 from .dependencies import get_role_manager
-from .life_pack_registry import ACTIVE_LIFE_PACK
 from .models import User
+from .virtual_life_packs import get_save_rules
 
 
 class VirtualLifeSave(Base):
@@ -87,48 +87,45 @@ class GameState(StrictModel):
 
     @model_validator(mode='after')
     def check_state(self):
-        pack = ACTIVE_LIFE_PACK
-        ids = pack['npcIds']
-        if self.schemaVersion == 2:
-            if self.packId != pack['id']:
-                raise ValueError('Save content pack mismatch')
-        elif self.packId is not None:
-            raise ValueError('Legacy save cannot declare a content pack')
-        if [n.id for n in self.npcs] != ids or self.currentNpcId not in ids:
-            raise ValueError('Invalid NPC identity')
-        if set(self.conversations) != set(ids) or not set(self.completed).issubset(ids):
-            raise ValueError('Invalid conversation/progression owner')
+        """Pack-independent structural checks; whitelists live in validate_state_against_pack."""
         if self.interactedNpcIds is None:
-            self.interactedNpcIds = [npc_id for npc_id in ids if any(m.from_ == 'player' for m in self.conversations[npc_id])]
-        if not set(self.interactedNpcIds).issubset(ids):
-            raise ValueError('Invalid interacted NPC')
-        if not set(self.friendIds).issubset(ids):
-            raise ValueError('Invalid friend NPC')
+            self.interactedNpcIds = [npc_id for npc_id, messages in self.conversations.items()
+                                     if any(m.from_ == 'player' for m in messages)]
         if len(set(self.friendIds)) != len(self.friendIds) or len(set(self.interactedNpcIds)) != len(self.interactedNpcIds):
             raise ValueError('Duplicate social identity')
         if not set(self.friendIds).issubset(self.interactedNpcIds):
             raise ValueError('Friend requires prior interaction')
         if any(n.bond < 10 for n in self.npcs if n.id in self.friendIds):
             raise ValueError('Friend requires affection 10')
-        room_world = pack['roomWorlds']
-        if self.currentRoomId and (self.currentRoomId not in room_world or
-                                   self.currentWorld.removesuffix(' · 黄昏') != room_world[self.currentRoomId]):
-            raise ValueError('Room and world mismatch')
-        action_ids = set(pack['actionIds'])
-        for game_day, rewards in self.actionLedger.items():
+        for game_day in self.actionLedger:
             if not game_day.isascii() or not game_day.isdecimal() or str(int(game_day)) != game_day or not 1 <= int(game_day) <= self.day:
                 raise ValueError('Invalid action reward game day')
-            if not set(rewards).issubset(ids):
-                raise ValueError('Invalid action reward NPC')
-            for actions in rewards.values():
-                if not set(actions).issubset(action_ids):
-                    raise ValueError('Invalid action reward id')
-        # Legacy v1 saves are upgraded to the active pack on write.
-        self.schemaVersion = 2
-        self.packId = pack['id']
         if len(json.dumps(self.model_dump(by_alias=True), ensure_ascii=False).encode()) > 2_000_000:
             raise ValueError('Save exceeds 2 MB')
         return self
+
+
+def validate_state_against_pack(state: GameState, rules: dict) -> None:
+    ids = rules['npcIds']
+    if [n.id for n in state.npcs] != ids or state.currentNpcId not in ids:
+        raise ValueError('Invalid NPC identity')
+    if set(state.conversations) != set(ids) or not set(state.completed).issubset(ids):
+        raise ValueError('Invalid conversation/progression owner')
+    if not set(state.interactedNpcIds).issubset(ids):
+        raise ValueError('Invalid interacted NPC')
+    if not set(state.friendIds).issubset(ids):
+        raise ValueError('Invalid friend NPC')
+    room_world = rules['roomWorlds']
+    if state.currentRoomId and (state.currentRoomId not in room_world or
+                                state.currentWorld.removesuffix(' · 黄昏') != room_world[state.currentRoomId]):
+        raise ValueError('Room and world mismatch')
+    action_ids = set(rules['actionIds'])
+    for rewards in state.actionLedger.values():
+        if not set(rewards).issubset(ids):
+            raise ValueError('Invalid action reward NPC')
+        for actions in rewards.values():
+            if not set(actions).issubset(action_ids):
+                raise ValueError('Invalid action reward id')
 
 
 class SaveRequest(StrictModel):
@@ -149,6 +146,19 @@ def read_save(user: User = Depends(get_role_manager), db: Session = Depends(get_
 
 @router.put('/save')
 def write_save(payload: SaveRequest, user: User = Depends(get_role_manager), db: Session = Depends(get_db)):
+    rules = get_save_rules(db)
+    if payload.state.schemaVersion == 2:
+        if payload.state.packId != rules['packId']:
+            raise HTTPException(422, '存档内容包与站点配置不一致')
+    elif payload.state.packId is not None:
+        raise HTTPException(422, '旧版存档不能声明内容包')
+    try:
+        validate_state_against_pack(payload.state, rules)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    # Legacy v1 saves are upgraded to the active pack on write.
+    payload.state.schemaVersion = 2
+    payload.state.packId = rules['packId']
     encoded = json.dumps(payload.state.model_dump(by_alias=True), ensure_ascii=False)
     now = datetime.now(timezone.utc).isoformat()
     revision = payload.revision + 1
