@@ -1,6 +1,6 @@
 # 虚拟人生阶段 8b：房间事件（群聊式弹窗剧本）实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 房间里出现可点击的事件入口，点开后是群聊式弹窗（多角色轮流说话、点击推进、选项点分支后汇回），每天一次、7 天剧本，管理端线性编辑器可配。
 
@@ -43,7 +43,7 @@ eventProgress: { day: int≥1, done: [eventId...] }   // 默认 {day:1, done:[]}
 - Modify: `backend/app/virtual_life.py`（GameState + `validate_state_against_pack`）
 - Test: `backend/tests/test_virtual_life_packs.py`、`backend/tests/test_virtual_life.py`
 
-- [ ] **B1 brief（逐字派发，前后加上 Global Constraints 与数据契约）**
+- [x] **B1 brief（逐字派发，前后加上 Global Constraints 与数据契约）**
 
 ```
 任务：给虚拟人生内容包加「房间事件」校验与存档 eventProgress 支持。
@@ -76,7 +76,7 @@ backend/tests/test_virtual_life_packs.py、backend/tests/test_virtual_life.py �
 完成后回复：修改文件清单 + 新增测试数 + pytest 结果尾部。
 ```
 
-- [ ] **验收**：`git diff --stat` 只含列出的文件；我复跑 pytest 全绿；不符打回（附失败输出重派）。
+- [x] **验收**：`git diff --stat` 只含列出的文件；我复跑 pytest 全绿；不符打回（附失败输出重派）。
 
 ---
 
@@ -89,7 +89,7 @@ backend/tests/test_virtual_life_packs.py、backend/tests/test_virtual_life.py �
 - Modify: `frontend/src/life/useLifeGame.js`（eventProgress 状态 + 事件动作）
 - Modify: `frontend/tests/lifeRegistry.test.mjs`（如默认包 events 相关断言需要）
 
-- [ ] **B2 brief**
+- [x] **B2 brief**
 
 ```
 任务：虚拟人生房间事件的前端规则层与游戏引擎接线（8a 消息组已落地，先读
@@ -126,7 +126,7 @@ frontend/src/life/useLifeGame.js、frontend/tests/lifeDialogue.test.mjs 了解�
 完成后回复：文件清单 + 测试结果。
 ```
 
-- [ ] **验收**：diff 范围核对；我复跑前端全量测试 + `npm run build`。
+- [x] **验收**：diff 范围核对；我复跑前端全量测试 + `npm run build`。
 
 ---
 
@@ -135,7 +135,7 @@ frontend/src/life/useLifeGame.js、frontend/tests/lifeDialogue.test.mjs 了解�
 **Files:**
 - Create: `frontend/src/life/components/LifeEventModal.vue`
 
-- [ ] **B3 brief**
+- [x] **B3 brief**
 
 ```
 任务：新建群聊式事件播放弹窗 frontend/src/life/components/LifeEventModal.vue（只许新建这一个文件）。
@@ -171,7 +171,7 @@ Emits:
 无 vue 测试环境，不写单测；写完后回复契约自查结果（props/emits/流程）。
 ```
 
-- [ ] **验收**：Read 核对契约；`npm run build` 过；不符打回。
+- [x] **验收**：Read 核对契约；`npm run build` 过；不符打回。
 
 ---
 
@@ -180,7 +180,7 @@ Emits:
 **Files:**
 - Modify: `frontend/src/life/components/LifeScene.vue`
 
-- [ ] **B4 brief**
+- [x] **B4 brief**
 
 ```
 任务：把房间事件入口与群聊弹窗接进场景组件 frontend/src/life/components/LifeScene.vue。
@@ -205,7 +205,7 @@ frontend/src/life/registry.js（portraitFor）。
 4) npm run build 必须过。完成后回复改动摘要。
 ```
 
-- [ ] **验收**：diff + build + 前端全量测试。
+- [x] **验收**：diff + build + 前端全量测试。
 
 ---
 
@@ -216,7 +216,7 @@ frontend/src/life/registry.js（portraitFor）。
 - Modify: `frontend/src/life/admin/useLifeAdmin.js`（events CRUD helpers）
 - Modify: `frontend/src/views/LifeAdmin.vue`（「事件」区块挂载 + 样式如需）
 
-- [ ] **B5 brief**
+- [x] **B5 brief**
 
 ```
 任务：管理端加「事件」编辑区块（线性剧本编辑器）。先读 frontend/src/life/admin/useLifeAdmin.js、
@@ -244,7 +244,7 @@ frontend/src/life/admin/AdminImageField.vue（v-model 图片上传）。
 4) npm run build 必须过。回复改动摘要 + 契约自查。
 ```
 
-- [ ] **验收**：diff + build；管理端手动验证留到 E2E。
+- [x] **验收**：diff + build；管理端手动验证留到 E2E。
 
 ---
 
@@ -254,7 +254,7 @@ frontend/src/life/admin/AdminImageField.vue（v-model 图片上传）。
 - Modify: `frontend/src/life/content/defaultPack.js`（content 加 events 示例）
 - Modify: `backend/app/life_packs/wsw-default-life.json`（脚本再生成）
 
-- [ ] **B6 brief**
+- [x] **B6 brief**
 
 ```
 任务：默认内容包加 2 个示例房间事件并再生成后端种子。先读
@@ -274,13 +274,13 @@ events 不需要归一化，直接按最终形状写）、backend/app/life_packs
 回复：事件 id 列表 + 测试结果。
 ```
 
-- [ ] **验收**：diff + parity + 全量测试。
+- [x] **验收**：diff + parity + 全量测试。
 
 ---
 
 ### Task B7（Kimi）：隔离 E2E + 文档 + 收尾
 
-- [ ] 冒烟环境（8123/8124 配方）：事件入口出现 → 点开群聊弹窗 → 点击推进 → 选项点选择 → 汇回主线 → 剧终标记 done（入口变灰✓）→ 存档 eventProgress 落库 → 下一天重置可再玩；管理端新增/编辑事件保存生效；旧包（无 events）激活/迁移不炸。
-- [ ] 真实库：重启 8000 后端（迁移补 events:[]），确认活动包正常。
-- [ ] 同步 `VIRTUAL_LIFE.md` + 架构文档路线图（8b 行 ✅）。
-- [ ] 每个 Task 独立 commit（harness 产出注明 via deepseek harness），不推送。
+- [x] 冒烟环境（8123/8124 配方）：事件入口出现 → 点开群聊弹窗 → 点击推进 → 选项点选择 → 汇回主线 → 剧终标记 done（入口变灰✓）→ 存档 eventProgress 落库 → 下一天重置可再玩；管理端新增/编辑事件保存生效；旧包（无 events）激活/迁移不炸。
+- [x] 真实库：重启 8000 后端（迁移补 events:[]），确认活动包正常。
+- [x] 同步 `VIRTUAL_LIFE.md` + 架构文档路线图（8b 行 ✅）。
+- [x] 每个 Task 独立 commit（harness 产出注明 via deepseek harness），不推送。

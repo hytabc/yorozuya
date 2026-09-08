@@ -22,7 +22,9 @@ own save. This feature does not change global roles or promote any account.
 - State: `schemaVersion:2` with `packId`; day, stats (mood/energy/social/explore), tags,
   currentWorld, unlockedWorlds, currentNpcId, npcs, conversations, diary, completed,
   actionLedger and `dialogueNodes` (NPC -> current dialogue node id; stage 4c,
-  defaults `{}` in older saves).
+  defaults `{}` in older saves) and `eventProgress` (stage 8b: `{day, done:[eventId]}`,
+  defaults `{day:1,done:[]}` in older saves; unknown event ids are leniently
+  dropped on validation).
   Legacy `schemaVersion:1` writes (no packId) are upgraded to v2 on write; v2
   must declare the site's active pack id. NPC/room/action whitelists are derived
   from the ACTIVE content pack stored in the `virtual_life_packs` table (stage
@@ -35,7 +37,10 @@ A content pack holds the FULL site content as JSON: npcIds/npcs/portraits,
 worlds (with optional `bg` image URL), rooms, presence, actions, per-day
 node-graph dialogue (`dialogue[npcId]` is a 1-7 entry array of day scripts
 `{start, nodes:{id:{lines:[...], image, choices:[{label, effects:{bond,stats},
-replies:[...], replyImage, next}]}}}`, stage 5/8a) and initialState. Exactly
+replies:[...], replyImage, next}]}}}`, stage 5/8a), room events (`events`,
+stage 8b: `[{id, roomId, title, icon, scripts×7}]` whose day scripts are linear
+`{messages:[...]}` sequences of message groups and choice points) and
+initialState. Exactly
 one pack is active site-wide (A-scheme: the site admin configures content;
 all players share it).
 
@@ -72,7 +77,8 @@ all players share it).
 
 `frontend/src/views/LifeAdmin.vue` plus `frontend/src/life/admin/` (data layer
 `useLifeAdmin.js` singleton, sections `AdminNpcs` / `AdminWorlds` /
-`AdminActions` / `AdminDialogue` / `AdminInitial`, shared `AdminImageField`).
+`AdminActions` / `AdminDialogue` / `AdminEvents` (stage 8b) / `AdminInitial`,
+shared `AdminImageField`).
 The route uses the same `lifeOnly` guard as the game (role manager + desktop);
 the game header links to it via 内容管理. The admin edits one pack at a time in
 structured forms: NPC profiles/portraits/presence, worlds (incl. background
@@ -189,6 +195,49 @@ state and mutations stay in `useLifeGame`. Semantics per NPC per game day:
   day's `start` (or the last day script once past the schedule). Choice
   effects apply per choice click — replaying a finished chain next day yields
   its effects again, as before.
+
+## Room events (stage 8b)
+
+Rooms can hold clickable EVENTS: each `{id, roomId, title, icon, scripts×7}`
+plays a per-day LINEAR script (clamped at day 7 — no day 8, no cycling) in a
+group-chat modal (`LifeEventModal.vue`, z-9000). Script items are message
+groups (same shape as 8a dialogue: `speaker` is exactly one of `{npcId}` or a
+free passerby `{name, avatar?}`, non-empty `lines`, optional `/uploads/`
+`image` on the last sentence, lightbox on click) or choice points
+(`{choice:{options:[{label, effects, reply:[groups...]}]}}`). Choice effects
+are `stats`-only (bond is rejected by validation), replies are message groups
+only — nested choice points are invalid. Playback: groups appear one at a
+time on click; a choice point pauses, the picked label is inserted as a
+player bubble (right, green), its reply groups play, then the main line
+resumes; the script ends with a 剧终 marker. Effects chosen along the way are
+accumulated and settled (0-100 clamp) only when the event is finished —
+closing midway discards them.
+
+Each event is playable ONCE per game day: `roomEvents` marks finished entries
+done (greyed ✓, disabled); completion lives in the save as
+`eventProgress:{day, done:[eventId]}` and resets when the day changes
+(client-side `normalizeEventProgress`; the server stores the field and
+leniently drops ids the active pack no longer defines). `derive_save_rules`
+exposes `eventIds`. Pure rules live in
+`frontend/src/composables/lifeEvents.js` (`eventScriptForDay`/`eventsForRoom`/
+`isEventDone`/`applyEventChoice`/`eventEffectsOf`/`normalizeEventProgress`);
+state and actions (`openEvent`/`closeEvent`/`finishEvent`) stay in
+`useLifeGame`. The scene renders entry pills under the location tag
+(`LifeScene.vue`).
+
+Admin edits events in the 事件 section (`AdminEvents.vue`): events grouped by
+room (icon/title/room editable, add/remove; removal of a room/world removes
+its events, removal of an NPC rewrites event speakers to 路人), and a LINEAR
+per-day editor (tabs 第 1~7 天) with two card types — message-group cards
+(speaker dropdown NPC/路人, multi-line `lines`, image field, reorder) and
+choice-point cards (options with label, four stat inputs and inline reply
+message groups; no nested choice entry). Both backend
+(`validate_pack_content`) and frontend (`validateLifePack`) enforce: event id
+unique, roomId exists, exactly 7 scripts, speaker exactly-one, stats-only
+effects with known keys in -100..100, no nested choice points, image only
+`/uploads/`. Packs lacking `events` migrate to `events:[]` idempotently. The
+default pack ships two sample events (🌊 涨潮时分 in beach-1024 with choice
+points on days 3/6, ☕ 柜台边的闲聊 in cafe-1101 with one on day 5).
 
 ## Reply actions
 
