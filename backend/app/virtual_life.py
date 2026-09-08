@@ -2,6 +2,11 @@
 
 No caller-supplied owner id. Revision compare-and-swap prevents stale tabs from
 silently overwriting newer saves. This table is independent of other businesses.
+
+Save schema: v1 states (legacy, no packId) are upgraded to v2 on write —
+schemaVersion becomes 2 and packId is filled with the active pack. v2 states
+must declare the site's active pack id. NPC / room / action whitelists come
+from the registered content pack (see life_pack_registry), not from code.
 """
 from datetime import datetime, timezone
 import json
@@ -15,6 +20,7 @@ from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from .database import Base, get_db
 from .dependencies import get_role_manager
+from .life_pack_registry import ACTIVE_LIFE_PACK
 from .models import User
 
 
@@ -60,7 +66,9 @@ class Npc(StrictModel):
 
 
 class GameState(StrictModel):
-    schemaVersion: Literal[1]
+    schemaVersion: Literal[1, 2]
+    # v2 declares its content pack; v1 (legacy) must omit it.
+    packId: str | None = Field(default=None, max_length=100)
     day: int = Field(ge=1)
     stats: Stats
     currentWorld: str = Field(min_length=1, max_length=100)
@@ -71,35 +79,53 @@ class GameState(StrictModel):
     diary: list[Diary]
     completed: dict[str, bool]
     tags: list[str] = Field(max_length=30)
-    currentRoomId: Literal['beach-1024', 'beach-2086', 'cafe-1101', 'hall-1001'] | None = None
-    friendIds: list[Literal['ache', 'xiaomi', 'maoyou', 'yu']] = Field(default_factory=list)
-    interactedNpcIds: list[Literal['ache', 'xiaomi', 'maoyou', 'yu']] | None = None
+    currentRoomId: str | None = None
+    friendIds: list[str] = Field(default_factory=list)
+    interactedNpcIds: list[str] | None = None
     # game day -> NPC -> action id -> rewarded; omitted in earlier v1 saves.
-    actionLedger: dict[str, dict[str, dict[Literal['headpat', 'poke', 'kiss'], Literal[True]]]] = Field(default_factory=dict)
+    actionLedger: dict[str, dict[str, dict[str, Literal[True]]]] = Field(default_factory=dict)
 
     @model_validator(mode='after')
     def check_state(self):
-        ids = [n.id for n in self.npcs]
-        if ids != ['ache', 'xiaomi', 'maoyou', 'yu'] or self.currentNpcId not in ids:
+        pack = ACTIVE_LIFE_PACK
+        ids = pack['npcIds']
+        if self.schemaVersion == 2:
+            if self.packId != pack['id']:
+                raise ValueError('Save content pack mismatch')
+        elif self.packId is not None:
+            raise ValueError('Legacy save cannot declare a content pack')
+        if [n.id for n in self.npcs] != ids or self.currentNpcId not in ids:
             raise ValueError('Invalid NPC identity')
         if set(self.conversations) != set(ids) or not set(self.completed).issubset(ids):
             raise ValueError('Invalid conversation/progression owner')
         if self.interactedNpcIds is None:
             self.interactedNpcIds = [npc_id for npc_id in ids if any(m.from_ == 'player' for m in self.conversations[npc_id])]
+        if not set(self.interactedNpcIds).issubset(ids):
+            raise ValueError('Invalid interacted NPC')
+        if not set(self.friendIds).issubset(ids):
+            raise ValueError('Invalid friend NPC')
         if len(set(self.friendIds)) != len(self.friendIds) or len(set(self.interactedNpcIds)) != len(self.interactedNpcIds):
             raise ValueError('Duplicate social identity')
         if not set(self.friendIds).issubset(self.interactedNpcIds):
             raise ValueError('Friend requires prior interaction')
         if any(n.bond < 10 for n in self.npcs if n.id in self.friendIds):
             raise ValueError('Friend requires affection 10')
-        room_world = {'beach-1024': '潮汐之后', 'beach-2086': '潮汐之后', 'cafe-1101': '小小咖啡馆', 'hall-1001': '夜间聚会大厅'}
-        if self.currentRoomId and self.currentWorld.removesuffix(' · 黄昏') != room_world[self.currentRoomId]:
+        room_world = pack['roomWorlds']
+        if self.currentRoomId and (self.currentRoomId not in room_world or
+                                   self.currentWorld.removesuffix(' · 黄昏') != room_world[self.currentRoomId]):
             raise ValueError('Room and world mismatch')
+        action_ids = set(pack['actionIds'])
         for game_day, rewards in self.actionLedger.items():
             if not game_day.isascii() or not game_day.isdecimal() or str(int(game_day)) != game_day or not 1 <= int(game_day) <= self.day:
                 raise ValueError('Invalid action reward game day')
             if not set(rewards).issubset(ids):
                 raise ValueError('Invalid action reward NPC')
+            for actions in rewards.values():
+                if not set(actions).issubset(action_ids):
+                    raise ValueError('Invalid action reward id')
+        # Legacy v1 saves are upgraded to the active pack on write.
+        self.schemaVersion = 2
+        self.packId = pack['id']
         if len(json.dumps(self.model_dump(by_alias=True), ensure_ascii=False).encode()) > 2_000_000:
             raise ValueError('Save exceeds 2 MB')
         return self

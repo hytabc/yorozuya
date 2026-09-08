@@ -236,7 +236,7 @@ export function useLifeGame() {
 
   function snapshot() {
     return JSON.parse(JSON.stringify({
-      schemaVersion: 1, day: day.value, stats: stats.value, tags: tags.value,
+      schemaVersion: 2, packId: pack.id, day: day.value, stats: stats.value, tags: tags.value,
       currentWorld: currentWorld.value, unlockedWorlds: unlockedWorlds.value,
       currentNpcId: currentNpcId.value, npcs: npcs.value,
       conversations: conversations.value, diary: diaryHistory.value, completed: completed.value,
@@ -246,9 +246,11 @@ export function useLifeGame() {
   }
   function hydrate(state) {
     cancelPresentation()
-    if (state.schemaVersion !== 1 || !state.npcs?.length ||
+    // v1 为无 packId 的旧存档;v2 必须声明当前活动 Pack。
+    if (![1, 2].includes(state.schemaVersion) || !state.npcs?.length ||
         state.npcs.some(n => !dialogueScripts[n.id]) ||
         !state.npcs.some(n => n.id === state.currentNpcId)) throw new Error('存档版本或人物不兼容')
+    if (state.packId && state.packId !== pack.id) throw new Error('存档内容包与当前站点内容不匹配')
     day.value = state.day
     stats.value = state.stats
     tags.value = state.tags

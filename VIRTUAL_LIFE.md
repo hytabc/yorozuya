@@ -19,10 +19,14 @@ own save. This feature does not change global roles or promote any account.
 - Independent `virtual_life_saves` table in existing configured database, one
   primary key `user_id`, JSON state, integer revision, UTC updated timestamp.
   Table is created by existing startup `Base.metadata.create_all`.
-- State: `schemaVersion:1`, day, stats (mood/energy/social/explore), tags,
+- State: `schemaVersion:2` with `packId`; day, stats (mood/energy/social/explore), tags,
   currentWorld, unlockedWorlds, currentNpcId, npcs, conversations, diary, completed.
-  v1 NPC ids/order: ache, xiaomi, maoyou, yu. Unknown schemas/ids rejected.
-  Encoded state limit 2 MB; no silent history truncation. Message length 4000.
+  Legacy `schemaVersion:1` writes (no packId) are upgraded to v2 on write; v2
+  must declare the site's active pack id. NPC/room/action whitelists come from
+  the active content pack manifest (`backend/app/life_packs/<id>.json`, selected
+  by env `LIFE_PACK_ID`, default `wsw-default-life`), no longer from code.
+  Unknown schemas/ids/packs rejected. Encoded state limit 2 MB; no silent
+  history truncation. Message length 4000.
 
 ## Frontend
 
@@ -33,7 +37,10 @@ File layout after the stage-1 modular split (behavior unchanged):
   registration validates completeness. The game consumes content ONLY via the
   active pack. `frontend/src/life/builtin.js` registers built-in packs;
   `frontend/src/life/content/defaultPack.js` is the built-in default pack
-  (NPC defs, portraits, dialogue scripts, initial life state).
+  (NPC defs, portraits, dialogue scripts, initial life state). The frontend
+  pack id must match the backend manifest of the same name: snapshots write
+  `schemaVersion:2` + `packId`, and hydrate accepts v1 (legacy, no packId) or
+  v2 whose packId matches the active pack (stage 3).
 - `frontend/src/life/useLifeGame.js`: all game state, mutations, tutorial
   wiring and save plumbing; returns a single `game` object.
 - `frontend/src/life/components/`: `LifeCharPanel`, `LifeScene`,

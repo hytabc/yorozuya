@@ -22,6 +22,10 @@ def state():
                 diary=[dict(day=9, text='saved diary', mood='calm')], completed={'ache': True})
 
 
+# Legacy v1 writes are upgraded on save: schemaVersion 2 + active pack id.
+V2 = {'schemaVersion': 2, 'packId': 'wsw-default-life'}
+
+
 class SaveTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -70,7 +74,7 @@ class SaveTests(unittest.TestCase):
         self.engine.dispose()
         self.start()  # new app/engine against same file; no in-memory state survives
         loaded = self.client.get(url, headers=self.headers(1)).json()
-        self.assertEqual(loaded['state'], {**state(), 'actionLedger': {}, 'friendIds': [], 'interactedNpcIds': [], 'currentRoomId': None})
+        self.assertEqual(loaded['state'], {**state(), **V2, 'actionLedger': {}, 'friendIds': [], 'interactedNpcIds': [], 'currentRoomId': None})
         newer = state()
         newer['day'] = 10
         self.assertEqual(self.client.put(url, json={'revision': loaded['revision'], 'state': newer}, headers=self.headers(1)).status_code, 200)
@@ -115,7 +119,7 @@ class SaveTests(unittest.TestCase):
         self.client.close()
         self.engine.dispose()
         self.start()
-        self.assertEqual(self.client.get(url, headers=headers).json()['state'], {**saved, 'friendIds': [], 'interactedNpcIds': [], 'currentRoomId': None})
+        self.assertEqual(self.client.get(url, headers=headers).json()['state'], {**saved, **V2, 'friendIds': [], 'interactedNpcIds': [], 'currentRoomId': None})
         self.assertIsNone(self.client.get(url, headers=self.headers(2)).json()['state'])
         for invalid in ({'10': {'ache': {'headpat': True}}}, {'9': {'unknown': {'poke': True}}}, {'9': {'ache': {'invalid': True}}}):
             bad = {**saved, 'actionLedger': invalid}
@@ -141,6 +145,24 @@ class SaveTests(unittest.TestCase):
             self.assertEqual(self.client.put(url, json={'revision': 2, 'state': {**saved, **patch}}, headers=headers).status_code, 422)
         saved['npcs'][0]['bond'] = 9
         self.assertEqual(self.client.put(url, json={'revision': 2, 'state': saved}, headers=headers).status_code, 422)
+    def test_pack_schema_v2_and_pack_id_rules(self):
+        url = '/api/virtual-life/save'
+        headers = self.headers(1)
+        # v2 saves must declare the site's active pack.
+        good = {**state(), **V2}
+        self.assertEqual(self.client.put(url, json={'revision': 0, 'state': good}, headers=headers).status_code, 200)
+        self.assertEqual(self.client.get(url, headers=headers).json()['state']['packId'], 'wsw-default-life')
+        for bad in ({**state(), 'schemaVersion': 2},  # v2 without packId
+                    {**state(), 'schemaVersion': 2, 'packId': 'other-pack'},
+                    {**state(), 'schemaVersion': 1, 'packId': 'wsw-default-life'},  # legacy cannot declare
+                    {**state(), 'schemaVersion': 3, 'packId': 'wsw-default-life'}):
+            self.assertEqual(self.client.put(url, json={'revision': 1, 'state': bad}, headers=headers).status_code, 422, str(bad.get('packId')))
+        # Whitelists now come from the pack manifest, still enforced.
+        bad_npc = {**state(), **V2}
+        bad_npc['friendIds'] = ['stranger']
+        self.assertEqual(self.client.put(url, json={'revision': 1, 'state': bad_npc}, headers=headers).status_code, 422)
+        bad_action = {**state(), **V2, 'actionLedger': {'9': {'ache': {'fly': True}}}}
+        self.assertEqual(self.client.put(url, json={'revision': 1, 'state': bad_action}, headers=headers).status_code, 422)
 
 
 if __name__ == '__main__':

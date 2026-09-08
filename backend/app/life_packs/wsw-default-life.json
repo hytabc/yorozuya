@@ -1,0 +1,13 @@
+{
+  "id": "wsw-default-life",
+  "version": 1,
+  "npcIds": ["ache", "xiaomi", "maoyou", "yu"],
+  "actionIds": ["headpat", "poke", "kiss"],
+  "roomIds": ["beach-1024", "beach-2086", "cafe-1101", "hall-1001"],
+  "roomWorlds": {
+    "beach-1024": "潮汐之后",
+    "beach-2086": "潮汐之后",
+    "cafe-1101": "小小咖啡馆",
+    "hall-1001": "夜间聚会大厅"
+  }
+}
