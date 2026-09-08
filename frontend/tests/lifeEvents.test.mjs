@@ -169,11 +169,46 @@ test('game wires event guards, completion, snapshots, hydration and next day', (
   assert.equal(game.eventProgress.value.day, game.day.value)
   assert.equal(game.eventProgress.value.done.includes('tea'), true)
   assert.equal(game.roomEvents.value[0].done, true)
-  game.restartJourney()
-  assert.equal(game.day.value, 1)
-  assert.equal(game.eventProgress.value.day, 1)
-  assert.equal(game.eventProgress.value.done.length, 0)
+  game.completed.value = { [firstNpc.id]: true }
+  game.pending.value = { [firstNpc.id]: true }
+  game.dialogueNodes.value = { [firstNpc.id]: 'test-node' }
+  game.actionLedger.value = { test: 1 }
+  const beforeReset = game.snapshot()
+  const changesBeforeReset = changes
+  // 存档未就绪或有冲突时，测试重置也不能修改状态。
+  game.saveReady.value = false
+  game.resetToday()
+  assert.deepEqual(game.snapshot(), beforeReset)
+  game.saveReady.value = true
+  game.saveConflict.value = true
+  game.resetToday()
+  assert.deepEqual(game.snapshot(), beforeReset)
+  assert.equal(changes, changesBeforeReset)
+  game.saveConflict.value = false
+  game.resetToday()
+  assert.equal(game.day.value, 7)
+  // VM 内创建的对象原型不同，转为本侧普通对象后比较完整内容。
+  assert.deepEqual(JSON.parse(JSON.stringify(game.eventProgress.value)), { day: 7, done: [] })
   assert.equal(game.roomEvents.value[0].done, false)
+  for (const field of ['completed', 'pending', 'dialogueNodes', 'actionLedger']) {
+    assert.deepEqual(Object.keys(game[field].value), [])
+  }
+  assert.equal(game.activeEvent.value, null)
+  assert.equal(game.dialogueVisible.value, false)
+  const afterReset = game.snapshot()
+  for (const field of ['stats', 'npcs', 'friendIds', 'interactedNpcIds', 'diary', 'tags', 'unlockedWorlds']) {
+    assert.deepEqual(afterReset[field], beforeReset[field])
+  }
+  const fresh = pack.createInitialState()
+  for (const npc of game.npcs.value) {
+    const greeting = fresh.conversations[npc.id]?.[0]
+    assert.deepEqual(JSON.parse(JSON.stringify(afterReset.conversations[npc.id])), [
+      ...(greeting ? [{ ...greeting, day: 7 }] : []),
+      ...startMessages(scriptForDay(pack.dialogue[npc.id], 7), 7),
+    ])
+  }
+  assert.equal(game.toast.value, '↺ 已重置今天：对话、事件与动作奖励都可重玩')
+  assert.equal(changes, changesBeforeReset + 1)
   game.openEvent('tea')
   assert.notEqual(game.activeEvent.value, null)
   game.hydrate(saved)

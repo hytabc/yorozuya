@@ -10,19 +10,22 @@ import LifeScene from '../life/components/LifeScene.vue'
 import LifeMenuPanel from '../life/components/LifeMenuPanel.vue'
 import LifeHistoryDrawer from '../life/components/LifeHistoryDrawer.vue'
 import LifeFeatureDrawer from '../life/components/LifeFeatureDrawer.vue'
+import LifeEndingModal from '../life/components/LifeEndingModal.vue'
+
+const endingOpen = ref(false)
 
 const tutorial = ref(null)
 const auth = useAuthStore()
 const game = useLifeGame()
 const {
-  day, stats, toast, showHistory, panel,
+  day, stats, npcs, toast, showHistory, panel,
   saveReady, saveBusy, saveDirty, saveError, saveConflict, savedAt,
-  save, nextDay, restartJourney, reloadConfirmed, prepareTutorial, closeTutorial,
+  save, nextDay, resetToday, reloadConfirmed, prepareTutorial, closeTutorial,
 } = game
 
-function restartConfirmed() {
+function resetTodayConfirmed() {
   if (!saveReady.value || saveConflict.value) return
-  if (window.confirm('七天旅程已结束。重新开始第 1 天？属性、好感、好友与手记都会保留。')) restartJourney()
+  if (window.confirm('重置今天？今天的对话完成度、房间事件与动作奖励进度都会清零（属性与好感不回滚）。')) resetToday()
 }
 </script>
 
@@ -45,7 +48,7 @@ function restartConfirmed() {
       </div>
       <div class="header-actions">
         <button v-if="day < 7" :disabled="!saveReady || saveConflict" @click="nextDay">下一天 ▶</button>
-        <button v-else :disabled="!saveReady || saveConflict" @click="restartConfirmed">🔄 重新开始</button>
+        <button v-else :disabled="!saveReady || saveConflict" @click="endingOpen = true">🌅 查看结局</button>
         <button :disabled="!saveReady || saveConflict" @click="tutorial?.start()">新手指引</button>
         <button title="内容管理" @click="$router.push('/life-admin')">内容管理</button>
         <button class="icon-btn" title="设置">⚙</button>
@@ -74,8 +77,9 @@ function restartConfirmed() {
     <!-- 底部操作 -->
     <footer class="life-footer">
       <button @click="save" :disabled="!saveReady || saveConflict || saveBusy">存档</button>
-      <button @click="nextDay" :disabled="!saveReady || saveConflict || day >= 7"
-              :title="day >= 7 ? '七天已结束，请从头栏重新开始' : undefined">下一天</button>
+      <button @click="resetTodayConfirmed" :disabled="!saveReady || saveConflict"
+              title="清空今天的对话、事件与动作进度（测试用）">↺ 重置当天</button>
+      <button @click="day >= 7 ? endingOpen = true : nextDay()" :disabled="!saveReady || saveConflict">下一天</button>
       <small>对话将写入今天的手记</small>
     </footer>
 
@@ -100,6 +104,7 @@ function restartConfirmed() {
     </transition>
 
     <LifeTutorial ref="tutorial" :ready="saveReady && !saveConflict" :user-id="auth.user?.id" @prepare="prepareTutorial" @close="closeTutorial" />
+    <LifeEndingModal v-if="endingOpen" :stats="stats" :npcs="npcs" @close="endingOpen = false" />
     <!-- Toast 提示 -->
     <transition name="fade">
       <div v-if="toast" class="toast">{{ toast }}</div>

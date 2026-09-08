@@ -429,26 +429,26 @@ export function useLifeGame() {
     showToast('新的一天开始了，精力恢复了 10 点')
   }
 
-  function restartJourney() {
+  function resetToday() {
     if (!saveReady.value || saveConflict.value) return
     cancelPresentation()
-    day.value = 1
     completed.value = {}
     pending.value = {}
     dialogueNodes.value = {}
-    eventProgress.value = { day: 1, done: [] }
-    // 二周目只重置旅程进度与每日奖励记录，属性、羁绊、好友、标签和手记继承。
+    eventProgress.value = { day: day.value, done: [] }
+    activeEvent.value = null
+    // 测试用：只清空当天进度，天数、属性、好感、好友与手记不回滚。
     actionLedger.value = {}
     actionFeedback.value = ''
     const fresh = pack.createInitialState()
     conversations.value = Object.fromEntries(npcs.value.map(npc => {
       const greeting = fresh.conversations[npc.id]?.[0]
       return [npc.id, [
-        ...(greeting ? [{ ...greeting, day: 1 }] : []),
-        ...startMessages(scriptForDay(pack.dialogue[npc.id], 1), 1),
+        ...(greeting ? [{ ...greeting, day: day.value }] : []),
+        ...startMessages(scriptForDay(pack.dialogue[npc.id], day.value), day.value),
       ]]
     }))
-    showToast('🔄 新的七天开始了，羁绊与手记都还在')
+    showToast('↺ 已重置今天：对话、事件与动作奖励都可重玩')
     markChanged()
   }
 
@@ -467,7 +467,7 @@ export function useLifeGame() {
     // 动作
     actionState, performAction, switchNpc, chooseOption, openHistory,
     openEvent, closeEvent, finishEvent,
-    addFriend, selectFriend, joinFriend, exploreWorld, enterRoom, nextDay, restartJourney,
+    addFriend, selectFriend, joinFriend, exploreWorld, enterRoom, nextDay, resetToday,
     cancelPresentation, showToast, showBondGain, portraitFor,
     // 引导
     prepareTutorial, closeTutorial,

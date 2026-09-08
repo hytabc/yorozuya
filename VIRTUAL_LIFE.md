@@ -205,12 +205,15 @@ state and mutations stay in `useLifeGame`. Semantics per NPC per game day:
   day's `start` (or the last day script once past the schedule). Choice
   effects apply per choice click — replaying a finished chain next day yields
   its effects again, as before. The journey CLAMPS at day 7: `nextDay` is a
-  no-op on day 7 (there is no day 8); the header shows 🔄 重新开始 instead,
-  which (after confirm) runs `restartJourney()` — day back to 1, daily
-  progress (completed/pending/dialogueNodes/eventProgress/actionLedger) and
-  conversations reset to the day-1 greetings, while stats, bonds, friends,
-  tags and diary carry over into the new cycle. A 下一天 ▶ button sits in the
-  header next to the day pill; the footer one disables on day 7.
+  no-op on day 7 (there is no day 8); the header instead shows 🌅 查看结局,
+  opening the default ending modal (`LifeEndingModal.vue`, hardcoded copy for
+  now — pack-configurable endings are stage 8c): closing text, the four stat
+  values and every NPC's bond meter. A 下一天 ▶ button sits in the header
+  next to the day pill; the footer 下一天 also opens the ending on day 7.
+  For testing, the footer carries ↺ 重置当天 (confirmed): clears the CURRENT
+  day's dialogue completion, node positions, room-event progress and action
+  reward ledger and rebuilds each conversation from that day's greeting —
+  day counter, stats, bonds, friends and diary are NOT rolled back.
 
 ## Room events (stage 8b)
 
