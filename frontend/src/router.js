@@ -21,6 +21,7 @@ const router = createRouter({
     { path: '/staff', component: StaffView },
     { path: '/sugar', component: SugarClub, meta: { auth: true } },
     { path: '/life', component: () => import('./views/LifeSimulator.vue'), meta: { lifeOnly: true } },
+    { path: '/life-admin', component: () => import('./views/LifeAdmin.vue'), meta: { lifeOnly: true } },
     { path: '/admin', component: AdminView, meta: { roleManager: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],

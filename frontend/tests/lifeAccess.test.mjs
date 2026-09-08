@@ -12,6 +12,12 @@ test('life navigation and page guards share existing role-manager permission, re
   assert.match(app, /!auth\.canManageRoles \|\| !lifeDesktop\.value/)
   assert.doesNotMatch(app, /auth\.isAdmin/)
 })
+test('life-admin route shares the lifeOnly guard', () => {
+  const router = source('router.js')
+  assert.match(router, /path: '\/life-admin'.*meta: \{ lifeOnly: true \}/)
+  const adminView = source('views/LifeAdmin.vue')
+  assert.match(adminView, /loadPacks/)
+})
 test('life route refreshes identity and allows staff or superadmin, not other roles or mobile', async () => {
   const route = source('router.js').split('router.beforeEach(async (to) => {')[1].split('\n})')[0]
   for (const role of ['user', 'volunteer', 'staff']) {

@@ -9,12 +9,14 @@ from datetime import datetime, timezone
 import json
 import re
 from pathlib import Path
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Boolean, Integer, String, Text, select
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
+from .config import settings
 from .database import Base, get_db
 from .dependencies import get_role_manager
 from .models import User
@@ -344,3 +346,44 @@ def delete_pack(pack_id: str, user: User = Depends(get_role_manager), db: Sessio
         raise HTTPException(409, '活动中的内容包不能删除，请先激活其他内容包')
     db.delete(pack)
     db.commit()
+
+
+# ==== 素材上传(世界背景图/NPC 立绘,阶段 4d) ====
+# 与主站照片上传同一套约束:魔数嗅探、5 MiB 上限,落在 uploads 挂载目录的
+# life/ 子目录,经 /uploads 静态挂载对外提供。
+MAX_LIFE_IMAGE_BYTES = 5 * 1024 * 1024
+LIFE_IMAGE_SIGNATURES = (
+    (b"\xff\xd8\xff", ".jpg"),
+    (b"\x89PNG\r\n\x1a\n", ".png"),
+    (b"GIF87a", ".gif"),
+    (b"GIF89a", ".gif"),
+)
+
+
+def _life_image_extension(content: bytes):
+    for signature, extension in LIFE_IMAGE_SIGNATURES:
+        if content.startswith(signature):
+            return extension
+    if content.startswith(b"RIFF") and content[8:12] == b"WEBP":
+        return ".webp"
+    return None
+
+
+@router.post('/assets', status_code=201)
+async def upload_life_asset(file: UploadFile = File(...), user: User = Depends(get_role_manager)):
+    content = await file.read(MAX_LIFE_IMAGE_BYTES + 1)
+    if not content:
+        raise HTTPException(422, '上传的图片不能为空')
+    if len(content) > MAX_LIFE_IMAGE_BYTES:
+        raise HTTPException(422, '单张图片不能超过 5 MiB')
+    extension = _life_image_extension(content)
+    if extension is None:
+        raise HTTPException(422, '仅支持 JPEG、PNG、GIF 或 WebP 图片')
+    file_path = f"life/{uuid4().hex}{extension}"
+    destination = settings.sugar_upload_path / file_path
+    try:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(content)
+    except OSError as error:
+        raise HTTPException(500, '图片保存失败，请稍后重试') from error
+    return {'url': f'/uploads/{file_path}'}

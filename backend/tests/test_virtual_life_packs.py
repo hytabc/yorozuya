@@ -157,6 +157,29 @@ class PackTests(unittest.TestCase):
         self.assertEqual(self.client.put('/api/virtual-life/packs/neo-pack', json={'content': content}, headers=h).status_code, 422)
         self.assertEqual(self.client.get('/api/virtual-life/packs/neo-pack', headers=h).json()['version'], 2)
 
+    def test_asset_upload(self):
+        from unittest.mock import patch
+        import app.virtual_life_packs as vlp
+
+        class FakeSettings:
+            sugar_upload_path = Path(self.temp.name) / 'uploads'
+
+        png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+        with patch.object(vlp, 'settings', FakeSettings):
+            ok = self.client.post('/api/virtual-life/assets', files={'file': ('bg.png', png, 'image/png')}, headers=self.headers(1))
+            self.assertEqual(ok.status_code, 201, ok.text)
+            url = ok.json()['url']
+            self.assertTrue(url.startswith('/uploads/life/'), url)
+            stored = Path(self.temp.name) / 'uploads' / url.removeprefix('/uploads/')
+            self.assertTrue(stored.exists())
+            bad = self.client.post('/api/virtual-life/assets', files={'file': ('x.txt', b'not an image', 'text/plain')}, headers=self.headers(1))
+            self.assertEqual(bad.status_code, 422)
+            empty = self.client.post('/api/virtual-life/assets', files={'file': ('x.png', b'', 'image/png')}, headers=self.headers(1))
+            self.assertEqual(empty.status_code, 422)
+        # Permission gates mirror the pack API.
+        self.assertEqual(self.client.post('/api/virtual-life/assets', files={'file': ('bg.png', png, 'image/png')}).status_code, 401)
+        self.assertEqual(self.client.post('/api/virtual-life/assets', files={'file': ('bg.png', png, 'image/png')}, headers=self.headers(3)).status_code, 403)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -49,6 +49,27 @@ reply, next}]}}}`) and initialState. Exactly one pack is active site-wide
   revalidates), POST `/packs/{id}/duplicate`. Content updates bump `version`.
   The active pack cannot be deleted. Save validation follows the active pack
   immediately after activation.
+- POST `/api/virtual-life/assets` (stage 4d): single image upload for world
+  backgrounds and NPC portraits — magic-byte sniffing (JPEG/PNG/GIF/WebP),
+  5 MiB cap, stored under the uploads mount as `life/<uuid>.<ext>` and served
+  at `/uploads/...`.
+
+## Admin UI (/life-admin, stage 4d)
+
+`frontend/src/views/LifeAdmin.vue` plus `frontend/src/life/admin/` (data layer
+`useLifeAdmin.js` singleton, sections `AdminNpcs` / `AdminWorlds` /
+`AdminActions` / `AdminDialogue` / `AdminInitial`, shared `AdminImageField`).
+The route uses the same `lifeOnly` guard as the game (role manager + desktop);
+the game header links to it via 内容管理. The admin edits one pack at a time in
+structured forms: NPC profiles/portraits/presence, worlds (incl. background
+upload) and rooms, actions, the per-NPC dialogue node graph (nodes, choices,
+effects, jump targets, start node) and the initial player state. Saving PUTs
+the whole content; server-side validation errors are surfaced verbatim, and
+content edits bump the pack version. Pack list operations: select, duplicate,
+activate (exactly one active, player side and save validation follow
+immediately), delete (inactive only). NPC/world/room removal cascades
+references (presence, dialogue, initial conversations); node removal rewrites
+jump targets to day-end.
 
 ## Frontend
 
