@@ -248,7 +248,7 @@ export function addDialogueNode(script) {
   if (!script) return ''
   let i = Object.keys(script.nodes).length + 1
   while (script.nodes[`n${i}`]) i += 1
-  script.nodes[`n${i}`] = { line: '……', choices: [{ label: '继续', effects: { stats: {} }, reply: '……', next: null }] }
+  script.nodes[`n${i}`] = { lines: ['……'], image: null, choices: [{ label: '继续', effects: { stats: {} }, replies: ['……'], replyImage: null, next: null }] }
   return `n${i}`
 }
 

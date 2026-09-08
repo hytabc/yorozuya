@@ -4,6 +4,7 @@
 // 点击节点卡片,下方编辑面板只显示该节点的台词与选项。
 import { computed, ref, watch } from 'vue'
 import { adminState, npcById, addDialogueNode, removeDialogueNode, LIFE_DIALOGUE_DAYS } from './useLifeAdmin'
+import AdminImageField from './AdminImageField.vue'
 
 const content = computed(() => adminState.content)
 const activeNpc = ref('')
@@ -107,8 +108,10 @@ const mindmap = computed(() => {
 })
 
 function previewOf(nid) {
-  const line = script.value?.nodes[nid]?.line || ''
-  return line.length > 30 ? line.slice(0, 30) + '…' : line
+  const lines = script.value?.nodes[nid]?.lines || []
+  const first = lines[0] || ''
+  const text = lines.length > 1 ? `${first}（共 ${lines.length} 句）` : first
+  return text.length > 30 ? text.slice(0, 30) + '…' : text
 }
 function edgePath(e) {
   const bend = Math.max(36, (e.x2 - e.x1) / 2)
@@ -116,7 +119,7 @@ function edgePath(e) {
 }
 
 function addChoice(target) {
-  target.choices.push({ label: '……', effects: { stats: {} }, reply: '……', next: null })
+  target.choices.push({ label: '……', effects: { stats: {} }, replies: ['……'], replyImage: null, next: null })
 }
 function removeChoice(target, index) {
   if (target.choices.length <= 1) return
@@ -200,25 +203,44 @@ function submitRemoveNode(nodeId) {
         <button class="la-mini" style="margin-left:auto" @click="addNodeAndSelect">+ 新增节点</button>
         <button class="la-mini la-danger" :disabled="nodeIds.length <= 1" @click="submitRemoveNode(selectedNode)">删除节点</button>
       </div>
-      <textarea v-model="node.line" placeholder="NPC 台词"></textarea>
+      <div class="la-node-lines">
+        <div v-for="(l, i) in node.lines" :key="i" class="la-line-row">
+          <textarea v-model="node.lines[i]" placeholder="NPC 台词（每行一句，连播）"></textarea>
+          <button type="button" class="la-mini la-danger" :disabled="node.lines.length <= 1" @click="node.lines.splice(i, 1)">删</button>
+        </div>
+        <button type="button" class="la-mini" @click="node.lines.push('')">+ 加一句</button>
+      </div>
+      <AdminImageField :model-value="node.image || ''" placeholder="节点图片（可选，/uploads/ 路径）"
+                       @update:model-value="node.image = $event || null" />
 
       <div class="la-choice la-choice-head">
-        <span>选项文案</span><span>NPC 回复</span><span>好感</span><span>心情</span><span>精力</span><span>社交</span><span>探索</span><span>跳转</span><span></span>
+        <span>选项文案</span><span>好感</span><span>心情</span><span>精力</span><span>社交</span><span>探索</span><span>跳转</span><span></span>
       </div>
-      <div v-for="(choice, ci) in node.choices" :key="ci" class="la-choice">
-        <input v-model="choice.label" type="text" placeholder="玩家选项" />
-        <input v-model="choice.reply" type="text" placeholder="NPC 回复" />
-        <input v-model.number="choice.effects.bond" type="number" min="0" max="100" placeholder="0" />
-        <input v-model.number="choice.effects.stats.mood" type="number" min="-100" max="100" placeholder="0" />
-        <input v-model.number="choice.effects.stats.energy" type="number" min="-100" max="100" placeholder="0" />
-        <input v-model.number="choice.effects.stats.social" type="number" min="-100" max="100" placeholder="0" />
-        <input v-model.number="choice.effects.stats.explore" type="number" min="-100" max="100" placeholder="0" />
-        <select :value="choice.next" @change="onNextChange(choice, $event)">
-          <option :value="null">当天结束</option>
-          <option v-for="target in nodeIds" :key="target" :value="target">→ {{ target }}</option>
-          <option value="__new__">＋ 新建节点…</option>
-        </select>
-        <button class="la-mini la-danger" :disabled="node.choices.length <= 1" @click="removeChoice(node, ci)">删</button>
+      <div v-for="(choice, ci) in node.choices" :key="ci" class="la-choice-block">
+        <div class="la-choice">
+          <input v-model="choice.label" type="text" placeholder="玩家选项" />
+          <input v-model.number="choice.effects.bond" type="number" min="0" max="100" placeholder="0" />
+          <input v-model.number="choice.effects.stats.mood" type="number" min="-100" max="100" placeholder="0" />
+          <input v-model.number="choice.effects.stats.energy" type="number" min="-100" max="100" placeholder="0" />
+          <input v-model.number="choice.effects.stats.social" type="number" min="-100" max="100" placeholder="0" />
+          <input v-model.number="choice.effects.stats.explore" type="number" min="-100" max="100" placeholder="0" />
+          <select :value="choice.next" @change="onNextChange(choice, $event)">
+            <option :value="null">当天结束</option>
+            <option v-for="target in nodeIds" :key="target" :value="target">→ {{ target }}</option>
+            <option value="__new__">＋ 新建节点…</option>
+          </select>
+          <button class="la-mini la-danger" :disabled="node.choices.length <= 1" @click="removeChoice(node, ci)">删</button>
+        </div>
+        <div class="la-replies">
+          <span class="la-replies-label">回复</span>
+          <div v-for="(r, ri) in choice.replies" :key="ri" class="la-reply-row">
+            <input v-model="choice.replies[ri]" type="text" placeholder="NPC 回复（可多句，连播）" />
+            <button type="button" class="la-mini la-danger" :disabled="choice.replies.length <= 1" @click="choice.replies.splice(ri, 1)">删</button>
+          </div>
+          <button type="button" class="la-mini" @click="choice.replies.push('')">+ 加一句</button>
+          <AdminImageField :model-value="choice.replyImage || ''" placeholder="回复图片（可选）"
+                           @update:model-value="choice.replyImage = $event || null" />
+        </div>
       </div>
       <button class="la-mini" @click="addChoice(node)">+ 新增选项</button>
     </div>

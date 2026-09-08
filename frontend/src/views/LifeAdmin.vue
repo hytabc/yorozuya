@@ -146,8 +146,15 @@ onMounted(() => loadPacks())
 .la-node-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .la-node-head code { background: #edf3ee; padding: 2px 8px; border-radius: 6px; font-size: 11px; }
 .la-node textarea { width: 100%; min-height: 44px; margin-bottom: 8px; }
-.la-choice { display: grid; grid-template-columns: 1.2fr 1.4fr 64px repeat(4, 56px) 110px 32px; gap: 6px; align-items: center; margin-bottom: 6px; }
+.la-line-row { display: flex; gap: 6px; align-items: flex-start; margin-bottom: 6px; }
+.la-line-row textarea { flex: 1; margin-bottom: 0; }
+.la-choice-block { border: 1px dashed #e0e6de; border-radius: 8px; padding: 8px; margin-bottom: 8px; }
+.la-choice { display: grid; grid-template-columns: 1.2fr 64px repeat(4, 56px) 110px 32px; gap: 6px; align-items: center; margin-bottom: 6px; }
 .la-choice-head { font-size: 10px; color: #69736e; }
+.la-replies { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.la-replies-label { font-size: 10px; color: #69736e; }
+.la-reply-row { display: flex; gap: 4px; flex: 1 1 240px; }
+.la-reply-row input { flex: 1; }
 .la-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 20px; }
 .la-form label { display: grid; gap: 4px; font-size: 11px; color: #69736e; }
 .la-diary-row { display: grid; grid-template-columns: 72px 1fr 100px 32px; gap: 8px; margin-bottom: 8px; align-items: center; }
