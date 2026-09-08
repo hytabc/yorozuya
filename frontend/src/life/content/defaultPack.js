@@ -17,8 +17,8 @@ const dialogue = {
         C('我来帮你拍一张', { bond: 3, stats: { social: 3, energy: -2 } }, '欸？可以吗？那就麻烦你了……先别动，这个光线正好。', 'n3'),
         C('想先安静看一会儿海', { stats: { mood: 4, explore: 1 } }, '嗯，海边确实很适合发呆。那我就先去拍别处了，回头见！'),
       ] },
-      n2: { line: '拍好了！你看，浪刚好在你身后碎成一圈金边。这张洗出来送你一份？', choices: [
-        C('好啊，谢谢！', { bond: 2, stats: { mood: 2 } }, '那就说定了。今天谢谢你陪我等到这么好的光。'),
+      n2: { lines: ['拍好了！你看，浪刚好在你身后碎成一圈金边。', '这张洗出来送你一份？'], choices: [
+        C('好啊，谢谢！', { bond: 2, stats: { mood: 2 } }, ['那就说定了。', '今天谢谢你陪我等到这么好的光。']),
         C('能再拍一张背影吗', { bond: 1, stats: { mood: 3, energy: -2 } }, '当然可以。背对海站好……三、二、一！'),
       ] },
       n3: { line: '这张把我拍得很好诶，快门时机刚刚好。你以前玩过相机吗？', choices: [
@@ -337,6 +337,24 @@ const dialogue = {
   ],
 }
 
+// 节点/选项归一化(阶段 8a):字面量里的单句 line/reply 升级为 lines/replies 数组,
+// 补齐 image/replyImage 默认值;多句节点直接写字面量 lines: [...] 即可。
+function normalizeDialogue(dialogue) {
+  for (const days of Object.values(dialogue)) {
+    for (const script of days) {
+      for (const node of Object.values(script.nodes)) {
+        if (node.line != null) { node.lines = Array.isArray(node.line) ? node.line : [node.line]; delete node.line }
+        node.image = node.image ?? null
+        for (const choice of node.choices) {
+          if (choice.reply != null) { choice.replies = Array.isArray(choice.reply) ? choice.reply : [choice.reply]; delete choice.reply }
+          choice.replyImage = choice.replyImage ?? null
+        }
+      }
+    }
+  }
+  return dialogue
+}
+
 export const defaultLifePackContent = {
   npcIds: ['ache', 'xiaomi', 'maoyou', 'yu'],
   npcs: [
@@ -376,7 +394,7 @@ export const defaultLifePackContent = {
     { id: 'poke', label: '戳戳脸', reward: 1, threshold: 0, reply: '侧过脸笑着说：“被你发现我在发呆啦。”' },
     { id: 'kiss', label: '亲亲', reward: 3, threshold: 30, reply: '有些害羞地笑了：“这个小小的心意，我收到了。”' },
   ],
-  dialogue,
+  dialogue: normalizeDialogue(dialogue),
   initialState: {
     day: 7,
     stats: { mood: 72, energy: 66, social: 34, explore: 28 },

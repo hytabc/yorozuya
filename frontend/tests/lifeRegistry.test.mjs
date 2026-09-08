@@ -34,12 +34,12 @@ test('default pack content is complete for every declared npc', () => {
     assert.ok(Array.isArray(days) && days.length === 7, 'daily scripts: ' + id)
     const start = days[0].nodes[days[0].start]
     assert.ok(start, 'dialogue start: ' + id)
-    assert.equal(typeof start.line, 'string')
+    assert.ok(Array.isArray(start.lines) && start.lines.length >= 1, 'lines: ' + id)
     assert.ok(start.choices.length >= 2, 'choices: ' + id)
-    assert.notEqual(days[0].nodes.n1.line, days[1].nodes.n1.line, '每天开场应不同: ' + id)
+    assert.notEqual(days[0].nodes.n1.lines[0], days[1].nodes.n1.lines[0], '每天开场应不同: ' + id)
     for (const choice of start.choices) {
       assert.equal(typeof choice.label, 'string')
-      assert.equal(typeof choice.reply, 'string')
+      assert.ok(Array.isArray(choice.replies) && choice.replies.length >= 1, 'replies: ' + id)
     }
   }
   assert.ok(defaultLifePack.worlds.length >= 1)

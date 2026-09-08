@@ -12,7 +12,7 @@
 //     presence: {npcId: {status,roomId,intro}},
 //     actions: [{id,label,reward,threshold,reply}],
 //     dialogue: {npcId: [dayScript, ...]},  // 1-7 天,超出天数沿用最后一天(不循环)
-//       dayScript = {start, nodes:{nodeId:{line, choices:[{label,effects,reply,next}]}}}
+//       dayScript = {start, nodes:{nodeId:{lines:[...], image, choices:[{label,effects,replies:[...],replyImage,next}]}}}
 //     initialState: object,      // 全新人生的初始数据(纯 JSON)
 //     createInitialState(): object,  // 返回 initialState 的全新深拷贝
 //   }
@@ -84,11 +84,13 @@ export function validateLifePack(pack) {
       if (!script || !script.nodes || typeof script.nodes !== 'object' || !Object.keys(script.nodes).length) fail('剧本没有节点: ' + where)
       if (!script.nodes[script.start]) fail('剧本起点无效: ' + where)
       for (const [nodeId, node] of Object.entries(script.nodes)) {
-        if (typeof node.line !== 'string' || !node.line) fail(`节点缺少台词: ${where}/${nodeId}`)
+        if (!Array.isArray(node.lines) || !node.lines.length || node.lines.some(l => typeof l !== 'string' || !l)) fail(`节点台词必须是句子数组: ${where}/${nodeId}`)
+        if (node.image != null && (typeof node.image !== 'string' || !node.image.startsWith('/uploads/'))) fail(`节点图片必须是站内路径: ${where}/${nodeId}`)
         if (!Array.isArray(node.choices) || !node.choices.length) fail(`节点缺少选项: ${where}/${nodeId}`)
         for (const choice of node.choices) {
           if (typeof choice.label !== 'string' || !choice.label) fail(`节点存在无文案选项: ${where}/${nodeId}`)
-          if (typeof choice.reply !== 'string' || !choice.reply) fail(`节点存在无回复选项: ${where}/${nodeId}`)
+          if (!Array.isArray(choice.replies) || !choice.replies.length || choice.replies.some(r => typeof r !== 'string' || !r)) fail(`节点存在无回复选项: ${where}/${nodeId}`)
+          if (choice.replyImage != null && (typeof choice.replyImage !== 'string' || !choice.replyImage.startsWith('/uploads/'))) fail(`回复图片必须是站内路径: ${where}/${nodeId}`)
           if (choice.next != null && !script.nodes[choice.next]) fail(`选项跳转到未知节点: ${where}/${nodeId}`)
         }
       }
