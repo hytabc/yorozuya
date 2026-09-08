@@ -9,6 +9,7 @@
 //     portraits: {npcId: 图片路径},
 //     worlds: [{id,name,vibe,color,bg}],   // bg 为空字符串表示无背景图
 //     rooms: [{id,worldId,label,private,capacity,occupants}],
+//     events: [{id,roomId,title,icon,scripts}], // 每个事件恰好 7 天,含消息组与选项点
 //     presence: {npcId: {status,roomId,intro}},
 //     actions: [{id,label,reward,threshold,reply}],
 //     dialogue: {npcId: [dayScript, ...]},  // 1-7 天,超出天数沿用最后一天(不循环)
@@ -31,6 +32,65 @@ export class LifePackError extends Error {
 
 function fail(message) {
   throw new LifePackError('虚拟人生内容包无效: ' + message)
+}
+
+// 事件与后端校验保持一致:消息组和选项点互斥,回复禁止嵌套选项点。
+function isEventObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function validateEventMessage(message, npcIds, where) {
+  if (!isEventObject(message)) fail(`${where} 消息组必须是对象`)
+  if (Object.hasOwn(message, 'choice')) fail(`${where} 消息组禁止嵌套选项点 choice`)
+  const speaker = message.speaker
+  if (!isEventObject(speaker) || Object.hasOwn(speaker, 'npcId') === Object.hasOwn(speaker, 'name')) fail(`${where} speaker 必须恰好指定 npcId 或 name`)
+  if (Object.keys(speaker).some(key => !['npcId', 'name', 'avatar'].includes(key))) fail(`${where} speaker 包含未知字段`)
+  if (Object.hasOwn(speaker, 'npcId') && (typeof speaker.npcId !== 'string' || !npcIds.has(speaker.npcId))) fail(`${where} speaker 指向未知 NPC`)
+  if (Object.hasOwn(speaker, 'name') && (typeof speaker.name !== 'string' || !speaker.name)) fail(`${where} speaker 缺少名字`)
+  // 后端 avatar 仅限制类型,不限制路径或要求非空。
+  if (Object.hasOwn(speaker, 'avatar') && typeof speaker.avatar !== 'string') fail(`${where} speaker avatar 必须是字符串`)
+  if (!Array.isArray(message.lines) || !message.lines.length || message.lines.some(line => typeof line !== 'string' || !line)) fail(`${where} 台词必须是非空句子数组`)
+  if (message.image != null && (typeof message.image !== 'string' || !message.image.startsWith('/uploads/'))) fail(`${where} 图片必须是 /uploads/ 站内路径`)
+}
+
+function validateEvents(events, roomIds, npcIds) {
+  if (!Array.isArray(events)) fail('events 必须是数组')
+  const eventIds = new Set()
+  for (const event of events) {
+    if (!isEventObject(event)) fail('event 必须是对象')
+    if (typeof event.id !== 'string' || !event.id || eventIds.has(event.id)) fail('event id 缺失或重复')
+    eventIds.add(event.id)
+    if (typeof event.roomId !== 'string' || !roomIds.has(event.roomId)) fail(`事件 ${event.id} 指向未知房间`)
+    for (const key of ['title', 'icon']) {
+      if (typeof event[key] !== 'string' || !event[key]) fail(`事件 ${event.id} 的 ${key} 必须是非空字符串`)
+    }
+    if (!Array.isArray(event.scripts) || event.scripts.length !== 7) fail(`事件 ${event.id} 的 scripts 必须恰好 7 份`)
+    for (let d = 0; d < event.scripts.length; d++) {
+      const script = event.scripts[d]
+      const where = `事件 ${event.id}/第${d + 1}天`
+      if (!isEventObject(script) || !Array.isArray(script.messages) || !script.messages.length) fail(`${where} messages 必须是非空数组`)
+      for (const message of script.messages) {
+        if (!isEventObject(message) || !Object.hasOwn(message, 'choice')) {
+          validateEventMessage(message, npcIds, where)
+          continue
+        }
+        if (Object.keys(message).length !== 1) fail(`${where} 选项点与消息组必须二选一`)
+        const choice = message.choice
+        if (!isEventObject(choice) || !Array.isArray(choice.options) || !choice.options.length) fail(`${where} options 必须是非空数组`)
+        for (const option of choice.options) {
+          if (!isEventObject(option) || typeof option.label !== 'string' || !option.label) fail(`${where} 存在无文案选项`)
+          const effects = Object.hasOwn(option, 'effects') ? option.effects : {}
+          if (!isEventObject(effects)) fail(`${where} 选项 effects 必须是对象`)
+          if (Object.keys(effects).some(key => key !== 'stats')) fail(`${where} 选项 effects 只允许 stats,禁止 bond 或其他键`)
+          const stats = Object.hasOwn(effects, 'stats') ? effects.stats : {}
+          if (!isEventObject(stats) || Object.keys(stats).some(key => !Object.hasOwn(LIFE_STAT_LABELS, key))) fail(`${where} 选项包含未知属性`)
+          if (Object.values(stats).some(value => !Number.isInteger(value) || value < -100 || value > 100)) fail(`${where} 选项属性变化无效`)
+          if (!Array.isArray(option.reply) || !option.reply.length) fail(`${where} reply 必须是非空消息组数组`)
+          for (const replyMessage of option.reply) validateEventMessage(replyMessage, npcIds, `${where}/回复`)
+        }
+      }
+    }
+  }
 }
 
 export function validateLifePack(pack) {
@@ -61,6 +121,8 @@ export function validateLifePack(pack) {
     roomIds.add(room.id)
     if (!worldIds.has(room.worldId)) fail('房间指向未知世界: ' + room.id)
   }
+  // 旧内容包缺省事件视为空数组,显式 null 仍是非法结构。
+  validateEvents(pack.events === undefined ? [] : pack.events, roomIds, ids)
   if (!pack.presence || typeof pack.presence !== 'object') fail('缺少 presence')
   for (const id of pack.npcIds) {
     const p = pack.presence[id]
@@ -155,6 +217,7 @@ export function createLifePackFromContent({ id, version, content }) {
     portraits: content.portraits,
     worlds: content.worlds,
     rooms: content.rooms,
+    events: content.events || [],
     presence: content.presence,
     actions: content.actions,
     dialogue: content.dialogue,

@@ -11,6 +11,7 @@ import { createLifePlayback } from '../composables/lifePlayback'
 import { resolveLifeAction, setLifeActions, currentLifeActions } from '../composables/lifeActions'
 import { presenceFor, sceneRoster, canInteract, planJoin, roomFor, worldFor, roomDecision, migrateSocialState, friendshipDecision, setLifePresenceData, currentRooms } from '../composables/lifePresence'
 import { scriptForDay, nodeFor, startMessages, resolveDialogueChoice, sanitizeDialogueNodes, groupMessages } from '../composables/lifeDialogue'
+import { eventScriptForDay, eventsForRoom, isEventDone, applyEventChoice, normalizeEventProgress } from '../composables/lifeEvents'
 import './builtin'
 import { getActiveLifePack, portraitFor, effectText } from './registry'
 import { loadActiveLifePack } from './packLoader'
@@ -58,6 +59,39 @@ export function useLifeGame() {
   const conversations = ref(initial.conversations)
 
   // ==== 当前对话节点(阶段 4c 节点图引擎) ====
+  // 房间事件只记录当日完成项；播放中的事件属于展示态，不写入存档。
+  const eventProgress = ref(normalizeEventProgress(undefined, day.value))
+  const activeEvent = ref(null)
+  const roomEvents = computed(() => {
+    packRev.value // 换包后重算
+    return eventsForRoom(pack.events, currentRoomId.value).map(event => ({
+      ...event, done: isEventDone(eventProgress.value, day.value, event.id),
+    }))
+  })
+  function openEvent(eventId) {
+    if (!saveReady.value || saveConflict.value || activeEvent.value) return
+    const event = eventsForRoom(pack.events, currentRoomId.value).find(item => item.id === eventId)
+    if (!event || isEventDone(eventProgress.value, day.value, eventId)) return
+    const script = eventScriptForDay(event, day.value)
+    if (!script) return
+    cancelPresentation()
+    activeEvent.value = { event, script }
+  }
+  function closeEvent() {
+    activeEvent.value = null
+  }
+  function finishEvent(effects = {}) {
+    if (!saveReady.value || saveConflict.value || !activeEvent.value) return
+    const eventId = activeEvent.value.event.id
+    if (isEventDone(eventProgress.value, day.value, eventId)) { closeEvent(); return }
+    stats.value = applyEventChoice(stats.value, effects)
+    eventProgress.value = normalizeEventProgress(eventProgress.value, day.value)
+    eventProgress.value.done.push(eventId)
+    closeEvent()
+    showToast('✦ ' + (effectText({ stats: effects }) || '已记录'))
+    markChanged()
+  }
+
   const dialogueNodes = ref({})
   const currentDialogue = computed(() => {
     packRev.value // 换包后重算
@@ -113,6 +147,7 @@ export function useLifeGame() {
   })
   const showChoices = computed(() => dialogueVisible.value && !speech.value.playing && !completed.value[currentNpcId.value] && !pending.value[currentNpcId.value])
   function cancelPresentation() {
+    closeEvent()
     playback.stop()
     showBondGain(0)
     dialogueVisible.value = false
@@ -275,6 +310,8 @@ export function useLifeGame() {
     setLifeActions(pack.actions)
     const fresh = pack.createInitialState()
     day.value = fresh.day
+    eventProgress.value = normalizeEventProgress(undefined, day.value)
+    closeEvent()
     stats.value = fresh.stats
     tags.value = fresh.tags
     currentWorld.value = fresh.currentWorld
@@ -302,6 +339,7 @@ export function useLifeGame() {
       currentNpcId: currentNpcId.value, npcs: npcs.value,
       conversations: conversations.value, diary: diaryHistory.value, completed: completed.value,
       actionLedger: actionLedger.value, dialogueNodes: dialogueNodes.value,
+      eventProgress: eventProgress.value,
       currentRoomId: currentRoomId.value, friendIds: friendIds.value, interactedNpcIds: interactedNpcIds.value,
     }))
   }
@@ -328,6 +366,7 @@ export function useLifeGame() {
     completed.value = state.completed
     actionLedger.value = state.actionLedger || {}
     dialogueNodes.value = sanitizeDialogueNodes(pack.dialogue, state.dialogueNodes)
+    eventProgress.value = normalizeEventProgress(state.eventProgress, day.value)
     actionFeedback.value = ''
     pending.value = {}
   }
@@ -353,13 +392,14 @@ export function useLifeGame() {
   function nextDay() {
     if (!saveReady.value || saveConflict.value) return
     day.value += 1
+    eventProgress.value = normalizeEventProgress(eventProgress.value, day.value)
     stats.value.energy = Math.min(100, stats.value.energy + 10)
     cancelPresentation()
     pending.value = {}
     completed.value = {}
     dialogueNodes.value = {}
     for (const npcId in conversations.value) {
-      conversations.value[npcId].push({ ...startLine(scriptForDay(pack.dialogue[npcId], day.value), day.value) })
+      conversations.value[npcId].push(...startMessages(scriptForDay(pack.dialogue[npcId], day.value), day.value))
     }
     markChanged()
     showToast('新的一天开始了，精力恢复了 10 点')
@@ -369,7 +409,7 @@ export function useLifeGame() {
     // 状态
     day, stats, tags, currentWorld, unlockedWorlds, npcs, currentNpcId,
     conversations, completed, actionLedger, pending, diaryHistory, dialogueNodes,
-    currentRoomId, friendIds, interactedNpcIds,
+    currentRoomId, friendIds, interactedNpcIds, eventProgress, activeEvent, roomEvents,
     // 计算
     friends, sceneNpcs, worldPopulation, currentRoom, currentWorldDef, currentNpc, currentDialogue,
     historyConversation, profileNpc, profilePresence, profileJoin, profileRoom,
@@ -379,6 +419,7 @@ export function useLifeGame() {
     speech, playback, showHistory, historyNpcId, panel, profileId, selectedWorldId, toast,
     // 动作
     actionState, performAction, switchNpc, chooseOption, openHistory,
+    openEvent, closeEvent, finishEvent,
     addFriend, selectFriend, joinFriend, exploreWorld, enterRoom, nextDay,
     cancelPresentation, showToast, showBondGain, portraitFor,
     // 引导
