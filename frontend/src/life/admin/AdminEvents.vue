@@ -98,8 +98,25 @@ function setStat(option, key, event) {
   const next = { ...option.effects?.stats }
   if (raw === '' || !Number.isFinite(Number(raw))) delete next[key]
   else next[key] = Math.max(-100, Math.min(100, Math.trunc(Number(raw))))
-  option.effects = { stats: Object.fromEntries(stats.filter(s => Number.isInteger(next[s.key])).map(s => [s.key, Math.max(-100, Math.min(100, next[s.key]))])) }
+  option.effects = { ...option.effects, stats: Object.fromEntries(stats.filter(s => Number.isInteger(next[s.key])).map(s => [s.key, Math.max(-100, Math.min(100, next[s.key]))])) }
   event.target.value = option.effects.stats[key] ?? ''
+}
+function setBondNpc(option, event) {
+  const npcId = event.target.value
+  option.effects ||= {}
+  if (!content.value.npcIds.includes(npcId)) delete option.effects.bond
+  else option.effects.bond = { npcId, value: option.effects.bond?.value ?? 0 }
+}
+function setBondValue(option, event) {
+  // 与属性输入一致：清空删除，整数硬钳制，不留下不完整的 bond。
+  const raw = event.target.value
+  const npcId = option.effects?.bond?.npcId
+  if (raw === '' || !Number.isFinite(Number(raw)) || !content.value.npcIds.includes(npcId)) {
+    if (option.effects) delete option.effects.bond
+  } else {
+    option.effects.bond = { npcId, value: Math.max(-100, Math.min(100, Math.trunc(Number(raw)))) }
+  }
+  event.target.value = option.effects?.bond?.value ?? ''
 }
 </script>
 
@@ -149,6 +166,17 @@ function setStat(option, key, event) {
                        :value="entry.option.effects?.stats?.[stat.key] ?? ''"
                        @input="setStat(entry.option, stat.key, $event)" />
               </label>
+              <div class="la-event-bond">
+                <label>好感<select :value="entry.option.effects?.bond?.npcId ?? ''" @change="setBondNpc(entry.option, $event)">
+                  <option value="">无</option>
+                  <option v-for="id in content.npcIds" :key="id" :value="id">{{ npcById(id)?.name || id }}</option>
+                </select></label>
+                <label>好感变化<input type="number" min="-100" max="100" step="1" placeholder="0"
+                       :disabled="!entry.option.effects?.bond"
+                       :value="entry.option.effects?.bond?.value ?? ''"
+                       @input="setBondValue(entry.option, $event)" /></label>
+                <small>好感 -100~100 · 属性 -100~100</small>
+              </div>
               <button class="la-mini la-danger" :disabled="item.choice.options.length <= 1"
                       @click="item.choice.options.splice(optionIndex, 1)">删选项</button>
             </div>
@@ -205,6 +233,7 @@ function setStat(option, key, event) {
 .la-event-editor { margin-top: 20px; padding-top: 8px; border-top: 1px solid #d9dedb; }
 .la-event-option { margin-bottom: 10px; align-items: end; }
 .la-event-option input[type=number] { width: 64px; }
+.la-event-bond { display: flex; align-items: end; gap: 10px; flex-wrap: wrap; flex-basis: 100%; }
 .la-event-message { padding: 10px 0; }
 .la-event-speaker { margin-bottom: 10px; }
 .la-node-head { flex-wrap: wrap; }

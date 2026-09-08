@@ -84,11 +84,18 @@ export function useLifeGame() {
     if (!saveReady.value || saveConflict.value || !activeEvent.value) return
     const eventId = activeEvent.value.event.id
     if (isEventDone(eventProgress.value, day.value, eventId)) { closeEvent(); return }
-    stats.value = applyEventChoice(stats.value, effects)
+    stats.value = applyEventChoice(stats.value, effects.stats)
+    const parts = [effectText({ stats: effects.stats })].filter(Boolean)
+    for (const [npcId, value] of Object.entries(effects.bonds || {})) {
+      const npc = npcs.value.find(n => n.id === npcId)
+      if (!npc || !value) continue
+      npc.bond = Math.max(0, Math.min(100, npc.bond + value))
+      parts.push(`${npc.name} 好感 ${value > 0 ? '+' : ''}${value}`)
+    }
     eventProgress.value = normalizeEventProgress(eventProgress.value, day.value)
     eventProgress.value.done.push(eventId)
     closeEvent()
-    showToast('✦ ' + (effectText({ stats: effects }) || '已记录'))
+    showToast('✦ ' + (parts.join(' · ') || '已记录'))
     markChanged()
   }
 

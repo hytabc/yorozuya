@@ -259,11 +259,54 @@ class PackTests(unittest.TestCase):
         with self.assertRaisesRegex(PackContentError, '嵌套'):
             validate_pack_content(content)
 
-    def test_events_reject_bond(self):
+    def test_events_reject_scalar_bond(self):
         content = event_pack(['ache'])
         content['events'][0]['scripts'][0]['messages'][1]['choice']['options'][0]['effects']['bond'] = 0
-        with self.assertRaisesRegex(PackContentError, 'bond'):
+        with self.assertRaisesRegex(PackContentError, 'bond 必须是恰好包含 npcId,value 的对象'):
             validate_pack_content(content)
+
+    def test_events_accept_bond_boundaries(self):
+        for npc_id in ('ache', 'neo'):
+            for value in (-100, -1, 0, 1, 100):
+                for with_stats in (False, True):
+                    with self.subTest(npc_id=npc_id, value=value, with_stats=with_stats):
+                        content = event_pack(['ache', 'neo'])
+                        option = content['events'][0]['scripts'][0]['messages'][1]['choice']['options'][0]
+                        if not with_stats:
+                            option['effects'] = {}
+                        option['effects']['bond'] = {'npcId': npc_id, 'value': value}
+                        self.assertIs(validate_pack_content(content), content)
+
+    def test_events_reject_bond_unknown_npc(self):
+        for npc_id in ('unknown', '', None, True, 1, [], {}):
+            with self.subTest(npc_id=npc_id):
+                content = event_pack(['ache'])
+                content['events'][0]['scripts'][0]['messages'][1]['choice']['options'][0]['effects']['bond'] = {
+                    'npcId': npc_id, 'value': 1,
+                }
+                with self.assertRaisesRegex(PackContentError, '^事件 greeting/第1天 选项 bond 指向未知 NPC$'):
+                    validate_pack_content(content)
+
+    def test_events_reject_invalid_bond_value(self):
+        for value in (-101, 101, True, False, 0.5, -1.5, '1', None, [], {}):
+            with self.subTest(value=value):
+                content = event_pack(['ache'])
+                content['events'][0]['scripts'][0]['messages'][1]['choice']['options'][0]['effects']['bond'] = {
+                    'npcId': 'ache', 'value': value,
+                }
+                with self.assertRaisesRegex(PackContentError, r'^事件 greeting/第1天 选项 bond value 必须是 -100\.\.100 的整数$'):
+                    validate_pack_content(content)
+
+    def test_events_reject_invalid_bond_shape(self):
+        for bond in ({}, {'npcId': 'ache'}, {'value': 1},
+                     {'npcId': 'ache', 'value': 1, 'extra': 0},
+                     {'npcId': 'ache', 'other': 1}, None, [],
+                     [{'npcId': 'ache', 'value': 1}], 0, 'bond', True):
+            with self.subTest(bond=bond):
+                content = event_pack(['ache'])
+                content['events'][0]['scripts'][0]['messages'][1]['choice']['options'][0]['effects']['bond'] = bond
+                with self.assertRaisesRegex(PackContentError, '^事件 greeting/第1天 选项 bond 必须是恰好包含 npcId,value 的对象$'):
+                    validate_pack_content(content)
 
     def test_events_reject_unknown_room(self):
         content = event_pack(['ache'])

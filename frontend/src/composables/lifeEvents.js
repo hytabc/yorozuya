@@ -23,9 +23,25 @@ export function applyEventChoice(stats, effects = {}) {
   return next
 }
 
-// 只透传属性效果，事件不影响 NPC 好感。
+// 保留只提取属性的兼容接口；完整事件效果使用 mergeEventChoices 合并。
 export function eventEffectsOf(option) {
   return option?.effects?.stats || {}
+}
+
+// 合并已校验的选项效果；先求和，完整看完事件后再统一钳制结算。
+export function mergeEventChoices(choices = []) {
+  const stats = new Map()
+  const bonds = new Map()
+  for (const effects of choices) {
+    for (const [key, value] of Object.entries(effects?.stats || {})) {
+      stats.set(key, (stats.get(key) || 0) + value)
+    }
+    if (effects?.bond) {
+      const { npcId, value } = effects.bond
+      bonds.set(npcId, (bonds.get(npcId) || 0) + value)
+    }
+  }
+  return { stats: Object.fromEntries(stats), bonds: Object.fromEntries(bonds) }
 }
 
 // 旧存档、损坏形状或跨日进度都重置；返回独立数组，避免结算修改原存档。

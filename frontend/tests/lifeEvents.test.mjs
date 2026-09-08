@@ -7,7 +7,7 @@ import { effectText } from '../src/life/registry.js'
 import { scriptForDay, startMessages, sanitizeDialogueNodes } from '../src/composables/lifeDialogue.js'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { eventScriptForDay, eventsForRoom, isEventDone, applyEventChoice, eventEffectsOf, normalizeEventProgress } from '../src/composables/lifeEvents.js'
+import { eventScriptForDay, eventsForRoom, isEventDone, applyEventChoice, eventEffectsOf, mergeEventChoices, normalizeEventProgress } from '../src/composables/lifeEvents.js'
 
 const event = { id: 'tea', roomId: 'room-a', scripts: Array.from({ length: 7 }, (_, i) => ({ messages: [`第${i + 1}天`] })) }
 
@@ -76,6 +76,34 @@ test('normalizeEventProgress preserves current progress in an independent array'
   assert.deepEqual(saved.done, ['tea', 'tea', 'other'])
 })
 
+test('mergeEventChoices handles empty and multiple empty effects', () => {
+  for (const choices of [undefined, [], [{}, {}, { stats: {} }]]) {
+    assert.deepEqual(mergeEventChoices(choices), { stats: {}, bonds: {} })
+  }
+})
+
+test('mergeEventChoices sums stats without clamping or mutating choices', () => {
+  const choices = [{ stats: { mood: 100, energy: -2 } }, { stats: { mood: 10, energy: 2, social: 0 } }]
+  const before = structuredClone(choices)
+  assert.deepEqual(mergeEventChoices(choices), { stats: { mood: 110, energy: 0, social: 0 }, bonds: {} })
+  assert.deepEqual(choices, before)
+})
+
+test('mergeEventChoices groups bonds by NPC and accumulates repeated NPC choices', () => {
+  const choices = [
+    { bond: { npcId: 'ache', value: 100 }, stats: { explore: 3 } },
+    {}, { bond: { npcId: 'yu', value: -5 } },
+    { bond: { npcId: 'ache', value: 10 } },
+    { bond: { npcId: 'yu', value: 5 } },
+    { bond: { npcId: '__proto__', value: -3 } },
+  ]
+  const before = structuredClone(choices)
+  assert.deepEqual(mergeEventChoices(choices), {
+    stats: { explore: 3 }, bonds: { ache: 110, yu: 0, ['__proto__']: -3 },
+  })
+  assert.deepEqual(choices, before)
+})
+
 // 按现有存档测试方式隔离 Vue 与浏览器副作用，验证真实引擎接线。
 test('game wires event guards, completion, snapshots, hydration and next day', () => {
   const room = defaultLifePack.rooms[0]
@@ -116,13 +144,20 @@ test('game wires event guards, completion, snapshots, hydration and next day', (
   assert.equal(changes, 0)
   game.openEvent('tea')
   game.stats.value.mood = 99
-  game.finishEvent({ mood: 5 })
+  const [firstNpc, secondNpc] = game.npcs.value
+  firstNpc.bond = 99
+  secondNpc.bond = 2
+  game.finishEvent({ stats: { mood: 5 }, bonds: { [firstNpc.id]: 5, [secondNpc.id]: -10, missing: 10 } })
+  assert.equal(firstNpc.bond, 100)
+  assert.equal(secondNpc.bond, 0)
   assert.equal(game.stats.value.mood, 100)
   assert.equal(game.activeEvent.value, null)
   assert.equal(game.roomEvents.value[0].done, true)
-  assert.equal(game.toast.value, '✦ 心情 +5')
+  assert.equal(game.toast.value, `✦ 心情 +5 · ${firstNpc.name} 好感 +5 · ${secondNpc.name} 好感 -10`)
   assert.equal(changes, 1)
-  game.finishEvent({ mood: -100 })
+  game.finishEvent({ stats: { mood: -100 }, bonds: { [firstNpc.id]: -100 } })
+  assert.equal(firstNpc.bond, 100)
+  assert.equal(secondNpc.bond, 0)
   game.openEvent('tea')
   assert.equal(game.activeEvent.value, null)
   assert.equal(changes, 1)

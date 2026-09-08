@@ -228,20 +228,58 @@ test('event choices reject mixed message groups and nested reply choices', () =>
   }
 })
 
-test('event effects allow only stat objects and forbid bond or other keys', () => {
+test('event effects allow stats and bond but reject other keys', () => {
   for (const effects of [undefined, null, [], 1, false, 'effects']) {
     rejectsEvent(event => { eventOption(event).effects = effects }, /effects 必须是对象/)
   }
-  for (const effects of [{ bond: 0 }, { bond: 1, stats: {} }, { unknown: 1 }]) {
-    rejectsEvent(event => { eventOption(event).effects = effects }, /只允许 stats,禁止 bond 或其他键/)
+  const bond = { npcId: defaultLifePack.npcIds[0], value: 1 }
+  for (const effects of [{ unknown: 1 }, { stats: {}, other: 0 }, { bond, other: 0 }]) {
+    rejectsEvent(event => { eventOption(event).effects = effects }, /只允许 stats,bond,禁止其他键/)
   }
   for (const stats of [undefined, null, [], 1, false, 'stats', { unknown: 1 }, { bond: 1 }, { toString: 1 }]) {
     rejectsEvent(event => { eventOption(event).effects = { stats } }, /选项包含未知属性/)
   }
-  for (const effects of [{}, { stats: {} }]) {
+  for (const effects of [{}, { stats: {} }, { bond }, { stats: {}, bond }]) {
     const event = makeEvent()
     eventOption(event).effects = effects
     assert.equal(validateEvents([event]), true)
+  }
+})
+
+test('event bond accepts declared NPCs and positive, negative and zero boundaries', () => {
+  for (const npcId of defaultLifePack.npcIds) {
+    for (const value of [-100, -1, 0, 1, 100]) {
+      for (const withStats of [false, true]) {
+        const event = makeEvent()
+        const option = eventOption(event)
+        if (!withStats) option.effects = {}
+        option.effects.bond = { npcId, value }
+        assert.equal(validateEvents([event]), true)
+      }
+    }
+  }
+})
+
+test('event bond rejects unknown or non-string NPC ids', () => {
+  for (const npcId of ['unknown', '', null, undefined, true, 1, [], {}]) {
+    rejectsEvent(event => { eventOption(event).effects.bond = { npcId, value: 1 } },
+      /事件 room-event\/第1天 选项 bond 指向未知 NPC$/)
+  }
+})
+
+test('event bond rejects invalid and out-of-range values', () => {
+  for (const value of [-101, 101, true, false, 0.5, -1.5, '1', null, undefined, [], {}, NaN, Infinity, -Infinity]) {
+    rejectsEvent(event => { eventOption(event).effects.bond = { npcId: defaultLifePack.npcIds[0], value } },
+      /事件 room-event\/第1天 选项 bond value 必须是 -100\.\.100 的整数$/)
+  }
+})
+
+test('event bond requires an object with exactly npcId and value keys', () => {
+  const npcId = defaultLifePack.npcIds[0]
+  for (const bond of [{}, { npcId }, { value: 1 }, { npcId, value: 1, extra: 0 },
+    { npcId, other: 1 }, null, undefined, [], [{ npcId, value: 1 }], 0, 'bond', true]) {
+    rejectsEvent(event => { eventOption(event).effects.bond = bond },
+      /事件 room-event\/第1天 选项 bond 必须是恰好包含 npcId,value 的对象$/)
   }
 })
 

@@ -5,6 +5,7 @@
 import { ref, watch } from 'vue'
 import LifeImageLightbox from './LifeImageLightbox.vue'
 import LifeEventModal from './LifeEventModal.vue'
+import { mergeEventChoices } from '../../composables/lifeEvents'
 const props = defineProps({ game: { type: Object, required: true } })
 const {
   currentWorld, currentRoom, currentWorldDef, sceneNpcs, npcListOpen, worldPopulation,
@@ -28,16 +29,11 @@ function resolveEventSpeaker(speaker) {
 
 // 选项只暂存，完整看完事件后才统一结算。
 function onEventChoice(effects) {
-  pendingEventEffects.value.push(effects?.stats || {})
+  pendingEventEffects.value.push(effects || {})
 }
 
 function onEventFinish() {
-  const merged = {}
-  for (const stats of pendingEventEffects.value) {
-    for (const [key, value] of Object.entries(stats)) {
-      merged[key] = (merged[key] || 0) + value
-    }
-  }
+  const merged = mergeEventChoices(pendingEventEffects.value)
   finishEvent(merged)
   pendingEventEffects.value = []
 }

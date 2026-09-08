@@ -81,10 +81,16 @@ function validateEvents(events, roomIds, npcIds) {
           if (!isEventObject(option) || typeof option.label !== 'string' || !option.label) fail(`${where} 存在无文案选项`)
           const effects = Object.hasOwn(option, 'effects') ? option.effects : {}
           if (!isEventObject(effects)) fail(`${where} 选项 effects 必须是对象`)
-          if (Object.keys(effects).some(key => key !== 'stats')) fail(`${where} 选项 effects 只允许 stats,禁止 bond 或其他键`)
+          if (Object.keys(effects).some(key => !['stats', 'bond'].includes(key))) fail(`${where} 选项 effects 只允许 stats,bond,禁止其他键`)
           const stats = Object.hasOwn(effects, 'stats') ? effects.stats : {}
           if (!isEventObject(stats) || Object.keys(stats).some(key => !Object.hasOwn(LIFE_STAT_LABELS, key))) fail(`${where} 选项包含未知属性`)
           if (Object.values(stats).some(value => !Number.isInteger(value) || value < -100 || value > 100)) fail(`${where} 选项属性变化无效`)
+          if (Object.hasOwn(effects, 'bond')) {
+            const bond = effects.bond
+            if (!isEventObject(bond) || Object.keys(bond).length !== 2 || !Object.hasOwn(bond, 'npcId') || !Object.hasOwn(bond, 'value')) fail(`${where} 选项 bond 必须是恰好包含 npcId,value 的对象`)
+            if (typeof bond.npcId !== 'string' || !npcIds.has(bond.npcId)) fail(`${where} 选项 bond 指向未知 NPC`)
+            if (!Number.isInteger(bond.value) || bond.value < -100 || bond.value > 100) fail(`${where} 选项 bond value 必须是 -100..100 的整数`)
+          }
           if (!Array.isArray(option.reply) || !option.reply.length) fail(`${where} reply 必须是非空消息组数组`)
           for (const replyMessage of option.reply) validateEventMessage(replyMessage, npcIds, `${where}/回复`)
         }

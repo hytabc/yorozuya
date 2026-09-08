@@ -112,13 +112,21 @@ def _validate_events(events: object, room_ids: set[str], npc_ids: set[str]) -> N
                     effects = option.get('effects', {})
                     if not isinstance(effects, dict):
                         _fail(f'{where} 选项 effects 必须是对象')
-                    if not set(effects).issubset({'stats'}):
-                        _fail(f'{where} 选项 effects 只允许 stats,禁止 bond 或其他键')
+                    if not set(effects).issubset({'stats', 'bond'}):
+                        _fail(f'{where} 选项 effects 只允许 stats,bond,禁止其他键')
                     stats = effects.get('stats', {})
                     if not isinstance(stats, dict) or not set(stats).issubset(STAT_KEYS):
                         _fail(f'{where} 选项包含未知属性')
                     if any(type(value) is not int or not -100 <= value <= 100 for value in stats.values()):
                         _fail(f'{where} 选项属性变化无效')
+                    if 'bond' in effects:
+                        bond = effects['bond']
+                        if not isinstance(bond, dict) or set(bond) != {'npcId', 'value'}:
+                            _fail(f'{where} 选项 bond 必须是恰好包含 npcId,value 的对象')
+                        if not isinstance(bond['npcId'], str) or bond['npcId'] not in npc_ids:
+                            _fail(f'{where} 选项 bond 指向未知 NPC')
+                        if type(bond['value']) is not int or not -100 <= bond['value'] <= 100:
+                            _fail(f'{where} 选项 bond value 必须是 -100..100 的整数')
                     reply = option.get('reply')
                     if not isinstance(reply, list) or not reply:
                         _fail(f'{where} reply 必须是非空消息组数组')
