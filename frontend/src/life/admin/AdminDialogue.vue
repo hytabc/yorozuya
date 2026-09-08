@@ -1,7 +1,7 @@
 <script setup>
-// 剧本文块:每个 NPC 的对话节点图编辑器(树状总览 + 点选编辑),按天编排(第 1~7 天,超出沿用第 7 天)。
-// 上方树从起点节点沿选项跳转递归展开;点击某个节点,下方编辑面板只显示该节点的台词与选项。
-// 节点 = 一段 NPC 台词 + 若干玩家选项;选项的 next 指向下一节点(空 = 当天结束)。
+// 剧本文块:每个 NPC 的对话节点图编辑器(思维导图 + 点选编辑),按天编排(第 1~7 天,超出沿用第 7 天)。
+// 导图从起点节点沿选项跳转铺开:起点在左,不同选项导向的分支向右散开,连线标注选项文案;
+// 点击节点卡片,下方编辑面板只显示该节点的台词与选项。
 import { computed, ref, watch } from 'vue'
 import { adminState, npcById, addDialogueNode, removeDialogueNode, LIFE_DIALOGUE_DAYS } from './useLifeAdmin'
 
@@ -18,33 +18,77 @@ const selectedNode = ref('')
 watch(script, s => { selectedNode.value = s?.start || '' }, { immediate: true })
 const node = computed(() => script.value?.nodes[selectedNode.value] || null)
 
-// 从起点沿选项跳转递归展开为带缩进的行;已展示的节点以引用行呈现(防环);
-// 从起点不可达的节点(改跳转/删节点可能产生)单列在最后,方便找回。
-const treeRows = computed(() => {
+// ==== 思维导图布局(左→右分层,父节点垂直居中于其子分支) ====
+const NODE_W = 168
+const NODE_H = 64
+const COL_GAP = 96
+const ROW_GAP = 20
+const PAD = 16
+
+const mindmap = computed(() => {
   const s = script.value
-  if (!s) return []
-  const rows = []
-  const visited = new Set()
-  let seq = 0
-  const walk = (nid, depth, via) => {
-    if (!s.nodes[nid]) return
-    if (visited.has(nid)) { rows.push({ key: `r${seq++}`, nid, depth, via, ref: true }) ; return }
-    visited.add(nid)
-    rows.push({ key: `r${seq++}`, nid, depth, via, ref: false })
-    for (const c of s.nodes[nid].choices) {
-      if (c.next) walk(c.next, depth + 1, c.label)
+  if (!s) return { cards: [], edges: [], width: 0, height: 0 }
+  const entries = new Map()
+  let leaf = 0
+  let maxDepth = 0
+  // 放置:沿选项跳转递归;已放置的节点不再重复占位(交叉/回连边仍画出)。
+  const place = (nid, depth, parent) => {
+    if (entries.has(nid) || !s.nodes[nid]) return null
+    maxDepth = Math.max(maxDepth, depth)
+    const entry = { nid, depth, parent, children: [], slot: 0 }
+    entries.set(nid, entry)
+    const kids = []
+    for (const c of s.nodes[nid].choices || []) {
+      if (c.next && s.nodes[c.next] && !entries.has(c.next) && !kids.includes(c.next)) kids.push(c.next)
+    }
+    for (const k of kids) {
+      const child = place(k, depth + 1, nid)
+      if (child) entry.children.push(child)
+    }
+    entry.slot = entry.children.length
+      ? entry.children.reduce((sum, c) => sum + c.slot, 0) / entry.children.length
+      : leaf++
+    return entry
+  }
+  place(s.start, 0, null)
+  // 从起点不可达的节点(改跳转/删节点可能产生)放到最右一列,标为未连接。
+  for (const nid of nodeIds.value) {
+    if (!entries.has(nid)) entries.set(nid, { nid, depth: maxDepth + 1, parent: null, children: [], slot: leaf++, orphan: true })
+  }
+  const xy = e => ({ x: PAD + e.depth * (NODE_W + COL_GAP), y: PAD + e.slot * (NODE_H + ROW_GAP) })
+  const cards = [...entries.values()].map(e => ({ ...e, ...xy(e) }))
+  const edges = []
+  for (const e of entries.values()) {
+    if (e.orphan) continue
+    const from = xy(e)
+    for (const c of s.nodes[e.nid].choices || []) {
+      const target = entries.get(c.next)
+      if (!c.next || !target) continue
+      const to = xy(target)
+      edges.push({
+        key: `${e.nid}-${c.next}-${edges.length}`,
+        label: c.label,
+        back: target.parent !== e.nid,
+        from: e.nid, to: c.next,
+        x1: from.x + NODE_W, y1: from.y + NODE_H / 2,
+        x2: to.x, y2: to.y + NODE_H / 2,
+      })
     }
   }
-  walk(s.start, 0, null)
-  for (const nid of nodeIds.value) {
-    if (!visited.has(nid)) rows.push({ key: `r${seq++}`, nid, depth: 0, via: null, ref: false, orphan: true })
+  return {
+    cards, edges,
+    width: PAD * 2 + (maxDepth + 2) * (NODE_W + COL_GAP),
+    height: Math.max(1, leaf) * (NODE_H + ROW_GAP) + PAD * 2,
   }
-  return rows
 })
 
 function previewOf(nid) {
   const line = script.value?.nodes[nid]?.line || ''
-  return line.length > 24 ? line.slice(0, 24) + '…' : line
+  return line.length > 30 ? line.slice(0, 30) + '…' : line
+}
+function edgePath(e) {
+  const bend = Math.max(36, (e.x2 - e.x1) / 2)
+  return `M ${e.x1} ${e.y1} C ${e.x1 + bend} ${e.y1} ${e.x2 - bend} ${e.y2} ${e.x2} ${e.y2}`
 }
 
 function addChoice(target) {
@@ -81,7 +125,7 @@ function submitRemoveNode(nodeId) {
 <template>
   <section class="la-section" v-if="script">
     <h2>剧本</h2>
-    <p>剧本按天编排：第 1~7 天各一条对话链，内容到第 7 天为止；第 8 天起沿用第 7 天的剧本。下方树从起点展开整条链：点击节点即可在编辑面板里改它的台词与选项；选项跳转「→ 节点」则玩家选择后当天进入下一节点，「当天结束」则完成当日对话。</p>
+    <p>剧本按天编排：第 1~7 天各一条对话链，内容到第 7 天为止；第 8 天起沿用第 7 天的剧本。下方导图从起点展开整条对话树：不同选项导向不同分支，点击节点卡片即可在编辑面板里改它的台词与选项；选项跳转「→ 节点」则玩家选择后当天进入下一节点，「当天结束」则完成当日对话。</p>
 
     <nav class="la-npc-tabs">
       <button v-for="id in content.npcIds" :key="id"
@@ -94,18 +138,31 @@ function submitRemoveNode(nodeId) {
               @click="activeDay = d">第 {{ d }} 天</button>
     </nav>
 
-    <!-- 树状总览:从起点沿选项跳转展开,缩进表示层级 -->
-    <div class="la-tree">
-      <div v-for="row in treeRows" :key="row.key"
-           class="la-tree-row"
-           :class="{ selected: row.nid === selectedNode && !row.ref, ref: row.ref, orphan: row.orphan }"
-           :style="{ paddingLeft: (row.depth * 26 + 8) + 'px' }"
-           @click="selectedNode = row.nid">
-        <span v-if="row.via" class="la-tree-via" :title="row.via">↳ {{ row.via }}</span>
-        <code>{{ row.nid }}</code>
-        <span v-if="script.start === row.nid" class="la-active-tag">起点</span>
-        <span v-if="row.orphan" class="la-tree-orphan">未连接</span>
-        <span class="la-tree-line">{{ row.ref ? '（上方已展示，点击选中）' : previewOf(row.nid) }}</span>
+    <!-- 思维导图:起点在左,分支沿选项向右散开,连线标注选项文案 -->
+    <div class="la-map-scroll">
+      <div class="la-map" :style="{ width: mindmap.width + 'px', height: mindmap.height + 'px' }">
+        <svg class="la-map-edges" :width="mindmap.width" :height="mindmap.height">
+          <g v-for="e in mindmap.edges" :key="e.key">
+            <path :d="edgePath(e)" fill="none"
+                  :stroke="e.back ? '#c9a86a' : '#b9c9be'"
+                  :stroke-width="e.to === selectedNode || e.from === selectedNode ? 2 : 1.5"
+                  :stroke-dasharray="e.back ? '5 4' : 'none'" />
+            <text :x="(e.x1 + e.x2) / 2" :y="(e.y1 + e.y2) / 2 - 6"
+                  text-anchor="middle" class="la-map-label">{{ e.label }}</text>
+          </g>
+        </svg>
+        <div v-for="card in mindmap.cards" :key="card.nid"
+             class="la-map-node"
+             :class="{ selected: card.nid === selectedNode, orphan: card.orphan }"
+             :style="{ left: card.x + 'px', top: card.y + 'px', width: NODE_W + 'px', height: NODE_H + 'px' }"
+             @click="selectedNode = card.nid">
+          <div class="la-map-node-head">
+            <code>{{ card.nid }}</code>
+            <span v-if="script.start === card.nid" class="la-active-tag">起点</span>
+            <span v-if="card.orphan" class="la-map-orphan">未连接</span>
+          </div>
+          <div class="la-map-node-line">{{ previewOf(card.nid) }}</div>
+        </div>
       </div>
     </div>
 
@@ -144,14 +201,16 @@ function submitRemoveNode(nodeId) {
 </template>
 
 <style>
-.la-tree { border: 1px solid #e7ebe5; border-radius: 8px; margin-bottom: 14px; max-height: 260px; overflow-y: auto; background: #fbfdfc; }
-.la-tree-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 12px; cursor: pointer; border-bottom: 1px solid #f0f2f0; }
-.la-tree-row:last-child { border-bottom: 0; }
-.la-tree-row:hover { background: #f0f7f2; }
-.la-tree-row.selected { background: #e5f3eb; box-shadow: inset 2px 0 0 #237a57; }
-.la-tree-row.ref { color: #9aa39d; font-style: italic; }
-.la-tree-row code { color: #237a57; font-weight: 600; }
-.la-tree-via { color: #9aa39d; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
-.la-tree-line { color: #69736e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.la-tree-orphan { background: #fdf0e5; color: #b26a21; font-size: 10px; padding: 1px 6px; border-radius: 999px; }
+.la-map-scroll { border: 1px solid #e7ebe5; border-radius: 8px; margin-bottom: 14px; max-height: 380px; overflow: auto; background: #fbfdfc; }
+.la-map { position: relative; }
+.la-map-edges { position: absolute; inset: 0; pointer-events: none; }
+.la-map-label { font-size: 10px; fill: #69736e; paint-order: stroke; stroke: #fbfdfc; stroke-width: 3px; }
+.la-map-node { position: absolute; box-sizing: border-box; background: #fff; border: 1.5px solid #d9dedb; border-radius: 10px; padding: 7px 10px; cursor: pointer; overflow: hidden; transition: border-color .15s, box-shadow .15s; }
+.la-map-node:hover { border-color: #8fb8a3; }
+.la-map-node.selected { border-color: #237a57; box-shadow: 0 0 0 3px rgba(35, 122, 87, .15); }
+.la-map-node.orphan { border-style: dashed; background: #fdf8f2; }
+.la-map-node-head { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+.la-map-node-head code { color: #237a57; font-weight: 600; font-size: 12px; }
+.la-map-node-line { font-size: 11px; color: #69736e; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.la-map-orphan { background: #fdf0e5; color: #b26a21; font-size: 10px; padding: 1px 6px; border-radius: 999px; }
 </style>

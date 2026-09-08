@@ -68,12 +68,13 @@ structured forms: NPC profiles/portraits/presence, worlds (incl. background
 upload) and rooms, actions, the per-NPC dialogue node graph and the initial
 player state. Dialogue is edited PER DAY (stage 5): tabs 第 1~7 天 switch the
 day script being edited; packs with fewer than 7 days are padded by cloning
-their last day on load. Each day is edited through a TREE overview (stage 6):
-the chain expands from the start node along choice jumps with indentation,
-clicking a node opens its edit panel (line, choices, effects, jump targets);
+their last day on load. Each day is edited through a MIND-MAP canvas (stage 6):
+the start node sits at the left and choice branches spread rightward as
+connected cards (edges labeled with the choice text, cycle/cross edges drawn
+dashed, unreachable nodes placed apart and marked 未连接); clicking a card
+opens that node's edit panel (line, choices, effects, jump targets);
 a choice's jump dropdown offers "＋ 新建节点…" to create-and-link in one
-step, any node can be made the start, cycle/revisit rows collapse to a
-selectable reference, and orphaned nodes are listed for recovery.
+step, any node can be made the start.
 Node add/delete applies to the current day only; deleting the start node
 hands the start over to the first remaining node, and the last node of a day
 cannot be deleted. The default pack ships 2-3 node chains (with branches)
