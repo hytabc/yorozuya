@@ -19,6 +19,8 @@ const selected = ref(null)
 const showCreate = ref(false)
 const creating = ref(false)
 const form = reactive({ name: '', category: '休闲', description: '' })
+const createPhotos = ref([])
+const MAX_PHOTO_BYTES = 10 * 1024 * 1024
 
 const cover = (item) => item.photos.find((photo) => photo.is_visible)?.image_url
 
@@ -42,13 +44,20 @@ function create() {
 async function submitCreate() {
   if (!form.name.trim()) return toast.error('请填写地图名称')
   if (form.description.trim().length < 10) return toast.error('地图介绍请至少填写 10 个字符')
+  if (createPhotos.value.length > 3) return toast.error('创建推荐时最多上传 3 张图片')
+  if (createPhotos.value.some((file) => file.size > MAX_PHOTO_BYTES)) return toast.error('单张地图图片不能超过 10 MB')
+  if (createPhotos.value.reduce((sum, file) => sum + file.size, 0) > 30 * 1024 * 1024) return toast.error('本次地图图片总大小不能超过 30 MB')
   creating.value = true
   try {
-    await api.post('/vr-maps', { ...form })
+    const body = new FormData()
+    Object.entries(form).forEach(([key, value]) => body.append(key, value))
+    createPhotos.value.forEach((file) => body.append('photos', file))
+    await api.post('/vr-maps', body)
     showCreate.value = false
     form.name = ''
     form.category = '休闲'
     form.description = ''
+    createPhotos.value = []
     toast.success('地图已提交，感谢推荐！')
     await load()
   } catch (err) {
@@ -56,6 +65,11 @@ async function submitCreate() {
   } finally {
     creating.value = false
   }
+}
+
+function onCreatePhotos(event) {
+  createPhotos.value = Array.from(event.target.files || [])
+  event.target.value = ''
 }
 
 function onUpdated(updated) {
@@ -106,6 +120,7 @@ onMounted(load)
           <label>地图名称<input v-model.trim="form.name" required maxlength="80" placeholder="如：午夜天台" /></label>
           <label>地图类型<select v-model="form.category" aria-label="地图类型"><option v-for="item in MAP_CATEGORIES" :key="item" :value="item">{{ item }}</option></select></label>
           <label>地图介绍<textarea v-model.trim="form.description" required minlength="10" maxlength="2000" rows="5" placeholder="玩法、亮点、适合的场景……"></textarea><small>{{ form.description.length }}/2000</small></label>
+          <label>推荐图片（可选，最多 3 张）<input type="file" accept="image/png,image/jpeg" multiple @change="onCreatePhotos" /><small>{{ createPhotos.length }} 张，单张不超过 10 MB，本次合计不超过 30 MB</small></label>
           <div class="dialog-footer"><button type="button" class="button secondary" :disabled="creating" @click="showCreate = false">取消</button><button class="button" :disabled="creating"><MapIcon :size="16" />{{ creating ? '提交中…' : '提交推荐' }}</button></div>
         </form>
       </section>

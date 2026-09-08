@@ -11,6 +11,7 @@ import VrMaps from './views/VrMaps.vue'
 import SugarClub from './views/SugarClub.vue'
 import AnnouncementsView from './views/AnnouncementsView.vue'
 import OperationsView from './views/OperationsView.vue'
+import VersionsView from './views/VersionsView.vue'
 import { api } from './api'
 import { isLifeDesktop } from './lifeAccess'
 
@@ -28,9 +29,10 @@ const router = createRouter({
     { path: '/maps', component: VrMaps, meta: { analyticsKey: 'maps' } },
     { path: '/sugar', component: SugarClub, meta: { auth: true, analyticsKey: 'sugar' } },
     { path: '/announcements', component: AnnouncementsView, meta: { analyticsKey: 'announcements' } },
+    { path: '/versions', component: VersionsView, meta: { analyticsKey: 'versions' } },
     { path: '/operations', component: OperationsView, meta: { operations: true } },
     { path: '/life', component: () => import('./views/LifeSimulator.vue'), meta: { lifeOnly: true } },
-    { path: '/admin', component: AdminView, meta: { roleManager: true } },
+    { path: '/admin', component: AdminView, meta: { moderator: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })
@@ -45,6 +47,7 @@ router.beforeEach(async (to) => {
   }
   if (to.meta.auth && !auth.isLoggedIn) return { path: '/login', query: { redirect: to.fullPath } }
   if (to.meta.roleManager && !auth.canManageRoles) return '/'
+  if (to.meta.moderator && !auth.canModerate) return '/'
   if (to.meta.operations && !auth.canOperate) return '/'
   if (to.meta.guestOnly && auth.isLoggedIn) return '/'
 })

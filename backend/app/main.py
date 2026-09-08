@@ -8,17 +8,17 @@ from pathlib import Path
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Response, UploadFile, status
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BeforeValidator
+from pydantic import BeforeValidator, ValidationError
 from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.orm import Session, joinedload
 
 from .config import settings
 from .backup import skip_next_snapshot
 from .database import Base, SessionLocal, engine, get_db
-from .dependencies import get_admin, get_current_user, get_operations_manager, get_optional_user, get_role_manager
+from .dependencies import get_admin, get_content_moderator, get_current_user, get_operations_manager, get_optional_user, get_role_manager
 from .models import (
     AppSetting,
     ApplicationStatus,
@@ -56,6 +56,7 @@ from .schemas import (
     AdminStats,
     AdminTaskUpdate,
     AdminUserLimitUpdate,
+    AdminUserBetaUpdate,
     AdminUserOut,
     AdminUserRoleUpdate,
     AdminPhotoUpdate,
@@ -159,6 +160,9 @@ def migrate_schema() -> None:
                 connection.execute(text("ALTER TABLE users ADD COLUMN avatar_visible BOOLEAN NOT NULL DEFAULT 0"))
             if "avatar_moderated_at" not in user_columns:
                 connection.execute(text("ALTER TABLE users ADD COLUMN avatar_moderated_at DATETIME"))
+            if "is_beta_tester" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN is_beta_tester BOOLEAN NOT NULL DEFAULT 0"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_users_is_beta_tester ON users (is_beta_tester)"))
         if not inspector.has_table("tasks"):
             return
         task_columns = {column["name"] for column in inspector.get_columns("tasks")}
@@ -252,6 +256,33 @@ def migrate_schema() -> None:
                 connection.execute(text("ALTER TABLE sugar_photos ADD COLUMN moderated_by_id INTEGER"))
             if "moderated_at" not in sugar_photo_columns:
                 connection.execute(text("ALTER TABLE sugar_photos ADD COLUMN moderated_at DATETIME"))
+        # 旧版本为地图照片建立了 (map_id, user_id) 唯一索引，重建表以支持同一用户上传多张。
+        if inspector.has_table("vr_map_photos"):
+            unique_constraints = inspector.get_unique_constraints("vr_map_photos")
+            if any(set(item.get("column_names") or []) == {"map_id", "user_id"} for item in unique_constraints):
+                connection.execute(text("""
+                    CREATE TABLE vr_map_photos_new (
+                        id INTEGER NOT NULL PRIMARY KEY,
+                        map_id INTEGER NOT NULL REFERENCES vr_maps (id),
+                        user_id INTEGER NOT NULL REFERENCES users (id),
+                        file_path VARCHAR(255) NOT NULL UNIQUE,
+                        is_visible BOOLEAN NOT NULL DEFAULT 0,
+                        moderated_by_id INTEGER REFERENCES users (id),
+                        moderated_at DATETIME,
+                        created_at DATETIME NOT NULL
+                    )
+                """))
+                connection.execute(text("""
+                    INSERT INTO vr_map_photos_new
+                        (id, map_id, user_id, file_path, is_visible, moderated_by_id, moderated_at, created_at)
+                    SELECT id, map_id, user_id, file_path, is_visible, moderated_by_id, moderated_at, created_at
+                    FROM vr_map_photos
+                """))
+                connection.execute(text("DROP TABLE vr_map_photos"))
+                connection.execute(text("ALTER TABLE vr_map_photos_new RENAME TO vr_map_photos"))
+                connection.execute(text("CREATE INDEX ix_vr_map_photos_map_id ON vr_map_photos (map_id)"))
+                connection.execute(text("CREATE INDEX ix_vr_map_photos_user_id ON vr_map_photos (user_id)"))
+                connection.execute(text("CREATE INDEX ix_vr_map_photos_is_visible ON vr_map_photos (is_visible)"))
 
 
 @asynccontextmanager
@@ -260,7 +291,7 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title=settings.app_name, version="1.2.0", lifespan=lifespan)
+app = FastAPI(title=settings.app_name, version="0.1-beta", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
@@ -295,6 +326,7 @@ PAGE_LABELS = {
     "staff": "成员名录",
     "board": "留言板",
     "maps": "地图推荐",
+    "versions": "版本更新",
     "sugar": "砂糖社",
     "announcements": "公告中心",
     "mine": "我的委托",
@@ -335,7 +367,7 @@ def task_query():
 
 def visible_user_photos(user: User, viewer: User | None = None) -> list[UserPhotoOut]:
     """资料主人和审核人员可看全部；其他访问者只能看已通过展示的图片。"""
-    can_manage = viewer is not None and (viewer.id == user.id or viewer.is_admin or viewer.role == UserRole.STAFF)
+    can_manage = viewer is not None and (viewer.id == user.id or can_review_content(viewer))
     return [
         UserPhotoOut(id=photo.id, image_url=photo.image_url, is_visible=photo.is_visible)
         for photo in user.photos
@@ -347,7 +379,7 @@ def visible_avatar(user: User, viewer: User | None = None) -> str | None:
     """头像 URL：审核通过后对所有人可见，未过审时仅本人和管理员组可见。"""
     if not user.avatar_path:
         return None
-    if user.avatar_visible or (viewer is not None and (viewer.id == user.id or can_moderate(viewer))):
+    if user.avatar_visible or (viewer is not None and (viewer.id == user.id or can_review_content(viewer))):
         return user.avatar_url
     return None
 
@@ -356,6 +388,7 @@ def present_user_public(user: User, viewer: User | None = None) -> UserPublic:
     return UserPublic(
         id=user.id, nickname=user.nickname, bio=user.bio, photos=visible_user_photos(user, viewer),
         avatar_url=visible_avatar(user, viewer), avatar_visible=user.avatar_visible,
+        is_beta_tester=user.is_beta_tester,
     )
 
 
@@ -367,8 +400,13 @@ def present_user_profile(user: User, viewer: User | None = None) -> UserProfileO
         id=user.id, nickname=user.nickname, bio=user.bio, qq=user.qq, qq_public=user.qq_public,
         is_admin=user.is_admin,
         role=user.role, created_at=user.created_at, photos=visible_user_photos(user, viewer),
-        avatar_url=visible_avatar(user, viewer), avatar_visible=user.avatar_visible,
+        avatar_url=visible_avatar(user, viewer), avatar_visible=user.avatar_visible, is_beta_tester=user.is_beta_tester,
     )
+
+
+def present_moderation_profile(user: User, moderator: User) -> UserProfileOut:
+    profile = present_user_profile(user, moderator)
+    return profile.model_copy(update={"qq": None}) if moderator.role == UserRole.DISCIPLINARIAN else profile
 
 
 def present_members(task: Task, viewer: User | None) -> list[TaskMemberOut]:
@@ -613,6 +651,8 @@ AVATAR_SIGNATURES = (
 
 # VRChat 地图推荐：实拍照片仅 PNG/JPG，最大 10 MB，需管理员审核
 MAX_VR_MAP_PHOTO_BYTES = 10 * 1024 * 1024
+MAX_VR_MAP_UPLOAD_TOTAL_BYTES = 30 * 1024 * 1024
+MAX_VR_MAP_PHOTOS = 5
 MAP_CATEGORIES = ("游戏", "休闲", "恐怖", "风景", "解谜", "社交", "其他")
 
 
@@ -630,7 +670,7 @@ def photo_url(photo: SugarPhoto) -> str:
 
 def present_sugar_photos(profile: SugarProfile, viewer: User | None) -> list[SugarPhotoOut]:
     """被屏蔽的照片仅主人和管理员组可见（附带屏蔽理由），对其他查看者隐藏。"""
-    can_manage = viewer is not None and (viewer.id == profile.user_id or can_moderate(viewer))
+    can_manage = viewer is not None and (viewer.id == profile.user_id or can_review_content(viewer))
     return [
         SugarPhotoOut(id=photo.id, image_url=photo_url(photo), is_visible=photo.is_visible, admin_note=photo.admin_note)
         for photo in profile.photos
@@ -1005,7 +1045,7 @@ def delete_avatar(user: User = Depends(get_current_user), db: Session = Depends(
 def moderate_avatar(
     user_id: int,
     payload: AdminPhotoUpdate,
-    manager: User = Depends(get_role_manager),
+    manager: User = Depends(get_content_moderator),
     db: Session = Depends(get_db),
 ):
     """管理员组审核头像：通过后公开展示，驳回则仅本人可见。"""
@@ -1016,7 +1056,7 @@ def moderate_avatar(
     target.avatar_moderated_at = datetime.utcnow()
     db.commit()
     db.refresh(target)
-    return present_user_profile(target, manager)
+    return present_moderation_profile(target, manager)
 
 
 @app.get("/api/users/{user_id}", response_model=UserProfileOut)
@@ -1454,6 +1494,10 @@ def can_moderate(user: User | None) -> bool:
     return user is not None and (user.is_admin or user.role == UserRole.STAFF)
 
 
+def can_review_content(user: User | None) -> bool:
+    return user is not None and (user.is_admin or user.role in (UserRole.STAFF, UserRole.DISCIPLINARIAN))
+
+
 def present_board_comment(comment: BoardComment, viewer: User | None) -> BoardCommentOut:
     return BoardCommentOut(
         id=comment.id,
@@ -1574,7 +1618,7 @@ def present_vr_map_photos(vr_map: VrMap, viewer: User | None) -> list[VrMapPhoto
     """待审/被驳回的照片仅上传者本人和管理员组可见。"""
     photos: list[VrMapPhotoOut] = []
     for photo in vr_map.photos:
-        can_see = photo.is_visible or (viewer is not None and (viewer.id == photo.user_id or can_moderate(viewer)))
+        can_see = photo.is_visible or (viewer is not None and (viewer.id == photo.user_id or can_review_content(viewer)))
         if can_see:
             photos.append(
                 VrMapPhotoOut(
@@ -1612,6 +1656,43 @@ def get_vr_map_or_404(db: Session, map_id: int) -> VrMap:
     return vr_map
 
 
+async def save_vr_map_photos(
+    photos: list[UploadFile], map_id: int, user_id: int,
+) -> list[VrMapPhoto]:
+    """先完整校验全部文件，再落盘；总量限制防止多文件绕过单图上限。"""
+    contents: list[tuple[bytes, str]] = []
+    total_bytes = 0
+    for photo in photos:
+        content = await photo.read(MAX_VR_MAP_PHOTO_BYTES + 1)
+        if not content:
+            raise HTTPException(status_code=422, detail="请选择要上传的照片")
+        if len(content) > MAX_VR_MAP_PHOTO_BYTES:
+            raise HTTPException(status_code=422, detail="地图照片不能超过 10 MB")
+        total_bytes += len(content)
+        if total_bytes > MAX_VR_MAP_UPLOAD_TOTAL_BYTES:
+            raise HTTPException(status_code=422, detail="本次地图图片总大小不能超过 30 MB")
+        extension = avatar_extension(content)
+        if extension is None:
+            raise HTTPException(status_code=422, detail="地图照片仅支持 PNG 或 JPG 格式")
+        contents.append((content, extension))
+
+    settings.ensure_storage_directory()
+    stored: list[tuple[str, Path]] = []
+    try:
+        for content, extension in contents:
+            file_path = f"vrmaps/{map_id}/{uuid4().hex}{extension}"
+            destination = settings.sugar_upload_path / file_path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(content)
+            stored.append((file_path, destination))
+    except OSError as error:
+        for _, destination in stored:
+            destination.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
+
+    return [VrMapPhoto(map_id=map_id, user_id=user_id, file_path=file_path) for file_path, _ in stored]
+
+
 @app.get("/api/vr-maps", response_model=list[VrMapOut])
 def list_vr_maps(
     viewer: User | None = Depends(get_optional_user),
@@ -1621,7 +1702,7 @@ def list_vr_maps(
     query = vr_map_query()
     if viewer is None:
         query = query.where(VrMap.is_visible.is_(True), ~VrMap.id.in_(vr_map_pending_report_ids()))
-    elif not can_moderate(viewer):
+    elif not can_review_content(viewer):
         publicly_ok = VrMap.is_visible.is_(True) & ~VrMap.id.in_(vr_map_pending_report_ids())
         query = query.where(or_(VrMap.uploader_id == viewer.id, publicly_ok))
     maps = db.scalars(
@@ -1631,13 +1712,29 @@ def list_vr_maps(
 
 
 @app.post("/api/vr-maps", response_model=VrMapOut, status_code=status.HTTP_201_CREATED)
-def create_vr_map(
-    payload: VrMapCreate,
+async def create_vr_map(
+    request: Request,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    try:
+        if request.headers.get("content-type", "").startswith("multipart/form-data"):
+            form = await request.form()
+            payload = VrMapCreate(
+                name=str(form.get("name") or ""),
+                description=str(form.get("description") or ""),
+                category=str(form.get("category") or ""),
+            )
+            photos = [item for item in form.getlist("photos") if getattr(item, "filename", None) is not None]
+        else:
+            payload = VrMapCreate.model_validate(await request.json())
+            photos = []
+    except (ValidationError, ValueError):
+        raise HTTPException(status_code=422, detail="地图信息格式不正确")
     if payload.category not in MAP_CATEGORIES:
         raise HTTPException(status_code=422, detail="地图类型不正确")
+    if len(photos) > 3:
+        raise HTTPException(status_code=422, detail="创建推荐时最多上传 3 张图片")
     vr_map = VrMap(
         name=payload.name.strip(),
         description=payload.description.strip(),
@@ -1645,6 +1742,10 @@ def create_vr_map(
         uploader_id=user.id,
     )
     db.add(vr_map)
+    db.flush()
+    if photos:
+        records = await save_vr_map_photos(photos, vr_map.id, user.id)
+        db.add_all(records)
     db.commit()
     db.refresh(vr_map)
     return present_vr_map(vr_map, viewer=user)
@@ -1660,7 +1761,7 @@ def vr_map_detail(
     publicly_ok = vr_map.is_visible and not any(
         report.status == ReportStatus.PENDING for report in vr_map.reports
     )
-    if not publicly_ok and not (viewer and (viewer.id == vr_map.uploader_id or can_moderate(viewer))):
+    if not publicly_ok and not (viewer and (viewer.id == vr_map.uploader_id or can_review_content(viewer))):
         raise HTTPException(status_code=404, detail="地图不存在或已被删除")
     return present_vr_map(vr_map, viewer)
 
@@ -1711,43 +1812,24 @@ def report_vr_map(
 @app.post("/api/vr-maps/{map_id}/photos", response_model=VrMapOut, status_code=status.HTTP_201_CREATED)
 async def upload_vr_map_photo(
     map_id: int,
-    photo: UploadFile = File(...),
+    photos: list[UploadFile] = File(default=[]),
+    photo: UploadFile | None = File(default=None),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """上传地图实拍照片：每人每图限 1 张，重复上传替换旧照片；需管理员审核后公开。"""
+    """上传地图实拍照片：单次最多 5 张，地图累计最多 5 张；需审核后公开。"""
     vr_map = get_vr_map_or_404(db, map_id)
-    content = await photo.read(MAX_VR_MAP_PHOTO_BYTES + 1)
-    if not content:
+    if photo is not None:
+        photos = [*photos, photo]
+    if not photos:
         raise HTTPException(status_code=422, detail="请选择要上传的照片")
-    if len(content) > MAX_VR_MAP_PHOTO_BYTES:
-        raise HTTPException(status_code=422, detail="地图照片不能超过 10 MB")
-    extension = avatar_extension(content)
-    if extension is None:
-        raise HTTPException(status_code=422, detail="地图照片仅支持 PNG 或 JPG 格式")
-    settings.ensure_storage_directory()
-    file_path = f"vrmaps/{map_id}/{uuid4().hex}{extension}"
-    destination = settings.sugar_upload_path / file_path
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        destination.write_bytes(content)
-    except OSError as error:
-        raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
-    existing = db.scalar(
-        select(VrMapPhoto).where(VrMapPhoto.map_id == map_id, VrMapPhoto.user_id == user.id)
-    )
-    if existing is not None:
-        old_path = existing.file_path
-        db.delete(existing)
-        db.flush()
-        root = settings.sugar_upload_path.resolve()
-        old_file = (root / old_path).resolve()
-        if old_file.is_relative_to(root):
-            try:
-                old_file.unlink(missing_ok=True)
-            except OSError:
-                pass
-    db.add(VrMapPhoto(map_id=map_id, user_id=user.id, file_path=file_path))
+    if len(photos) > MAX_VR_MAP_PHOTOS:
+        raise HTTPException(status_code=422, detail="单次最多上传 5 张图片")
+    current_count = db.scalar(select(func.count()).select_from(VrMapPhoto).where(VrMapPhoto.map_id == map_id)) or 0
+    if current_count + len(photos) > MAX_VR_MAP_PHOTOS:
+        raise HTTPException(status_code=422, detail="每张地图最多保留 5 张图片")
+    records = await save_vr_map_photos(photos, map_id, user.id)
+    db.add_all(records)
     db.commit()
     db.refresh(vr_map)
     return present_vr_map(vr_map, viewer=user)
@@ -1755,7 +1837,7 @@ async def upload_vr_map_photo(
 
 @app.get("/api/admin/vr-map-reports", response_model=list[VrMapReportOut])
 def admin_vr_map_reports(
-    manager: User = Depends(get_role_manager), db: Session = Depends(get_db)
+    manager: User = Depends(get_content_moderator), db: Session = Depends(get_db)
 ):
     reports = db.scalars(
         select(VrMapReport)
@@ -1782,7 +1864,7 @@ def admin_vr_map_reports(
 def resolve_vr_map_report(
     report_id: int,
     payload: VrMapReportResolveRequest,
-    manager: User = Depends(get_role_manager),
+    manager: User = Depends(get_content_moderator),
     db: Session = Depends(get_db),
 ):
     """处置地图举报：close 放开（举报不成立）/ hide 屏蔽 / restore 重新放开已屏蔽地图。"""
@@ -1820,7 +1902,7 @@ def resolve_vr_map_report(
 
 @app.get("/api/admin/vr-map-photos", response_model=list[VrMapPhotoAdminOut])
 def admin_vr_map_photos(
-    manager: User = Depends(get_role_manager), db: Session = Depends(get_db)
+    manager: User = Depends(get_content_moderator), db: Session = Depends(get_db)
 ):
     photos = db.scalars(
         select(VrMapPhoto)
@@ -1850,7 +1932,7 @@ def admin_vr_map_photos(
 def moderate_vr_map_photo(
     photo_id: int,
     payload: AdminPhotoUpdate,
-    manager: User = Depends(get_role_manager),
+    manager: User = Depends(get_content_moderator),
     db: Session = Depends(get_db),
 ):
     """审核地图照片：通过后公开展示，驳回则仅上传者本人可见。"""
@@ -2043,7 +2125,7 @@ def report_task(
 
 
 @app.get("/api/admin/reports", response_model=list[TaskReportOut])
-def admin_reports(_: User = Depends(get_role_manager), db: Session = Depends(get_db)):
+def admin_reports(_: User = Depends(get_content_moderator), db: Session = Depends(get_db)):
     reports = db.scalars(
         select(TaskReport)
         .options(joinedload(TaskReport.task), joinedload(TaskReport.reporter))
@@ -2057,7 +2139,7 @@ def admin_reports(_: User = Depends(get_role_manager), db: Session = Depends(get
 def resolve_report(
     report_id: int,
     payload: ReportResolveRequest,
-    manager: User = Depends(get_role_manager),
+    manager: User = Depends(get_content_moderator),
     db: Session = Depends(get_db),
 ):
     """处理被举报的委托：close 关闭举报 / hide 屏蔽委托 / restore 重新放开。"""
@@ -2574,16 +2656,16 @@ def admin_users(manager: User = Depends(get_role_manager), db: Session = Depends
 
 
 @app.get("/api/admin/photos", response_model=list[UserProfileOut])
-def admin_photos(_: User = Depends(get_role_manager), db: Session = Depends(get_db)):
+def admin_photos(_: User = Depends(get_content_moderator), db: Session = Depends(get_db)):
     users = db.scalars(user_with_photos_query().order_by(User.created_at.desc())).unique().all()
-    return [present_user_profile(user, _) for user in users if user.photos or user.avatar_path]
+    return [present_moderation_profile(user, _) for user in users if user.photos or user.avatar_path]
 
 
 @app.patch("/api/admin/photos/{photo_id}", response_model=UserProfileOut)
 def moderate_user_photo(
     photo_id: int,
     payload: AdminPhotoUpdate,
-    manager: User = Depends(get_role_manager),
+    manager: User = Depends(get_content_moderator),
     db: Session = Depends(get_db),
 ):
     photo = db.get(UserPhoto, photo_id)
@@ -2594,7 +2676,7 @@ def moderate_user_photo(
     photo.moderated_at = datetime.utcnow()
     db.commit()
     user = db.scalar(user_with_photos_query().where(User.id == photo.user_id))
-    return present_user_profile(user, manager)
+    return present_moderation_profile(user, manager)
 
 
 def present_sugar_photo_admin(photo: SugarPhoto) -> SugarPhotoAdminOut:
@@ -2609,7 +2691,7 @@ def present_sugar_photo_admin(photo: SugarPhoto) -> SugarPhotoAdminOut:
 
 
 @app.get("/api/admin/sugar/photos", response_model=list[SugarPhotoAdminOut])
-def admin_sugar_photos(_: User = Depends(get_role_manager), db: Session = Depends(get_db)):
+def admin_sugar_photos(_: User = Depends(get_content_moderator), db: Session = Depends(get_db)):
     photos = db.scalars(
         select(SugarPhoto)
         .options(joinedload(SugarPhoto.profile).joinedload(SugarProfile.user))
@@ -2623,7 +2705,7 @@ def admin_sugar_photos(_: User = Depends(get_role_manager), db: Session = Depend
 def moderate_sugar_photo(
     photo_id: int,
     payload: SugarPhotoModerateUpdate,
-    manager: User = Depends(get_role_manager),
+    manager: User = Depends(get_content_moderator),
     db: Session = Depends(get_db),
 ):
     """管理员组屏蔽/恢复砂糖社照片：屏蔽必须填写理由，恢复时清空理由。"""
@@ -2690,12 +2772,30 @@ def update_user_role(
         raise HTTPException(status_code=404, detail="用户不存在")
     if user.is_admin:
         raise HTTPException(status_code=409, detail="管理员账号的权限等级不可修改")
-    protected_roles = (UserRole.STAFF, UserRole.MASCOT)
+    protected_roles = (UserRole.STAFF, UserRole.MASCOT, UserRole.DISCIPLINARIAN)
     if not manager.is_admin and (payload.role in protected_roles or user.role in protected_roles):
-        raise HTTPException(status_code=403, detail="只有超级管理员可以管理管理员和看板娘权限")
+        raise HTTPException(status_code=403, detail="只有超级管理员可以管理管理员、看板娘和风纪委员权限")
     if payload.role == UserRole.VOLUNTEER and user.role != UserRole.VOLUNTEER:
         user.qq_public = False
     user.role = payload.role
+    db.commit()
+    db.refresh(user)
+    return AdminUserOut.model_validate(user).model_copy(
+        update={"active_task_count": active_task_count(db, user.id)}
+    )
+
+
+@app.patch("/api/admin/users/{user_id}/beta-tester", response_model=AdminUserOut)
+def update_user_beta_tester(
+    user_id: int,
+    payload: AdminUserBetaUpdate,
+    _: User = Depends(get_admin),
+    db: Session = Depends(get_db),
+):
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    user.is_beta_tester = payload.is_beta_tester
     db.commit()
     db.refresh(user)
     return AdminUserOut.model_validate(user).model_copy(

@@ -77,6 +77,7 @@ class UserPublic(ApiModel):
     # avatar_url 仅在查看者有权看到时由后端填充；未过审头像仅本人和管理员组可见
     avatar_url: str | None = None
     avatar_visible: bool = False
+    is_beta_tester: bool = False
 
 
 class UserProfileOut(ApiModel):
@@ -88,6 +89,7 @@ class UserProfileOut(ApiModel):
     qq_public: bool = False
     is_admin: bool = False
     role: UserRole = UserRole.USER
+    is_beta_tester: bool = False
     created_at: datetime
     photos: list[UserPhotoOut] = []
     avatar_url: str | None = None
@@ -102,6 +104,7 @@ class UserSelf(UserPublic):
     is_active: bool
     role: UserRole = UserRole.USER
     max_concurrent_tasks: int
+    is_beta_tester: bool = False
     created_at: datetime
 
 
@@ -207,6 +210,7 @@ class AdminUserOut(ApiModel):
     is_admin: bool
     is_active: bool
     role: UserRole = UserRole.USER
+    is_beta_tester: bool = False
     max_concurrent_tasks: int
     active_task_count: int = 0
     created_at: datetime
@@ -214,7 +218,11 @@ class AdminUserOut(ApiModel):
 
 
 class AdminUserRoleUpdate(RequestModel):
-    role: Literal["user", "volunteer", "staff", "mascot"]
+    role: Literal["user", "volunteer", "staff", "mascot", "disciplinarian"]
+
+
+class AdminUserBetaUpdate(RequestModel):
+    is_beta_tester: bool
 
 
 class AdminPhotoUpdate(RequestModel):
@@ -361,7 +369,7 @@ class AnnouncementOut(ApiModel):
 
 
 class PageViewCreate(RequestModel):
-    page_key: Literal["hall", "staff", "board", "maps", "sugar", "announcements", "mine", "profile", "login"]
+    page_key: Literal["hall", "staff", "board", "maps", "sugar", "announcements", "versions", "mine", "profile", "login"]
     session_id: str = Field(min_length=16, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
 
 

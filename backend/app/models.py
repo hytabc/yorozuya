@@ -54,6 +54,7 @@ class UserRole(str, Enum):
     VOLUNTEER = "volunteer"  # 志愿者：可发布并接取全部委托（管理员账号可升级）
     STAFF = "staff"  # 管理员组（内部值保留 staff）：志愿者能力 + 管理用户等级 + 处理反馈
     MASCOT = "mascot"  # 看板娘：管理公告并查看社区运营数据，不继承内容审核权限
+    DISCIPLINARIAN = "disciplinarian"  # 风纪委员：仅处理内容审核与委托/地图举报
 
 
 class AnnouncementKind(str, Enum):
@@ -85,6 +86,7 @@ class User(Base):
         index=True,
     )
     max_concurrent_tasks: Mapped[int] = mapped_column(default=2)
+    is_beta_tester: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     # 头像：仅存相对 uploads 目录的路径；上传后需管理员审核（avatar_visible）才公开展示。
     avatar_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -447,10 +449,9 @@ class VrMapReport(Base):
 
 
 class VrMapPhoto(Base):
-    """地图实拍照片：每人对每张地图最多 1 张，需管理员审核后才公开展示。"""
+    """地图实拍照片：每张地图累计最多 5 张，需审核后才公开展示。"""
 
     __tablename__ = "vr_map_photos"
-    __table_args__ = (UniqueConstraint("map_id", "user_id", name="uq_vr_map_photo"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     map_id: Mapped[int] = mapped_column(ForeignKey("vr_maps.id"), index=True)
