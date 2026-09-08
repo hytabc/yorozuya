@@ -3,7 +3,8 @@ import { onBeforeRouteLeave } from 'vue-router'
 import axios from 'axios'
 
 // Serial saves + optimistic revision; never retry a conflict by overwriting it.
-export function useLifeSave(snapshot, hydrate) {
+// autoLoad: false 时由调用方在内容包就绪后手动调用 load()。
+export function useLifeSave(snapshot, hydrate, { autoLoad = true } = {}) {
   const ownerToken = localStorage.getItem('wsw_token')
   const api = axios.create({ baseURL: '/api', timeout: 15000,
     headers: { Authorization: `Bearer ${ownerToken}` } })
@@ -86,7 +87,7 @@ export function useLifeSave(snapshot, hydrate) {
   }
   const storageChanged = () => { ownerValid() }
   onMounted(() => {
-    load()
+    if (autoLoad) load()
     window.addEventListener('beforeunload', beforeUnload)
     window.addEventListener('storage', storageChanged)
   })

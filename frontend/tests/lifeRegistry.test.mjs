@@ -1,12 +1,16 @@
-// 内容包注册表测试:注册、校验、活动 Pack、内容完整性与初始状态隔离。
+// 内容包注册表测试:注册、校验、活动 Pack、内容完整性、初始状态隔离、
+// 工厂派生视图,以及与后端种子 JSON 的一致性。
 // 运行: node --test --test-isolation=none tests/lifeRegistry.test.mjs
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import {
   registerLifePack, setActiveLifePack, getActiveLifePack, listLifePacks,
-  portraitFor, validateLifePack, LifePackError, _resetLifeRegistry,
+  portraitFor, validateLifePack, createLifePackFromContent, effectText,
+  LifePackError, _resetLifeRegistry,
 } from '../src/life/registry.js'
-import { defaultLifePack } from '../src/life/content/defaultPack.js'
+import { defaultLifePack, defaultLifePackContent } from '../src/life/content/defaultPack.js'
 
 test('default pack registers and becomes the active pack', () => {
   _resetLifeRegistry()
@@ -15,19 +19,46 @@ test('default pack registers and becomes the active pack', () => {
   assert.deepEqual(listLifePacks(), [{ id: 'wsw-default-life', version: 1, active: true }])
 })
 
+test('builtin content matches the backend seed JSON exactly', () => {
+  const seedPath = fileURLToPath(new URL('../../backend/app/life_packs/wsw-default-life.json', import.meta.url))
+  const seed = JSON.parse(readFileSync(seedPath, 'utf8'))
+  assert.deepEqual(defaultLifePackContent, seed)
+})
+
 test('default pack content is complete for every declared npc', () => {
   for (const id of defaultLifePack.npcIds) {
     assert.ok(defaultLifePack.npcs.some(npc => npc.id === id), 'npc def: ' + id)
     assert.ok(defaultLifePack.portraits[id].startsWith('/life-assets/'), 'portrait: ' + id)
-    const script = defaultLifePack.dialogueScripts[id]
-    assert.equal(script.npcLine.from, 'npc')
-    assert.ok(script.choices.length >= 2, 'choices: ' + id)
-    for (const choice of script.choices) {
+    assert.ok(defaultLifePack.presence[id], 'presence: ' + id)
+    const script = defaultLifePack.dialogue[id]
+    assert.ok(script.nodes[script.start], 'dialogue start: ' + id)
+    const legacy = defaultLifePack.dialogueScripts[id]
+    assert.equal(legacy.npcLine.from, 'npc')
+    assert.equal(legacy.npcLine.text, script.nodes[script.start].line)
+    assert.ok(legacy.choices.length >= 2, 'choices: ' + id)
+    for (const choice of legacy.choices) {
       assert.equal(typeof choice.label, 'string')
       assert.equal(typeof choice.npcReply, 'string')
     }
   }
+  assert.ok(defaultLifePack.worlds.length >= 1)
+  assert.ok(defaultLifePack.rooms.length >= 1)
+  assert.ok(defaultLifePack.actions.length >= 1)
   assert.equal(portraitFor('ache'), defaultLifePack.portraits.ache)
+})
+
+test('factory derives legacy effect text from node-graph effects', () => {
+  assert.equal(effectText({ bond: 2, stats: { social: 2, mood: 2 } }), '好感 +2 · 社交 +2 · 心情 +2')
+  assert.equal(effectText({ stats: { energy: -4 } }), '精力 -4')
+  assert.equal(effectText({}), '')
+  assert.equal(effectText(), '')
+  const ache = defaultLifePack.dialogueScripts.ache
+  assert.equal(ache.choices[0].effect, '好感 +2 · 社交 +2 · 心情 +2')
+  assert.deepEqual(ache.choices[0].delta, { social: 2, mood: 2 })
+  const pack = createLifePackFromContent({ id: 'copy-pack', version: 3, content: defaultLifePackContent })
+  assert.equal(pack.id, 'copy-pack')
+  assert.equal(pack.version, 3)
+  assert.equal(pack.dialogueScripts.yu.npcLine.text, defaultLifePackContent.dialogue.yu.nodes.n1.line)
 })
 
 test('createInitialState returns isolated deep copies', () => {
@@ -45,10 +76,20 @@ test('registry rejects incomplete or malformed packs', () => {
   assert.throws(() => validateLifePack({ id: 'x' }), LifePackError)
   const noPortrait = { ...defaultLifePack, id: 'bad-1', portraits: { ache: '/x.jpg', xiaomi: '/x.jpg', maoyou: '/x.jpg' } }
   assert.throws(() => validateLifePack(noPortrait), /立绘/)
-  const noScript = { ...defaultLifePack, id: 'bad-2', dialogueScripts: { ache: defaultLifePack.dialogueScripts.ache } }
-  assert.throws(() => validateLifePack(noScript), /剧本|选项/)
+  const noScript = { ...defaultLifePack, id: 'bad-2', dialogue: { ache: defaultLifePack.dialogue.ache } }
+  assert.throws(() => validateLifePack(noScript), /剧本/)
   const dupIds = { ...defaultLifePack, id: 'bad-3', npcIds: ['ache', 'ache', 'xiaomi', 'maoyou'] }
   assert.throws(() => validateLifePack(dupIds), /重复/)
+  const noWorlds = { ...defaultLifePack, id: 'bad-4', worlds: [] }
+  assert.throws(() => validateLifePack(noWorlds), /worlds/)
+  const badRoom = { ...defaultLifePack, id: 'bad-5', rooms: [{ id: 'r1', worldId: 'nowhere', label: '#1', private: false, capacity: 4, occupants: 1 }] }
+  assert.throws(() => validateLifePack(badRoom), /未知世界/)
+  const badNext = JSON.parse(JSON.stringify(defaultLifePack))
+  badNext.id = 'bad-6'
+  badNext.dialogue.ache.nodes.n1.choices[0].next = 'missing-node'
+  assert.throws(() => validateLifePack(badNext), /未知节点/)
+  const noActions = { ...defaultLifePack, id: 'bad-7', actions: [] }
+  assert.throws(() => validateLifePack(noActions), /actions/)
 })
 
 test('unknown active pack id throws and registry reports emptiness', () => {

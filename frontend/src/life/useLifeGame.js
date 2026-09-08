@@ -1,23 +1,33 @@
 // 虚拟人生游戏状态与业务逻辑。从 LifeSimulator.vue 抽离，行为不变。
 // 持有全部游戏状态、存档接线与 UI 状态；展示组件通过 props.game 消费。
 // 阶段 2 起内容(NPC/剧本/初始数据)一律经 Registry 的活动 Pack 提供。
-import { ref, computed, onBeforeUnmount } from 'vue'
+// 阶段 4b 起挂载时先拉取站点活动 Pack(站长配置),失败回退内置 Pack;
+// 世界/房间/在场/动作数据注入 lifePresence/lifeActions 规则层。
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useLifeSave } from '../composables/lifeSave'
 import { createLifePlayback } from '../composables/lifePlayback'
-import { resolveLifeAction } from '../composables/lifeActions'
-import { presenceFor, sceneRoster, canInteract, planJoin, ROOMS, roomFor, worldFor, roomDecision, migrateSocialState, friendshipDecision } from '../composables/lifePresence'
+import { resolveLifeAction, setLifeActions, currentLifeActions } from '../composables/lifeActions'
+import { presenceFor, sceneRoster, canInteract, planJoin, roomFor, worldFor, roomDecision, migrateSocialState, friendshipDecision, setLifePresenceData, currentRooms } from '../composables/lifePresence'
 import './builtin'
 import { getActiveLifePack, portraitFor } from './registry'
+import { loadActiveLifePack } from './packLoader'
+
+// 初始房间:包内第一个有人、未满的非私密房间。
+function firstEnterableRoomId(pack) {
+  const room = pack.rooms.find(r => !r.private && r.occupants > 0 && r.occupants < r.capacity)
+  return (room || pack.rooms[0]).id
+}
 
 export function useLifeGame() {
-  const pack = getActiveLifePack()
+  let pack = getActiveLifePack()
+  let dialogueScripts = pack.dialogueScripts
   const initial = pack.createInitialState()
 
   // ==== 玩家人生数据 ====
   const day = ref(initial.day)
   const npcListOpen = ref(false)
   const tutorialDemo = ref(false)
-  const currentRoomId = ref('beach-1024')
+  const currentRoomId = ref(firstEnterableRoomId(pack))
   const friendIds = ref([])
   const interactedNpcIds = ref([])
   const stats = ref(initial.stats)
@@ -33,13 +43,17 @@ export function useLifeGame() {
   const sceneNpcs = computed(() => sceneRoster(npcs.value, currentRoomId.value))
   const worldPopulation = computed(() => (roomFor(currentRoomId.value)?.occupants || 0) + 1)
   const currentRoom = computed(() => roomFor(currentRoomId.value))
+  const currentWorldDef = computed(() => {
+    const room = roomFor(currentRoomId.value)
+    return room ? worldFor(room.worldId) : null
+  })
   const currentNpc = computed(() => npcs.value.find(n => n.id === currentNpcId.value))
+  const actions = computed(() => currentLifeActions())
 
   // ==== 对话历史(每个 NPC 独立保存) ====
   const conversations = ref(initial.conversations)
 
   // ==== 当前对话剧本 ====
-  const dialogueScripts = pack.dialogueScripts
   const currentDialogue = computed(() => dialogueScripts[currentNpcId.value])
   const currentConversation = computed(() => conversations.value[currentNpcId.value] || [])
 
@@ -176,9 +190,9 @@ export function useLifeGame() {
   const profileJoin = computed(() => friendIds.value.includes(profileId.value) ? planJoin(profileId.value) : { allowed: false, reason: '添加好友后才能通过资料跟随加入' })
   const profileRoom = computed(() => roomFor(profilePresence.value.roomId))
   const profileAdd = computed(() => friendshipDecision(profileId.value, profileNpc.value?.bond || 0, interactedNpcIds.value, friendIds.value))
-  const selectedWorldId = ref('beach')
+  const selectedWorldId = ref(pack.worlds[0].id)
   const selectedWorld = computed(() => worldFor(selectedWorldId.value))
-  const visibleRooms = computed(() => ROOMS.filter(r => r.worldId === selectedWorldId.value))
+  const visibleRooms = computed(() => currentRooms().filter(r => r.worldId === selectedWorldId.value))
   function addFriend() {
     if (!saveReady.value || saveConflict.value || !profileAdd.value.allowed) return
     friendIds.value.push(profileId.value)
@@ -223,7 +237,7 @@ export function useLifeGame() {
     if (view === 'demo') { tutorialDemo.value = true }
     if (view === 'history') showHistory.value = true
     if (['worlds', 'friends', 'diary'].includes(view)) panel.value = view
-    if (view === 'rooms') { selectedWorldId.value = currentRoom.value?.worldId || 'beach'; panel.value = 'rooms' }
+    if (view === 'rooms') { selectedWorldId.value = currentRoom.value?.worldId || pack.worlds[0].id; panel.value = 'rooms' }
     if (view === 'profile') { profileId.value = sceneNpcs.value[0]?.id || npcs.value[0]?.id; panel.value = 'profile' }
   }
   function closeTutorial() {
@@ -232,6 +246,33 @@ export function useLifeGame() {
     panel.value = tutorialUi.panel; npcListOpen.value = tutorialUi.npcListOpen
     showHistory.value = tutorialUi.showHistory; profileId.value = tutorialUi.profileId; selectedWorldId.value = tutorialUi.selectedWorldId
     tutorialUi = null
+  }
+
+  // ==== 内容包应用(阶段 4b):站点活动 Pack 到达后整体重建初始状态 ====
+  function applyPack(nextPack) {
+    pack = nextPack
+    dialogueScripts = pack.dialogueScripts
+    setLifePresenceData({ worlds: pack.worlds, rooms: pack.rooms, presence: pack.presence })
+    setLifeActions(pack.actions)
+    const fresh = pack.createInitialState()
+    day.value = fresh.day
+    stats.value = fresh.stats
+    tags.value = fresh.tags
+    currentWorld.value = fresh.currentWorld
+    unlockedWorlds.value = fresh.unlockedWorlds
+    currentRoomId.value = firstEnterableRoomId(pack)
+    friendIds.value = []
+    interactedNpcIds.value = []
+    npcs.value = pack.npcs.map(npc => ({ ...npc }))
+    currentNpcId.value = pack.npcIds[0]
+    conversations.value = fresh.conversations
+    diaryHistory.value = fresh.diary
+    completed.value = {}
+    actionLedger.value = {}
+    pending.value = {}
+    historyNpcId.value = pack.npcIds[0]
+    selectedWorldId.value = pack.worlds[0].id
+    actionFeedback.value = ''
   }
 
   function snapshot() {
@@ -272,7 +313,7 @@ export function useLifeGame() {
   const {
     ready: saveReady, saving: saveBusy, dirty: saveDirty, error: saveError,
     conflict: saveConflict, savedAt, changed: markChanged, flush: flushSave, load: reloadSave,
-  } = useLifeSave(snapshot, hydrate)
+  } = useLifeSave(snapshot, hydrate, { autoLoad: false })
   async function save() {
     if (!saveReady.value || saveConflict.value) return
     markChanged()
@@ -281,6 +322,12 @@ export function useLifeGame() {
   function reloadConfirmed() {
     if (!saveDirty.value || window.confirm('重新载入会丢弃尚未保存的本地修改，继续吗？')) reloadSave()
   }
+
+  // 挂载后先确定站点活动内容包,再载入存档(存档校验依赖活动 Pack)。
+  onMounted(async () => {
+    applyPack(await loadActiveLifePack())
+    reloadSave()
+  })
 
   function nextDay() {
     if (!saveReady.value || saveConflict.value) return
@@ -302,9 +349,9 @@ export function useLifeGame() {
     conversations, completed, actionLedger, pending, diaryHistory,
     currentRoomId, friendIds, interactedNpcIds,
     // 计算
-    friends, sceneNpcs, worldPopulation, currentRoom, currentNpc, currentDialogue,
+    friends, sceneNpcs, worldPopulation, currentRoom, currentWorldDef, currentNpc, currentDialogue,
     historyConversation, profileNpc, profilePresence, profileJoin, profileRoom,
-    profileAdd, selectedWorld, visibleRooms, npcPortrait, showChoices,
+    profileAdd, selectedWorld, visibleRooms, npcPortrait, showChoices, actions,
     // UI 状态
     npcListOpen, tutorialDemo, replyTab, actionFeedback, bondDelta, dialogueVisible,
     speech, playback, showHistory, historyNpcId, panel, profileId, selectedWorldId, toast,

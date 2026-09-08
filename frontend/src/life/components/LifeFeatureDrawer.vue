@@ -1,7 +1,8 @@
 <script setup>
 // 功能抽屉内容：世界探索 / 房间 / 好友 / 人物资料 / 人生手记。
 // 外壳(.drawer/.drawer-content)留在 LifeSimulator.vue；样式从 LifeSimulator.vue 迁出，行为不变。
-import { WORLDS, STATUS_LABELS, presenceFor, worldFor, roomDecision } from '../../composables/lifePresence'
+import { computed } from 'vue'
+import { STATUS_LABELS, presenceFor, worldFor, roomDecision, currentWorlds } from '../../composables/lifePresence'
 
 const props = defineProps({ game: { type: Object, required: true } })
 const {
@@ -10,7 +11,7 @@ const {
   profileRoom, profileAdd, diaryHistory, saveReady, saveConflict,
   exploreWorld, enterRoom, selectFriend, addFriend, joinFriend, portraitFor,
 } = props.game
-const worlds = WORLDS
+const worlds = computed(() => currentWorlds())
 </script>
 
 <template>
@@ -18,7 +19,9 @@ const worlds = WORLDS
     <h2>世界探索 <small>{{ unlockedWorlds }} / 30</small></h2>
     <p class="reply-hint">选择地图查看房间，只能加入有人、未满的非私密房间。</p>
     <div v-for="w in worlds" :key="w.name" class="world-line">
-      <div class="world-thumb" :style="{ background: 'linear-gradient(145deg,' + w.color + ',#e8e6e0)' }"><span>WORLD</span></div>
+      <div class="world-thumb" :style="{ background: 'linear-gradient(145deg,' + w.color + ',#e8e6e0)' }">
+        <img v-if="w.bg" :src="w.bg" :alt="w.name" /><span v-else>WORLD</span>
+      </div>
       <div><strong>{{ w.name }}</strong><small>{{ w.vibe }}</small></div>
       <div class="world-entry">
         <button @click="exploreWorld(w)">查看房间</button>
@@ -91,6 +94,7 @@ const worlds = WORLDS
   font-size: 7px; letter-spacing: 0.1em;
   color: rgba(255, 255, 255, 0.8);
 }
+.world-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .world-line strong, .world-line small { display: block; }
 .world-line strong { font-size: 13px; }
 .world-line small { margin-top: 3px; color: #69736e; font-size: 10px; }

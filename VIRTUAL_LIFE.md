@@ -22,25 +22,60 @@ own save. This feature does not change global roles or promote any account.
 - State: `schemaVersion:2` with `packId`; day, stats (mood/energy/social/explore), tags,
   currentWorld, unlockedWorlds, currentNpcId, npcs, conversations, diary, completed.
   Legacy `schemaVersion:1` writes (no packId) are upgraded to v2 on write; v2
-  must declare the site's active pack id. NPC/room/action whitelists come from
-  the active content pack manifest (`backend/app/life_packs/<id>.json`, selected
-  by env `LIFE_PACK_ID`, default `wsw-default-life`), no longer from code.
-  Unknown schemas/ids/packs rejected. Encoded state limit 2 MB; no silent
-  history truncation. Message length 4000.
+  must declare the site's active pack id. NPC/room/action whitelists are derived
+  from the ACTIVE content pack stored in the `virtual_life_packs` table (stage
+  4a), no longer from code. Unknown schemas/ids/packs rejected. Encoded state
+  limit 2 MB; no silent history truncation. Message length 4000.
+
+## Content packs (site-configurable)
+
+A content pack holds the FULL site content as JSON: npcIds/npcs/portraits,
+worlds (with optional `bg` image URL), rooms, presence, actions, node-graph
+dialogue (`{start, nodes:{id:{line, choices:[{label, effects:{bond,stats},
+reply, next}]}}}`) and initialState. Exactly one pack is active site-wide
+(A-scheme: the site admin configures content; all players share it).
+
+- Table `virtual_life_packs` (id/name/version/content_json/is_active/
+  updated_at) is seeded on first startup from `backend/app/life_packs/*.json`;
+  the JSON files are seeds only — the database is authoritative afterwards.
+- `backend/app/virtual_life_packs.py`: `validate_pack_content` enforces
+  structural and reference consistency (room→world, presence→room, dialogue
+  node-graph jump targets, stat keys, initial state coverage).
+- Admin API (all gated by `get_role_manager`): GET `/api/virtual-life/pack`
+  (active pack detail), GET/POST `/api/virtual-life/packs`, GET/PUT/DELETE
+  `/packs/{id}`, POST `/packs/{id}/activate` (exactly one active; activating
+  revalidates), POST `/packs/{id}/duplicate`. Content updates bump `version`.
+  The active pack cannot be deleted. Save validation follows the active pack
+  immediately after activation.
 
 ## Frontend
 
 File layout after the stage-1 modular split (behavior unchanged):
 
-- `frontend/src/life/registry.js`: content-pack Registry (stage 2). A pack is
-  `{id, version, npcIds, npcs, portraits, dialogueScripts, createInitialState}`;
-  registration validates completeness. The game consumes content ONLY via the
-  active pack. `frontend/src/life/builtin.js` registers built-in packs;
-  `frontend/src/life/content/defaultPack.js` is the built-in default pack
-  (NPC defs, portraits, dialogue scripts, initial life state). The frontend
-  pack id must match the backend manifest of the same name: snapshots write
-  `schemaVersion:2` + `packId`, and hydrate accepts v1 (legacy, no packId) or
-  v2 whose packId matches the active pack (stage 3).
+- `frontend/src/life/registry.js`: content-pack Registry (stage 2, extended in
+  4b). A runtime pack is `{id, version, npcIds, npcs, portraits, worlds, rooms,
+  presence, actions, dialogue (node graph), initialState, dialogueScripts,
+  createInitialState}`; registration validates completeness and reference
+  consistency. `createLifePackFromContent` builds a runtime pack from raw JSON
+  content (deriving the legacy `dialogueScripts` view and deep-copying
+  initialState); `effectText` renders choice effects as display text.
+  `frontend/src/life/builtin.js` registers built-in packs;
+  `frontend/src/life/content/defaultPack.js` is the built-in default pack —
+  its content is kept identical to the backend seed JSON (asserted by test).
+- `frontend/src/life/packLoader.js` (stage 4b): on game mount, fetches the
+  site's active pack via GET `/api/virtual-life/pack`, registers and activates
+  it; on any failure the built-in pack remains as fallback. The save load runs
+  only AFTER the pack settles (`useLifeSave` `autoLoad:false`), because
+  snapshot/hydrate validate against the active pack. When the fetched pack
+  arrives, `useLifeGame.applyPack` rebuilds all game state from it and injects
+  worlds/rooms/presence into `lifePresence.js` (`setLifePresenceData`) and
+  actions into `lifeActions.js` (`setLifeActions`) — those modules keep their
+  exported constants as built-in defaults and expose reactive current-data
+  readers for all rule functions. Scene background: `LifeScene` renders the
+  current world's `bg` image when the pack defines one, otherwise the previous
+  placeholder; world thumbnails in `LifeFeatureDrawer` show `bg` likewise.
+  Snapshots write `schemaVersion:2` + `packId`; hydrate accepts v1 (legacy, no
+  packId) or v2 whose packId matches the active pack (stage 3).
 - `frontend/src/life/useLifeGame.js`: all game state, mutations, tutorial
   wiring and save plumbing; returns a single `game` object.
 - `frontend/src/life/components/`: `LifeCharPanel`, `LifeScene`,

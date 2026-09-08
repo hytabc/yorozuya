@@ -1,14 +1,12 @@
 <script setup>
-// 中央场景：位置标签、场景占位、NPC 头像列表、对话浮层与回应面板。
+// 中央场景：位置标签、场景背景(包内 bg 或占位)、NPC 头像列表、对话浮层与回应面板。
 // 样式从 LifeSimulator.vue 迁出，行为不变。
-import { LIFE_ACTIONS } from '../../composables/lifeActions'
-
 const props = defineProps({ game: { type: Object, required: true } })
 const {
-  currentWorld, currentRoom, sceneNpcs, npcListOpen, worldPopulation,
+  currentWorld, currentRoom, currentWorldDef, sceneNpcs, npcListOpen, worldPopulation,
   currentNpcId, currentNpc, npcPortrait, tutorialDemo,
   dialogueVisible, speech, playback, replyTab, bondDelta,
-  showChoices, currentDialogue, actionFeedback,
+  showChoices, currentDialogue, actionFeedback, actions,
   saveReady, saveConflict,
   switchNpc, selectFriend, openHistory, chooseOption, actionState, performAction, portraitFor,
 } = props.game
@@ -19,16 +17,19 @@ const {
     <div class="scene-box">
       <span class="location-tag">📍 {{ currentWorld }} · {{ currentRoom?.label }}</span>
 
-      <!-- 场景背景占位 -->
+      <!-- 场景背景:包内配置了 bg 用背景图,否则保持占位 -->
       <div class="scene-bg">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-          <circle cx="8.5" cy="8.5" r="1.5"/>
-          <polyline points="21 15 16 10 5 21"/>
-        </svg>
-        <h3>场景画面 · 占位</h3>
-        <p>{{ currentWorld }} · 场景插画位</p>
-        <small v-if="sceneNpcs.length === 0">当前房间暂无可交谈人物，请从世界探索选择其他有人房间。</small>
+        <img v-if="currentWorldDef?.bg" class="scene-bg-img" :src="currentWorldDef.bg" :alt="currentWorldDef.name + ' 场景背景'" />
+        <template v-else>
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          <h3>场景画面 · 占位</h3>
+          <p>{{ currentWorld }} · 场景插画位</p>
+          <small v-if="sceneNpcs.length === 0">当前房间暂无可交谈人物，请从世界探索选择其他有人房间。</small>
+        </template>
       </div>
 
       <!-- NPC 头像列表(浮在场景右侧边缘) -->
@@ -86,7 +87,7 @@ const {
           </div>
           <div v-else id="reply-actions" role="tabpanel" aria-labelledby="reply-actions-tab" class="reply-content">
             <div class="action-options">
-              <button v-for="action in LIFE_ACTIONS" :key="action.id" class="action-option" :disabled="!saveReady || saveConflict || speech.playing || !actionState(action).allowed" :title="!actionState(action).allowed ? actionState(action).reason : actionState(action).repeated ? '今日已领取奖励，再次互动不增加好感' : '今日首次互动奖励好感 +' + action.reward" @click="performAction(action)">
+              <button v-for="action in actions" :key="action.id" class="action-option" :disabled="!saveReady || saveConflict || speech.playing || !actionState(action).allowed" :title="!actionState(action).allowed ? actionState(action).reason : actionState(action).repeated ? '今日已领取奖励，再次互动不增加好感' : '今日首次互动奖励好感 +' + action.reward" @click="performAction(action)">
                 <strong>{{ action.label }}</strong>
                 <small>{{ !actionState(action).allowed ? '好感 ≥ ' + action.threshold + ' 解锁' : actionState(action).repeated ? '今日已奖励' : '首次好感 +' + action.reward }}</small>
               </button>
@@ -129,6 +130,7 @@ const {
 .scene-bg svg { opacity: 0.4; }
 .scene-bg h3 { margin: 0; font-size: 16px; font-weight: 500; }
 .scene-bg p { margin: 0; font-size: 12px; }
+.scene-bg-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 
 /* NPC 头像列表(浮在场景右侧边缘) */
 .npc-avatars {
