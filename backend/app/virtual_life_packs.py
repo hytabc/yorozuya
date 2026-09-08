@@ -46,6 +46,86 @@ def _fail(message: str):
     raise PackContentError(message)
 
 
+def _validate_event_message(message: object, npc_ids: set[str], where: str) -> None:
+    # 回复复用消息组校验,显式禁止嵌套选项点。
+    if not isinstance(message, dict):
+        _fail(f'{where} 消息组必须是对象')
+    if 'choice' in message:
+        _fail(f'{where} 消息组禁止嵌套选项点 choice')
+    speaker = message.get('speaker')
+    if not isinstance(speaker, dict) or ('npcId' in speaker) == ('name' in speaker):
+        _fail(f'{where} speaker 必须恰好指定 npcId 或 name')
+    if not set(speaker).issubset({'npcId', 'name', 'avatar'}):
+        _fail(f'{where} speaker 包含未知字段')
+    if 'npcId' in speaker and (not isinstance(speaker['npcId'], str) or speaker['npcId'] not in npc_ids):
+        _fail(f'{where} speaker 指向未知 NPC')
+    if 'name' in speaker and (not isinstance(speaker['name'], str) or not speaker['name']):
+        _fail(f'{where} speaker 缺少名字')
+    if 'avatar' in speaker and not isinstance(speaker['avatar'], str):
+        _fail(f'{where} speaker avatar 必须是字符串')
+    lines = message.get('lines')
+    if not isinstance(lines, list) or not lines or \
+            any(not isinstance(line, str) or not line for line in lines):
+        _fail(f'{where} 台词必须是非空句子数组')
+    image = message.get('image')
+    if image is not None and (not isinstance(image, str) or not image.startswith('/uploads/')):
+        _fail(f'{where} 图片必须是 /uploads/ 站内路径')
+
+
+def _validate_events(events: object, room_ids: set[str], npc_ids: set[str]) -> None:
+    if not isinstance(events, list):
+        _fail('events 必须是数组')
+    event_ids = set()
+    for event in events:
+        if not isinstance(event, dict):
+            _fail('event 必须是对象')
+        event_id = event.get('id')
+        if not isinstance(event_id, str) or not event_id or event_id in event_ids:
+            _fail('event id 缺失或重复')
+        event_ids.add(event_id)
+        if not isinstance(event.get('roomId'), str) or event['roomId'] not in room_ids:
+            _fail(f'事件 {event_id} 指向未知房间')
+        for key in ('title', 'icon'):
+            if not isinstance(event.get(key), str) or not event[key]:
+                _fail(f'事件 {event_id} 的 {key} 必须是非空字符串')
+        scripts = event.get('scripts')
+        if not isinstance(scripts, list) or len(scripts) != 7:
+            _fail(f'事件 {event_id} 的 scripts 必须恰好 7 份')
+        for day_index, script in enumerate(scripts, 1):
+            where = f'事件 {event_id}/第{day_index}天'
+            messages = script.get('messages') if isinstance(script, dict) else None
+            if not isinstance(messages, list) or not messages:
+                _fail(f'{where} messages 必须是非空数组')
+            for message in messages:
+                if not isinstance(message, dict) or 'choice' not in message:
+                    _validate_event_message(message, npc_ids, where)
+                    continue
+                if set(message) != {'choice'}:
+                    _fail(f'{where} 选项点与消息组必须二选一')
+                choice = message['choice']
+                options = choice.get('options') if isinstance(choice, dict) else None
+                if not isinstance(options, list) or not options:
+                    _fail(f'{where} options 必须是非空数组')
+                for option in options:
+                    if not isinstance(option, dict) or not isinstance(option.get('label'), str) or not option['label']:
+                        _fail(f'{where} 存在无文案选项')
+                    effects = option.get('effects', {})
+                    if not isinstance(effects, dict):
+                        _fail(f'{where} 选项 effects 必须是对象')
+                    if not set(effects).issubset({'stats'}):
+                        _fail(f'{where} 选项 effects 只允许 stats,禁止 bond 或其他键')
+                    stats = effects.get('stats', {})
+                    if not isinstance(stats, dict) or not set(stats).issubset(STAT_KEYS):
+                        _fail(f'{where} 选项包含未知属性')
+                    if any(type(value) is not int or not -100 <= value <= 100 for value in stats.values()):
+                        _fail(f'{where} 选项属性变化无效')
+                    reply = option.get('reply')
+                    if not isinstance(reply, list) or not reply:
+                        _fail(f'{where} reply 必须是非空消息组数组')
+                    for reply_message in reply:
+                        _validate_event_message(reply_message, npc_ids, f'{where}/回复')
+
+
 def validate_pack_content(content) -> dict:
     """Structural and reference-consistency checks; returns the content unchanged."""
     if not isinstance(content, dict):
@@ -95,6 +175,8 @@ def validate_pack_content(content) -> dict:
             _fail(f"房间 {room['id']} 容量无效")
         if not isinstance(room.get('occupants'), int) or room['occupants'] < 0:
             _fail(f"房间 {room['id']} 人数无效")
+
+    _validate_events(content.get('events', []), room_ids, ids)
 
     presence = content.get('presence')
     if not isinstance(presence, dict) or set(presence) != ids:
@@ -197,6 +279,7 @@ def derive_save_rules(content: dict) -> dict:
     return {
         'npcIds': list(content['npcIds']),
         'actionIds': [a['id'] for a in content['actions']],
+        'eventIds': [event['id'] for event in content.get('events', [])],
         'roomIds': [r['id'] for r in enterable],
         'roomWorlds': {r['id']: world_name[r['worldId']] for r in enterable},
         'dialogueNodes': {npc_id: set().union(*(day['nodes'] for day in days))
@@ -221,6 +304,10 @@ def migrate_pack_content(content: dict) -> bool:
     {npc: script} -> {npc: [script]}; node.line -> lines[]; choice.reply ->
     replies[]; fill image/replyImage defaults (stage 8a message groups)."""
     changed = False
+    # 旧内容包没有房间事件,补空数组且不覆盖已有事件。
+    if 'events' not in content:
+        content['events'] = []
+        changed = True
     dialogue = content.get('dialogue')
     if not isinstance(dialogue, dict):
         return changed

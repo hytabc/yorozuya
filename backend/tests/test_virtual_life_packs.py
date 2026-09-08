@@ -13,7 +13,7 @@ from app.models import User, UserRole
 from app.security import create_access_token
 from app.virtual_life import router as save_router
 from app.virtual_life_packs import router as packs_router, seed_virtual_life_packs, \
-    validate_pack_content, migrate_pack_content, PackContentError
+    validate_pack_content, migrate_pack_content, derive_save_rules, PackContentError
 
 SEED = json.loads((Path(__file__).resolve().parent.parent / 'app' / 'life_packs' / 'wsw-default-life.json').read_text(encoding='utf-8'))
 
@@ -43,6 +43,22 @@ def mini_pack(npc_ids):
                          'tags': [], 'currentWorld': '世界一', 'unlockedWorlds': 1,
                          'conversations': {i: [] for i in npc_ids}, 'diary': []},
     }
+
+
+def event_pack(npc_ids):
+    content = mini_pack(npc_ids)
+    content['events'] = [{
+        'id': 'greeting', 'roomId': 'w1-1', 'title': '房间招呼', 'icon': '👋',
+        'scripts': [{'messages': [
+            {'speaker': {'npcId': npc_ids[0]}, 'lines': ['你好', '欢迎'], 'image': None},
+            {'choice': {'options': [{
+                'label': '回应', 'effects': {'stats': {'mood': 100, 'energy': -100, 'social': 1, 'explore': 0}},
+                'reply': [{'speaker': {'name': '路人', 'avatar': '/uploads/avatar.png'},
+                           'lines': ['很高兴见到你'], 'image': '/uploads/life/hello.png'}],
+            }]}},
+        ]} for _ in range(7)],
+    }]
+    return content
 
 
 class PackTests(unittest.TestCase):
@@ -226,6 +242,105 @@ class PackTests(unittest.TestCase):
         # Re-activating the same pack is a no-op for already-migrated saves.
         resp = self.client.post('/api/virtual-life/packs/clone-pack/activate', headers=h)
         self.assertEqual(resp.json()['saveMigration'], {'migrated': 0, 'skipped': 0})
+
+    def test_events_valid_and_save_rules(self):
+        content = event_pack(['ache'])
+        self.assertIs(validate_pack_content(content), content)
+        self.assertEqual(derive_save_rules(content)['eventIds'], ['greeting'])
+        legacy = mini_pack(['ache'])
+        self.assertIs(validate_pack_content(legacy), legacy)
+        self.assertNotIn('events', legacy)  # 校验不改变旧包内容。
+        self.assertEqual(derive_save_rules(legacy)['eventIds'], [])
+
+    def test_events_reject_nested_choice(self):
+        content = event_pack(['ache'])
+        choice = content['events'][0]['scripts'][0]['messages'][1]
+        choice['choice']['options'][0]['reply'] = [{'choice': {'options': []}}]
+        with self.assertRaisesRegex(PackContentError, '嵌套'):
+            validate_pack_content(content)
+
+    def test_events_reject_bond(self):
+        content = event_pack(['ache'])
+        content['events'][0]['scripts'][0]['messages'][1]['choice']['options'][0]['effects']['bond'] = 0
+        with self.assertRaisesRegex(PackContentError, 'bond'):
+            validate_pack_content(content)
+
+    def test_events_reject_unknown_room(self):
+        content = event_pack(['ache'])
+        content['events'][0]['roomId'] = 'unknown'
+        with self.assertRaisesRegex(PackContentError, '未知房间'):
+            validate_pack_content(content)
+
+    def test_events_require_seven_scripts(self):
+        for count in (0, 1, 6, 8):
+            with self.subTest(count=count):
+                content = event_pack(['ache'])
+                scripts = content['events'][0]['scripts']
+                content['events'][0]['scripts'] = [scripts[0] for _ in range(count)]
+                with self.assertRaisesRegex(PackContentError, '7'):
+                    validate_pack_content(content)
+
+    def test_events_require_exclusive_speaker(self):
+        for speaker in ({'npcId': 'ache', 'name': '路人'}, {}, {'avatar': '/uploads/a.png'}):
+            with self.subTest(speaker=speaker):
+                content = event_pack(['ache'])
+                content['events'][0]['scripts'][0]['messages'][0]['speaker'] = speaker
+                with self.assertRaisesRegex(PackContentError, 'speaker'):
+                    validate_pack_content(content)
+
+    def test_events_reject_invalid_message_groups(self):
+        for patch in ({'speaker': {'npcId': 'unknown'}}, {'speaker': {'name': ''}},
+                      {'speaker': {'name': '路人', 'avatar': None}}, {'lines': []},
+                      {'lines': ['']}, {'lines': [1]}, {'image': 'https://example.com/a.png'}):
+            for in_reply in (False, True):
+                with self.subTest(patch=patch, in_reply=in_reply):
+                    content = event_pack(['ache'])
+                    messages = content['events'][0]['scripts'][0]['messages']
+                    message = messages[1]['choice']['options'][0]['reply'][0] if in_reply else messages[0]
+                    message.update(patch)
+                    with self.assertRaises(PackContentError):
+                        validate_pack_content(content)
+
+    def test_events_reject_invalid_options(self):
+        for patch in ({'label': ''}, {'effects': {'other': 1}}, {'effects': []},
+                      {'effects': {'stats': {'bond': 1}}}, {'effects': {'stats': {'mood': 101}}},
+                      {'effects': {'stats': {'mood': -101}}}, {'effects': {'stats': {'mood': True}}},
+                      {'effects': {'stats': {'mood': 1.5}}}, {'reply': []}):
+            with self.subTest(patch=patch):
+                content = event_pack(['ache'])
+                content['events'][0]['scripts'][0]['messages'][1]['choice']['options'][0].update(patch)
+                with self.assertRaises(PackContentError):
+                    validate_pack_content(content)
+
+    def test_events_reject_invalid_structure(self):
+        for patch in ({'id': ''}, {'title': ''}, {'icon': ''}, {'scripts': [{'messages': []}] * 7},
+                      {'scripts': [{'messages': [{'choice': {'options': []}}]}] * 7},
+                      {'scripts': [{'messages': [{'choice': {'options': []}, 'speaker': {'name': '路人'}}]}] * 7}):
+            with self.subTest(patch=patch):
+                content = event_pack(['ache'])
+                content['events'][0].update(patch)
+                with self.assertRaises(PackContentError):
+                    validate_pack_content(content)
+        content = event_pack(['ache'])
+        content['events'].append(content['events'][0])
+        with self.assertRaisesRegex(PackContentError, '重复'):
+            validate_pack_content(content)
+        for events in (None, {}, [None]):
+            with self.subTest(events=events):
+                content = mini_pack(['ache'])
+                content['events'] = events
+                with self.assertRaises(PackContentError):
+                    validate_pack_content(content)
+
+    def test_migrate_adds_events_idempotently(self):
+        for content in (mini_pack(['ache']), {}):
+            self.assertTrue(migrate_pack_content(content))
+            self.assertEqual(content['events'], [])
+            self.assertFalse(migrate_pack_content(content))
+        content = event_pack(['ache'])
+        original = json.loads(json.dumps(content, ensure_ascii=False))
+        self.assertFalse(migrate_pack_content(content))
+        self.assertEqual(content, original)
 
     def test_asset_upload(self):
         from unittest.mock import patch

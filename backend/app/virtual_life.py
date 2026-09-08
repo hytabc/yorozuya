@@ -67,6 +67,11 @@ class Npc(StrictModel):
     bond: int = Field(ge=0, le=100)
 
 
+class EventProgress(StrictModel):
+    day: int = Field(ge=1)
+    done: list[str]
+
+
 class GameState(StrictModel):
     schemaVersion: Literal[1, 2]
     # v2 declares its content pack; v1 (legacy) must omit it.
@@ -84,6 +89,8 @@ class GameState(StrictModel):
     currentRoomId: str | None = None
     friendIds: list[str] = Field(default_factory=list)
     interactedNpcIds: list[str] | None = None
+    # 旧存档反序列化时补房间事件进度。
+    eventProgress: EventProgress | None = None
     # game day -> NPC -> action id -> rewarded; omitted in earlier v1 saves.
     actionLedger: dict[str, dict[str, dict[str, Literal[True]]]] = Field(default_factory=dict)
     # NPC -> current dialogue node id (node-graph engine, stage 4c); absent in older saves.
@@ -92,6 +99,8 @@ class GameState(StrictModel):
     @model_validator(mode='after')
     def check_state(self):
         """Pack-independent structural checks; whitelists live in validate_state_against_pack."""
+        if self.eventProgress is None:
+            self.eventProgress = EventProgress(day=1, done=[])
         if self.interactedNpcIds is None:
             self.interactedNpcIds = [npc_id for npc_id, messages in self.conversations.items()
                                      if any(m.from_ == 'player' for m in messages)]
@@ -136,6 +145,9 @@ def validate_state_against_pack(state: GameState, rules: dict) -> None:
     for npc_id, node_id in state.dialogueNodes.items():
         if node_id not in dialogue_nodes[npc_id]:
             raise ValueError('Invalid dialogue node')
+    # 内容包删除事件后宽容清理旧进度,保留其余事件及原有顺序。
+    event_ids = set(rules['eventIds'])
+    state.eventProgress.done = [event_id for event_id in state.eventProgress.done if event_id in event_ids]
 
 
 class SaveRequest(StrictModel):

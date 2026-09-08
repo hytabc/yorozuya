@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,8 +11,8 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base, get_db
 from app.models import User, UserRole
 from app.security import create_access_token
-from app.virtual_life import router
-from app.virtual_life_packs import seed_virtual_life_packs
+from app.virtual_life import GameState, router
+from app.virtual_life_packs import get_active_pack, seed_virtual_life_packs, validate_pack_content
 
 
 def state():
@@ -76,12 +77,75 @@ class SaveTests(unittest.TestCase):
         self.engine.dispose()
         self.start()  # new app/engine against same file; no in-memory state survives
         loaded = self.client.get(url, headers=self.headers(1)).json()
-        self.assertEqual(loaded['state'], {**state(), **V2, 'actionLedger': {}, 'dialogueNodes': {}, 'friendIds': [], 'interactedNpcIds': [], 'currentRoomId': None})
+        self.assertEqual(loaded['state'], {**state(), **V2, 'actionLedger': {}, 'dialogueNodes': {}, 'friendIds': [], 'interactedNpcIds': [], 'currentRoomId': None, 'eventProgress': {'day': 1, 'done': []}})
         newer = state()
         newer['day'] = 10
         self.assertEqual(self.client.put(url, json={'revision': loaded['revision'], 'state': newer}, headers=self.headers(1)).status_code, 200)
         self.assertEqual(self.client.put(url, json={'revision': 1, 'state': state()}, headers=self.headers(1)).status_code, 409)
         self.assertEqual(self.client.get(url, headers=self.headers(1)).json()['state']['day'], 10)
+
+    def add_event(self):
+        # 使用真实活动包规则,而非模拟白名单。
+        with self.sessions() as db:
+            pack = get_active_pack(db)
+            content = json.loads(pack.content_json)
+            content['events'] = [{
+                'id': 'greeting', 'roomId': content['rooms'][0]['id'], 'title': '招呼', 'icon': '👋',
+                'scripts': [{'messages': [{'speaker': {'npcId': 'ache'}, 'lines': ['你好'], 'image': None}]}
+                            for _ in range(7)],
+            }]
+            validate_pack_content(content)
+            pack.content_json = json.dumps(content, ensure_ascii=False)
+            db.commit()
+
+    def test_event_progress_roundtrip(self):
+        self.add_event()
+        saved = {**state(), 'eventProgress': {'day': 9, 'done': ['greeting']}}
+        response = self.client.put('/api/virtual-life/save', json={'revision': 0, 'state': saved}, headers=self.headers(1))
+        self.assertEqual(response.status_code, 200, response.text)
+        self.client.close()
+        self.engine.dispose()
+        self.start()
+        loaded = self.client.get('/api/virtual-life/save', headers=self.headers(1)).json()['state']
+        self.assertEqual(loaded['eventProgress'], saved['eventProgress'])
+
+    def test_event_progress_defaults_for_legacy_save(self):
+        parsed = GameState.model_validate(state())
+        self.assertEqual(parsed.eventProgress.model_dump(), {'day': 1, 'done': []})
+        parsed.eventProgress.done.append('greeting')
+        self.assertEqual(GameState.model_validate(state()).eventProgress.done, [])
+        response = self.client.put('/api/virtual-life/save', json={'revision': 0, 'state': state()}, headers=self.headers(1))
+        self.assertEqual(response.status_code, 200, response.text)
+        loaded = self.client.get('/api/virtual-life/save', headers=self.headers(1)).json()['state']
+        self.assertEqual(loaded['eventProgress'], {'day': 1, 'done': []})
+
+    def test_event_progress_filters_unknown_event_ids(self):
+        self.add_event()
+        saved = {**state(), 'eventProgress': {'day': 8, 'done': ['removed', 'greeting', 'unknown']}}
+        response = self.client.put('/api/virtual-life/save', json={'revision': 0, 'state': saved}, headers=self.headers(1))
+        self.assertEqual(response.status_code, 200, response.text)
+        loaded = self.client.get('/api/virtual-life/save', headers=self.headers(1)).json()['state']
+        self.assertEqual(loaded['eventProgress'], {'day': 8, 'done': ['greeting']})
+        # 包中事件被删除后,再次写入也应平滑清理。
+        with self.sessions() as db:
+            pack = get_active_pack(db)
+            content = json.loads(pack.content_json)
+            content.pop('events')
+            pack.content_json = json.dumps(content, ensure_ascii=False)
+            db.commit()
+        response = self.client.put('/api/virtual-life/save', json={'revision': 1, 'state': loaded}, headers=self.headers(1))
+        self.assertEqual(response.status_code, 200, response.text)
+        loaded = self.client.get('/api/virtual-life/save', headers=self.headers(1)).json()['state']
+        self.assertEqual(loaded['eventProgress'], {'day': 8, 'done': []})
+
+    def test_event_progress_rejects_invalid_structure(self):
+        for progress in ({'day': 0, 'done': []}, {'day': 1.5, 'done': []},
+                         {'day': 1, 'done': [123]}, {'day': 1, 'done': 'greeting'},
+                         {'day': 1, 'done': [], 'extra': True}, {'day': 1}, {'done': []}):
+            with self.subTest(progress=progress):
+                saved = {**state(), 'eventProgress': progress}
+                response = self.client.put('/api/virtual-life/save', json={'revision': 0, 'state': saved}, headers=self.headers(1))
+                self.assertEqual(response.status_code, 422, response.text)
 
     def test_save_message_with_image_roundtrip(self):
         url = '/api/virtual-life/save'
@@ -133,7 +197,7 @@ class SaveTests(unittest.TestCase):
         self.client.close()
         self.engine.dispose()
         self.start()
-        self.assertEqual(self.client.get(url, headers=headers).json()['state'], {**saved, **V2, 'dialogueNodes': {}, 'friendIds': [], 'interactedNpcIds': [], 'currentRoomId': None})
+        self.assertEqual(self.client.get(url, headers=headers).json()['state'], {**saved, **V2, 'dialogueNodes': {}, 'friendIds': [], 'interactedNpcIds': [], 'currentRoomId': None, 'eventProgress': {'day': 1, 'done': []}})
         self.assertIsNone(self.client.get(url, headers=self.headers(2)).json()['state'])
         for invalid in ({'10': {'ache': {'headpat': True}}}, {'9': {'unknown': {'poke': True}}}, {'9': {'ache': {'invalid': True}}}):
             bad = {**saved, 'actionLedger': invalid}
