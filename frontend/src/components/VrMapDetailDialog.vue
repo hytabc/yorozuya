@@ -1,29 +1,32 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { EyeOff, Flag, Heart, ImagePlus, Map as MapIcon, Send, UploadCloud, X } from 'lucide-vue-next'
+import { EyeOff, Flag, Heart, ImagePlus, LogIn, Map as MapIcon, Send, X } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import UserAvatar from './UserAvatar.vue'
+import ImageDropzone from './ImageDropzone.vue'
 
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024
-const PHOTO_TYPES = new Set(['image/jpeg', 'image/png'])
-
 const props = defineProps({ map: { type: Object, required: true } })
 const emit = defineEmits(['close', 'updated'])
 const auth = useAuthStore()
+const router = useRouter()
 const toast = useToast()
 const busy = ref(false)
 const liking = ref(false)
 const uploading = ref(false)
 const showReport = ref(false)
 const reportReason = ref('')
+const pendingPhotos = ref([])
 
-// 上传按钮旁的鼓励文案：推动大家分享在地图里拍摄的实拍照片
-const UPLOAD_PROMPT = '在这张地图里拍到了满意的瞬间？上传你的实拍照片——黄昏的天台、迷宫尽头的彩蛋……让没去过的人一眼种草，让去过的人会心一笑。照片经管理员审核后展示。'
+const UPLOAD_PROMPT = '你也来过这里吗？把镜头里的光影、朋友和难忘瞬间留在这里，让每一次到访都成为这张地图共同的回忆。照片审核通过后公开展示。'
 
-const myPhotos = computed(() => props.map.photos.filter((photo) => !photo.is_visible))
+const myPhotos = computed(() => props.map.photos.filter((photo) => photo.uploaded_by_me && !photo.is_visible))
 const publicPhotos = computed(() => props.map.photos.filter((photo) => photo.is_visible))
+const myPhotoCount = computed(() => props.map.photos.filter((photo) => photo.uploaded_by_me).length)
+const remainingPhotos = computed(() => Math.max(0, 5 - myPhotoCount.value))
 
 function onKey(event) { if (event.key === 'Escape') emit('close') }
 onMounted(() => { document.body.classList.add('modal-open'); window.addEventListener('keydown', onKey) })
@@ -59,15 +62,9 @@ async function submitReport() {
   }
 }
 
-async function uploadPhoto(event) {
-  const files = Array.from(event.target.files || [])
-  event.target.value = ''
+async function uploadPhotos(files) {
+  pendingPhotos.value = files
   if (!files.length) return
-  if (files.length > 5) return toast.error('单次最多上传 5 张图片')
-  if (props.map.photos.length + files.length > 5) return toast.error('每张地图最多保留 5 张图片')
-  if (files.some((file) => file.size > MAX_PHOTO_BYTES)) return toast.error('地图照片不能超过 10 MB')
-  if (files.reduce((total, file) => total + file.size, 0) > 30 * 1024 * 1024) return toast.error('本次地图图片总大小不能超过 30 MB')
-  if (files.some((file) => !PHOTO_TYPES.has(file.type))) return toast.error('地图照片仅支持 PNG 或 JPG 格式')
   uploading.value = true
   try {
     const body = new FormData()
@@ -79,7 +76,13 @@ async function uploadPhoto(event) {
     toast.error(imageUploadErrorMessage(error))
   } finally {
     uploading.value = false
+    pendingPhotos.value = []
   }
+}
+
+function loginToUpload() {
+  emit('close')
+  router.push({ path: '/login', query: { redirect: '/maps' } })
 }
 </script>
 
@@ -117,8 +120,8 @@ async function uploadPhoto(event) {
         <div class="dialog-footer"><button type="button" class="button secondary" @click="showReport = false">取消</button><button class="button" :disabled="busy"><Send :size="15" />{{ busy ? '提交中…' : '提交举报' }}</button></div>
       </form>
 
-      <template v-if="auth.isLoggedIn">
-        <div class="upload-section">
+      <div class="upload-section">
+        <template v-if="auth.isLoggedIn">
           <div v-if="myPhotos.length" class="my-photo">
             <figure v-for="photo in myPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
               <img :src="photo.image_url" alt="我上传的待审核实拍照片" />
@@ -126,14 +129,21 @@ async function uploadPhoto(event) {
             </figure>
             <p class="muted">已提交的照片将在审核通过后公开展示。</p>
           </div>
-          <p class="upload-prompt">{{ UPLOAD_PROMPT }}</p>
-          <label class="button secondary upload-label" :class="{ disabled: uploading }">
-            <UploadCloud :size="16" />{{ uploading ? '上传中…' : '上传实拍照片' }}
-            <span class="upload-hint">最多 5 张，单张 10 MB，合计 30 MB</span>
-            <input type="file" accept="image/png,image/jpeg" multiple :disabled="uploading || map.photos.length >= 5" @change="uploadPhoto" />
-          </label>
-        </div>
-      </template>
+        </template>
+        <p class="upload-prompt">{{ UPLOAD_PROMPT }}</p>
+        <ImageDropzone
+          v-if="auth.isLoggedIn && remainingPhotos > 0"
+          :model-value="pendingPhotos"
+          :max-files="remainingPhotos"
+          :max-bytes="MAX_PHOTO_BYTES"
+          :max-total-bytes="50 * 1024 * 1024"
+          :disabled="uploading"
+          @update:model-value="uploadPhotos"
+          @error="toast.error"
+        />
+        <div v-else-if="auth.isLoggedIn" class="upload-limit"><ImagePlus :size="17" />你已上传 5 张照片</div>
+        <button v-else class="button secondary" type="button" @click="loginToUpload"><LogIn :size="16" />登录后分享照片</button>
+      </div>
     </section>
   </div>
 </template>
@@ -242,32 +252,7 @@ async function uploadPhoto(event) {
   line-height: 1.6;
 }
 
-.upload-label {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  overflow: hidden;
-  cursor: pointer;
-}
-
-.upload-label input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.upload-label.disabled {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-.upload-hint {
-  font-size: 11px;
-  color: var(--muted);
-}
+.upload-limit { min-height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); font-size: 12px; }
 
 .my-photo {
   display: flex;
