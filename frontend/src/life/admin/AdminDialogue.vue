@@ -121,6 +121,16 @@ function edgePath(e) {
 function addChoice(target) {
   target.choices.push({ label: '……', effects: { stats: {} }, replies: ['……'], replyImage: null, next: null })
 }
+function setEffect(choice, key, event) {
+  // 不依赖 min/max：空值删除，有限数截断并限幅，保留好感与属性的嵌套结构。
+  const raw = event.target.value
+  const effects = choice.effects ??= { stats: {} }
+  const target = key === 'bond' ? effects : (effects.stats ??= {})
+  const min = key === 'bond' ? 0 : -100
+  if (raw === '' || !Number.isFinite(Number(raw))) delete target[key]
+  else target[key] = Math.max(min, Math.min(100, Math.trunc(Number(raw))))
+  event.target.value = target[key] ?? ''
+}
 function removeChoice(target, index) {
   if (target.choices.length <= 1) return
   target.choices.splice(index, 1)
@@ -219,11 +229,11 @@ function submitRemoveNode(nodeId) {
       <div v-for="(choice, ci) in node.choices" :key="ci" class="la-choice-block">
         <div class="la-choice">
           <input v-model="choice.label" type="text" placeholder="玩家选项" />
-          <input v-model.number="choice.effects.bond" type="number" min="0" max="100" placeholder="0" />
-          <input v-model.number="choice.effects.stats.mood" type="number" min="-100" max="100" placeholder="0" />
-          <input v-model.number="choice.effects.stats.energy" type="number" min="-100" max="100" placeholder="0" />
-          <input v-model.number="choice.effects.stats.social" type="number" min="-100" max="100" placeholder="0" />
-          <input v-model.number="choice.effects.stats.explore" type="number" min="-100" max="100" placeholder="0" />
+          <input :value="choice.effects.bond ?? ''" @input="setEffect(choice, 'bond', $event)" type="number" min="0" max="100" step="1" placeholder="0" />
+          <input :value="choice.effects.stats.mood ?? ''" @input="setEffect(choice, 'mood', $event)" type="number" min="-100" max="100" step="1" placeholder="0" />
+          <input :value="choice.effects.stats.energy ?? ''" @input="setEffect(choice, 'energy', $event)" type="number" min="-100" max="100" step="1" placeholder="0" />
+          <input :value="choice.effects.stats.social ?? ''" @input="setEffect(choice, 'social', $event)" type="number" min="-100" max="100" step="1" placeholder="0" />
+          <input :value="choice.effects.stats.explore ?? ''" @input="setEffect(choice, 'explore', $event)" type="number" min="-100" max="100" step="1" placeholder="0" />
           <select :value="choice.next" @change="onNextChange(choice, $event)">
             <option :value="null">当天结束</option>
             <option v-for="target in nodeIds" :key="target" :value="target">→ {{ target }}</option>
@@ -231,6 +241,7 @@ function submitRemoveNode(nodeId) {
           </select>
           <button class="la-mini la-danger" :disabled="node.choices.length <= 1" @click="removeChoice(node, ci)">删</button>
         </div>
+        <p class="la-hint">好感 0~100 · 属性 -100~100（整数，留空为未设置）</p>
         <div class="la-replies">
           <span class="la-replies-label">回复</span>
           <div v-for="(r, ri) in choice.replies" :key="ri" class="la-reply-row">
@@ -247,7 +258,7 @@ function submitRemoveNode(nodeId) {
   </section>
 </template>
 
-<style>
+<style scoped>
 .la-map-scroll { border: 1px solid #e7ebe5; border-radius: 8px; margin-bottom: 14px; max-height: 380px; overflow: auto; background: #fbfdfc; }
 .la-map { position: relative; }
 .la-map-edges { position: absolute; inset: 0; pointer-events: none; }

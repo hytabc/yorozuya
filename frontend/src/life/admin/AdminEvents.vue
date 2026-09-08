@@ -1,6 +1,6 @@
 <script setup>
 // 事件剧本是七天的线性序列；选项回复复用消息组面板，不提供嵌套选项入口。
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import {
   adminState, npcById, LIFE_DIALOGUE_DAYS, addEvent, removeEvent,
   addEventMessage, addEventChoice, removeEventItem,
@@ -10,6 +10,7 @@ import AdminImageField from './AdminImageField.vue'
 const content = computed(() => adminState.content)
 const events = computed(() => content.value?.events || [])
 const selectedId = ref('')
+const editorRef = ref(null)
 const activeDay = ref(1)
 const selected = computed(() => events.value.find(e => e.id === selectedId.value) || events.value[0])
 const script = computed(() => selected.value?.scripts[activeDay.value - 1])
@@ -33,9 +34,15 @@ function roomLabel(room) {
   const world = content.value.worlds.find(w => w.id === room.worldId)
   return `${room.label} · ${world?.name || room.worldId}`
 }
+async function selectEvent(id) {
+  selectedId.value = id
+  // 等待选中事件的编辑器渲染完成，再滚动到剧本区域。
+  await nextTick()
+  editorRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 function createEvent(roomId = content.value.rooms[0]?.id) {
   const id = addEvent(content.value, roomId)
-  if (id) selectedId.value = id
+  if (id) selectEvent(id)
 }
 function deleteEvent(event) {
   if (window.confirm(`删除事件「${event.title}」及其七天剧本？`)) removeEvent(content.value, event.id)
@@ -108,7 +115,7 @@ function setStat(option, key, event) {
       </div>
       <div v-for="event in events.filter(e => e.roomId === room.id)" :key="event.id"
            class="la-event-row" :class="{ selected: selected?.id === event.id }">
-        <button class="la-mini" :aria-pressed="selected?.id === event.id" @click="selectedId = event.id">编辑剧本</button>
+        <button class="la-mini" :aria-pressed="selected?.id === event.id" @click="selectEvent(event.id)">编辑剧本</button>
         <label>图标<input :value="event.icon" @input="setText(event, 'icon', $event, '❗')" type="text" class="la-event-icon" /></label>
         <label class="la-event-title">标题<input :value="event.title" @input="setText(event, 'title', $event, '新事件')" type="text" /></label>
         <label>房间<select v-model="event.roomId">
@@ -119,7 +126,7 @@ function setStat(option, key, event) {
     </div>
     <button class="la-mini" :disabled="!content.rooms.length" @click="createEvent()">+ 新增事件（首个房间）</button>
 
-    <div v-if="selected && script" :key="selected.id" class="la-event-editor">
+    <div v-if="selected && script" :key="selected.id" ref="editorRef" class="la-event-editor">
       <h3>{{ selected.icon }} {{ selected.title }} <small>{{ selected.id }}</small></h3>
       <nav class="la-npc-tabs" aria-label="事件天数">
         <button v-for="day in dayTabs" :key="day" :class="{ active: day === activeDay }"
@@ -192,7 +199,7 @@ function setStat(option, key, event) {
 .la-events h3 { font-size: 13px; margin: 12px 0; }
 .la-events small { color: #69736e; font-weight: normal; }
 .la-event-row { padding: 10px; margin-bottom: 6px; border: 1px solid #d9dedb; border-radius: 8px; }
-.la-event-row.selected { border-color: #237a57; background: #f4f9f5; }
+.la-event-row.selected { border-color: #237a57; border-left: 4px solid #237a57; background: #f4f9f5; }
 .la-event-icon { width: 56px; }
 .la-event-title { flex: 1; min-width: 140px; }
 .la-event-editor { margin-top: 20px; padding-top: 8px; border-top: 1px solid #d9dedb; }
