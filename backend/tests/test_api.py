@@ -1027,6 +1027,7 @@ def test_vr_map_flow():
         assert uploaded.status_code == 201, uploaded.text
         photo_id = uploaded.json()["photos"][0]["id"]
         assert uploaded.json()["photos"][0]["is_visible"] is False
+        assert uploaded.json()["photos"][0]["uploaded_by_me"] is True
         guest_photos = client.get(f"/api/vr-maps/{map_a['id']}").json()["photos"]
         assert guest_photos == []
         assert len(client.get(f"/api/vr-maps/{map_a['id']}", headers=bob).json()["photos"]) == 1
@@ -1037,7 +1038,8 @@ def test_vr_map_flow():
         assert target["map_name"] == "午夜天台"
         approved = client.patch(f"/api/admin/vr-map-photos/{photo_id}", headers=admin, json={"is_visible": True})
         assert approved.status_code == 200 and approved.json()["is_visible"] is True
-        assert len(client.get(f"/api/vr-maps/{map_a['id']}").json()["photos"]) == 1
+        guest_photo = client.get(f"/api/vr-maps/{map_a['id']}").json()["photos"][0]
+        assert guest_photo["uploaded_by_me"] is False
 
         # bob 再次上传会追加图片；驳回新图后，之前通过的图片仍公开
         replaced = client.post(f"/api/vr-maps/{map_a['id']}/photos", headers=bob, files={"photo": ("shot2.jpg", b"\xff\xd8\xff\xe0" + b"\x00" * 64, "image/jpeg")})
@@ -1085,7 +1087,22 @@ def test_vr_map_multi_photo_creation_limits_and_moderator_permissions():
             files={"photos": ("six.png", TINY_PNG, "image/png")},
         )
         assert sixth.status_code == 422
-        assert "最多保留 5 张" in sixth.json()["detail"]
+        assert "你在每张地图最多上传 5 张" in sixth.json()["detail"]
+
+        # 地图已有 5 张照片后，另一位用户仍有独立的 5 张上传额度。
+        contributed = client.post(
+            f"/api/vr-maps/{map_id}/photos", headers=regular,
+            files=[("photos", (f"visitor-{index}.jpg", b"\xff\xd8\xff\xe0" + bytes([index]) * 32, "image/jpeg")) for index in range(5)],
+        )
+        assert contributed.status_code == 201, contributed.text
+        assert len(contributed.json()["photos"]) == 5
+        assert all(photo["uploaded_by_me"] for photo in contributed.json()["photos"])
+        visitor_sixth = client.post(
+            f"/api/vr-maps/{map_id}/photos", headers=regular,
+            files={"photos": ("visitor-six.jpg", b"\xff\xd8\xff\xe0" + b"\x00" * 32, "image/jpeg")},
+        )
+        assert visitor_sixth.status_code == 422
+        assert "你在每张地图最多上传 5 张" in visitor_sixth.json()["detail"]
 
         too_many = client.post(
             "/api/vr-maps", headers=owner,
@@ -1093,19 +1110,6 @@ def test_vr_map_multi_photo_creation_limits_and_moderator_permissions():
             files=[("photos", (f"many-{index}.png", TINY_PNG, "image/png")) for index in range(4)],
         )
         assert too_many.status_code == 422
-        empty_map = client.post(
-            "/api/vr-maps", headers=owner,
-            json={"name": "总量测试", "description": "用于验证一次上传文件的总大小限制。", "category": "休闲"},
-        ).json()
-        large_png = b"\x89PNG\r\n\x1a\n" + b"\x00" * (8 * 1024 * 1024)
-        total_too_large = client.post(
-            f"/api/vr-maps/{empty_map['id']}/photos", headers=owner,
-            files=[("photos", (f"large-{index}.png", large_png, "image/png")) for index in range(4)],
-        )
-        assert total_too_large.status_code == 422
-        assert "总大小不能超过 30 MB" in total_too_large.json()["detail"]
-        assert client.get(f"/api/vr-maps/{empty_map['id']}", headers=owner).json()["photos"] == []
-
         assert client.get("/api/admin/vr-map-photos", headers=moderator).status_code == 200
         assert client.get("/api/admin/photos", headers=moderator).status_code == 200
         assert client.get("/api/admin/users", headers=moderator).status_code == 403

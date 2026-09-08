@@ -437,6 +437,7 @@ class VrMapPhotoOut(BaseModel):
     # is_visible=False 的照片仅上传者和管理员组会收到；moderated_at 为空表示审核中
     is_visible: bool = False
     moderated: bool = False
+    uploaded_by_me: bool = False
 
 
 class VrMapOut(ApiModel):

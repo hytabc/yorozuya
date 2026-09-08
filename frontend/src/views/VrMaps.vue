@@ -8,6 +8,7 @@ import { useToast } from '../composables/toast'
 import { MAP_CATEGORIES } from '../constants'
 import UserAvatar from '../components/UserAvatar.vue'
 import VrMapDetailDialog from '../components/VrMapDetailDialog.vue'
+import ImageDropzone from '../components/ImageDropzone.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -67,11 +68,6 @@ async function submitCreate() {
   }
 }
 
-function onCreatePhotos(event) {
-  createPhotos.value = Array.from(event.target.files || [])
-  event.target.value = ''
-}
-
 function onUpdated(updated) {
   selected.value = null
   load()
@@ -120,7 +116,10 @@ onMounted(load)
           <label>地图名称<input v-model.trim="form.name" required maxlength="80" placeholder="如：午夜天台" /></label>
           <label>地图类型<select v-model="form.category" aria-label="地图类型"><option v-for="item in MAP_CATEGORIES" :key="item" :value="item">{{ item }}</option></select></label>
           <label>地图介绍<textarea v-model.trim="form.description" required minlength="10" maxlength="2000" rows="5" placeholder="玩法、亮点、适合的场景……"></textarea><small>{{ form.description.length }}/2000</small></label>
-          <label>推荐图片（可选，最多 3 张）<input type="file" accept="image/png,image/jpeg" multiple @change="onCreatePhotos" /><small>{{ createPhotos.length }} 张，单张不超过 10 MB，本次合计不超过 30 MB</small></label>
+          <div class="map-photo-field">
+            <span>推荐图片（可选）</span>
+            <ImageDropzone v-model="createPhotos" :max-files="3" :max-bytes="MAX_PHOTO_BYTES" :max-total-bytes="30 * 1024 * 1024" :disabled="creating" @error="toast.error" />
+          </div>
           <div class="dialog-footer"><button type="button" class="button secondary" :disabled="creating" @click="showCreate = false">取消</button><button class="button" :disabled="creating"><MapIcon :size="16" />{{ creating ? '提交中…' : '提交推荐' }}</button></div>
         </form>
       </section>
@@ -145,6 +144,8 @@ onMounted(load)
   gap: 6px;
   font-size: 13px;
 }
+
+.map-photo-field { display: grid; gap: 8px; color: #46504b; font-size: 12px; font-weight: 650; }
 
 .maps-grid {
   display: grid;

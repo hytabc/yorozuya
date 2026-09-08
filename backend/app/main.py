@@ -651,7 +651,7 @@ AVATAR_SIGNATURES = (
 
 # VRChat 地图推荐：实拍照片仅 PNG/JPG，最大 10 MB，需管理员审核
 MAX_VR_MAP_PHOTO_BYTES = 10 * 1024 * 1024
-MAX_VR_MAP_UPLOAD_TOTAL_BYTES = 30 * 1024 * 1024
+MAX_VR_MAP_UPLOAD_TOTAL_BYTES = 50 * 1024 * 1024
 MAX_VR_MAP_PHOTOS = 5
 MAP_CATEGORIES = ("游戏", "休闲", "恐怖", "风景", "解谜", "社交", "其他")
 
@@ -1642,6 +1642,7 @@ def present_vr_map_photos(vr_map: VrMap, viewer: User | None) -> list[VrMapPhoto
                     image_url=f"/uploads/{photo.file_path}",
                     is_visible=photo.is_visible,
                     moderated=photo.moderated_at is not None,
+                    uploaded_by_me=viewer is not None and viewer.id == photo.user_id,
                 )
             )
     return photos
@@ -1686,7 +1687,7 @@ async def save_vr_map_photos(
             raise HTTPException(status_code=422, detail="地图照片不能超过 10 MB")
         total_bytes += len(content)
         if total_bytes > MAX_VR_MAP_UPLOAD_TOTAL_BYTES:
-            raise HTTPException(status_code=422, detail="本次地图图片总大小不能超过 30 MB")
+            raise HTTPException(status_code=422, detail="本次地图图片总大小不能超过 50 MB")
         extension = avatar_extension(content)
         if extension is None:
             raise HTTPException(status_code=422, detail="地图照片仅支持 PNG 或 JPG 格式")
@@ -1833,7 +1834,7 @@ async def upload_vr_map_photo(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """上传地图实拍照片：单次最多 5 张，地图累计最多 5 张；需审核后公开。"""
+    """上传地图实拍照片：单次最多 5 张，每位用户对每张地图最多 5 张；需审核后公开。"""
     vr_map = get_vr_map_or_404(db, map_id)
     if photo is not None:
         photos = [*photos, photo]
@@ -1841,9 +1842,14 @@ async def upload_vr_map_photo(
         raise HTTPException(status_code=422, detail="请选择要上传的照片")
     if len(photos) > MAX_VR_MAP_PHOTOS:
         raise HTTPException(status_code=422, detail="单次最多上传 5 张图片")
-    current_count = db.scalar(select(func.count()).select_from(VrMapPhoto).where(VrMapPhoto.map_id == map_id)) or 0
+    current_count = db.scalar(
+        select(func.count()).select_from(VrMapPhoto).where(
+            VrMapPhoto.map_id == map_id,
+            VrMapPhoto.user_id == user.id,
+        )
+    ) or 0
     if current_count + len(photos) > MAX_VR_MAP_PHOTOS:
-        raise HTTPException(status_code=422, detail="每张地图最多保留 5 张图片")
+        raise HTTPException(status_code=422, detail="你在每张地图最多上传 5 张图片")
     records = await save_vr_map_photos(photos, map_id, user.id)
     db.add_all(records)
     db.commit()
