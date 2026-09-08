@@ -1673,6 +1673,18 @@ def get_vr_map_or_404(db: Session, map_id: int) -> VrMap:
     return vr_map
 
 
+def remove_vr_map_file(file_path: str) -> None:
+    """Best-effort cleanup for a file stored below the configured upload root."""
+    root = settings.sugar_upload_path.resolve()
+    destination = (root / file_path).resolve()
+    if not destination.is_relative_to(root):
+        return
+    try:
+        destination.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
 async def save_vr_map_photos(
     photos: list[UploadFile], map_id: int, user_id: int,
 ) -> list[VrMapPhoto]:
@@ -1783,6 +1795,24 @@ def vr_map_detail(
     return present_vr_map(vr_map, viewer)
 
 
+@app.delete("/api/vr-maps/{map_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_vr_map(
+    map_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """删除本人发布的地图推荐，并清理该推荐下的全部图片。"""
+    vr_map = get_vr_map_or_404(db, map_id)
+    if vr_map.uploader_id != user.id:
+        raise HTTPException(status_code=403, detail="只能删除自己发布的地图推荐")
+    photo_paths = [photo.file_path for photo in vr_map.photos]
+    db.delete(vr_map)
+    db.commit()
+    for file_path in photo_paths:
+        remove_vr_map_file(file_path)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @app.post("/api/vr-maps/{map_id}/like", response_model=VrMapLikeState)
 def toggle_vr_map_like(
     map_id: int,
@@ -1853,6 +1883,61 @@ async def upload_vr_map_photo(
     records = await save_vr_map_photos(photos, map_id, user.id)
     db.add_all(records)
     db.commit()
+    db.refresh(vr_map)
+    return present_vr_map(vr_map, viewer=user)
+
+
+@app.patch("/api/vr-maps/{map_id}/photos/{photo_id}", response_model=VrMapOut)
+async def replace_vr_map_photo(
+    map_id: int,
+    photo_id: int,
+    photo: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """替换本人上传的地图图片；新图片必须重新通过审核。"""
+    vr_map = get_vr_map_or_404(db, map_id)
+    record = db.get(VrMapPhoto, photo_id)
+    if record is None or record.map_id != map_id:
+        raise HTTPException(status_code=404, detail="地图图片不存在或已被删除")
+    if record.user_id != user.id:
+        raise HTTPException(status_code=403, detail="只能更新自己上传的地图图片")
+
+    replacement = (await save_vr_map_photos([photo], map_id, user.id))[0]
+    old_file_path = record.file_path
+    record.file_path = replacement.file_path
+    record.is_visible = False
+    record.moderated_by_id = None
+    record.moderated_at = None
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        remove_vr_map_file(replacement.file_path)
+        raise
+    remove_vr_map_file(old_file_path)
+    db.refresh(vr_map)
+    return present_vr_map(vr_map, viewer=user)
+
+
+@app.delete("/api/vr-maps/{map_id}/photos/{photo_id}", response_model=VrMapOut)
+def delete_vr_map_photo(
+    map_id: int,
+    photo_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """删除本人上传的地图图片。"""
+    vr_map = get_vr_map_or_404(db, map_id)
+    record = db.get(VrMapPhoto, photo_id)
+    if record is None or record.map_id != map_id:
+        raise HTTPException(status_code=404, detail="地图图片不存在或已被删除")
+    if record.user_id != user.id:
+        raise HTTPException(status_code=403, detail="只能删除自己上传的地图图片")
+    file_path = record.file_path
+    db.delete(record)
+    db.commit()
+    remove_vr_map_file(file_path)
     db.refresh(vr_map)
     return present_vr_map(vr_map, viewer=user)
 
