@@ -381,6 +381,7 @@ class PackTests(unittest.TestCase):
             self.assertEqual(content['events'], [])
             self.assertFalse(migrate_pack_content(content))
         content = event_pack(['ache'])
+        content['npcs'][0]['fallbackReplies'] = []
         original = json.loads(json.dumps(content, ensure_ascii=False))
         self.assertFalse(migrate_pack_content(content))
         self.assertEqual(content, original)
@@ -407,6 +408,102 @@ class PackTests(unittest.TestCase):
         # Permission gates mirror the pack API.
         self.assertEqual(self.client.post('/api/virtual-life/assets', files={'file': ('bg.png', png, 'image/png')}).status_code, 401)
         self.assertEqual(self.client.post('/api/virtual-life/assets', files={'file': ('bg.png', png, 'image/png')}, headers=self.headers(3)).status_code, 403)
+
+
+class FallbackReplyTests(unittest.TestCase):
+    def test_accepts_valid_and_default_fallback_replies(self) -> None:
+        for patch in ({}, {'fallbackReplies': []},
+                      {'fallbackReplies': [{'text': '你好'}]},
+                      {'fallbackReplies': [{'text': '你好', 'minBond': 0}]},
+                      {'fallbackReplies': [{'text': '你好', 'minBond': 1}]},
+                      {'fallbackReplies': [{'text': '你好', 'minBond': 100}]},
+                      {'fallbackReplies': [{'text': '默认回复'}, {'text': '亲密回复', 'minBond': 80}]}):
+            with self.subTest(patch=patch):
+                content = mini_pack(['ache'])
+                content['npcs'][0].update(patch)
+                original = json.loads(json.dumps(content, ensure_ascii=False))
+                self.assertIs(validate_pack_content(content), content)
+                self.assertEqual(content, original)  # 缺省值用于校验,不改写内容。
+
+    def test_rejects_non_array_fallback_replies(self) -> None:
+        for replies in (None, {}, '', 'reply', 0, 1, True, False, ()):
+            with self.subTest(replies=replies):
+                content = mini_pack(['ache'])
+                content['npcs'][0]['fallbackReplies'] = replies
+                with self.assertRaisesRegex(PackContentError, '^NPC ache 的 fallbackReplies 必须是数组$'):
+                    validate_pack_content(content)
+
+    def test_rejects_non_object_fallback_reply(self) -> None:
+        for reply in (None, [], 'reply', 0, True, False, 1.5, ()):
+            with self.subTest(reply=reply):
+                content = mini_pack(['ache'])
+                content['npcs'][0]['fallbackReplies'] = [{'text': '合法首条'}, reply]
+                with self.assertRaisesRegex(PackContentError, '^NPC ache 的 fallbackReplies/第2条 必须是对象$'):
+                    validate_pack_content(content)
+
+    def test_rejects_missing_empty_or_non_string_text(self) -> None:
+        for reply in ({}, {'minBond': 0}, {'text': ''}, {'text': None}, {'text': False},
+                      {'text': 0}, {'text': 1.5}, {'text': []}, {'text': {}}):
+            with self.subTest(reply=reply):
+                content = mini_pack(['ache'])
+                content['npcs'][0]['fallbackReplies'] = [reply]
+                with self.assertRaisesRegex(PackContentError, '^NPC ache 的 fallbackReplies/第1条 的 text 必须是非空字符串$'):
+                    validate_pack_content(content)
+
+    def test_rejects_invalid_min_bond_type_and_range(self) -> None:
+        for min_bond in (-1, 101, True, False, None, 0.0, 100.0, 0.5, '0', [], {}):
+            with self.subTest(min_bond=min_bond):
+                content = mini_pack(['ache', 'neo'])
+                content['npcs'][1]['fallbackReplies'] = [{'text': '你好', 'minBond': min_bond}]
+                with self.assertRaisesRegex(PackContentError, r'^NPC neo 的 fallbackReplies/第1条 的 minBond 必须是 0\.\.100 的整数$'):
+                    validate_pack_content(content)
+
+    def test_rejects_unknown_fallback_reply_keys(self) -> None:
+        for reply in ({'text': '你好', 'extra': 1},
+                      {'text': '你好', 'minBond': 0, 'bond': 1},
+                      {'text': '你好', 'minbond': 0}):
+            with self.subTest(reply=reply):
+                content = mini_pack(['ache'])
+                content['npcs'][0]['fallbackReplies'] = [reply]
+                with self.assertRaisesRegex(PackContentError, '^NPC ache 的 fallbackReplies/第1条 包含未知字段$'):
+                    validate_pack_content(content)
+
+    def test_migration_adds_independent_defaults_idempotently(self) -> None:
+        for dialogue_shape in ('valid', 'missing', 'null'):
+            with self.subTest(dialogue_shape=dialogue_shape):
+                content = mini_pack(['ache', 'neo'])
+                content['events'] = []
+                if dialogue_shape == 'missing':
+                    content.pop('dialogue')
+                elif dialogue_shape == 'null':
+                    content['dialogue'] = None
+                self.assertTrue(migrate_pack_content(content))
+                for npc in content['npcs']:
+                    self.assertEqual(npc['fallbackReplies'], [])
+                self.assertIsNot(content['npcs'][0]['fallbackReplies'], content['npcs'][1]['fallbackReplies'])
+                original = json.loads(json.dumps(content, ensure_ascii=False))
+                self.assertFalse(migrate_pack_content(content))
+                self.assertEqual(content, original)
+                if dialogue_shape == 'valid':
+                    self.assertIs(validate_pack_content(content), content)
+
+    def test_migration_preserves_existing_configuration(self) -> None:
+        for replies in ([], [{'text': '默认回复'}, {'text': '亲密回复', 'minBond': 100}], None, {}, 'invalid'):
+            for missing_sibling in (False, True):
+                with self.subTest(replies=replies, missing_sibling=missing_sibling):
+                    content = mini_pack(['ache', 'neo'])
+                    content['events'] = []
+                    content['npcs'][0]['fallbackReplies'] = replies
+                    if not missing_sibling:
+                        content['npcs'][1]['fallbackReplies'] = []
+                    original_replies = json.loads(json.dumps(replies, ensure_ascii=False))
+                    self.assertIs(migrate_pack_content(content), missing_sibling)
+                    self.assertIs(content['npcs'][0]['fallbackReplies'], replies)
+                    self.assertEqual(content['npcs'][0]['fallbackReplies'], original_replies)
+                    self.assertEqual(content['npcs'][1]['fallbackReplies'], [])
+                    original = json.loads(json.dumps(content, ensure_ascii=False))
+                    self.assertFalse(migrate_pack_content(content))
+                    self.assertEqual(content, original)
 
 
 if __name__ == '__main__':

@@ -109,6 +109,15 @@ export function validateLifePack(pack) {
   const ids = new Set(pack.npcIds)
   for (const npc of pack.npcs) {
     if (!npc || !ids.has(npc.id)) fail('npcs 包含未声明的 NPC id: ' + (npc && npc.id))
+    // 默认回复仅允许文本与可选好感门槛,显式 null 不作为缺省值。
+    const replies = Object.hasOwn(npc, 'fallbackReplies') ? npc.fallbackReplies : []
+    if (!Array.isArray(replies)) fail(`NPC ${npc.id} fallbackReplies 必须是数组`)
+    for (const reply of replies) {
+      if (!isEventObject(reply) || !Object.hasOwn(reply, 'text') || Object.keys(reply).some(key => !['text', 'minBond'].includes(key))) fail(`NPC ${npc.id} 默认回复只允许 text 和可选 minBond 字段`)
+      if (typeof reply.text !== 'string' || !reply.text) fail(`NPC ${npc.id} 默认回复 text 必须是非空字符串`)
+      const minBond = Object.hasOwn(reply, 'minBond') ? reply.minBond : 0
+      if (!Number.isInteger(minBond) || minBond < 0 || minBond > 100) fail(`NPC ${npc.id} 默认回复 minBond 必须是 0..100 的整数`)
+    }
   }
   for (const id of pack.npcIds) {
     if (!pack.portraits || typeof pack.portraits[id] !== 'string') fail('NPC 缺少立绘: ' + id)

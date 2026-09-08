@@ -134,6 +134,23 @@ def _validate_events(events: object, room_ids: set[str], npc_ids: set[str]) -> N
                         _validate_event_message(reply_message, npc_ids, f'{where}/回复')
 
 
+def _validate_fallback_replies(replies: object, npc_id: str) -> None:
+    where = f'NPC {npc_id} 的 fallbackReplies'
+    if not isinstance(replies, list):
+        _fail(f'{where} 必须是数组')
+    for index, reply in enumerate(replies, 1):
+        reply_where = f'{where}/第{index}条'
+        if not isinstance(reply, dict):
+            _fail(f'{reply_where} 必须是对象')
+        if not set(reply).issubset({'text', 'minBond'}):
+            _fail(f'{reply_where} 包含未知字段')
+        if not isinstance(reply.get('text'), str) or not reply['text']:
+            _fail(f'{reply_where} 的 text 必须是非空字符串')
+        min_bond = reply.get('minBond', 0)
+        if type(min_bond) is not int or not 0 <= min_bond <= 100:
+            _fail(f'{reply_where} 的 minBond 必须是 0..100 的整数')
+
+
 def validate_pack_content(content) -> dict:
     """Structural and reference-consistency checks; returns the content unchanged."""
     if not isinstance(content, dict):
@@ -151,6 +168,7 @@ def validate_pack_content(content) -> dict:
             _fail(f"NPC {npc.get('id')} 缺少名字")
         if not isinstance(npc.get('bond'), int) or not 0 <= npc['bond'] <= 100:
             _fail(f"NPC {npc.get('id')} 初始好感必须在 0-100")
+        _validate_fallback_replies(npc.get('fallbackReplies', []), npc['id'])
 
     portraits = content.get('portraits')
     if not isinstance(portraits, dict) or set(portraits) != ids:
@@ -310,8 +328,16 @@ def get_save_rules(db: Session) -> dict:
 def migrate_pack_content(content: dict) -> bool:
     """Upgrade legacy dialogue shapes in place (idempotent):
     {npc: script} -> {npc: [script]}; node.line -> lines[]; choice.reply ->
-    replies[]; fill image/replyImage defaults (stage 8a message groups)."""
+    replies[]; fill image/replyImage defaults (stage 8a message groups),
+    events and NPC fallbackReplies defaults."""
     changed = False
+    # 旧 NPC 没有兜底回复,仅补缺省值,不覆盖已有配置。
+    npcs = content.get('npcs')
+    if isinstance(npcs, list):
+        for npc in npcs:
+            if isinstance(npc, dict) and 'fallbackReplies' not in npc:
+                npc['fallbackReplies'] = []
+                changed = True
     # 旧内容包没有房间事件,补空数组且不覆盖已有事件。
     if 'events' not in content:
         content['events'] = []

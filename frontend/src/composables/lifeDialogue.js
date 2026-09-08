@@ -8,6 +8,15 @@
 // 消息组(8a):节点台词 lines 与选项回复 replies 都是多句数组,逐句连播;
 // 图片挂在该组最后一句的消息条目上(说完才展示图)。
 
+// 当天对话耗尽后,只从好感够得着的最高档随机取一句;不修改配置或产生效果。
+export function pickFallbackReply(replies, bond, rng = Math.random) {
+  const eligible = (replies || []).filter(reply => (reply.minBond ?? 0) <= bond)
+  if (!eligible.length) return null
+  const highest = Math.max(...eligible.map(reply => reply.minBond ?? 0))
+  const tier = eligible.filter(reply => (reply.minBond ?? 0) === highest)
+  return tier[Math.floor(rng() * tier.length)].text
+}
+
 // 取某一天的剧本(钳制:超出天数沿用最后一天;days 为 1-7 天数组)。
 export function scriptForDay(days, day) {
   if (!Array.isArray(days) || !days.length) return null

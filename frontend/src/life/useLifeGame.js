@@ -10,7 +10,7 @@ import { useLifeSave } from '../composables/lifeSave'
 import { createLifePlayback } from '../composables/lifePlayback'
 import { resolveLifeAction, setLifeActions, currentLifeActions } from '../composables/lifeActions'
 import { presenceFor, sceneRoster, canInteract, planJoin, roomFor, worldFor, roomDecision, migrateSocialState, friendshipDecision, setLifePresenceData, currentRooms } from '../composables/lifePresence'
-import { scriptForDay, nodeFor, startMessages, resolveDialogueChoice, sanitizeDialogueNodes, groupMessages } from '../composables/lifeDialogue'
+import { scriptForDay, nodeFor, startMessages, resolveDialogueChoice, sanitizeDialogueNodes, groupMessages, pickFallbackReply } from '../composables/lifeDialogue'
 import { eventScriptForDay, eventsForRoom, isEventDone, applyEventChoice, normalizeEventProgress } from '../composables/lifeEvents'
 import './builtin'
 import { getActiveLifePack, portraitFor, effectText } from './registry'
@@ -178,6 +178,22 @@ export function useLifeGame() {
     currentNpcId.value = npcId
     actionFeedback.value = ''
     const conv = conversations.value[npcId]
+    if (completed.value[npcId] === true) {
+      dialogueVisible.value = true
+      // 配置始终取活动包,好感取玩家状态,兼容缺少默认回复字段的旧存档。
+      const replies = pack.npcs.find(npc => npc.id === npcId)?.fallbackReplies
+      const text = pickFallbackReply(replies, currentNpc.value.bond)
+      if (text !== null) {
+        const reply = { from: 'npc', text, day: day.value, time: '18:20' }
+        conv.push(reply)
+        markChanged()
+        playback.play([reply])
+      } else {
+        // 无可用台词仍保存人物切换,但不重播已说过的回复。
+        markChanged()
+      }
+      return
+    }
     if (conv.length === 1) {
       conv.push(...startMessages(scriptForDay(pack.dialogue[npcId], day.value), day.value))
     }
@@ -343,7 +359,8 @@ export function useLifeGame() {
     return JSON.parse(JSON.stringify({
       schemaVersion: 2, packId: pack.id, day: day.value, stats: stats.value, tags: tags.value,
       currentWorld: currentWorld.value, unlockedWorlds: unlockedWorlds.value,
-      currentNpcId: currentNpcId.value, npcs: npcs.value,
+      // 默认回复属于内容包配置,不写入只接受人物状态字段的存档模型。
+      currentNpcId: currentNpcId.value, npcs: npcs.value.map(({ fallbackReplies, ...npc }) => npc),
       conversations: conversations.value, diary: diaryHistory.value, completed: completed.value,
       actionLedger: actionLedger.value, dialogueNodes: dialogueNodes.value,
       eventProgress: eventProgress.value,

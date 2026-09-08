@@ -90,6 +90,53 @@ test('registry rejects incomplete or malformed packs', () => {
   assert.throws(() => validateLifePack(noActions), /actions/)
 })
 
+// 默认回复校验与后端保持同构,工厂必须完整透传嵌套配置。
+function packWithFallback(replies) {
+  return { ...defaultLifePack, npcs: defaultLifePack.npcs.map(npc => ({ ...npc, fallbackReplies: replies })) }
+}
+
+test('fallback replies accept empty arrays, omitted thresholds and integer boundaries', () => {
+  for (const replies of [[], [{ text: '你好' }], [{ text: '你好', minBond: 0 }, { text: '晚安', minBond: 100 }]]) {
+    assert.equal(validateLifePack(packWithFallback(replies)), true)
+  }
+  const pack = packWithFallback([])
+  for (const npc of pack.npcs) delete npc.fallbackReplies
+  assert.equal(validateLifePack(pack), true)
+})
+
+test('fallback replies reject non-array configuration and malformed entry shapes', () => {
+  for (const replies of [null, {}, '', 0, false, undefined]) {
+    assert.throws(() => validateLifePack(packWithFallback(replies)), /fallbackReplies 必须是数组/)
+  }
+  for (const reply of [null, [], '你好', 1, false, {}, { minBond: 0 }, { text: '你好', extra: 1 }, { text: '你好', minBond: 0, effects: {} }]) {
+    assert.throws(() => validateLifePack(packWithFallback([reply])), /默认回复只允许/)
+  }
+})
+
+test('fallback replies reject empty and non-string text', () => {
+  for (const text of ['', null, undefined, 1, false, [], {}]) {
+    assert.throws(() => validateLifePack(packWithFallback([{ text }])), /text 必须是非空字符串/)
+  }
+})
+
+test('fallback replies reject invalid threshold types and out-of-range values', () => {
+  for (const minBond of [-1, 101, 0.5, true, false, '30', null, undefined, [], {}, NaN, Infinity]) {
+    assert.throws(() => validateLifePack(packWithFallback([{ text: '你好', minBond }])), /minBond 必须是 0\.\.100 的整数/)
+  }
+})
+
+test('content factory preserves all NPC fallback reply fields', () => {
+  const content = structuredClone(defaultLifePackContent)
+  content.npcs[0].fallbackReplies = [{ text: '零档' }, { text: '亲近', minBond: 70 }]
+  const pack = createLifePackFromContent({ id: 'fallback-pack', version: 1, content })
+  assert.deepEqual(pack.npcs, content.npcs)
+  assert.deepEqual(pack.npcs[0].fallbackReplies, [{ text: '零档' }, { text: '亲近', minBond: 70 }])
+  for (const npc of defaultLifePack.npcs) {
+    assert.ok(npc.fallbackReplies.length >= 2 && npc.fallbackReplies.length <= 3)
+    assert.ok(new Set(npc.fallbackReplies.map(reply => reply.minBond)).size >= 2)
+  }
+})
+
 // 每次新建七天事件,避免变异测试污染默认内容或其他用例。
 function makeEvent() {
   return {

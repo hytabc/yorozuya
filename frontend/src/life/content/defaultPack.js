@@ -358,10 +358,26 @@ function normalizeDialogue(dialogue) {
 export const defaultLifePackContent = {
   npcIds: ['ache', 'xiaomi', 'maoyou', 'yu'],
   npcs: [
-    { id: 'ache', name: '阿澈', role: '摄影爱好者', avatar: '📷', status: '正在看着海面', bond: 12 },
-    { id: 'xiaomi', name: '小弥', role: '舞蹈玩家', avatar: '💃', status: '在海边散步', bond: 6 },
-    { id: 'maoyou', name: '猫又', role: '模型改装师', avatar: '⚙️', status: '在调试设备', bond: 2 },
-    { id: 'yu', name: '小宇', role: '世界探索者', avatar: '🧭', status: '刚到达这个世界', bond: 0 },
+    { id: 'ache', name: '阿澈', role: '摄影爱好者', avatar: '📷', status: '正在看着海面', bond: 12, fallbackReplies: [
+      { text: '光线还很好，慢慢看海吧。', minBond: 0 },
+      { text: '给你留了个看日落的位置。', minBond: 30 },
+      { text: '有你在旁边，不拍照也会记得今天。', minBond: 70 },
+    ] },
+    { id: 'xiaomi', name: '小弥', role: '舞蹈玩家', avatar: '💃', status: '在海边散步', bond: 6, fallbackReplies: [
+      { text: '累了就歇会儿，音乐又不会跑。', minBond: 0 },
+      { text: '你来啦，第一排的椅子给你留着呢。', minBond: 30 },
+      { text: '今天不练舞也好，就想陪你坐一会儿。', minBond: 70 },
+    ] },
+    { id: 'maoyou', name: '猫又', role: '模型改装师', avatar: '⚙️', status: '在调试设备', bond: 2, fallbackReplies: [
+      { text: '……旁边能坐，小心桌上的零件。', minBond: 0 },
+      { text: '刚收好了工具，陪你歇一会儿。', minBond: 30 },
+      { text: '……你在这里，连打磨零件都没那么枯燥了。', minBond: 70 },
+    ] },
+    { id: 'yu', name: '小宇', role: '世界探索者', avatar: '🧭', status: '刚到达这个世界', bond: 0, fallbackReplies: [
+      { text: '今天走了不少路，记得喝点水呀。', minBond: 0 },
+      { text: '下次的路线给你留了一份，不着急出发。', minBond: 30 },
+      { text: '走到哪里都好，有你就像回到了老地方。', minBond: 70 },
+    ] },
   ],
   portraits: {
     ache: '/life-assets/avatars/f1fcd71500345a67eb47b4a349339cfc_720.jpg',
