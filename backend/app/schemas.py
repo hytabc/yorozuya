@@ -230,8 +230,9 @@ class AdminPhotoUpdate(RequestModel):
 
 
 class StaffDirectoryOut(BaseModel):
-    group_chat_id: str
     staff: list[UserProfileOut]
+    disciplinarians: list[UserProfileOut]
+    mascots: list[UserProfileOut]
     volunteers: list[UserProfileOut]
 
 

@@ -11,7 +11,6 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?请在 .env 中设置 ADMIN_PASSWORD}
       ADMIN_NICKNAME: ${ADMIN_NICKNAME:-万事屋管理员}
-      STAFF_GROUP_ID: ${STAFF_GROUP_ID:-}
       # 普通用户资料和砂糖社图片共用该持久化目录。
       SUGAR_UPLOAD_DIR: /data/uploads
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}

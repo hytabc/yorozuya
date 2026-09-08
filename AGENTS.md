@@ -74,7 +74,7 @@ frontend/src/
 4. **取消**：双向发起 → cancelling → 委托人+全体接单人同意才取消，可 cancel-continue 作废。
 5. **委托密码**：委托人可 `PATCH /api/tasks/{id}/password` 设置/重设（4-32 位），无密码委托设密后转为凭密码接取。
 6. **可见性**：普通用户大厅只看 published；staff/admin 看全部状态；被举报委托对非相关人隐藏；匿名委托隐藏发布人。
-7. **名录** `GET /api/staff`：staff 分组（QQ 对游客公开）+ 公开 QQ 的志愿者；`STAFF_GROUP_ID` 为权限申请群聊 ID。
+7. **名录** `GET /api/staff`：公开管理员、风纪委员、看板娘与志愿者资料；管理员 QQ 对游客公开，志愿者仅在主动开启时公开，风纪委员与看板娘 QQ 不公开。
 8. **反馈**：游客可提交（需联系方式）；`GET/PATCH /api/admin/feedback` 用 `get_role_manager`（staff 可处理）。
 9. **举报**：有每日上限设置（`/api/admin/settings/report-limit`）；处理动作 close/hide/restore。
 10. **砂糖社**：公开档案（照片存 `sugar_upload_path`）→ 互相 confirm 成 pair → 任一方 end；展示维持最久前三对。
