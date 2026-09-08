@@ -14,7 +14,6 @@ class Settings(BaseSettings):
     admin_username: str = "admin"
     admin_password: str = "Admin123!"
     admin_nickname: str = "万事屋管理员"
-    staff_group_id: str = ""
     # 留空时跟随 SQLite 数据库所在目录，保证数据库与上传图片能一起通过 Docker 挂载持久化。
     sugar_upload_dir: str = ""
     cors_origins: str = "http://localhost:5173,http://localhost:8080"

@@ -68,8 +68,6 @@ MASCOT_MODEL=kimi-k2.7-code-highspeed
    openssl rand -hex 32
    ```
 
-   同时设置 `STAFF_GROUP_ID`。该群聊 ID 会展示在公开的管理员/志愿者名录页，需要提升权限的用户可据此联系管理员。
-
 3. 启动（首次或重新部署）：
 
    ```bash

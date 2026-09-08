@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { MessageCircle, Plus, Search, SlidersHorizontal, Sparkles, TriangleAlert } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
@@ -9,6 +9,8 @@ import TaskCard from '../components/TaskCard.vue'
 import TaskDialog from '../components/TaskDialog.vue'
 import CreateTaskDialog from '../components/CreateTaskDialog.vue'
 import FeedbackDialog from '../components/FeedbackDialog.vue'
+import AnnouncementPrompt from '../components/AnnouncementPrompt.vue'
+import { markAnnouncementsSeen, unseenAnnouncements } from '../composables/announcementPrompt'
 import { CATEGORIES } from '../constants'
 
 const auth = useAuthStore()
@@ -19,6 +21,9 @@ const loading = ref(true)
 const selected = ref(null)
 const showCreate = ref(false)
 const showFeedback = ref(false)
+const activeAnnouncements = ref([])
+const promptAnnouncements = ref([])
+const showAnnouncementPrompt = ref(false)
 const busy = ref(false)
 const filters = reactive({ search: '', category: '', status: auth.isAdmin || auth.isStaff ? '' : 'published', pay_type: '' })
 const categories = CATEGORIES
@@ -40,6 +45,21 @@ async function loadStats() {
   try {
     stats.value = (await api.get('/tasks/stats')).data
   } catch { /* 统计加载失败不影响委托列表 */ }
+}
+
+async function loadAnnouncements() {
+  try {
+    const { data } = await api.get('/announcements')
+    activeAnnouncements.value = data
+    const userId = auth.isLoggedIn ? auth.user?.id : null
+    promptAnnouncements.value = unseenAnnouncements(data, userId)
+    showAnnouncementPrompt.value = promptAnnouncements.value.length > 0
+  } catch { /* 公告加载失败不影响委托大厅 */ }
+}
+
+function confirmAnnouncements() {
+  if (auth.isLoggedIn) markAnnouncementsSeen(activeAnnouncements.value, auth.user?.id)
+  showAnnouncementPrompt.value = false
 }
 
 let timer
@@ -91,6 +111,7 @@ async function action(key, payload = {}) {
   } catch (error) { toast.error(errorMessage(error)) } finally { busy.value = false }
 }
 onMounted(load)
+watch(() => auth.ready, (ready) => { if (ready) loadAnnouncements() }, { immediate: true })
 </script>
 
 <template>
@@ -179,5 +200,6 @@ onMounted(load)
     <CreateTaskDialog v-if="showCreate" @close="showCreate = false" @created="created" />
     <TaskDialog v-if="selected" :task="selected" :busy="busy" @close="selected = null" @action="action" @reported="reported" />
     <FeedbackDialog v-if="showFeedback" @close="showFeedback = false" />
+    <AnnouncementPrompt v-if="showAnnouncementPrompt" :announcements="promptAnnouncements" @confirm="confirmAnnouncements" />
   </div>
 </template>

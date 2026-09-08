@@ -1,21 +1,19 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { CalendarDays, Check, Copy, Heart, HeartHandshake, MessageCircle, Store } from 'lucide-vue-next'
+import { CalendarDays, Heart, HeartHandshake, MessageCircle, ShieldAlert, Sparkles, Store } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
-import { useToast } from '../composables/toast'
 import { useAuthStore } from '../stores/auth'
 import UserProfileCard from '../components/UserProfileCard.vue'
 import UserAvatar from '../components/UserAvatar.vue'
 import VolunteerApplyDialog from '../components/VolunteerApplyDialog.vue'
 
-const toast = useToast()
 const auth = useAuthStore()
 const loading = ref(true)
 const error = ref('')
-const groupChatId = ref('')
 const staff = ref([])
+const disciplinarians = ref([])
+const mascots = ref([])
 const volunteers = ref([])
-const copied = ref(false)
 const selectedUser = ref(null)
 const showApplyDialog = ref(false)
 const myApplication = ref(null)
@@ -24,20 +22,15 @@ const canApply = computed(() =>
   auth.user && !auth.user.is_admin && auth.user.role === 'user' && myApplication.value?.status !== 'pending'
 )
 
+const directorySections = computed(() => [
+  { id: 'staff', label: '管理员', members: staff.value, icon: Store, cardClass: '', empty: '暂时没有可联系的管理员' },
+  { id: 'disciplinarians', label: '风纪委员', members: disciplinarians.value, icon: ShieldAlert, cardClass: 'disciplinarian-card', empty: '暂时没有风纪委员' },
+  { id: 'mascots', label: '看板娘', members: mascots.value, icon: Sparkles, cardClass: 'mascot-card', empty: '暂时没有看板娘' },
+  { id: 'volunteers', label: '志愿者', members: volunteers.value, icon: Heart, cardClass: 'volunteer-card', empty: '暂时没有志愿者' },
+])
+
 const joined = (value) =>
   new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' }).format(new Date(value))
-
-async function copyGroupId() {
-  if (!groupChatId.value) return
-  try {
-    await navigator.clipboard.writeText(groupChatId.value)
-    copied.value = true
-    toast.success('群聊 ID 已复制')
-    window.setTimeout(() => { copied.value = false }, 1800)
-  } catch {
-    toast.error('复制失败，请手动选择群聊 ID')
-  }
-}
 
 async function loadMyApplication() {
   if (!auth.user) return
@@ -50,8 +43,9 @@ async function loadMyApplication() {
 onMounted(async () => {
   try {
     const { data } = await api.get('/staff')
-    groupChatId.value = data.group_chat_id
     staff.value = data.staff
+    disciplinarians.value = data.disciplinarians
+    mascots.value = data.mascots
     volunteers.value = data.volunteers
   } catch (err) {
     error.value = errorMessage(err, '无法加载成员名录')
@@ -65,7 +59,7 @@ onMounted(async () => {
 <template>
   <div class="page inner-page staff-page">
     <div class="page-title staff-title">
-      <div><span class="eyebrow"><Store :size="15" /> MEMBER DIRECTORY</span><h1>管理员与志愿者</h1><p>公开展示服务成员资料；想成为志愿者，普通用户可直接在下方提交申请。</p></div>
+      <div><span class="eyebrow"><Store :size="15" /> MEMBER DIRECTORY</span><h1>社区服务成员</h1><p>查看管理员、风纪委员、看板娘与志愿者资料；普通用户可在下方申请成为志愿者。</p></div>
     </div>
 
     <section v-if="canApply" class="apply-section" aria-label="志愿者申请">
@@ -80,46 +74,21 @@ onMounted(async () => {
       </template>
     </section>
 
-    <section class="staff-group-band" aria-label="群聊信息">
-      <div><MessageCircle :size="21" /><span><small>权限申请群聊 ID</small><strong>{{ groupChatId || '暂未配置' }}</strong></span></div>
-      <button v-if="groupChatId" class="icon-button" :title="copied ? '已复制' : '复制群聊 ID'" :aria-label="copied ? '群聊 ID 已复制' : '复制群聊 ID'" @click="copyGroupId">
-        <Check v-if="copied" :size="18" /><Copy v-else :size="18" />
-      </button>
-    </section>
-
     <div v-if="loading" class="staff-empty">正在加载成员信息…</div>
     <div v-else-if="error" class="staff-empty error-notice">{{ error }}</div>
     <template v-else>
-      <section class="directory-section" aria-labelledby="staff-heading">
-        <div class="directory-heading"><Store :size="19" /><h2 id="staff-heading">管理员</h2><span>{{ staff.length }} 人</span></div>
-        <div v-if="!staff.length" class="staff-empty compact"><strong>暂时没有可联系的管理员</strong></div>
+      <section v-for="section in directorySections" :key="section.id" class="directory-section" :aria-labelledby="`${section.id}-heading`">
+        <div class="directory-heading"><component :is="section.icon" :size="19" /><h2 :id="`${section.id}-heading`">{{ section.label }}</h2><span>{{ section.members.length }} 人</span></div>
+        <div v-if="!section.members.length" class="staff-empty compact"><strong>{{ section.empty }}</strong></div>
         <div v-else class="staff-grid">
-          <button v-for="member in staff" :key="member.id" class="staff-card" type="button" @click="selectedUser = member">
+          <button v-for="member in section.members" :key="member.id" class="staff-card" :class="section.cardClass" type="button" @click="selectedUser = member">
             <header>
               <UserAvatar :user="member" :size="50" />
-              <div><h3>{{ member.nickname }}</h3><span class="role-tag role-staff"><Store :size="13" />管理员</span></div>
+              <div><h3>{{ member.nickname }}</h3><span class="role-tag" :class="`role-${member.role}`"><component :is="section.icon" :size="13" />{{ section.label }}</span></div>
             </header>
-            <p class="staff-bio">{{ member.bio || '这位管理员还没有填写个人简介。' }}</p>
+            <p class="staff-bio">{{ member.bio || `这位${section.label}还没有填写个人简介。` }}</p>
             <footer>
-              <span><MessageCircle :size="15" />QQ：<strong>{{ member.qq || '未填写' }}</strong></span>
-              <span><CalendarDays :size="15" />{{ joined(member.created_at) }} 加入</span>
-            </footer>
-          </button>
-        </div>
-      </section>
-
-      <section class="directory-section" aria-labelledby="volunteer-heading">
-        <div class="directory-heading"><Heart :size="19" /><h2 id="volunteer-heading">志愿者</h2><span>{{ volunteers.length }} 人</span></div>
-        <div v-if="!volunteers.length" class="staff-empty compact"><strong>暂时没有志愿者</strong></div>
-        <div v-else class="staff-grid">
-          <button v-for="member in volunteers" :key="member.id" class="staff-card volunteer-card" type="button" @click="selectedUser = member">
-            <header>
-              <UserAvatar :user="member" :size="50" />
-              <div><h3>{{ member.nickname }}</h3><span class="role-tag role-volunteer"><Heart :size="13" />志愿者</span></div>
-            </header>
-            <p class="staff-bio">{{ member.bio || '这位志愿者还没有填写个人简介。' }}</p>
-            <footer>
-              <span><MessageCircle :size="15" />QQ：<strong>{{ member.qq || (member.qq_public ? '未填写' : '未公开') }}</strong></span>
+              <span><MessageCircle :size="15" />QQ：<strong>{{ member.qq || (member.role === 'staff' ? '未填写' : '未公开') }}</strong></span>
               <span><CalendarDays :size="15" />{{ joined(member.created_at) }} 加入</span>
             </footer>
           </button>

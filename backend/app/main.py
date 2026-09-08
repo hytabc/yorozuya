@@ -1061,12 +1061,18 @@ def moderate_avatar(
 
 @app.get("/api/users/{user_id}", response_model=UserProfileOut)
 def user_profile(user_id: int, viewer: User | None = Depends(get_optional_user), db: Session = Depends(get_db)):
-    """名录中的管理员/志愿者允许匿名查看，QQ 仍按公开偏好和协作关系脱敏。"""
+    """名录成员允许匿名查看，QQ 仍按公开偏好和协作关系脱敏。"""
     target = db.scalar(user_with_photos_query().where(User.id == user_id))
     if target is None or not target.is_active:
         raise HTTPException(status_code=404, detail="用户不存在")
     data = present_user_profile(target, viewer)
-    if target.role not in (UserRole.STAFF, UserRole.VOLUNTEER) and viewer is None:
+    directory_roles = (
+        UserRole.STAFF,
+        UserRole.DISCIPLINARIAN,
+        UserRole.MASCOT,
+        UserRole.VOLUNTEER,
+    )
+    if target.role not in directory_roles and viewer is None:
         raise HTTPException(status_code=401, detail="请先登录")
     if not can_view_user_qq(db, viewer, target):
         data.qq = None
@@ -1086,15 +1092,25 @@ def user_public_profile(user_id: int, viewer: User | None = Depends(get_optional
 
 @app.get("/api/staff", response_model=StaffDirectoryOut)
 def staff_directory(db: Session = Depends(get_db)):
-    staff = db.scalars(
-        user_with_photos_query().where(User.role == UserRole.STAFF, User.is_active.is_(True), User.is_admin.is_(False)).order_by(User.created_at.asc())
-    ).unique().all()
-    volunteers = db.scalars(
-        user_with_photos_query().where(User.role == UserRole.VOLUNTEER, User.is_active.is_(True), User.is_admin.is_(False)).order_by(User.created_at.asc())
-    ).unique().all()
+    def users_with_role(role: UserRole) -> list[User]:
+        return db.scalars(
+            user_with_photos_query()
+            .where(User.role == role, User.is_active.is_(True), User.is_admin.is_(False))
+            .order_by(User.created_at.asc())
+        ).unique().all()
+
+    staff = users_with_role(UserRole.STAFF)
+    disciplinarians = users_with_role(UserRole.DISCIPLINARIAN)
+    mascots = users_with_role(UserRole.MASCOT)
+    volunteers = users_with_role(UserRole.VOLUNTEER)
+
+    def profile_without_qq(user: User) -> UserProfileOut:
+        return present_user_profile(user).model_copy(update={"qq": None})
+
     return StaffDirectoryOut(
-        group_chat_id=settings.staff_group_id,
         staff=[present_user_profile(user) for user in staff],
+        disciplinarians=[profile_without_qq(user) for user in disciplinarians],
+        mascots=[profile_without_qq(user) for user in mascots],
         volunteers=[
             present_user_profile(user).model_copy(update={"qq": user.qq if user.qq_public else None})
             for user in volunteers

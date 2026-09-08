@@ -1509,8 +1509,7 @@ def test_passwordless_task_can_be_accepted_by_all_non_admin_roles():
         assert joined_protected.json()["status"] == "accepted"
 
 
-def test_staff_role_management_and_public_directory(monkeypatch):
-    monkeypatch.setattr(settings, "staff_group_id", "987654321")
+def test_staff_role_management_and_public_directory():
     with TestClient(app) as client:
         admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
         admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
@@ -1531,6 +1530,30 @@ def test_staff_role_management_and_public_directory(monkeypatch):
         )
         assert granted.status_code == 200
         assert granted.json()["role"] == "staff"
+
+        disciplinarian_headers = auth(client, "directory_disciplinarian")
+        disciplinarian_me = client.patch(
+            "/api/users/me",
+            headers=disciplinarian_headers,
+            json={"nickname": "公开风纪委员", "qq": "345678901", "bio": "负责内容审核"},
+        ).json()
+        assert client.patch(
+            f"/api/admin/users/{disciplinarian_me['id']}/role",
+            headers=admin,
+            json={"role": "disciplinarian"},
+        ).status_code == 200
+
+        mascot_headers = auth(client, "directory_mascot")
+        mascot_me = client.patch(
+            "/api/users/me",
+            headers=mascot_headers,
+            json={"nickname": "公开看板娘", "qq": "456789012", "bio": "负责社区运营"},
+        ).json()
+        assert client.patch(
+            f"/api/admin/users/{mascot_me['id']}/role",
+            headers=admin,
+            json={"role": "mascot"},
+        ).status_code == 200
 
         # 店员具备志愿者的有密码接取能力。
         publisher = auth(client, "staff_task_pub")
@@ -1590,7 +1613,7 @@ def test_staff_role_management_and_public_directory(monkeypatch):
         # 店员 QQ 公开；志愿者 QQ 默认隐藏。
         directory = client.get("/api/staff")
         assert directory.status_code == 200
-        assert directory.json()["group_chat_id"] == "987654321"
+        assert "group_chat_id" not in directory.json()
         public_staff = next(user for user in directory.json()["staff"] if user["id"] == staff_id)
         assert public_staff["nickname"] == "公开店员"
         assert public_staff["qq"] == "123456789"
@@ -1603,12 +1626,33 @@ def test_staff_role_management_and_public_directory(monkeypatch):
         assert public_volunteer["qq_public"] is False
         assert public_volunteer["bio"] == "可协助接取委托"
 
+        public_disciplinarian = next(
+            user for user in directory.json()["disciplinarians"]
+            if user["id"] == disciplinarian_me["id"]
+        )
+        assert public_disciplinarian["nickname"] == "公开风纪委员"
+        assert public_disciplinarian["bio"] == "负责内容审核"
+        assert public_disciplinarian["qq"] is None
+
+        public_mascot = next(
+            user for user in directory.json()["mascots"] if user["id"] == mascot_me["id"]
+        )
+        assert public_mascot["nickname"] == "公开看板娘"
+        assert public_mascot["bio"] == "负责社区运营"
+        assert public_mascot["qq"] is None
+
         public_profile = client.get(f"/api/users/{staff_id}")
         assert public_profile.status_code == 200
         assert public_profile.json()["qq"] == "123456789"
         hidden_volunteer_profile = client.get(f"/api/users/{volunteer_me.json()['id']}")
         assert hidden_volunteer_profile.status_code == 200
         assert hidden_volunteer_profile.json()["qq"] is None
+        disciplinarian_profile = client.get(f"/api/users/{disciplinarian_me['id']}")
+        assert disciplinarian_profile.status_code == 200
+        assert disciplinarian_profile.json()["qq"] is None
+        mascot_profile = client.get(f"/api/users/{mascot_me['id']}")
+        assert mascot_profile.status_code == 200
+        assert mascot_profile.json()["qq"] is None
 
         # 志愿者可在个人设置中主动公开，名录与公开资料同步生效。
         volunteer_me = client.patch(
