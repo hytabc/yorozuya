@@ -79,6 +79,7 @@ frontend/src/
 9. **举报**：有每日上限设置（`/api/admin/settings/report-limit`）；处理动作 close/hide/restore。
 10. **砂糖社**：公开档案（照片存 `sugar_upload_path`）→ 互相 confirm 成 pair → 任一方 end；展示维持最久前三对。
 11. **看板娘**：站内 AI 助手，走 Moonshot API（`mascot_*` 配置，未配 key 优雅降级）。
+12. **首页公告弹窗**：游客每次进入首页都需确认当前公告；登录用户按账号在浏览器记录各公告的 `updated_at`，仅首次看到或公告更新后再次确认。
 
 ## 启动行为（main.py 顶部）
 
