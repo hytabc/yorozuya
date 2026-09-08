@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base, get_db
-from app.models import User
+from app.models import User, UserRole
 from app.security import create_access_token
 from app.virtual_life import router
 
@@ -29,8 +29,11 @@ class SaveTests(unittest.TestCase):
         self.start()
         Base.metadata.create_all(self.engine)
         with self.sessions() as db:
-            for i in range(1, 4):
-                db.add(User(id=i, username=f'u{i}', password_hash='unused', nickname=f'u{i}', is_admin=i != 3))
+            roles = {1: UserRole.USER, 2: UserRole.USER, 3: UserRole.USER,
+                     4: UserRole.STAFF, 5: UserRole.VOLUNTEER, 6: UserRole.STAFF}
+            for i, role in roles.items():
+                db.add(User(id=i, username=f'u{i}', password_hash='unused', nickname=f'u{i}',
+                            is_admin=i in (1, 2), role=role))
             db.commit()
 
     def start(self):
@@ -76,6 +79,27 @@ class SaveTests(unittest.TestCase):
         invalid = state()
         invalid['currentNpcId'] = 'unknown'
         self.assertEqual(self.client.put(url, json={'revision': 2, 'state': invalid}, headers=self.headers(1)).status_code, 422)
+
+    def test_staff_access_is_private_and_other_roles_are_forbidden(self):
+        url = '/api/virtual-life/save'
+        payload = {'revision': 0, 'state': state()}
+        for uid, status in ((None, 401), (3, 403), (5, 403)):
+            headers = self.headers(uid) if uid else {}
+            self.assertEqual(self.client.get(url, headers=headers).status_code, status)
+            self.assertEqual(self.client.put(url, json=payload, headers=headers).status_code, status)
+        for uid in (1, 4, 6):  # super administrator and two regular administrators
+            response = self.client.get(url, headers=self.headers(uid))
+            self.assertEqual(response.status_code, 200)
+            self.assertIsNone(response.json()['state'])
+            own_state = {**state(), 'day': 10 + uid}
+            response = self.client.put(url, json={'revision': 0, 'state': own_state}, headers=self.headers(uid))
+            self.assertEqual(response.status_code, 200, response.text)
+        for uid in (1, 4, 6):
+            saved = self.client.get(url, headers=self.headers(uid)).json()
+            self.assertEqual(saved['state']['day'], 10 + uid)
+            self.assertEqual(saved['revision'], 1)
+        self.assertEqual(self.client.put(url, json={**payload, 'user_id': 1}, headers=self.headers(4)).status_code, 422)
+        self.assertIsNone(self.client.get(url, headers=self.headers(2)).json()['state'])
 
     def test_action_ledger_compatibility_and_roundtrip(self):
         url = '/api/virtual-life/save'

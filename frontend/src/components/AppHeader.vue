@@ -35,7 +35,7 @@ function logout() {
         <RouterLink to="/board">留言板</RouterLink>
         <RouterLink to="/maps">地图推荐</RouterLink>
         <RouterLink to="/sugar">砂糖社</RouterLink>
-        <RouterLink v-if="auth.ready && auth.isLoggedIn && auth.isAdmin && lifeDesktop" to="/life">虚拟人生</RouterLink>
+        <RouterLink v-if="auth.ready && auth.isLoggedIn && auth.canManageRoles && lifeDesktop" to="/life">虚拟人生</RouterLink>
         <RouterLink v-if="auth.isLoggedIn" to="/mine">我的委托</RouterLink>
         <RouterLink v-if="auth.canManageRoles" to="/admin">{{ auth.isAdmin ? '监管台' : '权限管理' }}</RouterLink>
       </nav>

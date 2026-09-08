@@ -14,7 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from .database import Base, get_db
-from .dependencies import get_admin
+from .dependencies import get_role_manager
 from .models import User
 
 
@@ -114,7 +114,7 @@ router = APIRouter(prefix='/api/virtual-life', tags=['virtual-life'])
 
 
 @router.get('/save')
-def read_save(user: User = Depends(get_admin), db: Session = Depends(get_db)):
+def read_save(user: User = Depends(get_role_manager), db: Session = Depends(get_db)):
     row = db.get(VirtualLifeSave, user.id)
     if row is None:
         return {'revision': 0, 'state': None, 'updatedAt': None}
@@ -122,7 +122,7 @@ def read_save(user: User = Depends(get_admin), db: Session = Depends(get_db)):
 
 
 @router.put('/save')
-def write_save(payload: SaveRequest, user: User = Depends(get_admin), db: Session = Depends(get_db)):
+def write_save(payload: SaveRequest, user: User = Depends(get_role_manager), db: Session = Depends(get_db)):
     encoded = json.dumps(payload.state.model_dump(by_alias=True), ensure_ascii=False)
     now = datetime.now(timezone.utc).isoformat()
     revision = payload.revision + 1

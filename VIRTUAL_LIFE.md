@@ -1,8 +1,13 @@
 # Virtual life private save (v1)
 
-One save per authenticated administrator. Existing desktop/admin UI restrictions
-remain; backend independently checks the existing active-user/admin dependency.
-No caller-supplied user id is accepted. Staff without admin rights get 403.
+One private save per authenticated administrator: online `role=staff` means
+管理员 and `is_admin=true` means 超级管理员; both are eligible. Virtual-life
+navigation, route and page visibility use the existing `auth.canManageRoles`;
+the save API independently uses the existing active-user `get_role_manager`
+dependency. Ordinary users and volunteers get 403; unauthenticated requests get
+401. Desktop-only UI restrictions remain (viewport >=901px and non-mobile UA).
+No caller-supplied user id is accepted, and eligible users can access only their
+own save. This feature does not change global roles or promote any account.
 
 ## API and storage
 
@@ -101,10 +106,14 @@ Tests: `node --test --test-isolation=none tests/lifeTutorial.test.mjs`.
 
 From backend: `.venv/Scripts/python.exe -m unittest discover -s tests -p test_virtual_life.py -v`
 Test creates isolated temporary SQLite file; verifies authenticated ownership,
-non-admin/missing auth rejection, owner injection rejection, stale revisions,
+staff/super-admin access and isolation, ordinary/volunteer/missing auth rejection,
+owner injection rejection, stale revisions,
 restoration after app/engine restart, malformed state. Does not mutate real saves.
 
 From frontend: `npm run build` and `node --test --test-isolation=none tests/lifeSave.test.mjs`.
+Permission regression: `node --test --test-isolation=none tests/lifeAccess.test.mjs`
+checks navigation/page gates and executes the route guard for staff, super-admin,
+ordinary user, volunteer, mobile and missing-token cases.
 The frontend unit tests verify token ownership, serial saves during concurrent local edits,
 and conflict preservation (using an isolated composable harness, not browser rendering).
 Restart the existing backend (no reload mode) after deploying; no replacement
