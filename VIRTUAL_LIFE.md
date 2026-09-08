@@ -34,9 +34,10 @@ own save. This feature does not change global roles or promote any account.
 A content pack holds the FULL site content as JSON: npcIds/npcs/portraits,
 worlds (with optional `bg` image URL), rooms, presence, actions, per-day
 node-graph dialogue (`dialogue[npcId]` is a 1-7 entry array of day scripts
-`{start, nodes:{id:{line, choices:[{label, effects:{bond,stats},
-reply, next}]}}}`, stage 5) and initialState. Exactly one pack is active
-site-wide (A-scheme: the site admin configures content; all players share it).
+`{start, nodes:{id:{lines:[...], image, choices:[{label, effects:{bond,stats},
+replies:[...], replyImage, next}]}}}`, stage 5/8a) and initialState. Exactly
+one pack is active site-wide (A-scheme: the site admin configures content;
+all players share it).
 
 - Table `virtual_life_packs` (id/name/version/content_json/is_active/
   updated_at) is seeded on first startup from `backend/app/life_packs/*.json`;
@@ -44,8 +45,12 @@ site-wide (A-scheme: the site admin configures content; all players share it).
 - `backend/app/virtual_life_packs.py`: `validate_pack_content` enforces
   structural and reference consistency (room→world, presence→room, dialogue
   node-graph jump targets per day, stat keys, initial state coverage).
-  Startup seeding migrates legacy single-script `dialogue[npcId]` shapes in
-  place to one-entry day arrays (`migrate_pack_content`).
+  Dialogue nodes are MESSAGE GROUPS (stage 8a): `lines` is a non-empty
+  sentence array (multi-line playback), `image`/`replyImage` are optional
+  site-local `/uploads/` paths; choices carry `replies` arrays.
+  Startup seeding migrates legacy shapes in place (`migrate_pack_content`,
+  idempotent): single-script `dialogue[npcId]` → day arrays, `line`→`lines`,
+  `reply`→`replies`, image defaults filled.
 - Admin API (all gated by `get_role_manager`): GET `/api/virtual-life/pack`
   (active pack detail), GET/POST `/api/virtual-life/packs`, GET/PUT/DELETE
   `/packs/{id}`, POST `/packs/{id}/activate` (exactly one active; activating
@@ -81,7 +86,8 @@ LONGEST path from the start so galgame-style converging branches render as a
 proper diamond — the merge node lands right of ALL its parents with solid
 inbound edges and a 汇合 badge; only true back/cross edges (cycles) are
 dashed, and unreachable nodes are placed apart and marked 未连接. Clicking
-a card opens that node's edit panel (line, choices, effects, jump targets);
+a card opens that node's edit panel (multi-line `lines`, node image,
+choices with multi-line `replies` + reply image, effects, jump targets);
 a choice's jump dropdown offers "＋ 新建节点…" to create-and-link in one
 step, any node can be made the start.
 Node add/delete applies to the current day only; deleting the start node
@@ -146,29 +152,36 @@ Hard reload prompts for unsaved changes; responsive forced unmount attempts a fi
 save. Abrupt process/browser termination before acknowledgement cannot guarantee
 saving. Conflicts require explicit reload; unsaved changes show an error/retry UI.
 
-## Dialogue node-graph engine (stage 4c, per-day scripts in stage 5)
+## Dialogue node-graph engine (stage 4c, per-day scripts in stage 5, message groups in 8a)
 
-Each NPC has a 1-7 entry array of day scripts `{start, nodes:{id:{line,
-choices}}}` in the active pack. `scriptForDay(days, day)` picks the script for
+Each NPC has a 1-7 entry array of day scripts `{start, nodes:{id:{lines,
+image, choices}}}` in the active pack. `scriptForDay(days, day)` picks the script for
 the current game day — CLAMPED, not cycling: the content ends at day 7, and
 any later game day keeps using the last day script. Pure rules live in
 `frontend/src/composables/lifeDialogue.js`
-(`scriptForDay`/`nodeFor`/`startLine`/`resolveDialogueChoice`/`sanitizeDialogueNodes`);
+(`scriptForDay`/`nodeFor`/`startMessages`/`groupMessages`/`resolveDialogueChoice`/`sanitizeDialogueNodes`);
 state and mutations stay in `useLifeGame`. Semantics per NPC per game day:
 
-- The chain starts at `start`; the start node's line is the daily greeting.
-  Different days can have entirely different chains (the default pack ships
-  2-3 node chains with distinct greetings per NPC for all 7 days).
+- MESSAGE GROUPS (stage 8a): node `lines` and choice `replies` are sentence
+  arrays played sequentially (click skips/advances as before);
+  `groupMessages` expands a group into one save message per sentence and
+  attaches the group's `image` to the LAST sentence's message. The bubble
+  shows a thumbnail once the line finishes typing; clicking it opens the
+  fullscreen lightbox (`LifeImageLightbox.vue`, click/Esc closes) — history
+  drawer messages render the same thumbnail + lightbox.
+- The chain starts at `start`; the start node's message group is the daily
+  greeting. Different days can have entirely different chains (the default
+  pack ships 2-3 node chains with distinct greetings per NPC for all 7 days).
 - A choice applies its `effects` explicitly (`bond` added to the NPC bond,
   `stats` clamped 0-100) — no text parsing. The toast text is rendered from
   effects via `effectText`.
-- `next` non-null advances to that node THE SAME day: the NPC's reply and the
-  next node's line are appended atomically and played in order; `completed`
-  stays false and the new node's choices are offered. `next: null` marks the
-  day complete (choices hide, actions remain available). Jumps may target ANY
-  node of the day, so galgame-style diamonds work: branches diverge on
-  choices and later converge into a shared node (stage 6c; the default pack
-  demos one in maoyou day 5).
+- `next` non-null advances to that node THE SAME day: the NPC's reply group
+  and the next node's group are appended atomically and played in order;
+  `completed` stays false and the new node's choices are offered. `next:
+  null` marks the day complete (choices hide, actions remain available).
+  Jumps may target ANY node of the day, so galgame-style diamonds work:
+  branches diverge on choices and later converge into a shared node (stage
+  6c; the default pack demos one in maoyou day 5).
 - Position (`dialogueNodes`) is persisted in the save, so a mid-chain reload
   resumes at the exact node; hydration drops positions pointing at nodes that
   no longer exist. Server validation rejects unknown NPCs/node ids.
