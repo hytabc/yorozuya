@@ -204,7 +204,13 @@ state and mutations stay in `useLifeGame`. Semantics per NPC per game day:
 - `nextDay` clears positions and completion; every NPC greets from the NEW
   day's `start` (or the last day script once past the schedule). Choice
   effects apply per choice click — replaying a finished chain next day yields
-  its effects again, as before.
+  its effects again, as before. The journey CLAMPS at day 7: `nextDay` is a
+  no-op on day 7 (there is no day 8); the header shows 🔄 重新开始 instead,
+  which (after confirm) runs `restartJourney()` — day back to 1, daily
+  progress (completed/pending/dialogueNodes/eventProgress/actionLedger) and
+  conversations reset to the day-1 greetings, while stats, bonds, friends,
+  tags and diary carry over into the new cycle. A 下一天 ▶ button sits in the
+  header next to the day pill; the footer one disables on day 7.
 
 ## Room events (stage 8b)
 
