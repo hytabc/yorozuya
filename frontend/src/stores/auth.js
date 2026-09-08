@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { api } from '../api'
 
-const AUTH_CACHE_VERSION = '3'
+const AUTH_CACHE_VERSION = '5'
 const LOGIN_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
 function clearAuthCache() {
@@ -46,7 +46,11 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoggedIn = computed(() => Boolean(token.value && user.value))
   const isAdmin = computed(() => Boolean(user.value?.is_admin))
   const isStaff = computed(() => !isAdmin.value && user.value?.role === 'staff')
+  const isMascot = computed(() => !isAdmin.value && user.value?.role === 'mascot')
+  const isDisciplinarian = computed(() => !isAdmin.value && user.value?.role === 'disciplinarian')
+  const canModerate = computed(() => isAdmin.value || isStaff.value || isDisciplinarian.value)
   const canManageRoles = computed(() => isAdmin.value || isStaff.value)
+  const canOperate = computed(() => isAdmin.value || isMascot.value)
 
   function persist(payload) {
     token.value = payload.access_token
@@ -102,5 +106,5 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   window.addEventListener('auth-expired', logout)
-  return { token, user, ready, isLoggedIn, isAdmin, isStaff, canManageRoles, login, register, restore, updateUser, logout }
+  return { token, user, ready, isLoggedIn, isAdmin, isStaff, isMascot, isDisciplinarian, canModerate, canManageRoles, canOperate, login, register, restore, updateUser, logout }
 })

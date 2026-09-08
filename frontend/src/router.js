@@ -9,23 +9,30 @@ import StaffView from './views/StaffView.vue'
 import BoardView from './views/BoardView.vue'
 import VrMaps from './views/VrMaps.vue'
 import SugarClub from './views/SugarClub.vue'
+import AnnouncementsView from './views/AnnouncementsView.vue'
+import OperationsView from './views/OperationsView.vue'
+import VersionsView from './views/VersionsView.vue'
+import { api } from './api'
 import { isLifeDesktop } from './lifeAccess'
 
 const router = createRouter({
   history: createWebHistory(),
   scrollBehavior: () => ({ top: 0 }),
   routes: [
-    { path: '/', component: TaskHall },
-    { path: '/login', component: LoginView, meta: { guestOnly: true } },
-    { path: '/register', component: LoginView, props: { initialMode: 'register' }, meta: { guestOnly: true } },
-    { path: '/mine', component: MyTasks, meta: { auth: true } },
-    { path: '/profile', component: ProfileView, meta: { auth: true } },
-    { path: '/staff', component: StaffView },
-    { path: '/board', component: BoardView },
-    { path: '/maps', component: VrMaps },
-    { path: '/sugar', component: SugarClub, meta: { auth: true } },
+    { path: '/', component: TaskHall, meta: { analyticsKey: 'hall' } },
+    { path: '/login', component: LoginView, meta: { guestOnly: true, analyticsKey: 'login' } },
+    { path: '/register', component: LoginView, props: { initialMode: 'register' }, meta: { guestOnly: true, analyticsKey: 'login' } },
+    { path: '/mine', component: MyTasks, meta: { auth: true, analyticsKey: 'mine' } },
+    { path: '/profile', component: ProfileView, meta: { auth: true, analyticsKey: 'profile' } },
+    { path: '/staff', component: StaffView, meta: { analyticsKey: 'staff' } },
+    { path: '/board', component: BoardView, meta: { analyticsKey: 'board' } },
+    { path: '/maps', component: VrMaps, meta: { analyticsKey: 'maps' } },
+    { path: '/sugar', component: SugarClub, meta: { auth: true, analyticsKey: 'sugar' } },
+    { path: '/announcements', component: AnnouncementsView, meta: { analyticsKey: 'announcements' } },
+    { path: '/versions', component: VersionsView, meta: { analyticsKey: 'versions' } },
+    { path: '/operations', component: OperationsView, meta: { operations: true } },
     { path: '/life', component: () => import('./views/LifeSimulator.vue'), meta: { lifeOnly: true } },
-    { path: '/admin', component: AdminView, meta: { roleManager: true } },
+    { path: '/admin', component: AdminView, meta: { moderator: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })
@@ -40,7 +47,28 @@ router.beforeEach(async (to) => {
   }
   if (to.meta.auth && !auth.isLoggedIn) return { path: '/login', query: { redirect: to.fullPath } }
   if (to.meta.roleManager && !auth.canManageRoles) return '/'
+  if (to.meta.moderator && !auth.canModerate) return '/'
+  if (to.meta.operations && !auth.canOperate) return '/'
   if (to.meta.guestOnly && auth.isLoggedIn) return '/'
+})
+
+function analyticsSessionId() {
+  const key = 'wsw_analytics_session'
+  let value = localStorage.getItem(key)
+  if (!value) {
+    value = globalThis.crypto?.randomUUID?.().replaceAll('-', '')
+      || `${Date.now()}_${Math.random().toString(36).slice(2)}`
+    localStorage.setItem(key, value)
+  }
+  return value
+}
+
+router.afterEach((to) => {
+  if (!to.meta.analyticsKey) return
+  api.post('/analytics/page-view', {
+    page_key: to.meta.analyticsKey,
+    session_id: analyticsSessionId(),
+  }).catch(() => {})
 })
 
 export default router

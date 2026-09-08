@@ -3,13 +3,14 @@ from errno import ENOSPC
 from pathlib import Path
 
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.database import Base, get_db
 from app.config import settings
 from app.main import app
+from app import main as main_module
 from app.models import User
 from app.security import hash_password
 
@@ -72,6 +73,129 @@ TINY_PNG = (
     b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
     b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\x0dIDAT\x08\xd7c\xf8\xcf\xc0\xf0\x1f\x00\x05\x00\x01\xff\x89\x99=\x1d\x00\x00\x00\x00IEND\xaeB`\x82"
 )
+
+
+def test_vr_map_photo_legacy_unique_constraint_migration(tmp_path, monkeypatch):
+    database_path = tmp_path / "legacy.db"
+    legacy_engine = create_engine(f"sqlite:///{database_path}")
+    with legacy_engine.begin() as connection:
+        connection.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY)"))
+        connection.execute(text("CREATE TABLE tasks (id INTEGER PRIMARY KEY, reward VARCHAR(60))"))
+        connection.execute(text("CREATE TABLE vr_maps (id INTEGER PRIMARY KEY)"))
+        connection.execute(text("""
+            CREATE TABLE vr_map_photos (
+                id INTEGER PRIMARY KEY, map_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
+                file_path VARCHAR(255) NOT NULL UNIQUE, is_visible BOOLEAN NOT NULL DEFAULT 0,
+                moderated_by_id INTEGER, moderated_at DATETIME, created_at DATETIME NOT NULL,
+                CONSTRAINT uq_vr_map_photo UNIQUE (map_id, user_id)
+            )
+        """))
+        connection.execute(text("""
+            INSERT INTO vr_map_photos
+                (id, map_id, user_id, file_path, is_visible, created_at)
+            VALUES (1, 1, 1, 'vrmaps/1/legacy.png', 1, '2026-09-08 00:00:00')
+        """))
+    monkeypatch.setattr(main_module, "engine", legacy_engine)
+    monkeypatch.setattr(settings, "database_url", f"sqlite:///{database_path}")
+    main_module.migrate_schema()
+    migrated = inspect(legacy_engine)
+    assert not any(
+        set(item.get("column_names") or []) == {"map_id", "user_id"}
+        for item in migrated.get_unique_constraints("vr_map_photos")
+    )
+    with legacy_engine.connect() as connection:
+        assert connection.scalar(text("SELECT COUNT(*) FROM vr_map_photos")) == 1
+
+
+def test_mascot_operations_announcements_and_analytics():
+    with TestClient(app) as client:
+        mascot = auth(client, "ops_mascot")
+        mascot_id = client.get("/api/auth/me", headers=mascot).json()["id"]
+        regular = auth(client, "ops_regular")
+        admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
+        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        granted = client.patch(
+            f"/api/admin/users/{mascot_id}/role", headers=admin, json={"role": "mascot"}
+        )
+        assert granted.status_code == 200
+        assert granted.json()["role"] == "mascot"
+
+        staff = auth(client, "ops_staff")
+        staff_id = client.get("/api/auth/me", headers=staff).json()["id"]
+        assert client.patch(
+            f"/api/admin/users/{staff_id}/role", headers=admin, json={"role": "staff"}
+        ).status_code == 200
+        cannot_revoke = client.patch(
+            f"/api/admin/users/{mascot_id}/role", headers=staff, json={"role": "user"}
+        )
+        assert cannot_revoke.status_code == 403
+
+        assert client.get("/api/operations/announcements", headers=regular).status_code == 403
+        assert client.get("/api/admin/users", headers=mascot).status_code == 403
+
+        created = client.post(
+            "/api/operations/announcements",
+            headers=mascot,
+            json={
+                "kind": "site",
+                "title": "服务升级通知",
+                "content": "今晚将进行短时服务升级，请留意开放时间。",
+                "is_published": False,
+                "is_pinned": True,
+                "starts_at": None,
+                "ends_at": None,
+            },
+        )
+        assert created.status_code == 201, created.text
+        announcement_id = created.json()["id"]
+        assert client.get("/api/announcements").json() == []
+
+        published = client.put(
+            f"/api/operations/announcements/{announcement_id}",
+            headers=mascot,
+            json={
+                "kind": "event",
+                "title": "周末合影活动",
+                "content": "周六晚在活动世界集合，欢迎社区成员参加。",
+                "is_published": True,
+                "is_pinned": True,
+                "starts_at": None,
+                "ends_at": None,
+            },
+        )
+        assert published.status_code == 200, published.text
+        public_items = client.get("/api/announcements", params={"kind": "event"}).json()
+        assert len(public_items) == 1
+        assert public_items[0]["title"] == "周末合影活动"
+        assert public_items[0]["author_name"] == "用户ops_mascot"
+
+        for page_key, session_id, headers in [
+            ("hall", "anonymous_session_a", None),
+            ("hall", "anonymous_session_a", None),
+            ("sugar", "anonymous_session_b", None),
+            ("hall", "logged_session_value", regular),
+        ]:
+            response = client.post(
+                "/api/analytics/page-view",
+                headers=headers,
+                json={"page_key": page_key, "session_id": session_id},
+            )
+            assert response.status_code == 204
+
+        report = client.get("/api/operations/analytics", headers=mascot, params={"days": 7})
+        assert report.status_code == 200, report.text
+        data = report.json()
+        assert data["today_views"] == 4
+        assert data["today_visitors"] == 3
+        hall = next(item for item in data["pages"] if item["page_key"] == "hall")
+        sugar = next(item for item in data["pages"] if item["page_key"] == "sugar")
+        assert (hall["views"], hall["visitors"]) == (3, 2)
+        assert (sugar["views"], sugar["visitors"]) == (1, 1)
+
+        deleted = client.delete(f"/api/operations/announcements/{announcement_id}", headers=mascot)
+        assert deleted.status_code == 204
+        assert client.get("/api/announcements").json() == []
 
 
 def register_sugar_profile(client, headers, about="喜欢在周末散步"):
@@ -915,16 +1039,89 @@ def test_vr_map_flow():
         assert approved.status_code == 200 and approved.json()["is_visible"] is True
         assert len(client.get(f"/api/vr-maps/{map_a['id']}").json()["photos"]) == 1
 
-        # bob 重复上传替换（仍只有一张），驳回后公众不可见
+        # bob 再次上传会追加图片；驳回新图后，之前通过的图片仍公开
         replaced = client.post(f"/api/vr-maps/{map_a['id']}/photos", headers=bob, files={"photo": ("shot2.jpg", b"\xff\xd8\xff\xe0" + b"\x00" * 64, "image/jpeg")})
         assert replaced.status_code == 201
-        new_photo_id = replaced.json()["photos"][0]["id"]
-        # 替换后重置审核状态，需要重新审核
-        assert replaced.json()["photos"][0]["is_visible"] is False
-        assert replaced.json()["photos"][0]["moderated"] is False
-        assert len(replaced.json()["photos"]) == 1
+        new_photo = next(photo for photo in replaced.json()["photos"] if photo["id"] != photo_id)
+        new_photo_id = new_photo["id"]
+        assert new_photo["is_visible"] is False
+        assert new_photo["moderated"] is False
+        assert len(replaced.json()["photos"]) == 2
         client.patch(f"/api/admin/vr-map-photos/{new_photo_id}", headers=admin, json={"is_visible": False})
-        assert client.get(f"/api/vr-maps/{map_a['id']}").json()["photos"] == []
+        assert len(client.get(f"/api/vr-maps/{map_a['id']}").json()["photos"]) == 1
+
+
+def test_vr_map_multi_photo_creation_limits_and_moderator_permissions():
+    with TestClient(app) as client:
+        owner = auth(client, "map_multi_owner")
+        moderator = auth(client, "map_moderator")
+        regular = auth(client, "map_regular")
+        admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
+        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+        moderator_id = client.get("/api/auth/me", headers=moderator).json()["id"]
+        assert client.patch(
+            f"/api/admin/users/{moderator_id}/role", headers=admin, json={"role": "disciplinarian"}
+        ).status_code == 200
+
+        files = [("photos", (f"create-{index}.png", TINY_PNG, "image/png")) for index in range(3)]
+        created = client.post(
+            "/api/vr-maps", headers=owner,
+            data={"name": "多图地图", "description": "用于验证创建地图时同步上传多张图片。", "category": "休闲"},
+            files=files,
+        )
+        assert created.status_code == 201, created.text
+        map_id = created.json()["id"]
+        assert len(created.json()["photos"]) == 3
+        assert client.get(f"/api/vr-maps/{map_id}").json()["photos"] == []
+
+        appended = client.post(
+            f"/api/vr-maps/{map_id}/photos", headers=owner,
+            files=[("photos", ("four.png", TINY_PNG, "image/png")), ("photos", ("five.png", TINY_PNG, "image/png"))],
+        )
+        assert appended.status_code == 201
+        assert len(appended.json()["photos"]) == 5
+        sixth = client.post(
+            f"/api/vr-maps/{map_id}/photos", headers=owner,
+            files={"photos": ("six.png", TINY_PNG, "image/png")},
+        )
+        assert sixth.status_code == 422
+        assert "最多保留 5 张" in sixth.json()["detail"]
+
+        too_many = client.post(
+            "/api/vr-maps", headers=owner,
+            data={"name": "超量图片", "description": "用于验证创建推荐的图片数量上限。", "category": "休闲"},
+            files=[("photos", (f"many-{index}.png", TINY_PNG, "image/png")) for index in range(4)],
+        )
+        assert too_many.status_code == 422
+        empty_map = client.post(
+            "/api/vr-maps", headers=owner,
+            json={"name": "总量测试", "description": "用于验证一次上传文件的总大小限制。", "category": "休闲"},
+        ).json()
+        large_png = b"\x89PNG\r\n\x1a\n" + b"\x00" * (8 * 1024 * 1024)
+        total_too_large = client.post(
+            f"/api/vr-maps/{empty_map['id']}/photos", headers=owner,
+            files=[("photos", (f"large-{index}.png", large_png, "image/png")) for index in range(4)],
+        )
+        assert total_too_large.status_code == 422
+        assert "总大小不能超过 30 MB" in total_too_large.json()["detail"]
+        assert client.get(f"/api/vr-maps/{empty_map['id']}", headers=owner).json()["photos"] == []
+
+        assert client.get("/api/admin/vr-map-photos", headers=moderator).status_code == 200
+        assert client.get("/api/admin/photos", headers=moderator).status_code == 200
+        assert client.get("/api/admin/users", headers=moderator).status_code == 403
+        assert client.get("/api/admin/feedback", headers=moderator).status_code == 403
+        board_item = client.post("/api/board", headers=regular, json={"content": "风纪委员不能越权删除留言"}).json()
+        assert client.delete(f"/api/board/{board_item['id']}", headers=moderator).status_code == 403
+
+        regular_id = client.get("/api/auth/me", headers=regular).json()["id"]
+        marked = client.patch(
+            f"/api/admin/users/{regular_id}/beta-tester", headers=admin, json={"is_beta_tester": True}
+        )
+        assert marked.status_code == 200 and marked.json()["is_beta_tester"] is True
+        assert client.get("/api/auth/me", headers=regular).json()["is_beta_tester"] is True
+        assert client.patch(
+            f"/api/admin/users/{regular_id}/beta-tester", headers=moderator, json={"is_beta_tester": False}
+        ).status_code == 403
 
 
 def test_expired_task_is_updated_when_listed():

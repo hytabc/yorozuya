@@ -29,7 +29,7 @@ const savingReportLimit = ref(false)
 const savingReportId = ref(null)
 const userLimits = reactive({})
 const stats = ref({ users: 0, tasks: 0, processing: 0, completed: 0, hidden: 0 })
-const activeTab = ref('tasks')
+const activeTab = ref(auth.isDisciplinarian ? 'reports' : 'tasks')
 const taskSearch = ref('')
 const userSearch = ref('')
 const loading = ref(true)
@@ -56,6 +56,18 @@ const statItems = computed(() => [
 async function load() {
   loading.value = true
   try {
+    if (auth.isDisciplinarian) {
+      const [photoRes, reportRes, sugarPhotoRes, vrReportRes, vrPhotoRes] = await Promise.all([
+        api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/sugar/photos'),
+        api.get('/admin/vr-map-reports'), api.get('/admin/vr-map-photos'),
+      ])
+      photoUsers.value = photoRes.data
+      reports.value = reportRes.data
+      sugarPhotos.value = sugarPhotoRes.data
+      vrMapReports.value = vrReportRes.data
+      vrMapPhotos.value = vrPhotoRes.data
+      return
+    }
     if (!auth.isAdmin) {
       const [taskRes, userRes, photoRes, reportRes, limitRes, feedbackRes, applicationRes, sugarPhotoRes, vrReportRes, vrPhotoRes] = await Promise.all([api.get('/admin/tasks'), api.get('/admin/users'), api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/settings/report-limit'), api.get('/admin/feedback'), api.get('/admin/volunteer-applications'), api.get('/admin/sugar/photos'), api.get('/admin/vr-map-reports'), api.get('/admin/vr-map-photos')])
       tasks.value = taskRes.data
@@ -154,6 +166,13 @@ async function changeUserRole(user, targetRole, select) {
   } finally {
     savingRoleId.value = null
   }
+}
+async function toggleBetaTester(user) {
+  try {
+    const { data } = await api.patch(`/admin/users/${user.id}/beta-tester`, { is_beta_tester: !user.is_beta_tester })
+    users.value[users.value.findIndex((item) => item.id === user.id)] = data
+    toast.success(data.is_beta_tester ? '已标记为内测用户' : '已取消内测用户标记')
+  } catch (error) { toast.error(errorMessage(error)) }
 }
 function openPasswordReset(user) {
   resetUser.value = user
@@ -296,22 +315,22 @@ onMounted(load)
 
 <template>
   <div class="page inner-page admin-page">
-    <div class="page-title"><div><span class="eyebrow"><component :is="auth.isAdmin ? ShieldCheck : Store" :size="15" />{{ auth.isAdmin ? 'ADMIN CONSOLE' : 'STAFF CONSOLE' }}</span><h1>{{ auth.isAdmin ? '委托监管台' : '委托与用户管理' }}</h1><p>{{ auth.isAdmin ? '查看平台运行状态，管理委托、用户权限与接单额度。' : '屏蔽不当委托，管理非管理员账号的基础权限。' }}</p></div></div>
+    <div class="page-title"><div><span class="eyebrow"><component :is="auth.isAdmin ? ShieldCheck : Store" :size="15" />{{ auth.isDisciplinarian ? 'MODERATION CONSOLE' : auth.isAdmin ? 'ADMIN CONSOLE' : 'STAFF CONSOLE' }}</span><h1>{{ auth.isDisciplinarian ? '内容审核台' : auth.isAdmin ? '委托监管台' : '委托与用户管理' }}</h1><p>{{ auth.isDisciplinarian ? '审核社区图片，处理被举报的委托与地图推荐。' : auth.isAdmin ? '查看平台运行状态，管理委托、用户权限与接单额度。' : '屏蔽不当委托，管理非管理员账号的基础权限。' }}</p></div></div>
     <div v-if="auth.isAdmin" class="admin-stats"><div v-for="item in statItems" :key="item.label"><component :is="item.icon" :size="20" /><span>{{ item.label }}</span><strong>{{ item.value }}</strong></div></div>
 
     <div class="tabs admin-tabs" role="tablist" aria-label="后台管理内容">
-      <button :class="{ active: activeTab === 'tasks' }" role="tab" :aria-selected="activeTab === 'tasks'" @click="activeTab = 'tasks'">委托管理</button>
+      <button v-if="!auth.isDisciplinarian" :class="{ active: activeTab === 'tasks' }" role="tab" :aria-selected="activeTab === 'tasks'" @click="activeTab = 'tasks'">委托管理</button>
       <button :class="{ active: activeTab === 'reports' }" role="tab" :aria-selected="activeTab === 'reports'" @click="activeTab = 'reports'">举报处理<span v-if="pendingReports">{{ pendingReports }}</span></button>
-      <button :class="{ active: activeTab === 'applications' }" role="tab" :aria-selected="activeTab === 'applications'" @click="activeTab = 'applications'">志愿者申请<span v-if="pendingApplications">{{ pendingApplications }}</span></button>
+      <button v-if="!auth.isDisciplinarian" :class="{ active: activeTab === 'applications' }" role="tab" :aria-selected="activeTab === 'applications'" @click="activeTab = 'applications'">志愿者申请<span v-if="pendingApplications">{{ pendingApplications }}</span></button>
       <button :class="{ active: activeTab === 'vrmaps' }" role="tab" :aria-selected="activeTab === 'vrmaps'" @click="activeTab = 'vrmaps'">地图推荐<span v-if="pendingVrMapReports + pendingVrMapPhotos">{{ pendingVrMapReports + pendingVrMapPhotos }}</span></button>
-      <button :class="{ active: activeTab === 'users' }" role="tab" :aria-selected="activeTab === 'users'" @click="activeTab = 'users'">用户与权限</button>
+      <button v-if="!auth.isDisciplinarian" :class="{ active: activeTab === 'users' }" role="tab" :aria-selected="activeTab === 'users'" @click="activeTab = 'users'">用户与权限</button>
       <button :class="{ active: activeTab === 'photos' }" role="tab" :aria-selected="activeTab === 'photos'" @click="activeTab = 'photos'">图片管理</button>
-      <button :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
+      <button v-if="!auth.isDisciplinarian" :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
     </div>
 
     <section v-if="activeTab === 'reports'" class="admin-table-section">
       <div class="admin-toolbar"><div><h2>举报处理</h2><span>待处理 {{ pendingReports }} 条</span></div>
-        <div class="report-limit-box"><span>每日举报上限</span><input v-model.number="reportLimitInput" class="limit-input" type="number" min="1" max="100" aria-label="每日举报上限" /><button class="button secondary small" :disabled="savingReportLimit || reportLimitInput === reportLimit" @click="saveReportLimit"><Save :size="15" />{{ savingReportLimit ? '保存中…' : '保存' }}</button></div>
+        <div v-if="!auth.isDisciplinarian" class="report-limit-box"><span>每日举报上限</span><input v-model.number="reportLimitInput" class="limit-input" type="number" min="1" max="100" aria-label="每日举报上限" /><button class="button secondary small" :disabled="savingReportLimit || reportLimitInput === reportLimit" @click="saveReportLimit"><Save :size="15" />{{ savingReportLimit ? '保存中…' : '保存' }}</button></div>
       </div>
       <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
       <ul v-else-if="sortedReports.length" class="feedback-admin-list">
@@ -421,7 +440,7 @@ onMounted(load)
           <tbody>
             <tr v-if="loading"><td :colspan="auth.isAdmin ? 5 : 3" class="table-loading">正在加载…</td></tr>
             <tr v-for="user in filteredUsers" v-else :key="user.id">
-              <td><strong>{{ user.nickname }}</strong><small>@{{ user.username }} · #{{ user.id }}</small></td>
+              <td><strong>{{ user.nickname }}</strong><small>@{{ user.username }} · #{{ user.id }}</small><label class="beta-toggle"><input type="checkbox" :checked="user.is_beta_tester" :disabled="!auth.isAdmin" @change="toggleBetaTester(user)" /> 内测用户</label></td>
               <td><span v-if="user.is_admin" class="admin-tag"><ShieldCheck :size="13" />超级管理员</span><span v-else class="role-tag" :class="`role-${user.role}`"><Store v-if="user.role === 'staff'" :size="13" />{{ roleLabel(user) }}</span></td>
               <td v-if="auth.isAdmin"><span class="limit-usage" :class="{ full: user.active_task_count >= user.max_concurrent_tasks }">{{ user.active_task_count }} / {{ user.max_concurrent_tasks }}</span></td>
               <td v-if="auth.isAdmin"><input v-model.number="userLimits[user.id]" class="limit-input" type="number" min="0" max="999" :aria-label="`${user.nickname} 的接单上限`" /></td>
@@ -432,7 +451,9 @@ onMounted(load)
                   <select v-if="!user.is_admin" class="role-select" :value="user.role" :disabled="savingRoleId === user.id" :aria-label="`修改 ${user.nickname} 的权限等级`" @change="changeUserRole(user, $event.target.value, $event.target)">
                     <option value="user">普通用户</option>
                     <option value="volunteer">志愿者</option>
-                    <option v-if="auth.isAdmin || user.role === 'staff'" value="staff" :disabled="!auth.isAdmin">管理员{{ auth.isAdmin ? '' : '（仅超级管理员可授予）' }}</option>
+                    <option v-if="auth.isAdmin || user.role === 'staff'" value="staff" :disabled="!auth.isAdmin">管理员{{ auth.isAdmin ? '' : '（仅超级管理员可管理）' }}</option>
+                    <option v-if="auth.isAdmin || user.role === 'mascot'" value="mascot" :disabled="!auth.isAdmin">看板娘{{ auth.isAdmin ? '' : '（仅超级管理员可管理）' }}</option>
+                    <option v-if="auth.isAdmin || user.role === 'disciplinarian'" value="disciplinarian" :disabled="!auth.isAdmin">风纪委员{{ auth.isAdmin ? '' : '（仅超级管理员可管理）' }}</option>
                   </select>
                 </div>
               </td>

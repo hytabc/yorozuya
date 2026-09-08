@@ -28,6 +28,7 @@ watch(() => [route.meta.lifeOnly, auth.isLoggedIn, auth.canManageRoles, lifeDesk
     <main>
       <RouterView v-if="!route.meta.lifeOnly || (auth.isLoggedIn && auth.canManageRoles && lifeDesktop)" />
     </main>
+    <footer v-if="!route.meta.lifeOnly" class="app-version"><RouterLink to="/versions">V0.1-Beta</RouterLink></footer>
     <ToastHost />
     <KanbanNiang v-if="!route.meta.lifeOnly" />
   </div>

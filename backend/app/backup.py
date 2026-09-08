@@ -1,10 +1,11 @@
 """SQLite 数据库自动快照备份。
 
-数据库每次发生内容写入并成功提交后，自动把主数据库文件复制一份带时间戳的
+数据库每次发生业务内容写入并成功提交后，自动把主数据库文件复制一份带时间戳的
 快照到其同级 ``backups/`` 目录（例如 ``backend/data/backups/wsw-20260902-113000.db``），
 并只保留最近若干份。快照文件与主数据库同处宿主机目录，可随时用 SQLite 工具打开。
 
 监听逻辑只作用于应用自身的 ``AppSession`` 会话，不影响测试使用的内存会话。
+页面访问等高频、可丢失的统计写入会显式跳过快照，避免每次浏览都复制数据库。
 """
 from __future__ import annotations
 
@@ -26,6 +27,7 @@ logger = logging.getLogger(__name__)
 BACKUP_DIR_NAME = "backups"
 # 用于在会话内标记“本事务是否写入了数据库”的 key
 _CHANGED_KEY = "_yorozuya_db_changed"
+_SKIP_KEY = "_yorozuya_skip_snapshot"
 
 
 def sqlite_db_path() -> Path | None:
@@ -53,12 +55,18 @@ def _on_do_orm_execute(orm_execute_state) -> None:
 
 
 def _on_after_commit(session: Session) -> None:
-    if not session.info.pop(_CHANGED_KEY, False):
+    changed = session.info.pop(_CHANGED_KEY, False)
+    if session.info.pop(_SKIP_KEY, False) or not changed:
         return
     try:
         take_snapshot()
     except Exception:  # noqa: BLE001 - 备份失败不应影响业务请求
         logger.exception("数据库自动快照失败")
+
+
+def skip_next_snapshot(session: Session) -> None:
+    """跳过下一次提交快照，供可丢失的高频统计事件使用。"""
+    session.info[_SKIP_KEY] = True
 
 
 def _next_snapshot_path(db_path: Path) -> Path:

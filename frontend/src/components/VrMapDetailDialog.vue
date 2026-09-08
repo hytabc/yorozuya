@@ -22,7 +22,7 @@ const reportReason = ref('')
 // 上传按钮旁的鼓励文案：推动大家分享在地图里拍摄的实拍照片
 const UPLOAD_PROMPT = '在这张地图里拍到了满意的瞬间？上传你的实拍照片——黄昏的天台、迷宫尽头的彩蛋……让没去过的人一眼种草，让去过的人会心一笑。照片经管理员审核后展示。'
 
-const myPhoto = computed(() => props.map.photos.find((photo) => !photo.is_visible) || null)
+const myPhotos = computed(() => props.map.photos.filter((photo) => !photo.is_visible))
 const publicPhotos = computed(() => props.map.photos.filter((photo) => photo.is_visible))
 
 function onKey(event) { if (event.key === 'Escape') emit('close') }
@@ -60,17 +60,20 @@ async function submitReport() {
 }
 
 async function uploadPhoto(event) {
-  const file = event.target.files?.[0]
+  const files = Array.from(event.target.files || [])
   event.target.value = ''
-  if (!file) return
-  if (file.size > MAX_PHOTO_BYTES) return toast.error('地图照片不能超过 10 MB')
-  if (!PHOTO_TYPES.has(file.type)) return toast.error('地图照片仅支持 PNG 或 JPG 格式')
+  if (!files.length) return
+  if (files.length > 5) return toast.error('单次最多上传 5 张图片')
+  if (props.map.photos.length + files.length > 5) return toast.error('每张地图最多保留 5 张图片')
+  if (files.some((file) => file.size > MAX_PHOTO_BYTES)) return toast.error('地图照片不能超过 10 MB')
+  if (files.reduce((total, file) => total + file.size, 0) > 30 * 1024 * 1024) return toast.error('本次地图图片总大小不能超过 30 MB')
+  if (files.some((file) => !PHOTO_TYPES.has(file.type))) return toast.error('地图照片仅支持 PNG 或 JPG 格式')
   uploading.value = true
   try {
     const body = new FormData()
-    body.append('photo', file)
+    files.forEach((file) => body.append('photos', file))
     const { data } = await api.post(`/vr-maps/${props.map.id}/photos`, body)
-    toast.success('照片已上传，等待管理员审核')
+    toast.success(`${files.length} 张照片已上传，等待管理员审核`)
     emit('updated', data)
   } catch (error) {
     toast.error(imageUploadErrorMessage(error))
@@ -116,18 +119,18 @@ async function uploadPhoto(event) {
 
       <template v-if="auth.isLoggedIn">
         <div class="upload-section">
-          <div v-if="myPhoto" class="my-photo">
-            <figure :class="{ blocked: !myPhoto.is_visible }">
-              <img :src="myPhoto.image_url" alt="我上传的实拍照片" />
-              <span v-if="!myPhoto.is_visible" class="photo-blocked"><EyeOff :size="14" />{{ myPhoto.moderated ? '未通过审核' : '审核中' }}</span>
+          <div v-if="myPhotos.length" class="my-photo">
+            <figure v-for="photo in myPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
+              <img :src="photo.image_url" alt="我上传的待审核实拍照片" />
+              <span class="photo-blocked"><EyeOff :size="14" />{{ photo.moderated ? '未通过审核' : '审核中' }}</span>
             </figure>
-            <p class="muted">{{ myPhoto.moderated ? '这张照片未通过审核，可重新上传一张替换。' : '你的照片正在等待管理员审核，审核通过后会公开展示。' }}</p>
+            <p class="muted">已提交的照片将在审核通过后公开展示。</p>
           </div>
           <p class="upload-prompt">{{ UPLOAD_PROMPT }}</p>
           <label class="button secondary upload-label" :class="{ disabled: uploading }">
-            <UploadCloud :size="16" />{{ uploading ? '上传中…' : myPhoto ? '重新上传替换' : '上传我的实拍照片' }}
-            <span class="upload-hint">仅支持 PNG / JPG，最大 10 MB</span>
-            <input type="file" accept="image/png,image/jpeg" :disabled="uploading" @change="uploadPhoto" />
+            <UploadCloud :size="16" />{{ uploading ? '上传中…' : '上传实拍照片' }}
+            <span class="upload-hint">最多 5 张，单张 10 MB，合计 30 MB</span>
+            <input type="file" accept="image/png,image/jpeg" multiple :disabled="uploading || map.photos.length >= 5" @change="uploadPhoto" />
           </label>
         </div>
       </template>
@@ -269,6 +272,7 @@ async function uploadPhoto(event) {
 .my-photo {
   display: flex;
   align-items: flex-end;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 8px;
 }
@@ -300,6 +304,7 @@ async function uploadPhoto(event) {
 }
 
 .my-photo p {
+  flex: 1 1 180px;
   margin: 0;
   font-size: 12px;
   line-height: 1.6;

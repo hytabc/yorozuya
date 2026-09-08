@@ -21,7 +21,7 @@ class Base(DeclarativeBase):
     pass
 
 
-# 每次有内容写入并提交后，自动把数据库快照到宿主机（见 backup.py）
+# 业务内容写入并提交后自动快照；高频、可丢失的统计事件可显式跳过（见 backup.py）。
 from .backup import install_auto_backup as _install_auto_backup  # noqa: E402
 
 _install_auto_backup(AppSession)

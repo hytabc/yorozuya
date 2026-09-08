@@ -25,9 +25,9 @@
 ```
 backend/app/
   main.py        # 全部 API 路由（~1750 行，单文件）+ 启动时建管理员/SQLite 迁移/静态托管前端
-  models.py      # ORM 模型与所有枚举（UserRole、TaskStatus、FeedbackStatus、ReportStatus 等）
-  schemas.py     # Pydantic 请求/响应模型（role 用 Literal["user","volunteer","staff"] 校验）
-  dependencies.py# 权限收口：get_current_user / get_optional_user / get_admin / get_role_manager
+  models.py      # ORM 模型与所有枚举（UserRole、TaskStatus、AnnouncementKind 等）
+  schemas.py     # Pydantic 请求/响应模型（role 用 Literal["user","volunteer","staff","mascot"] 校验）
+  dependencies.py# 权限收口：登录、监管权限与运营权限依赖
   security.py    # PBKDF2 密码哈希 + JWT 签发/校验（24h 会话）
   config.py      # pydantic-settings，读根目录 .env；含数据库备份、砂糖上传目录、看板娘配置
   database.py    # engine/SessionLocal；AppSession 挂自动快照（backup.py，每次写库后备份）
@@ -37,14 +37,15 @@ frontend/src/
   constants.js   # 角色显示名 ROLE_LABELS / ROLE_HINTS / roleLabel()（⚠️ 改角色文案先看这里）
   stores/auth.js # Pinia：token/user 持久化到 localStorage；isAdmin / isStaff / canManageRoles
   router.js      # 路由守卫（auth / guestOnly / roleManager）
-  views/         # TaskHall(大厅) MyTasks ProfileView AdminView(后台) StaffView(名录) SugarClub LoginView
+  views/         # TaskHall(大厅) AdminView(后台) OperationsView(运营台) AnnouncementsView(公告) 等
   components/    # TaskDialog(委托详情+接取) CreateTaskDialog ReportDialog FeedbackDialog
                  # UserProfileCard StatusBadge KanbanNiang(AI看板娘) AppHeader ToastHost TaskCard
 ```
 
 ## 领域模型速查（models.py）
 
-- `User`：`role`（枚举值 `'user'|'volunteer'|'staff'`，SqlEnum 存字符串）+ `is_admin`（独立的更高级监管账号）+ `qq_public` + `max_concurrent_tasks`（并发接单上限）。
+- `User`：`role`（枚举值 `'user'|'volunteer'|'staff'|'mascot'`，SqlEnum 存字符串）+ `is_admin`（独立的更高级监管账号）+ `qq_public` + `max_concurrent_tasks`（并发接单上限）。
+- `Announcement`：网站/活动公告，支持草稿、置顶和起止展示时间；`PageView` 保存隐私化页面访问事件（180 天留存）。
 - `Task`：`status`（published→accepted→awaiting→completed；另有 cancelling/expired/cancelled）、`accept_password_hash`（只存哈希，便捷属性 `requires_password`）、`is_designated`（指定委托，designated_user_ids）、`is_anonymous`、`required_takers`、`is_visible/admin_note`（后台屏蔽）、`expires_at`（查询时惰性过期 `expire_due_tasks`）。
 - `TaskMember`：接单人及 `response_status`（pending/accepted/declined）+ 完成确认 `confirmed_at` + 取消确认。
 - 其余：`TaskReport`（举报）、`Feedback`（反馈）、`SugarProfile`/`SugarPair`（砂糖社）、用户图片等。
@@ -55,13 +56,15 @@ frontend/src/
 |---|---|---|
 | `is_admin=True` | **超级管理员** | 监管台全部：统计、反馈、授予 staff 角色、接单上限、重置密码；不接取委托 |
 | `role='staff'` | **管理员**（历史名"店员"，内部值不改！） | 志愿者能力 + 管理非管理员账号的 user/volunteer 等级 + 查看处理举报/反馈 + 委托屏蔽/图片审核 + QQ 强制公开 |
+| `role='mascot'` | **看板娘** | 管理网站/活动公告 + 查看页面活跃分析；不继承管理员、志愿者能力 |
 | `role='volunteer'` | 志愿者 | 发布/接取全部委托 |
 | `role='user'` | 普通用户 | 发布委托；凭**正确密码**可接取带密码委托；无密码委托直接接取 |
 
-- 后端权限单一收口在 `dependencies.py`：`get_admin`（仅 is_admin）、`get_role_manager`（is_admin **或** staff，用于后台管理类接口）。改权限语义只动这里 + 各路由 Depends。
-- 前端对应 `stores/auth.js` 的 `isAdmin`（is_admin）/`isStaff`（role==='staff' 且非 admin）/`canManageRoles`；显示名统一走 `constants.js` 的 `roleLabel()`。
+- 后端权限单一收口在 `dependencies.py`：`get_admin`（仅 is_admin）、`get_role_manager`（is_admin **或** staff）、`get_operations_manager`（is_admin **或** mascot）。改权限语义只动这里 + 各路由 Depends。
+- 前端对应 `stores/auth.js` 的 `isAdmin` / `isStaff` / `isMascot` / `canManageRoles` / `canOperate`；显示名统一走 `constants.js` 的 `roleLabel()`。
 - ⚠️ **不要**把 `'staff'` 改成 `'admin'` 之类的内部值：它是数据库存储值 + `schemas.py` Literal 校验 + 前端字面量三处联动，2026-09 已决策"只改显示名"。
-- 授予 staff 角色仅超级管理员可做（`main.py` update_user_role，403 文案"只有超级管理员可以授予管理员权限"）。
+- 授予或撤销 staff/mascot 角色仅超级管理员可做（`main.py` 的 `update_user_role`）。
+- 授予或撤销 mascot 角色仅超级管理员可做；看板娘使用 `/operations`，不得复用 `/admin` 监管权限。
 
 ## 关键业务规则
 
