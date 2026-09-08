@@ -18,7 +18,9 @@ const selectedNode = ref('')
 watch(script, s => { selectedNode.value = s?.start || '' }, { immediate: true })
 const node = computed(() => script.value?.nodes[selectedNode.value] || null)
 
-// ==== 思维导图布局(左→右分层,父节点垂直居中于其子分支) ====
+// ==== 思维导图布局(galgame 式分支:最长路径分层,分支可散开也可汇合) ====
+// 深度 = 从起点出发的最长路径,保证汇合节点落在它所有父分支的右侧;
+// 跨层/回连边画虚线,同层的多条汇入边都是实线;多个父分支汇入的节点标「汇合」。
 const NODE_W = 168
 const NODE_H = 64
 const COL_GAP = 96
@@ -28,32 +30,54 @@ const PAD = 16
 const mindmap = computed(() => {
   const s = script.value
   if (!s) return { cards: [], edges: [], width: 0, height: 0 }
+  const total = nodeIds.value.length
+  // 1) 最长路径分层(BFS 松弛;环按深度上限截断,后面画成虚线回连边)
+  const depthOf = new Map([[s.start, 0]])
+  const queue = [s.start]
+  let guard = 0
+  while (queue.length && guard++ < total * total + 10) {
+    const nid = queue.shift()
+    const d = depthOf.get(nid)
+    for (const c of s.nodes[nid]?.choices || []) {
+      if (!c.next || !s.nodes[c.next]) continue
+      const nd = d + 1
+      if (nd <= total && (!depthOf.has(c.next) || depthOf.get(c.next) < nd)) {
+        depthOf.set(c.next, nd)
+        queue.push(c.next)
+      }
+    }
+  }
+  const isForward = (from, to) => depthOf.get(to) === depthOf.get(from) + 1
+  // 2) 每个节点记录全部前向父节点(>1 即汇合点)
+  const parentsOf = new Map()
+  for (const [nid] of depthOf) parentsOf.set(nid, [])
+  for (const [nid] of depthOf) {
+    for (const c of s.nodes[nid]?.choices || []) {
+      if (c.next && depthOf.has(c.next) && isForward(nid, c.next)) parentsOf.get(c.next).push(nid)
+    }
+  }
+  // 3) 纵向槽位:从起点沿前向边递归,叶子取下一个空槽,父节点居中于子分支带
   const entries = new Map()
   let leaf = 0
-  let maxDepth = 0
-  // 放置:沿选项跳转递归;已放置的节点不再重复占位(交叉/回连边仍画出)。
-  const place = (nid, depth, parent) => {
-    if (entries.has(nid) || !s.nodes[nid]) return null
-    maxDepth = Math.max(maxDepth, depth)
-    const entry = { nid, depth, parent, children: [], slot: 0 }
+  const place = (nid) => {
+    if (entries.has(nid)) return entries.get(nid)
+    const entry = { nid, depth: depthOf.get(nid), merge: (parentsOf.get(nid) || []).length > 1, children: [], slot: 0 }
     entries.set(nid, entry)
     const kids = []
-    for (const c of s.nodes[nid].choices || []) {
-      if (c.next && s.nodes[c.next] && !entries.has(c.next) && !kids.includes(c.next)) kids.push(c.next)
+    for (const c of s.nodes[nid]?.choices || []) {
+      if (c.next && depthOf.has(c.next) && isForward(nid, c.next) && !entries.has(c.next) && !kids.includes(c.next)) kids.push(c.next)
     }
-    for (const k of kids) {
-      const child = place(k, depth + 1, nid)
-      if (child) entry.children.push(child)
-    }
+    for (const k of kids) entry.children.push(place(k))
     entry.slot = entry.children.length
       ? entry.children.reduce((sum, c) => sum + c.slot, 0) / entry.children.length
       : leaf++
     return entry
   }
-  place(s.start, 0, null)
-  // 从起点不可达的节点(改跳转/删节点可能产生)放到最右一列,标为未连接。
+  place(s.start)
+  const maxDepth = Math.max(0, ...depthOf.values())
+  // 从起点不可达的节点放到最右一列,标为未连接。
   for (const nid of nodeIds.value) {
-    if (!entries.has(nid)) entries.set(nid, { nid, depth: maxDepth + 1, parent: null, children: [], slot: leaf++, orphan: true })
+    if (!entries.has(nid)) entries.set(nid, { nid, depth: maxDepth + 1, merge: false, children: [], slot: leaf++, orphan: true })
   }
   const xy = e => ({ x: PAD + e.depth * (NODE_W + COL_GAP), y: PAD + e.slot * (NODE_H + ROW_GAP) })
   const cards = [...entries.values()].map(e => ({ ...e, ...xy(e) }))
@@ -68,7 +92,7 @@ const mindmap = computed(() => {
       edges.push({
         key: `${e.nid}-${c.next}-${edges.length}`,
         label: c.label,
-        back: target.parent !== e.nid,
+        back: !isForward(e.nid, c.next),
         from: e.nid, to: c.next,
         x1: from.x + NODE_W, y1: from.y + NODE_H / 2,
         x2: to.x, y2: to.y + NODE_H / 2,
@@ -159,6 +183,7 @@ function submitRemoveNode(nodeId) {
           <div class="la-map-node-head">
             <code>{{ card.nid }}</code>
             <span v-if="script.start === card.nid" class="la-active-tag">起点</span>
+            <span v-if="card.merge" class="la-map-merge">汇合</span>
             <span v-if="card.orphan" class="la-map-orphan">未连接</span>
           </div>
           <div class="la-map-node-line">{{ previewOf(card.nid) }}</div>
@@ -213,4 +238,5 @@ function submitRemoveNode(nodeId) {
 .la-map-node-head code { color: #237a57; font-weight: 600; font-size: 12px; }
 .la-map-node-line { font-size: 11px; color: #69736e; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .la-map-orphan { background: #fdf0e5; color: #b26a21; font-size: 10px; padding: 1px 6px; border-radius: 999px; }
+.la-map-merge { background: #e8ecf9; color: #4a5f9e; font-size: 10px; padding: 1px 6px; border-radius: 999px; }
 </style>

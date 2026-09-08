@@ -70,9 +70,12 @@ player state. Dialogue is edited PER DAY (stage 5): tabs 第 1~7 天 switch the
 day script being edited; packs with fewer than 7 days are padded by cloning
 their last day on load. Each day is edited through a MIND-MAP canvas (stage 6):
 the start node sits at the left and choice branches spread rightward as
-connected cards (edges labeled with the choice text, cycle/cross edges drawn
-dashed, unreachable nodes placed apart and marked 未连接); clicking a card
-opens that node's edit panel (line, choices, effects, jump targets);
+connected cards (edges labeled with the choice text); layering uses the
+LONGEST path from the start so galgame-style converging branches render as a
+proper diamond — the merge node lands right of ALL its parents with solid
+inbound edges and a 汇合 badge; only true back/cross edges (cycles) are
+dashed, and unreachable nodes are placed apart and marked 未连接. Clicking
+a card opens that node's edit panel (line, choices, effects, jump targets);
 a choice's jump dropdown offers "＋ 新建节点…" to create-and-link in one
 step, any node can be made the start.
 Node add/delete applies to the current day only; deleting the start node
@@ -155,7 +158,10 @@ state and mutations stay in `useLifeGame`. Semantics per NPC per game day:
 - `next` non-null advances to that node THE SAME day: the NPC's reply and the
   next node's line are appended atomically and played in order; `completed`
   stays false and the new node's choices are offered. `next: null` marks the
-  day complete (choices hide, actions remain available).
+  day complete (choices hide, actions remain available). Jumps may target ANY
+  node of the day, so galgame-style diamonds work: branches diverge on
+  choices and later converge into a shared node (stage 6c; the default pack
+  demos one in maoyou day 5).
 - Position (`dialogueNodes`) is persisted in the save, so a mid-chain reload
   resumes at the exact node; hydration drops positions pointing at nodes that
   no longer exist. Server validation rejects unknown NPCs/node ids.
