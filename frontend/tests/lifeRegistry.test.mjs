@@ -30,11 +30,13 @@ test('default pack content is complete for every declared npc', () => {
     assert.ok(defaultLifePack.npcs.some(npc => npc.id === id), 'npc def: ' + id)
     assert.ok(defaultLifePack.portraits[id].startsWith('/life-assets/'), 'portrait: ' + id)
     assert.ok(defaultLifePack.presence[id], 'presence: ' + id)
-    const script = defaultLifePack.dialogue[id]
-    const start = script.nodes[script.start]
+    const days = defaultLifePack.dialogue[id]
+    assert.ok(Array.isArray(days) && days.length === 7, 'daily scripts: ' + id)
+    const start = days[0].nodes[days[0].start]
     assert.ok(start, 'dialogue start: ' + id)
     assert.equal(typeof start.line, 'string')
     assert.ok(start.choices.length >= 2, 'choices: ' + id)
+    assert.notEqual(days[0].nodes.n1.line, days[1].nodes.n1.line, '每天开场应不同: ' + id)
     for (const choice of start.choices) {
       assert.equal(typeof choice.label, 'string')
       assert.equal(typeof choice.reply, 'string')
@@ -54,7 +56,7 @@ test('effectText renders node-graph choice effects as display text', () => {
   const pack = createLifePackFromContent({ id: 'copy-pack', version: 3, content: defaultLifePackContent })
   assert.equal(pack.id, 'copy-pack')
   assert.equal(pack.version, 3)
-  assert.equal(pack.dialogue.yu.nodes.n1.line, defaultLifePackContent.dialogue.yu.nodes.n1.line)
+  assert.equal(pack.dialogue.yu[0].nodes.n1.line, defaultLifePackContent.dialogue.yu[0].nodes.n1.line)
 })
 
 test('createInitialState returns isolated deep copies', () => {
@@ -82,7 +84,7 @@ test('registry rejects incomplete or malformed packs', () => {
   assert.throws(() => validateLifePack(badRoom), /未知世界/)
   const badNext = JSON.parse(JSON.stringify(defaultLifePack))
   badNext.id = 'bad-6'
-  badNext.dialogue.ache.nodes.n1.choices[0].next = 'missing-node'
+  badNext.dialogue.ache[0].nodes.n1.choices[0].next = 'missing-node'
   assert.throws(() => validateLifePack(badNext), /未知节点/)
   const noActions = { ...defaultLifePack, id: 'bad-7', actions: [] }
   assert.throws(() => validateLifePack(noActions), /actions/)

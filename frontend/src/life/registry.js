@@ -11,7 +11,8 @@
 //     rooms: [{id,worldId,label,private,capacity,occupants}],
 //     presence: {npcId: {status,roomId,intro}},
 //     actions: [{id,label,reward,threshold,reply}],
-//     dialogue: {npcId: {start, nodes:{nodeId:{line, choices:[{label,effects,reply,next}]}}}},
+//     dialogue: {npcId: [dayScript, ...]},  // 1-7 天,超出天数沿用最后一天(不循环)
+//       dayScript = {start, nodes:{nodeId:{line, choices:[{label,effects,reply,next}]}}}
 //     initialState: object,      // 全新人生的初始数据(纯 JSON)
 //     createInitialState(): object,  // 返回 initialState 的全新深拷贝
 //   }
@@ -75,16 +76,21 @@ export function validateLifePack(pack) {
   }
   if (!pack.dialogue || typeof pack.dialogue !== 'object') fail('缺少 dialogue')
   for (const id of pack.npcIds) {
-    const script = pack.dialogue[id]
-    if (!script || !script.nodes || typeof script.nodes !== 'object' || !Object.keys(script.nodes).length) fail('NPC 缺少剧本节点: ' + id)
-    if (!script.nodes[script.start]) fail('NPC 剧本起点无效: ' + id)
-    for (const [nodeId, node] of Object.entries(script.nodes)) {
-      if (typeof node.line !== 'string' || !node.line) fail(`节点缺少台词: ${id}/${nodeId}`)
-      if (!Array.isArray(node.choices) || !node.choices.length) fail(`节点缺少选项: ${id}/${nodeId}`)
-      for (const choice of node.choices) {
-        if (typeof choice.label !== 'string' || !choice.label) fail(`节点存在无文案选项: ${id}/${nodeId}`)
-        if (typeof choice.reply !== 'string' || !choice.reply) fail(`节点存在无回复选项: ${id}/${nodeId}`)
-        if (choice.next != null && !script.nodes[choice.next]) fail(`选项跳转到未知节点: ${id}/${nodeId}`)
+    const days = pack.dialogue[id]
+    if (!Array.isArray(days) || !days.length || days.length > 7) fail('NPC 剧本必须是 1-7 天的数组: ' + id)
+    for (let d = 0; d < days.length; d++) {
+      const script = days[d]
+      const where = `${id}/第${d + 1}天`
+      if (!script || !script.nodes || typeof script.nodes !== 'object' || !Object.keys(script.nodes).length) fail('剧本没有节点: ' + where)
+      if (!script.nodes[script.start]) fail('剧本起点无效: ' + where)
+      for (const [nodeId, node] of Object.entries(script.nodes)) {
+        if (typeof node.line !== 'string' || !node.line) fail(`节点缺少台词: ${where}/${nodeId}`)
+        if (!Array.isArray(node.choices) || !node.choices.length) fail(`节点缺少选项: ${where}/${nodeId}`)
+        for (const choice of node.choices) {
+          if (typeof choice.label !== 'string' || !choice.label) fail(`节点存在无文案选项: ${where}/${nodeId}`)
+          if (typeof choice.reply !== 'string' || !choice.reply) fail(`节点存在无回复选项: ${where}/${nodeId}`)
+          if (choice.next != null && !script.nodes[choice.next]) fail(`选项跳转到未知节点: ${where}/${nodeId}`)
+        }
       }
     }
   }

@@ -1,8 +1,70 @@
-// 内置默认内容包：NPC、立绘、世界/房间/在场、动作、节点图剧本、初始人生数据。
+// 内置默认内容包：NPC、立绘、世界/房间/在场、动作、每日剧本(7 天,超出沿用第 7 天)、初始人生数据。
 // 内容与后端种子 backend/app/life_packs/wsw-default-life.json 保持一致
 // (tests/lifeRegistry.test.mjs 会断言两者相等),经工厂构建为运行时 Pack;
 // 当站点 API 不可达时作为兜底 Pack。
 import { createLifePackFromContent } from '../registry.js'
+
+// 同一组选项 + 每天一句不同的开场,组成 7 天剧本(第 8 天起沿用第 7 天)。
+function dailyScripts(lines, choices) {
+  return lines.map(line => ({ start: 'n1', nodes: { n1: { line, choices } } }))
+}
+
+const acheChoices = [
+  { label: '好啊，一起拍吧', effects: { bond: 2, stats: { social: 2, mood: 2 } }, reply: '太好了！那我调整一下角度……好了，笑一个！', next: null },
+  { label: '我来帮你拍一张', effects: { bond: 3, stats: { social: 3, energy: -2 } }, reply: '欸？可以吗？那就麻烦你了……这张照片我会好好保存的。', next: null },
+  { label: '想先安静看一会儿海', effects: { stats: { mood: 4, explore: 1 } }, reply: '嗯，海边确实很适合发呆。那我就先去拍别处了，回头见！', next: null },
+]
+const xiaomiChoices = [
+  { label: '好啊，一起跳', effects: { stats: { social: 3, energy: -4 } }, reply: '哈哈，你的动作好可爱！', next: null },
+  { label: '我在旁边看就好', effects: { stats: { mood: 2 } }, reply: '没问题！那我就开始了哦。', next: null },
+]
+const maoyouChoices = [
+  { label: '我可以试试', effects: { bond: 2, stats: { social: 2, energy: -3 } }, reply: '太好了！那就拜托你了。', next: null },
+  { label: '我不会诶', effects: {}, reply: '啊……没关系，我再想想办法。', next: null },
+]
+const yuChoices = [
+  { label: '我也是第一次来', effects: { bond: 1, stats: { social: 1, mood: 1 } }, reply: '哈哈，那我们算是同好了！', next: null },
+  { label: '偶尔来，这里很放松', effects: { stats: { social: 2 } }, reply: '嗯嗯，我也是这样觉得的。', next: null },
+]
+
+const dialogue = {
+  ache: dailyScripts([
+    '这里的日落每天都不太一样。要不要一起拍张照？就当是今天认识的纪念。',
+    '今天的云很低，拍出来像油画。要试试吗？',
+    '昨天那张照片洗出来了，效果意外地好。想不想看看？',
+    '听说今晚有晚霞，要不要一起去占个好位置？',
+    '海风今天有点大，三脚架都在晃。你那边还好吗？',
+    '整理相册才发现，这星期拍了好多天空。要不要翻翻看？',
+    '周末的海滩人多起来了。要不要试试拍人像？',
+  ], acheChoices),
+  xiaomi: dailyScripts([
+    '今天也想跳一会儿舞呢。你要不要一起来？',
+    '昨天练了新动作，今天想试试顺不顺。来看看？',
+    '腿有点酸，但还是想动一动。你呢，今天有安排吗？',
+    '咖啡馆那边有人在放音乐，节奏超好，想去听听吗？',
+    '今天想慢慢练基本功，要不要一起？',
+    '我录了一段练习视频，等下你帮我看看好不好？',
+    '周末想编一支新舞，正好缺个观众！',
+  ], xiaomiChoices),
+  maoyou: dailyScripts([
+    '……这个模型的骨架好像有点问题。你会改模型吗？',
+    '昨晚想到一个改造方案，今天想验证一下。你有空吗？',
+    '零件终于到了，今天有得忙了。要不要来看看？',
+    '这台机体的平衡还是不太对……你有什么想法吗？',
+    '工具箱整理好了，效率应该会高一点。今天改哪台好呢。',
+    '改造进度过半了，要不要看看半成品？',
+    '周末适合慢慢打磨细节。你来帮我递工具吗？',
+  ], maoyouChoices),
+  yu: dailyScripts([
+    '你经常来这个世界吗？我第一次来，感觉好棒！',
+    '昨天去的那个世界也不错，但还是这里最让我放松。',
+    '今天打算去探索没去过的房间，要一起吗？',
+    '我列了个探索清单，已经完成大半了！',
+    '听说聚会大厅晚上很热闹，你去过吗？',
+    '发现了一个新世界，先记下来，改天一起去？',
+    '探索了一周，最喜欢的还是这里。你呢？',
+  ], yuChoices),
+}
 
 export const defaultLifePackContent = {
   npcIds: ['ache', 'xiaomi', 'maoyou', 'yu'],
@@ -43,57 +105,7 @@ export const defaultLifePackContent = {
     { id: 'poke', label: '戳戳脸', reward: 1, threshold: 0, reply: '侧过脸笑着说：“被你发现我在发呆啦。”' },
     { id: 'kiss', label: '亲亲', reward: 3, threshold: 30, reply: '有些害羞地笑了：“这个小小的心意，我收到了。”' },
   ],
-  dialogue: {
-    ache: {
-      start: 'n1',
-      nodes: {
-        n1: {
-          line: '这里的日落每天都不太一样。要不要一起拍张照？就当是今天认识的纪念。',
-          choices: [
-            { label: '好啊，一起拍吧', effects: { bond: 2, stats: { social: 2, mood: 2 } }, reply: '太好了！那我调整一下角度……好了，笑一个！', next: null },
-            { label: '我来帮你拍一张', effects: { bond: 3, stats: { social: 3, energy: -2 } }, reply: '欸？可以吗？那就麻烦你了……这张照片我会好好保存的。', next: null },
-            { label: '想先安静看一会儿海', effects: { stats: { mood: 4, explore: 1 } }, reply: '嗯，海边确实很适合发呆。那我就先去拍别处了，回头见！', next: null },
-          ],
-        },
-      },
-    },
-    xiaomi: {
-      start: 'n1',
-      nodes: {
-        n1: {
-          line: '今天也想跳一会儿舞呢。你要不要一起来？',
-          choices: [
-            { label: '好啊，一起跳', effects: { stats: { social: 3, energy: -4 } }, reply: '哈哈，你的动作好可爱！', next: null },
-            { label: '我在旁边看就好', effects: { stats: { mood: 2 } }, reply: '没问题！那我就开始了哦。', next: null },
-          ],
-        },
-      },
-    },
-    maoyou: {
-      start: 'n1',
-      nodes: {
-        n1: {
-          line: '……这个模型的骨架好像有点问题。你会改模型吗？',
-          choices: [
-            { label: '我可以试试', effects: { bond: 2, stats: { social: 2, energy: -3 } }, reply: '太好了！那就拜托你了。', next: null },
-            { label: '我不会诶', effects: {}, reply: '啊……没关系，我再想想办法。', next: null },
-          ],
-        },
-      },
-    },
-    yu: {
-      start: 'n1',
-      nodes: {
-        n1: {
-          line: '你经常来这个世界吗？我第一次来，感觉好棒！',
-          choices: [
-            { label: '我也是第一次来', effects: { bond: 1, stats: { social: 1, mood: 1 } }, reply: '哈哈，那我们算是同好了！', next: null },
-            { label: '偶尔来，这里很放松', effects: { stats: { social: 2 } }, reply: '嗯嗯，我也是这样觉得的。', next: null },
-          ],
-        },
-      },
-    },
-  },
+  dialogue,
   initialState: {
     day: 7,
     stats: { mood: 72, energy: 66, social: 34, explore: 28 },

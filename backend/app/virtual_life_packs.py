@@ -125,36 +125,41 @@ def validate_pack_content(content) -> dict:
     dialogue = content.get('dialogue')
     if not isinstance(dialogue, dict) or set(dialogue) != ids:
         _fail('dialogue 必须覆盖全部 NPC')
-    for npc_id, script in dialogue.items():
-        nodes = script.get('nodes')
-        if not isinstance(nodes, dict) or not nodes:
-            _fail(f"{npc_id} 的剧本没有节点")
-        if script.get('start') not in nodes:
-            _fail(f"{npc_id} 的剧本起点无效")
-        for node_id, node in nodes.items():
-            if not isinstance(node.get('line'), str) or not node['line']:
-                _fail(f"{npc_id}/{node_id} 缺少台词")
-            choices = node.get('choices')
-            if not isinstance(choices, list) or not choices:
-                _fail(f"{npc_id}/{node_id} 缺少选项")
-            for choice in choices:
-                if not isinstance(choice.get('label'), str) or not choice['label']:
-                    _fail(f"{npc_id}/{node_id} 存在无文案选项")
-                if not isinstance(choice.get('reply'), str) or not choice['reply']:
-                    _fail(f"{npc_id}/{node_id} 存在无回复选项")
-                if choice.get('next') is not None and choice.get('next') not in nodes:
-                    _fail(f"{npc_id}/{node_id} 选项跳转到未知节点 {choice.get('next')}")
-                effects = choice.get('effects') or {}
-                if not isinstance(effects, dict):
-                    _fail(f"{npc_id}/{node_id} 选项 effects 必须是对象")
-                bond = effects.get('bond', 0)
-                if not isinstance(bond, int) or not 0 <= bond <= 100:
-                    _fail(f"{npc_id}/{node_id} 选项好感变化无效")
-                stats = effects.get('stats', {})
-                if not isinstance(stats, dict) or not set(stats).issubset(STAT_KEYS):
-                    _fail(f"{npc_id}/{node_id} 选项包含未知属性")
-                if any(not isinstance(v, int) or not -100 <= v <= 100 for v in stats.values()):
-                    _fail(f"{npc_id}/{node_id} 选项属性变化无效")
+    for npc_id, days in dialogue.items():
+        # 每个 NPC 的剧本按天编排:1-7 天的数组,超出天数后游戏沿用最后一天的剧本(不循环)。
+        if not isinstance(days, list) or not 1 <= len(days) <= 7:
+            _fail(f"{npc_id} 的剧本必须是 1-7 天的数组")
+        for day_index, script in enumerate(days, 1):
+            where = f"{npc_id}/第{day_index}天"
+            nodes = script.get('nodes') if isinstance(script, dict) else None
+            if not isinstance(nodes, dict) or not nodes:
+                _fail(f"{where} 的剧本没有节点")
+            if script.get('start') not in nodes:
+                _fail(f"{where} 的剧本起点无效")
+            for node_id, node in nodes.items():
+                if not isinstance(node.get('line'), str) or not node['line']:
+                    _fail(f"{where}/{node_id} 缺少台词")
+                choices = node.get('choices')
+                if not isinstance(choices, list) or not choices:
+                    _fail(f"{where}/{node_id} 缺少选项")
+                for choice in choices:
+                    if not isinstance(choice.get('label'), str) or not choice['label']:
+                        _fail(f"{where}/{node_id} 存在无文案选项")
+                    if not isinstance(choice.get('reply'), str) or not choice['reply']:
+                        _fail(f"{where}/{node_id} 存在无回复选项")
+                    if choice.get('next') is not None and choice.get('next') not in nodes:
+                        _fail(f"{where}/{node_id} 选项跳转到未知节点 {choice.get('next')}")
+                    effects = choice.get('effects') or {}
+                    if not isinstance(effects, dict):
+                        _fail(f"{where}/{node_id} 选项 effects 必须是对象")
+                    bond = effects.get('bond', 0)
+                    if not isinstance(bond, int) or not 0 <= bond <= 100:
+                        _fail(f"{where}/{node_id} 选项好感变化无效")
+                    stats = effects.get('stats', {})
+                    if not isinstance(stats, dict) or not set(stats).issubset(STAT_KEYS):
+                        _fail(f"{where}/{node_id} 选项包含未知属性")
+                    if any(not isinstance(v, int) or not -100 <= v <= 100 for v in stats.values()):
+                        _fail(f"{where}/{node_id} 选项属性变化无效")
 
     initial = content.get('initialState')
     if not isinstance(initial, dict):
@@ -184,7 +189,8 @@ def derive_save_rules(content: dict) -> dict:
         'actionIds': [a['id'] for a in content['actions']],
         'roomIds': [r['id'] for r in enterable],
         'roomWorlds': {r['id']: world_name[r['worldId']] for r in enterable},
-        'dialogueNodes': {npc_id: set(script['nodes']) for npc_id, script in content['dialogue'].items()},
+        'dialogueNodes': {npc_id: set().union(*(day['nodes'] for day in days))
+                          for npc_id, days in content['dialogue'].items()},
     }
 
 
@@ -200,20 +206,43 @@ def get_save_rules(db: Session) -> dict:
     return derive_save_rules(json.loads(pack.content_json)) | {'packId': pack.id}
 
 
+def migrate_pack_content(content: dict) -> bool:
+    """Upgrade the pre-daily dialogue shape ({npc: script}) to per-day lists
+    ({npc: [script]}). A single-day list cycles every day, preserving behavior."""
+    changed = False
+    dialogue = content.get('dialogue')
+    if isinstance(dialogue, dict):
+        for npc_id, script in dialogue.items():
+            if isinstance(script, dict) and 'nodes' in script:
+                dialogue[npc_id] = [script]
+                changed = True
+    return changed
+
+
 def seed_virtual_life_packs(db: Session) -> None:
-    """First startup: load bundled JSON seeds; the default pack becomes active."""
-    if db.scalar(select(VirtualLifePack.id).limit(1)) is not None:
+    """First startup: load bundled JSON seeds; the default pack becomes active.
+    Later startups: upgrade older stored content shapes in place."""
+    if db.scalar(select(VirtualLifePack.id).limit(1)) is None:
+        now = datetime.now(timezone.utc).isoformat()
+        for path in sorted(SEED_DIR.glob('*.json')):
+            content = json.loads(path.read_text(encoding='utf-8'))
+            validate_pack_content(content)
+            db.add(VirtualLifePack(
+                id=path.stem, name='默认内容包', version=1,
+                content_json=json.dumps(content, ensure_ascii=False),
+                is_active=path.stem == DEFAULT_PACK_ID, updated_at=now,
+            ))
+        db.commit()
         return
-    now = datetime.now(timezone.utc).isoformat()
-    for path in sorted(SEED_DIR.glob('*.json')):
-        content = json.loads(path.read_text(encoding='utf-8'))
-        validate_pack_content(content)
-        db.add(VirtualLifePack(
-            id=path.stem, name='默认内容包', version=1,
-            content_json=json.dumps(content, ensure_ascii=False),
-            is_active=path.stem == DEFAULT_PACK_ID, updated_at=now,
-        ))
-    db.commit()
+    changed = False
+    for pack in db.scalars(select(VirtualLifePack)):
+        content = json.loads(pack.content_json)
+        if migrate_pack_content(content):
+            validate_pack_content(content)
+            pack.content_json = json.dumps(content, ensure_ascii=False)
+            changed = True
+    if changed:
+        db.commit()
 
 
 class StrictModel(BaseModel):

@@ -36,8 +36,8 @@ def mini_pack(npc_ids):
         'rooms': [{'id': 'w1-1', 'worldId': 'w1', 'label': '#1', 'private': False, 'capacity': 8, 'occupants': 1}],
         'presence': {i: {'status': 'green', 'roomId': 'w1-1', 'intro': ''} for i in npc_ids},
         'actions': [{'id': 'wave', 'label': '挥手', 'reward': 1, 'threshold': 0, 'reply': '笑了笑'}],
-        'dialogue': {i: {'start': 'n1', 'nodes': {'n1': {'line': '你好', 'choices': [
-            {'label': '你好', 'effects': {}, 'reply': '嗯', 'next': None}]}}} for i in npc_ids},
+        'dialogue': {i: [{'start': 'n1', 'nodes': {'n1': {'line': '你好', 'choices': [
+            {'label': '你好', 'effects': {}, 'reply': '嗯', 'next': None}]}}}] for i in npc_ids},
         'initialState': {'day': 1, 'stats': {'mood': 50, 'energy': 50, 'social': 50, 'explore': 50},
                          'tags': [], 'currentWorld': '世界一', 'unlockedWorlds': 1,
                          'conversations': {i: [] for i in npc_ids}, 'diary': []},
@@ -104,7 +104,7 @@ class PackTests(unittest.TestCase):
         self.assertEqual(bad.status_code, 422)
         # Invalid jump reference is rejected.
         broken = mini_pack(['neo'])
-        broken['dialogue']['neo']['nodes']['n1']['choices'][0]['next'] = 'nowhere'
+        broken['dialogue']['neo'][0]['nodes']['n1']['choices'][0]['next'] = 'nowhere'
         self.assertEqual(self.client.post('/api/virtual-life/packs', json={'id': 'broken', 'name': '断链', 'content': broken}, headers=h).status_code, 422)
         # Create, list, duplicate, activate.
         created = self.client.post('/api/virtual-life/packs', json={'id': 'neo-pack', 'name': '新人物包', 'content': mini_pack(['neo'])}, headers=h)
@@ -156,6 +156,23 @@ class PackTests(unittest.TestCase):
         content['actions'] = []
         self.assertEqual(self.client.put('/api/virtual-life/packs/neo-pack', json={'content': content}, headers=h).status_code, 422)
         self.assertEqual(self.client.get('/api/virtual-life/packs/neo-pack', headers=h).json()['version'], 2)
+
+    def test_startup_migrates_legacy_single_script_dialogue(self):
+        from app.virtual_life_packs import VirtualLifePack
+        legacy = mini_pack(['neo'])
+        legacy['dialogue'] = {'neo': legacy['dialogue']['neo'][0]}  # 每日数组之前的旧形状
+        with self.sessions() as db:
+            db.add(VirtualLifePack(id='legacy-pack', name='旧包', version=1,
+                                   content_json=json.dumps(legacy, ensure_ascii=False),
+                                   is_active=False, updated_at='2026-01-01T00:00:00+00:00'))
+            db.commit()
+            seed_virtual_life_packs(db)  # 启动播种:幂等 + 就地迁移旧形状
+        migrated = self.client.get('/api/virtual-life/packs/legacy-pack', headers=self.headers(1)).json()
+        days = migrated['content']['dialogue']['neo']
+        self.assertIsInstance(days, list)
+        self.assertEqual(days[0]['nodes']['n1']['line'], '你好')
+        # 迁移后的包通过校验,可以激活。
+        self.assertEqual(self.client.post('/api/virtual-life/packs/legacy-pack/activate', headers=self.headers(1)).status_code, 200)
 
     def test_asset_upload(self):
         from unittest.mock import patch

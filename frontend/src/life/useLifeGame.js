@@ -10,7 +10,7 @@ import { useLifeSave } from '../composables/lifeSave'
 import { createLifePlayback } from '../composables/lifePlayback'
 import { resolveLifeAction, setLifeActions, currentLifeActions } from '../composables/lifeActions'
 import { presenceFor, sceneRoster, canInteract, planJoin, roomFor, worldFor, roomDecision, migrateSocialState, friendshipDecision, setLifePresenceData, currentRooms } from '../composables/lifePresence'
-import { nodeFor, startLine, resolveDialogueChoice, sanitizeDialogueNodes } from '../composables/lifeDialogue'
+import { scriptForDay, nodeFor, startLine, resolveDialogueChoice, sanitizeDialogueNodes } from '../composables/lifeDialogue'
 import './builtin'
 import { getActiveLifePack, portraitFor, effectText } from './registry'
 import { loadActiveLifePack } from './packLoader'
@@ -61,7 +61,7 @@ export function useLifeGame() {
   const dialogueNodes = ref({})
   const currentDialogue = computed(() => {
     packRev.value // 换包后重算
-    const script = pack.dialogue[currentNpcId.value]
+    const script = scriptForDay(pack.dialogue[currentNpcId.value], day.value)
     return script ? nodeFor(script, dialogueNodes.value[currentNpcId.value]) : null
   })
   const currentConversation = computed(() => conversations.value[currentNpcId.value] || [])
@@ -137,7 +137,7 @@ export function useLifeGame() {
     actionFeedback.value = ''
     const conv = conversations.value[npcId]
     if (conv.length === 1) {
-      conv.push({ ...startLine(pack.dialogue[npcId], day.value) })
+      conv.push({ ...startLine(scriptForDay(pack.dialogue[npcId], day.value), day.value) })
     }
     dialogueVisible.value = true
     const latest = [...conv].reverse().find(msg => msg.from === 'npc')
@@ -159,7 +159,7 @@ export function useLifeGame() {
     })
 
     // 节点图引擎:effects 显式生效,不再从文案解析。
-    const result = resolveDialogueChoice(pack.dialogue[npcId], choice)
+    const result = resolveDialogueChoice(scriptForDay(pack.dialogue[npcId], day.value), choice)
     for (const [k, v] of Object.entries(result.stats)) {
       stats.value[k] = Math.max(0, Math.min(100, stats.value[k] + v))
     }
@@ -359,7 +359,7 @@ export function useLifeGame() {
     completed.value = {}
     dialogueNodes.value = {}
     for (const npcId in conversations.value) {
-      conversations.value[npcId].push({ ...startLine(pack.dialogue[npcId], day.value) })
+      conversations.value[npcId].push({ ...startLine(scriptForDay(pack.dialogue[npcId], day.value), day.value) })
     }
     markChanged()
     showToast('新的一天开始了，精力恢复了 10 点')

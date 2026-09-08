@@ -1,7 +1,7 @@
 // 虚拟人生内容管理（/life-admin，阶段 4d）数据层。
 // 模块级单例状态:外壳与五个编辑区块共享同一份可编辑 content;
 // 保存时整体 PUT,后端 validate_pack_content 把关引用一致性。
-import { reactive, watch } from 'vue'
+import { reactive, watch, nextTick } from 'vue'
 import axios from 'axios'
 
 const ownerToken = localStorage.getItem('wsw_token')
@@ -60,20 +60,31 @@ export async function selectPack(id) {
     adminState.selectedId = data.id
     adminState.detail = { id: data.id, name: data.name, version: data.version, active: data.active, updatedAt: data.updatedAt }
     adminState.content = normalizeContent(data.content)
+    // 赋值本身会触发 dirty 侦听器(pre-flush 在下一 tick 才执行),等它跑完再复位。
+    await nextTick()
     adminState.dirty = false
   } catch (e) {
     adminState.error = '读取内容包失败：' + errText(e)
   }
 }
 
-// 补齐可选字段(effects/stats),让编辑表单可以直接双向绑定。
+// 补齐可选字段(effects/stats),并把剧本统一成 7 天数组(不足复制最后一天),
+// 让编辑表单可以直接双向绑定;兼容旧单剧本形状。
+export const LIFE_DIALOGUE_DAYS = 7
+
 function normalizeContent(content) {
-  for (const script of Object.values(content.dialogue || {})) {
-    for (const node of Object.values(script.nodes || {})) {
-      for (const choice of node.choices || []) {
-        if (!choice.effects || typeof choice.effects !== 'object') choice.effects = {}
-        if (!choice.effects.stats || typeof choice.effects.stats !== 'object') choice.effects.stats = {}
-        if (choice.next === undefined) choice.next = null
+  for (const [npcId, days] of Object.entries(content.dialogue || {})) {
+    const list = (Array.isArray(days) ? days : [days]).filter(Boolean)
+    if (!list.length) list.push({ start: 'n1', nodes: { n1: { line: '……', choices: [{ label: '你好', effects: {}, reply: '你好呀。', next: null }] } } })
+    while (list.length < LIFE_DIALOGUE_DAYS) list.push(JSON.parse(JSON.stringify(list[list.length - 1])))
+    content.dialogue[npcId] = list.slice(0, LIFE_DIALOGUE_DAYS)
+    for (const script of content.dialogue[npcId]) {
+      for (const node of Object.values(script.nodes || {})) {
+        for (const choice of node.choices || []) {
+          if (!choice.effects || typeof choice.effects !== 'object') choice.effects = {}
+          if (!choice.effects.stats || typeof choice.effects.stats !== 'object') choice.effects.stats = {}
+          if (choice.next === undefined) choice.next = null
+        }
       }
     }
   }
@@ -91,6 +102,7 @@ export async function savePack() {
     })
     adminState.detail = { id: data.id, name: data.name, version: data.version, active: data.active, updatedAt: data.updatedAt }
     adminState.content = data.content
+    await nextTick()
     adminState.dirty = false
     const summary = adminState.packs.find(p => p.id === data.id)
     if (summary) { summary.name = data.name; summary.version = data.version; summary.updatedAt = data.updatedAt }
@@ -161,15 +173,16 @@ export function npcById(id) {
   return adminState.content?.npcs.find(n => n.id === id)
 }
 
-// 新增 NPC:同步补齐 portraits/presence/dialogue/initialState.conversations。
+// 新增 NPC:同步补齐 portraits/presence/dialogue(7 天)/initialState.conversations。
 export function addNpc(id, name) {
   const c = adminState.content
   if (!c || !id || c.npcIds.includes(id)) return 'id 为空或已存在'
+  const defaultScript = () => ({ start: 'n1', nodes: { n1: { line: '……', choices: [{ label: '你好', effects: { stats: {} }, reply: '你好呀。', next: null }] } } })
   c.npcIds.push(id)
   c.npcs.push({ id, name: name || id, role: '', avatar: '✨', status: '', bond: 0 })
   c.portraits[id] = ''
   c.presence[id] = { status: 'offline', roomId: null, intro: '' }
-  c.dialogue[id] = { start: 'n1', nodes: { n1: { line: '……', choices: [{ label: '你好', effects: {}, reply: '你好呀。', next: null }] } } }
+  c.dialogue[id] = Array.from({ length: LIFE_DIALOGUE_DAYS }, defaultScript)
   c.initialState.conversations[id] = [{ from: 'npc', text: '……', day: c.initialState.day, time: '18:20' }]
   return ''
 }
@@ -224,19 +237,23 @@ export function removeRoom(id) {
   return ''
 }
 
-// 剧本节点操作
-export function addDialogueNode(npcId) {
-  const script = adminState.content?.dialogue[npcId]
+// 剧本节点操作(作用于传入的某天剧本)
+// 注意:新建节点的 effects 必须带 stats: {},否则编辑表单的 v-model 绑定会在渲染时炸掉。
+export function addDialogueNode(script) {
   if (!script) return
   let i = Object.keys(script.nodes).length + 1
   while (script.nodes[`n${i}`]) i += 1
-  script.nodes[`n${i}`] = { line: '……', choices: [{ label: '继续', effects: {}, reply: '……', next: null }] }
+  script.nodes[`n${i}`] = { line: '……', choices: [{ label: '继续', effects: { stats: {} }, reply: '……', next: null }] }
 }
 
-export function removeDialogueNode(npcId, nodeId) {
-  const script = adminState.content?.dialogue[npcId]
-  if (!script || script.start === nodeId) return '起点节点不能删除'
+// 删除节点:指向它的选项改为当天结束;删的是起点则把起点让给剩余的第一个节点;
+// 只剩最后一个节点时不允许删(当天剧本至少要有一句台词)。
+export function removeDialogueNode(script, nodeId) {
+  if (!script || !script.nodes[nodeId]) return '节点不存在'
+  const remaining = Object.keys(script.nodes).filter(id => id !== nodeId)
+  if (!remaining.length) return '至少保留一个节点'
   delete script.nodes[nodeId]
+  if (script.start === nodeId) script.start = remaining[0]
   for (const node of Object.values(script.nodes)) {
     for (const choice of node.choices) {
       if (choice.next === nodeId) choice.next = null

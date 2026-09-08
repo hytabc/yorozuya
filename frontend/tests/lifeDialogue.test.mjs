@@ -2,8 +2,21 @@
 // 运行: node --test --test-isolation=none tests/lifeDialogue.test.mjs
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { nodeFor, startLine, resolveDialogueChoice, sanitizeDialogueNodes } from '../src/composables/lifeDialogue.js'
+import { scriptForDay, nodeFor, startLine, resolveDialogueChoice, sanitizeDialogueNodes } from '../src/composables/lifeDialogue.js'
 import { defaultLifePackContent } from '../src/life/content/defaultPack.js'
+
+test('scriptForDay clamps to the 7-day schedule (no cycling)', () => {
+  const days = defaultLifePackContent.dialogue.ache
+  assert.equal(days.length, 7)
+  assert.equal(scriptForDay(days, 1), days[0])
+  assert.equal(scriptForDay(days, 7), days[6])
+  assert.equal(scriptForDay(days, 8), days[6], '第 8 天起沿用第 7 天剧本,不循环')
+  assert.equal(scriptForDay(days, 14), days[6])
+  assert.equal(scriptForDay(days, 100), days[6])
+  assert.equal(scriptForDay([], 3), null)
+  const single = [days[0]]
+  assert.equal(scriptForDay(single, 5), days[0], '单天剧本每天重复')
+})
 
 const chainScript = {
   start: 'n1',

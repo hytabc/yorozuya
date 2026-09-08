@@ -32,17 +32,20 @@ own save. This feature does not change global roles or promote any account.
 ## Content packs (site-configurable)
 
 A content pack holds the FULL site content as JSON: npcIds/npcs/portraits,
-worlds (with optional `bg` image URL), rooms, presence, actions, node-graph
-dialogue (`{start, nodes:{id:{line, choices:[{label, effects:{bond,stats},
-reply, next}]}}}`) and initialState. Exactly one pack is active site-wide
-(A-scheme: the site admin configures content; all players share it).
+worlds (with optional `bg` image URL), rooms, presence, actions, per-day
+node-graph dialogue (`dialogue[npcId]` is a 1-7 entry array of day scripts
+`{start, nodes:{id:{line, choices:[{label, effects:{bond,stats},
+reply, next}]}}}`, stage 5) and initialState. Exactly one pack is active
+site-wide (A-scheme: the site admin configures content; all players share it).
 
 - Table `virtual_life_packs` (id/name/version/content_json/is_active/
   updated_at) is seeded on first startup from `backend/app/life_packs/*.json`;
   the JSON files are seeds only — the database is authoritative afterwards.
 - `backend/app/virtual_life_packs.py`: `validate_pack_content` enforces
   structural and reference consistency (room→world, presence→room, dialogue
-  node-graph jump targets, stat keys, initial state coverage).
+  node-graph jump targets per day, stat keys, initial state coverage).
+  Startup seeding migrates legacy single-script `dialogue[npcId]` shapes in
+  place to one-entry day arrays (`migrate_pack_content`).
 - Admin API (all gated by `get_role_manager`): GET `/api/virtual-life/pack`
   (active pack detail), GET/POST `/api/virtual-life/packs`, GET/PUT/DELETE
   `/packs/{id}`, POST `/packs/{id}/activate` (exactly one active; activating
@@ -62,10 +65,15 @@ reply, next}]}}}`) and initialState. Exactly one pack is active site-wide
 The route uses the same `lifeOnly` guard as the game (role manager + desktop);
 the game header links to it via 内容管理. The admin edits one pack at a time in
 structured forms: NPC profiles/portraits/presence, worlds (incl. background
-upload) and rooms, actions, the per-NPC dialogue node graph (nodes, choices,
-effects, jump targets, start node) and the initial player state. Saving PUTs
-the whole content; server-side validation errors are surfaced verbatim, and
-content edits bump the pack version. Pack list operations: select, duplicate,
+upload) and rooms, actions, the per-NPC dialogue node graph and the initial
+player state. Dialogue is edited PER DAY (stage 5): tabs 第 1~7 天 switch the
+day script being edited (nodes, choices, effects, jump targets, start node);
+packs with fewer than 7 days are padded by cloning their last day on load.
+Node add/delete applies to the current day only; deleting the start node
+hands the start over to the first remaining node, and the last node of a day
+cannot be deleted. Saving PUTs the whole content; server-side validation
+errors are surfaced verbatim, and content edits bump the pack version. Pack
+list operations: select, duplicate,
 activate (exactly one active, player side and save validation follow
 immediately), delete (inactive only). NPC/world/room removal cascades
 references (presence, dialogue, initial conversations); node removal rewrites
@@ -121,14 +129,19 @@ Hard reload prompts for unsaved changes; responsive forced unmount attempts a fi
 save. Abrupt process/browser termination before acknowledgement cannot guarantee
 saving. Conflicts require explicit reload; unsaved changes show an error/retry UI.
 
-## Dialogue node-graph engine (stage 4c)
+## Dialogue node-graph engine (stage 4c, per-day scripts in stage 5)
 
-Each NPC script is a node graph `{start, nodes:{id:{line, choices}}}` from the
-active pack. Pure rules live in `frontend/src/composables/lifeDialogue.js`
-(`nodeFor`/`startLine`/`resolveDialogueChoice`/`sanitizeDialogueNodes`); state
-and mutations stay in `useLifeGame`. Semantics per NPC per game day:
+Each NPC has a 1-7 entry array of day scripts `{start, nodes:{id:{line,
+choices}}}` in the active pack. `scriptForDay(days, day)` picks the script for
+the current game day — CLAMPED, not cycling: the content ends at day 7, and
+any later game day keeps using the last day script. Pure rules live in
+`frontend/src/composables/lifeDialogue.js`
+(`scriptForDay`/`nodeFor`/`startLine`/`resolveDialogueChoice`/`sanitizeDialogueNodes`);
+state and mutations stay in `useLifeGame`. Semantics per NPC per game day:
 
 - The chain starts at `start`; the start node's line is the daily greeting.
+  Different days can have entirely different chains (stage 5: the default pack
+  ships 7 distinct daily greetings per NPC).
 - A choice applies its `effects` explicitly (`bond` added to the NPC bond,
   `stats` clamped 0-100) — no text parsing. The toast text is rendered from
   effects via `effectText`.
@@ -139,9 +152,10 @@ and mutations stay in `useLifeGame`. Semantics per NPC per game day:
 - Position (`dialogueNodes`) is persisted in the save, so a mid-chain reload
   resumes at the exact node; hydration drops positions pointing at nodes that
   no longer exist. Server validation rejects unknown NPCs/node ids.
-- `nextDay` clears positions and completion; every NPC greets from `start`
-  again. Choice effects apply per choice click — replaying a finished chain
-  next day yields its effects again, as before.
+- `nextDay` clears positions and completion; every NPC greets from the NEW
+  day's `start` (or the last day script once past the schedule). Choice
+  effects apply per choice click — replaying a finished chain next day yields
+  its effects again, as before.
 
 ## Reply actions
 
