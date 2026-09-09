@@ -9,6 +9,7 @@ import StaffView from './views/StaffView.vue'
 import BoardView from './views/BoardView.vue'
 import VrMaps from './views/VrMaps.vue'
 import SugarClub from './views/SugarClub.vue'
+import FriendHall from './views/FriendHall.vue'
 import AnnouncementsView from './views/AnnouncementsView.vue'
 import OperationsView from './views/OperationsView.vue'
 import VersionsView from './views/VersionsView.vue'
@@ -27,6 +28,7 @@ const router = createRouter({
     { path: '/staff', component: StaffView, meta: { analyticsKey: 'staff' } },
     { path: '/board', component: BoardView, meta: { analyticsKey: 'board' } },
     { path: '/maps', component: VrMaps, meta: { analyticsKey: 'maps' } },
+    { path: '/friends', component: FriendHall, meta: { auth: true, analyticsKey: 'friends' } },
     { path: '/sugar', component: SugarClub, meta: { auth: true, analyticsKey: 'sugar' } },
     { path: '/announcements', component: AnnouncementsView, meta: { analyticsKey: 'announcements' } },
     { path: '/versions', component: VersionsView, meta: { analyticsKey: 'versions' } },

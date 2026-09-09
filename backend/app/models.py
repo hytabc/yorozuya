@@ -68,6 +68,12 @@ class SugarPairStatus(str, Enum):
     ENDED = "ended"
 
 
+class FriendRequestStatus(str, Enum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -104,6 +110,7 @@ class User(Base):
         foreign_keys="TaskMember.user_id", back_populates="user"
     )
     sugar_profile: Mapped["SugarProfile | None"] = relationship(back_populates="user", uselist=False)
+    friend_profile: Mapped["FriendProfile | None"] = relationship(back_populates="user", uselist=False)
     photos: Mapped[list["UserPhoto"]] = relationship(
         foreign_keys="UserPhoto.user_id",
         back_populates="user",
@@ -523,6 +530,63 @@ class SugarPhoto(Base):
 
     profile: Mapped[SugarProfile] = relationship(back_populates="photos")
     moderated_by: Mapped[User | None] = relationship(foreign_keys=[moderated_by_id])
+
+
+class FriendProfile(Base):
+    """交友厅公开档案；好友确认后才互相展示 QQ。"""
+
+    __tablename__ = "friend_profiles"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, index=True)
+    about: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user: Mapped[User] = relationship(back_populates="friend_profile")
+    photos: Mapped[list["FriendPhoto"]] = relationship(
+        back_populates="profile", cascade="all, delete-orphan", order_by="FriendPhoto.created_at"
+    )
+
+
+class FriendPhoto(Base):
+    __tablename__ = "friend_photos"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    profile_id: Mapped[int] = mapped_column(ForeignKey("friend_profiles.id"), index=True)
+    file_path: Mapped[str] = mapped_column(String(255), unique=True)
+    # 新上传照片默认为待审核；主人和审核人员仍可见。
+    is_visible: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    admin_note: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    moderated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    moderated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    profile: Mapped[FriendProfile] = relationship(back_populates="photos")
+    moderated_by: Mapped[User | None] = relationship(foreign_keys=[moderated_by_id])
+
+
+class FriendRequest(Base):
+    """一对用户唯一的好友关系；拒绝后可复用记录重新申请。"""
+
+    __tablename__ = "friend_requests"
+    __table_args__ = (UniqueConstraint("user_a_id", "user_b_id", name="uq_friend_request_pair"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_a_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_b_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    requester_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    status: Mapped[FriendRequestStatus] = mapped_column(
+        SqlEnum(FriendRequestStatus, values_callable=lambda values: [item.value for item in values]),
+        default=FriendRequestStatus.PENDING,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    user_a: Mapped[User] = relationship(foreign_keys=[user_a_id])
+    user_b: Mapped[User] = relationship(foreign_keys=[user_b_id])
+    requester: Mapped[User] = relationship(foreign_keys=[requester_id])
 
 
 class SugarPair(Base):

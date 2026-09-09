@@ -209,6 +209,17 @@ def register_sugar_profile(client, headers, about="喜欢在周末散步"):
     return response.json()
 
 
+def register_friend_profile(client, headers, about="喜欢一起探索 VRChat 世界"):
+    response = client.post(
+        "/api/friends/profile",
+        headers=headers,
+        data={"about": about},
+        files=[("photos", ("portrait.png", TINY_PNG, "image/png"))],
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
 def create_task(client, headers, password="接取密码123", required=None, title="帮忙整理一份资料", expiry_days=2):
     me = client.get("/api/auth/me", headers=headers).json()
     if not me.get("qq"):
@@ -549,6 +560,65 @@ def test_sugar_club_profiles_pairing_and_ranking(tmp_path, monkeypatch):
         leaderboard = client.get("/api/sugar/pairs/top", headers=bob).json()
         assert leaderboard[0]["id"] == pair_id
         assert leaderboard[0]["status"] == "ended"
+
+
+def test_friend_hall_profiles_moderation_requests_and_ranking(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "sugar_upload_dir", str(tmp_path / "uploads"))
+    with TestClient(app) as client:
+        alice = auth(client, "friend_alice")
+        bob = auth(client, "friend_bob")
+        set_qq(client, alice, "1111111111")
+        set_qq(client, bob, "2222222222")
+        alice_profile = register_friend_profile(client, alice)
+        bob_profile = register_friend_profile(client, bob, "喜欢摄影、音乐和桌游")
+        alice_id = alice_profile["user"]["id"]
+        bob_id = bob_profile["user"]["id"]
+
+        # 新照片默认为待审核：主人可见，其他用户列表隐藏。
+        own_cards = client.get("/api/friends/profiles", headers=alice).json()
+        own_card = next(card for card in own_cards if card["user"]["id"] == alice_id)
+        assert own_card["photos"][0]["is_visible"] is False
+        other_cards = client.get("/api/friends/profiles", headers=bob).json()
+        alice_card = next(card for card in other_cards if card["user"]["id"] == alice_id)
+        assert alice_card["photos"] == []
+
+        admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
+        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+        pending = client.get("/api/admin/friends/photos", headers=admin)
+        assert pending.status_code == 200
+        photo_id = pending.json()[0]["id"]
+        approved = client.patch(
+            f"/api/admin/friends/photos/{photo_id}",
+            headers=admin,
+            json={"is_visible": True},
+        )
+        assert approved.status_code == 200
+        assert approved.json()["moderated"] is True
+
+        request = client.post(f"/api/friends/requests/{bob_id}", headers=alice)
+        assert request.status_code == 201
+        assert request.json()["status"] == "pending"
+        incoming = client.get("/api/friends/requests/mine", headers=bob).json()
+        assert incoming[0]["requester_id"] == alice_id
+        accepted = client.post(f"/api/friends/requests/{request.json()['id']}/accept", headers=bob)
+        assert accepted.status_code == 200
+        assert accepted.json()["status"] == "accepted"
+
+        detail = client.get(f"/api/friends/profiles/{bob_id}", headers=alice).json()
+        assert detail["relationship"]["status"] == "accepted"
+        assert detail["qq"] == "2222222222"
+        leaderboard = client.get("/api/friends/top", headers=alice).json()
+        assert {item["user"]["id"] for item in leaderboard} == {alice_id, bob_id}
+        assert all(item["friend_count"] == 1 for item in leaderboard)
+
+        six_photos = [("photos", (f"{index}.png", TINY_PNG, "image/png")) for index in range(6)]
+        too_many = client.post(
+            "/api/friends/profile",
+            headers=alice,
+            data={"about": "更新介绍"},
+            files=six_photos,
+        )
+        assert too_many.status_code == 422
 
 
 def test_feedback_flow():
