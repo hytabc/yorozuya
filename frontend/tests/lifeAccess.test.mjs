@@ -12,7 +12,16 @@ function createAuth(user) {
     computed: getter => ({ get value() { return getter() } }),
     ref: value => ({ value }),
     defineStore: (_, setup) => setup,
-    localStorage: { getItem: key => key === 'wsw_token' ? 'test' : JSON.stringify(user) },
+    localStorage: {
+      getItem: key => ({
+        wsw_token: 'test',
+        wsw_user: JSON.stringify(user),
+        wsw_auth_version: '5',
+        wsw_login_at: String(Date.now()),
+      }[key] ?? null),
+      setItem() {},
+      removeItem() {},
+    },
     window: { addEventListener() {} },
   })
 }
@@ -82,7 +91,6 @@ test('beta users may enter life but not life-admin, and revoked cached access is
 test('beta badge is read-only and beta management is restricted to admins', () => {
   assert.match(source('views/ProfileView.vue'), /v-if="auth\.user\.is_beta_tester" class="role-tag beta-tag">内测用户/)
   const admin = source('views/AdminView.vue')
-  assert.match(admin, /<th v-if="auth\.isAdmin">内测<\/th>/)
-  assert.match(admin, /if \(!auth\.isAdmin \|\| user\.is_admin/)
+  assert.match(admin, /class="beta-toggle"><input type="checkbox" :checked="user\.is_beta_tester" :disabled="!auth\.isAdmin" @change="toggleBetaTester\(user\)" \/> 内测用户/)
   assert.match(admin, /api\.patch\(`\/admin\/users\/\$\{user\.id\}\/beta-tester`, \{ is_beta_tester: !user\.is_beta_tester \}\)/)
 })

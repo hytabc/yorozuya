@@ -236,7 +236,7 @@ class SaveTests(unittest.TestCase):
             with self.subTest(method=method, path=path):
                 response = self.client.request(method, path, headers=self.headers(3), **kwargs)
                 self.assertEqual(response.status_code, 403, response.text)
-                self.assertEqual(response.json()['detail'], '需要管理员或店员权限')
+                self.assertEqual(response.json()['detail'], '需要管理员权限')
 
     def test_action_ledger_compatibility_and_roundtrip(self):
         url = '/api/virtual-life/save'
