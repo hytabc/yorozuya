@@ -2,7 +2,7 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { isLifeDesktop } from '../lifeAccess'
 import { useRouter } from 'vue-router'
-import { BarChart3, BriefcaseBusiness, HeartHandshake, History, LogOut, Map, Megaphone, Menu, MessagesSquare, ShieldCheck, Store, UserRound, X } from 'lucide-vue-next'
+import { BarChart3, BriefcaseBusiness, HeartHandshake, History, LogOut, Map, Megaphone, Menu, MessagesSquare, ShieldCheck, Store, UserPlus, UserRound, X } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import UserAvatar from './UserAvatar.vue'
 
@@ -34,6 +34,7 @@ function logout() {
         <RouterLink to="/staff">成员名录</RouterLink>
         <RouterLink to="/board">留言板</RouterLink>
         <RouterLink to="/maps">地图推荐</RouterLink>
+        <RouterLink to="/friends">交友厅</RouterLink>
         <RouterLink to="/sugar">砂糖社</RouterLink>
         <RouterLink to="/announcements">公告</RouterLink>
         <RouterLink to="/versions">版本</RouterLink>
@@ -67,6 +68,7 @@ function logout() {
       <RouterLink to="/staff" @click="open = false"><Store :size="18" />成员名录</RouterLink>
       <RouterLink to="/board" @click="open = false"><MessagesSquare :size="18" />留言板</RouterLink>
       <RouterLink to="/maps" @click="open = false"><Map :size="18" />地图推荐</RouterLink>
+      <RouterLink to="/friends" @click="open = false"><UserPlus :size="18" />交友厅</RouterLink>
       <RouterLink to="/sugar" @click="open = false"><HeartHandshake :size="18" />砂糖社</RouterLink>
       <RouterLink to="/announcements" @click="open = false"><Megaphone :size="18" />公告中心</RouterLink>
       <RouterLink to="/versions" @click="open = false"><History :size="18" />版本更新</RouterLink>

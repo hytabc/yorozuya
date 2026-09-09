@@ -9,6 +9,7 @@ from .models import (
     ApplicationStatus,
     AnnouncementKind,
     FeedbackStatus,
+    FriendRequestStatus,
     ReportStatus,
     SugarPairStatus,
     TaskMemberResponse,
@@ -36,6 +37,7 @@ class ApiModel(BaseModel):
         "initiated_at",
         "activated_at",
         "ended_at",
+        "responded_at",
         "starts_at",
         "ends_at",
         check_fields=False,
@@ -393,7 +395,7 @@ class AnnouncementOut(ApiModel):
 
 
 class PageViewCreate(RequestModel):
-    page_key: Literal["hall", "staff", "board", "maps", "sugar", "announcements", "versions", "mine", "profile", "login"]
+    page_key: Literal["hall", "staff", "board", "maps", "friends", "sugar", "announcements", "versions", "mine", "profile", "login"]
     session_id: str = Field(min_length=16, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
 
 
@@ -439,6 +441,28 @@ class SugarPhotoAdminOut(ApiModel):
 
 class SugarPhotoModerateUpdate(RequestModel):
     """砂糖社照片审核：屏蔽时必须提供理由，恢复时可清空。"""
+    is_visible: bool
+    admin_note: str | None = Field(default=None, max_length=200)
+
+
+class FriendPhotoOut(ApiModel):
+    id: int
+    image_url: str
+    is_visible: bool = False
+    admin_note: str | None = None
+
+
+class FriendPhotoAdminOut(ApiModel):
+    id: int
+    image_url: str
+    is_visible: bool
+    admin_note: str | None = None
+    moderated: bool = False
+    created_at: datetime
+    user: UserPublic
+
+
+class FriendPhotoModerateUpdate(RequestModel):
     is_visible: bool
     admin_note: str | None = Field(default=None, max_length=200)
 
@@ -534,6 +558,37 @@ class SugarPairOut(ApiModel):
 class SugarProfileDetailOut(SugarProfileCardOut):
     qq: str | None = None
     relationship: SugarPairOut | None = None
+
+
+class FriendRequestOut(ApiModel):
+    id: int
+    requester_id: int
+    status: FriendRequestStatus
+    created_at: datetime
+    responded_at: datetime | None = None
+    requester: UserPublic
+    target: UserPublic
+
+
+class FriendProfileCardOut(ApiModel):
+    id: int
+    user: UserPublic
+    about: str
+    photos: list[FriendPhotoOut] = []
+    friend_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+
+class FriendProfileDetailOut(FriendProfileCardOut):
+    qq: str | None = None
+    relationship: FriendRequestOut | None = None
+
+
+class FriendLeaderboardOut(ApiModel):
+    user: UserPublic
+    photo: FriendPhotoOut | None = None
+    friend_count: int = 0
 
 
 class BoardPostCreate(RequestModel):
