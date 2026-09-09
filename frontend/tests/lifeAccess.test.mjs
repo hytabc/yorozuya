@@ -88,9 +88,13 @@ test('beta users may enter life but not life-admin, and revoked cached access is
     assert.equal(await createGuard(auth)({ meta: { lifeManager: true } }), '/')
   }
 })
-test('beta badge is read-only and beta management is restricted to admins', () => {
+test('beta badge is read-only, while applications are available to eligible reviewers', () => {
   assert.match(source('views/ProfileView.vue'), /v-if="auth\.user\.is_beta_tester" class="role-tag beta-tag">内测用户/)
+  assert.match(source('views/ProfileView.vue'), /api\.get\('\/beta-applications\/mine'\)/)
+  assert.match(source('components/BetaApplyDialog.vue'), /api\.post\('\/beta-applications'/)
   const admin = source('views/AdminView.vue')
   assert.match(admin, /class="beta-toggle"><input type="checkbox" :checked="user\.is_beta_tester" :disabled="!auth\.isAdmin" @change="toggleBetaTester\(user\)" \/> 内测用户/)
   assert.match(admin, /api\.patch\(`\/admin\/users\/\$\{user\.id\}\/beta-tester`, \{ is_beta_tester: !user\.is_beta_tester \}\)/)
+  assert.match(admin, /api\.post\(`\/admin\/beta-applications\/\$\{item\.id\}\/review`/)
+  assert.match(source('views/OperationsView.vue'), /api\.post\(`\/operations\/beta-applications\/\$\{item\.id\}\/review`/)
 })

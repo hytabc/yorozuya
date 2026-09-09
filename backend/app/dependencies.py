@@ -64,6 +64,13 @@ def get_operations_manager(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+def get_beta_application_manager(user: User = Depends(get_current_user)) -> User:
+    """内测申请审核权限：超级管理员、管理员组和看板娘。"""
+    if not user.is_admin and user.role not in (UserRole.STAFF, UserRole.MASCOT):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要内测申请审核权限")
+    return user
+
+
 def get_content_moderator(user: User = Depends(get_current_user)) -> User:
     """内容审核权限：超级管理员、管理员和风纪委员。"""
     if not user.is_admin and user.role not in (UserRole.STAFF, UserRole.DISCIPLINARIAN):

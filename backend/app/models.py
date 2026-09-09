@@ -281,6 +281,28 @@ class VolunteerApplication(Base):
     handled_by: Mapped[User | None] = relationship(foreign_keys=[handled_by_id])
 
 
+class BetaApplication(Base):
+    """虚拟人生内测资格申请，由看板娘、管理员或超级管理员审核。"""
+
+    __tablename__ = "beta_applications"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    reason: Mapped[str] = mapped_column(Text)
+    status: Mapped[ApplicationStatus] = mapped_column(
+        SqlEnum(ApplicationStatus, values_callable=lambda values: [item.value for item in values]),
+        default=ApplicationStatus.PENDING,
+        index=True,
+    )
+    review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    handled_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    handled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    user: Mapped[User] = relationship(foreign_keys=[user_id])
+    handled_by: Mapped[User | None] = relationship(foreign_keys=[handled_by_id])
+
+
 class AppSetting(Base):
     """平台级配置（键值对），例如每日举报上限。"""
 

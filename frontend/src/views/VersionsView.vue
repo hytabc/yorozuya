@@ -8,6 +8,15 @@ import { History } from 'lucide-vue-next'
       <div><span class="eyebrow"><History :size="15" /> RELEASE NOTES</span><h1>版本更新</h1><p>万事屋委托站的版本记录与功能变更</p></div>
     </div>
     <article class="version-entry">
+      <h2>V0.2-Beta</h2>
+      <time datetime="2026-09-09">2026-09-09 · 内测功能更新</time>
+      <ul>
+        <li>新增内测用户申请渠道，登录用户可提交申请并查看审核状态。</li>
+        <li>看板娘、管理员可审核内测申请。</li>
+        <li>审核通过后自动开通内测用户身份与“虚拟人生”功能。</li>
+      </ul>
+    </article>
+    <article class="version-entry">
       <h2>V0.1-Beta</h2>
       <time datetime="2026-09-08">2026-09-08 · 首个公开测试版本</time>
       <ul>

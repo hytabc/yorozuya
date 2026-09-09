@@ -701,6 +701,84 @@ def test_volunteer_application_flow():
         assert len(mine_list) == 3
 
 
+def test_beta_application_flow_and_review_permissions():
+    with TestClient(app) as client:
+        applicant = auth(client, "beta_applicant")
+        regular = auth(client, "beta_regular")
+        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+
+        mascot_login = auth(client, "beta_mascot")
+        mascot_id = client.get("/api/auth/me", headers=mascot_login).json()["id"]
+        assert client.patch(
+            f"/api/admin/users/{mascot_id}/role", headers=admin, json={"role": "mascot"}
+        ).status_code == 200
+        mascot = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'beta_mascot', 'password': 'Password123!'}).json()['access_token']}"}
+        staff_login = auth(client, "beta_staff")
+        staff_id = client.get("/api/auth/me", headers=staff_login).json()["id"]
+        assert client.patch(
+            f"/api/admin/users/{staff_id}/role", headers=admin, json={"role": "staff"}
+        ).status_code == 200
+        staff = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'beta_staff', 'password': 'Password123!'}).json()['access_token']}"}
+
+        assert client.post(
+            "/api/beta-applications", headers=applicant, json={"reason": "太短了"}
+        ).status_code == 422
+        created = client.post(
+            "/api/beta-applications",
+            headers=applicant,
+            json={"reason": "希望体验虚拟人生并认真反馈剧情和交互问题"},
+        )
+        assert created.status_code == 201, created.text
+        application_id = created.json()["id"]
+        assert created.json()["status"] == "pending"
+        assert client.post(
+            "/api/beta-applications",
+            headers=applicant,
+            json={"reason": "重复提交的申请理由也满足最小长度要求"},
+        ).status_code == 409
+        assert client.get("/api/beta-applications/mine", headers=applicant).json()["id"] == application_id
+
+        assert client.get("/api/admin/beta-applications", headers=regular).status_code == 403
+        assert client.get("/api/admin/beta-applications", headers=staff).status_code == 200
+        applications = client.get("/api/operations/beta-applications", headers=mascot)
+        assert applications.status_code == 200
+        assert applications.json()[0]["id"] == application_id
+
+        approved = client.post(
+            f"/api/operations/beta-applications/{application_id}/review",
+            headers=mascot,
+            json={"action": "approve", "note": "欢迎参与内测"},
+        )
+        assert approved.status_code == 200, approved.text
+        assert approved.json()["status"] == "approved"
+        assert approved.json()["handled_by"]["nickname"] == "用户beta_mascot"
+        assert client.get("/api/auth/me", headers=applicant).json()["is_beta_tester"] is True
+        assert client.get("/api/virtual-life/save", headers=applicant).status_code == 200
+        assert client.post(
+            "/api/beta-applications",
+            headers=applicant,
+            json={"reason": "已有资格的用户不应当再次提交内测申请"},
+        ).status_code == 403
+
+        retry = client.post(
+            "/api/beta-applications",
+            headers=regular,
+            json={"reason": "第一次申请虚拟人生内测并愿意提供反馈"},
+        )
+        rejected = client.post(
+            f"/api/admin/beta-applications/{retry.json()['id']}/review",
+            headers=admin,
+            json={"action": "reject", "note": "请补充体验计划"},
+        )
+        assert rejected.status_code == 200
+        assert rejected.json()["review_note"] == "请补充体验计划"
+        assert client.post(
+            "/api/beta-applications",
+            headers=regular,
+            json={"reason": "补充体验计划后再次申请虚拟人生内测资格"},
+        ).status_code == 201
+
+
 def test_board_flow():
     with TestClient(app) as client:
         alice = auth(client, "alice")
