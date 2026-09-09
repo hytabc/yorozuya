@@ -163,6 +163,9 @@ test('game wires event guards, completion, snapshots, hydration and next day', (
   assert.equal(changes, 1)
   const saved = game.snapshot()
   assert.equal(saved.eventProgress.done[0], 'tea')
+  // 包内初始是第 1 天;这里显式推进到第 7 天,验证封顶与隔天保留事件进度。
+  game.day.value = 7
+  game.eventProgress.value = { day: 7, done: ['tea'] }
   assert.equal(game.day.value, 7)
   game.nextDay()
   assert.equal(game.day.value, 7)

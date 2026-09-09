@@ -524,23 +524,23 @@ export const defaultLifePackContent = {
     },
   ],
   initialState: {
-    day: 7,
+    day: 1,
     stats: { mood: 72, energy: 66, social: 34, explore: 28 },
     tags: ['慢热', '喜欢拍照', '夜猫子'],
     currentWorld: '潮汐之后 · 黄昏',
     unlockedWorlds: 8,
     conversations: {
       ache: [
-        { from: 'npc', text: '你第一次来到这个世界吗？', day: 7, time: '18:20' },
+        { from: 'npc', text: '你第一次来到这个世界吗？', day: 1, time: '18:20' },
       ],
       xiaomi: [
-        { from: 'npc', text: '你好呀，我叫小弥，平时喜欢在这里练舞。', day: 7, time: '18:15' },
+        { from: 'npc', text: '你好呀，我叫小弥，平时喜欢在这里练舞。', day: 1, time: '18:15' },
       ],
       maoyou: [
-        { from: 'npc', text: '……嗯？你也是来拍照的吗？', day: 7, time: '18:10' },
+        { from: 'npc', text: '……嗯？你也是来拍照的吗？', day: 1, time: '18:10' },
       ],
       yu: [
-        { from: 'npc', text: '哇，这里好美！你也是玩家吗？', day: 7, time: '18:05' },
+        { from: 'npc', text: '哇，这里好美！你也是玩家吗？', day: 1, time: '18:05' },
       ],
     },
     diary: [

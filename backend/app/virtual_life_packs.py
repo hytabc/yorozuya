@@ -282,8 +282,9 @@ def validate_pack_content(content) -> dict:
     initial = content.get('initialState')
     if not isinstance(initial, dict):
         _fail('缺少 initialState')
-    if not isinstance(initial.get('day'), int) or initial['day'] < 1:
-        _fail('initialState.day 无效')
+    # 七日制:起始天最多第 6 天,第 7 天开局等于直接结局。
+    if not isinstance(initial.get('day'), int) or not 1 <= initial['day'] <= 6:
+        _fail('initialState.day 必须是 1-6 的整数')
     stats = initial.get('stats')
     if not isinstance(stats, dict) or set(stats) != STAT_KEYS:
         _fail('initialState.stats 必须包含 mood/energy/social/explore')
