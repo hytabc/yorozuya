@@ -55,8 +55,6 @@ function restartConfirmed() {
         <span>⚡ 精力 {{ stats.energy }}</span>
       </div>
       <div class="header-actions">
-        <button v-if="day < 7" class="btn-primary" :disabled="!saveReady || saveConflict" @click="nextDay">下一天 ▶</button>
-        <button v-else class="btn-primary" :disabled="!saveReady || saveConflict" @click="endingOpen = true">🌅 查看结局</button>
         <button class="btn-ghost" :disabled="!saveReady || saveConflict" @click="tutorial?.start()">新手指引</button>
         <button v-if="auth.canManageRoles" class="btn-ghost" title="内容管理" @click="$router.push('/life-admin')">内容管理</button>
         <button class="icon-btn" title="设置">⚙</button>
@@ -72,8 +70,8 @@ function restartConfirmed() {
     </div>
     <!-- 主内容三栏 -->
     <div class="life-layout" :inert="!saveReady || saveConflict">
-      <!-- 左侧角色 -->
-      <LifeCharPanel :game="game" />
+      <!-- 左侧角色(含存档/重置/下一天操作) -->
+      <LifeCharPanel :game="game" @reset-today="resetTodayConfirmed" @show-ending="endingOpen = true" />
 
       <!-- 中央场景(大空间,UI 浮在上面) -->
       <LifeScene :game="game" />
@@ -81,15 +79,6 @@ function restartConfirmed() {
       <!-- 右侧功能入口 -->
       <LifeMenuPanel :game="game" />
     </div>
-
-    <!-- 底部操作 -->
-    <footer class="life-footer">
-      <button class="btn-primary" @click="save" :disabled="!saveReady || saveConflict || saveBusy">存档</button>
-      <button class="btn-warm" @click="resetTodayConfirmed" :disabled="!saveReady || saveConflict"
-              title="清空今天的对话、事件与动作进度（测试用）">↺ 重置当天</button>
-      <button class="btn-ghost" @click="day >= 7 ? endingOpen = true : nextDay()" :disabled="!saveReady || saveConflict">下一天</button>
-      <small>对话将写入今天的手记</small>
-    </footer>
 
     <!-- 对话历史抽屉 -->
     <transition name="slide">
@@ -209,20 +198,6 @@ function restartConfirmed() {
   grid-template-columns: 280px 1fr 280px;
   gap: 24px;
   margin-bottom: 28px;
-}
-
-/* ========== 底部操作(柔和悬浮卡片) ========== */
-.life-footer {
-  display: flex; align-items: center; gap: 12px;
-  padding: 14px 20px;
-  background: rgba(255, 255, 255, .78);
-  backdrop-filter: blur(8px);
-  border: 1px solid #e4e9e4; border-radius: 16px;
-  box-shadow: 0 4px 18px rgba(25, 38, 32, .06);
-}
-.life-footer small {
-  margin-left: auto;
-  color: #9a9fa0; font-size: 11px;
 }
 
 /* ========== 抽屉 ========== */
