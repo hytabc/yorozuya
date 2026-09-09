@@ -1,0 +1,59 @@
+你在 C:\Users\15572\Documents\deepseek\yorozuya 项目里工作（Vue 3 <script setup> + scoped CSS 的站内小游戏「虚拟人生」）。这是一个纯前端表现层任务：给对话体验加「手感」动画。不许改任何游戏逻辑、结算、存档、内容包校验。
+
+【允许修改的文件】（除此之外一律不许碰）
+- frontend\src\life\components\LifeScene.vue
+- frontend\src\life\components\LifeCharPanel.vue
+- 可以新建 frontend\src\life\components\ 目录下的新组件文件（如 LifeDeltaFloat.vue）
+
+【明确禁止】
+- 禁止修改：useLifeGame.js、composables/ 目录、registry.js、admin/ 目录、tests/ 目录、backend/ 目录、package.json（不许加任何依赖）
+- 禁止运行 dev server；禁止安装依赖
+- 禁止改动既有交互契约：点击气泡调用 playback.complete 补全打字；speech.image 缩略图 + 灯箱；speech.typing 时的「点击显示全文」提示；选项按钮 disabled 条件（!saveReady || saveConflict || speech.playing）；动作按钮 actionState 逻辑；LifeCharPanel 的存档/下一天/重置当天按钮行为与 emit
+
+【背景：现有代码事实】
+- 打字机已存在：composables\lifePlayback.js 驱动 speech = { from, text, typing, playing, image }；typing=true 表示正在逐字输出，playing=true 表示整组台词未播完
+- LifeScene.vue 的对话浮层 .dialogue-overlay 里有 .participants-row（玩家头像"白"字圆、.current-speech 气泡、.npc-identity 里 NPC 42px 头像 npcPortrait + 名字 .npc-bond）和 .reply-panel（对话/动作两个 tab，.reply-option / .action-option 按钮）
+- LifeScene.vue 里有一段死 CSS：.npc-sprite / .npc-icon / .npc-name-tag（模板从未渲染），你可以改造利用或删除
+- LifeCharPanel.vue 左侧属性条：v-for="(val, key) in stats"，key ∈ mood/energy/social/explore，labels 映射中文名，.bar b 宽度已有 transition
+- bondDelta（ref 数字）已存在：>0 时在 .reply-tabs 里显示静态小字「好感 +N」，4 秒后清零（useLifeGame 的 showBondGain）
+- 项目配色：主绿 #237a57、浅绿底 #e5f3eb、边框 #d9dedb / #e4e9e4、文字 #18201d / #69736e、暖黄 #fdf7ea / #a67c2e；圆角 8-16px；阴影 rgba(25,38,32,.05-.15)
+- 项目已有 @media (prefers-reduced-motion: reduce) 的先例，照此风格
+
+【四项改造需求】
+
+1) NPC 立绘卡（LifeScene.vue）
+- 当 dialogueVisible 为 true 时，在场景中央偏左（dialogue-overlay 上方区域，z-index 低于对话浮层）渲染当前 NPC 的「立绘卡」：npcPortrait 大图（约 120-140px，圆角 16px 或圆形）+ 下方名字标签；参考死 CSS .npc-sprite 的位置（left:50%; top:45%），可微调避免压住气泡
+- 入场动画：opacity 0→1 + translateY(12px→0)，300ms ease-out；切换 NPC（currentNpcId 变化）时重新播放入场
+- 说话者明暗（galgame 经典）：speech.from === 'npc' 时立绘全亮（opacity 1）；speech.from === 'player' 时立绘变暗（opacity .55 + filter: saturate(.6)），过渡 250ms
+- 待机呼吸：轻微 translateY ±4px，3s infinite alternate
+- dialogueVisible 变 false 时淡出移除（用 Vue <Transition>）
+
+2) 气泡入场 + 打字游标（LifeScene.vue）
+- 每条新发言开始时 .current-speech 播放 pop-in：scale(.96)→1 + opacity 0→1，180ms。实现建议：watch speech.typing 的上升沿（false→true）时自增一个 speechEpoch ref，作为 .current-speech 的 :key，动画 class 直接写在元素上（key 变化触发重挂载即播动画）
+- 打字游标：speech.typing 为 true 时，气泡文字末尾渲染一个闪烁游标 ▍（CSS animation 1s step 闪烁，颜色跟随气泡文字色）
+- 不要破坏 @click="playback.complete"、缩略图条件渲染和「点击显示全文」small
+
+3) 选项/动作按钮 stagger 入场（LifeScene.vue）
+- showChoices 变 true 时，.reply-option 按钮依次浮现：opacity 0→1 + translateY(8px→0)，每个延迟 i×70ms（第 6 个起不再增加延迟），总时长 250ms。实现建议：watch showChoices 上升沿自增 choicesEpoch，作为 .reply-options 容器的 :key，按钮上用 :style="{ transitionDelay: Math.min(i,5)*70 + 'ms' }" 或 CSS animation-delay
+- 动作页签同理：replyTab 切换到 'actions' 时 .action-option 按 i×50ms stagger
+- 注意按钮 disabled 态不受动画影响（opacity 由 disabled 样式优先）
+
+4) 数值变化反馈（LifeCharPanel.vue + LifeScene.vue）
+- LifeCharPanel.vue：watch stats 的每个 key（mood/energy/social/explore），值变化时：
+  a) 该行 .stat-row 背景闪烁一次：增加为正 → 闪 #e5f3eb（绿），减少 → 闪 #f9e8e8（红），600ms 内淡出回透明
+  b) 数字右侧飘出 delta 文本（如 +3 / −2，减号用全角负号或 -，正绿 #237a57 / 负红 #c0392b），向上浮 16px 同时淡出，900ms，然后消失。可用绝对定位小 span + 每次变化自增 epoch 作为 :key 重触发
+- LifeScene.vue：watch bondDelta，>0 时在 NPC 头像（.npc-identity）旁飘出「好感 +N」小气泡：从头像上方浮现，向上浮 24px 淡出，1.2s；.reply-tabs 里原有的静态小字保留不动（它有 role="status" 的无障碍作用）
+
+【通用要求】
+- 所有新增动画都要在 @media (prefers-reduced-motion: reduce) 下降级（动画时长归零或直接 none）
+- 全部 scoped 样式，配色用上面给的项目色板，不许引入新色系的突兀颜色
+- 文件顶部或区块注释用中文简短说明（项目现有风格）
+- 不要加 emoji 到游戏 UI（✦ 等已有符号沿用即可）
+
+【完成后必须自验】
+1. cd frontend && npm run build 必须通过
+2. cd frontend && node --test --test-isolation=none tests/*.test.mjs 必须全部通过（当前基线 85 passed；注意 npm 脚本路径，node 在 PATH 里）
+3. 逐条复查你改的每个文件的 template/script/style 三段语法
+
+【回复格式】
+改动文件清单（新建/修改）+ 每项需求的实现要点一句话 + build 与测试输出的最后几行。

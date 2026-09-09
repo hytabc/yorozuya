@@ -19,6 +19,18 @@ const {
 const lightboxSrc = ref('')
 const pendingEventEffects = ref([])
 
+// 手感：纯展示层，不加改动到播放/存档/结算。
+// 新一句台词开始输入时给气泡一次弹入；选项切到新节点时整组错落入场。
+const speechPop = ref(0)
+watch(() => speech.value.typing, (typing, was) => {
+  if (typing && !was) speechPop.value += 1
+}, { flush: 'sync' })
+const optionsPop = ref(0)
+watch(() => currentDialogue.value?.choices, () => { optionsPop.value += 1 })
+// 好感飘字：bondDelta 每次变化增一次 epoch，作为气泡 :key 重触发动画。
+const bondEpoch = ref(0)
+watch(bondDelta, () => { bondEpoch.value += 1 })
+
 function resolveEventSpeaker(speaker) {
   if (speaker?.npcId != null) {
     const npc = npcs.value.find(npc => npc.id === speaker.npcId)
@@ -73,6 +85,18 @@ watch(activeEvent, () => {
         </template>
       </div>
 
+      <!-- NPC 立绘卡(阶段9):对话中展示中央偏左,说话者为玩家时变暗,切换人物重新入场。 -->
+      <Transition name="npc-sprite" mode="out-in">
+        <div v-if="dialogueVisible" :key="currentNpcId" class="npc-sprite-outer">
+          <div class="npc-sprite-inner">
+            <div class="npc-icon" :class="{ dimmed: speech.from === 'player' }">
+              <img :src="npcPortrait" :alt="currentNpc.name" />
+            </div>
+            <div class="npc-name-tag">{{ currentNpc.name }}</div>
+          </div>
+        </div>
+      </Transition>
+
       <!-- NPC 头像列表(浮在场景右侧边缘) -->
       <div class="npc-avatars">
         <button class="population-toggle" @click="npcListOpen = !npcListOpen" :aria-expanded="npcListOpen" aria-controls="life-world-avatars" :title="'当前房间 ' + worldPopulation + ' 人（含你）'">
@@ -101,14 +125,16 @@ watch(activeEvent, () => {
       <div v-if="dialogueVisible" class="dialogue-overlay">
         <div class="participants-row" :class="speech.from">
           <span class="participant-avatar player-participant" role="img" aria-label="白昼梦的头像">白</span>
-          <button class="current-speech" @click="playback.complete" :aria-label="speech.typing ? '显示完整发言' : '当前发言'">
+          <button :key="speechPop" class="current-speech" @click="playback.complete" :aria-label="speech.typing ? '显示完整发言' : '当前发言'">
             <span>{{ speech.text || '…' }}</span>
+            <span v-if="speech.typing" class="type-caret" aria-hidden="true"></span>
             <img v-if="speech.image && !speech.typing" :src="speech.image" class="speech-thumb" alt="对话图片" @click.stop="lightboxSrc = speech.image" />
             <small v-if="speech.typing">点击显示全文</small>
           </button>
           <div class="npc-identity">
             <span class="npc-bond">{{ currentNpc.name }}</span>
             <img class="participant-avatar npc-participant" :src="npcPortrait" :alt="currentNpc.name" />
+            <span v-if="bondDelta > 0" :key="bondEpoch" class="bond-float" role="status">好感 +{{ bondDelta }}</span>
           </div>
         </div>
 
@@ -120,16 +146,16 @@ watch(activeEvent, () => {
             <small v-if="bondDelta > 0" class="bond-gain" role="status">好感 +{{ bondDelta }}</small>
           </div>
           <div v-if="replyTab === 'dialogue'" id="reply-dialogue" role="tabpanel" aria-labelledby="reply-dialogue-tab" class="reply-content">
-            <div v-if="showChoices && currentDialogue?.choices" class="reply-options">
-              <button v-for="(choice, i) in currentDialogue.choices" :key="i" class="reply-option" :disabled="!saveReady || saveConflict || speech.playing" @click="chooseOption(choice)">
+            <div v-if="showChoices && currentDialogue?.choices" :key="optionsPop" class="reply-options">
+              <button v-for="(choice, i) in currentDialogue.choices" :key="i" class="reply-option" :style="{ animationDelay: (Math.min(i, 5) * 70) + 'ms' }" :disabled="!saveReady || saveConflict || speech.playing" @click="chooseOption(choice)">
                 <span class="option-index">{{ String(i + 1).padStart(2, '0') }}</span><span>{{ choice.label }}</span><span class="option-arrow">↗</span>
               </button>
             </div>
             <p v-else class="reply-hint">{{ speech.playing ? '交谈中 · 点击气泡显示全文' : '对话结束 · 可切换动作' }}</p>
           </div>
           <div v-else id="reply-actions" role="tabpanel" aria-labelledby="reply-actions-tab" class="reply-content">
-            <div class="action-options">
-              <button v-for="action in actions" :key="action.id" class="action-option" :disabled="!saveReady || saveConflict || speech.playing || !actionState(action).allowed" :title="!actionState(action).allowed ? actionState(action).reason : actionState(action).repeated ? '今日已领取奖励，再次互动不增加好感' : '今日首次互动奖励好感 +' + action.reward" @click="performAction(action)">
+            <div class="action-options" :key="'actions-' + replyTab">
+              <button v-for="(action, i) in actions" :key="action.id" class="action-option" :style="{ animationDelay: (i * 60) + 'ms' }" :disabled="!saveReady || saveConflict || speech.playing || !actionState(action).allowed" :title="!actionState(action).allowed ? actionState(action).reason : actionState(action).repeated ? '今日已领取奖励，再次互动不增加好感' : '今日首次互动奖励好感 +' + action.reward" @click="performAction(action)">
                 <strong>{{ action.label }}</strong>
                 <small>{{ !actionState(action).allowed ? '好感 ≥ ' + action.threshold + ' 解锁' : actionState(action).repeated ? '今日已奖励' : '首次好感 +' + action.reward }}</small>
               </button>
@@ -205,6 +231,7 @@ watch(activeEvent, () => {
   margin-top: 6px;
   cursor: zoom-in;
   border: 1px solid #d9dedb;
+  animation: thumb-in .3s ease both;
 }
 .npc-avatars {
   position: absolute;
@@ -257,28 +284,38 @@ watch(activeEvent, () => {
   box-shadow: 0 2px 8px rgba(35, 122, 87, 0.3);
 }
 
-/* 当前 NPC 立绘(场景中央) */
-.npc-sprite {
+/* NPC 立绘卡(阶段9):对话中展示在场景中央偏左,z 低于底部对话浮层。 */
+.npc-sprite-outer {
   position: absolute;
-  left: 50%; top: 45%;
+  left: 50%; top: 42%;
   transform: translate(-50%, -50%);
   display: flex; flex-direction: column;
   align-items: center; gap: 12px;
-  z-index: 2;
+  z-index: 2; pointer-events: none;
+  animation: npc-breathe 3s ease-in-out infinite alternate;
+}
+.npc-sprite-inner {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 12px;
+  animation: sprite-in .3s ease-out both;
 }
 .npc-icon {
-  width: 120px; height: 120px; border-radius: 50%;
+  width: 130px; height: 130px;
+  border-radius: 16px; overflow: hidden;
   background: linear-gradient(145deg, #fff, #f0f2f0);
   border: 3px solid #d9dedb;
   display: grid; place-items: center;
-  font-size: 48px;
   box-shadow: 0 8px 24px rgba(25, 38, 32, 0.15);
+  transition: opacity .25s ease, filter .25s ease;
 }
+.npc-icon img { width: 100%; height: 100%; object-fit: cover; }
+.npc-icon.dimmed { opacity: .55; filter: saturate(.6); }
 .npc-name-tag {
   padding: 6px 16px;
   background: rgba(255, 255, 255, 0.95);
   border: 1px solid #d9dedb; border-radius: 6px;
   font-size: 13px; font-weight: 600; color: #18201d;
+  white-space: nowrap;
 }
 
 /* 对话气泡(浮在场景中央偏下) */
@@ -346,9 +383,11 @@ watch(activeEvent, () => {
 .participants-row { display: grid; grid-template-columns: 42px minmax(0, 1fr) 42px; gap: 12px; align-items: end; margin-bottom: 12px; }
 .participant-avatar { width: 42px; height: 42px; object-fit: cover; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 2px 8px #18201d18; }
 .player-participant { display: grid; place-items: center; background: #e5f3eb; color: #237a57; font-size: 16px; font-weight: 700; }
-.current-speech { position: relative; justify-self: start; max-width: 100%; min-width: 44px; padding: 11px 14px; border: 1px solid #d9dedb; border-radius: 14px 14px 14px 3px; background: rgba(255,255,255,.97); color: #18201d; font-size: 13px; line-height: 1.65; text-align: left; overflow-wrap: anywhere; box-shadow: 0 2px 8px #18201d14; }
+.current-speech { position: relative; justify-self: start; max-width: 100%; min-width: 44px; padding: 11px 14px; border: 1px solid #d9dedb; border-radius: 14px 14px 14px 3px; background: rgba(255,255,255,.97); color: #18201d; font-size: 13px; line-height: 1.65; text-align: left; overflow-wrap: anywhere; box-shadow: 0 2px 8px #18201d14; animation: speech-pop .26s cubic-bezier(.2,.8,.35,1.18) backwards; transition: transform .12s ease; }
+.current-speech:active:not(:disabled) { transform: scale(.97); }
 .current-speech::before { content: ''; position: absolute; left: -6px; bottom: 13px; width: 10px; height: 10px; transform: rotate(45deg); background: #fff; border-left: 1px solid #d9dedb; border-bottom: 1px solid #d9dedb; }
 .current-speech small { display: block; font-size: 10px; opacity: .65; margin-top: 4px; }
+.type-caret { display: inline-block; width: 2px; height: 1.05em; margin-left: 2px; vertical-align: -0.15em; border-radius: 1px; background: currentColor; animation: caret-blink 1s steps(2, start) infinite; }
 .participants-row.npc .current-speech { justify-self: end; border-radius: 14px 14px 3px 14px; }
 .participants-row.npc .current-speech::before { left: auto; right: -6px; border: 0; border-top: 1px solid #d9dedb; border-right: 1px solid #d9dedb; }
 .participants-row.player .current-speech { justify-self: start; background: #237a57; color: #fff; border-color: #237a57; border-radius: 14px 14px 14px 3px; }
@@ -370,16 +409,18 @@ watch(activeEvent, () => {
 .reply-tabs small { margin-left: auto; font-size: 10px; color: #69736e; }
 .reply-content { padding: 10px; }
 .reply-options { display: grid; gap: 6px; }
-.reply-option { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #e0e6de; border-radius: 7px; background: #fffefa; color: #263b30; text-align: left; font-size: 12px; cursor: pointer; }
+.reply-option { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #e0e6de; border-radius: 7px; background: #fffefa; color: #263b30; text-align: left; font-size: 12px; cursor: pointer; animation: option-in .3s cubic-bezier(.2,.8,.35,1.18) backwards; transition: transform .12s ease, background .18s, border-color .18s; }
 .reply-option:hover:not(:disabled) { background: #eaf3e9; border-color: #80ae93; }
+.reply-option:active:not(:disabled) { transform: scale(.97); }
 .option-index { font-size: 10px; color: #7e9986; }
 .option-arrow { margin-left: auto; color: #237a57; }
 .action-options { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
-.action-option { padding: 12px 5px; border: 1px solid #dbe5d9; border-radius: 8px; background: #f4f8ef; color: #237a57; cursor: pointer; }
+.action-option { padding: 12px 5px; border: 1px solid #dbe5d9; border-radius: 8px; background: #f4f8ef; color: #237a57; cursor: pointer; animation: option-in .3s cubic-bezier(.2,.8,.35,1.18) backwards; transition: transform .12s ease, background .18s, border-color .18s; }
 .action-option strong, .action-option small { display: block; }
 .action-option strong { font-size: 13px; font-weight: 600; }
 .action-option small { margin-top: 6px; font-size: 10px; color: #788576; }
 .action-option:hover:not(:disabled) { background: #e5f3eb; border-color: #237a57; }
+.action-option:active:not(:disabled) { transform: scale(.96); }
 .action-option:disabled, .reply-option:disabled { opacity: .5; cursor: not-allowed; }
 .reply-hint { margin: 8px 2px 2px; font-size: 11px; color: #788576; line-height: 1.6; }
 .reply-panel button:focus-visible { outline: 2px solid #237a57; outline-offset: -2px; }
@@ -399,12 +440,47 @@ watch(activeEvent, () => {
 .action-option small { margin-top: 2px; font-size: 10px; }
 .reply-hint { margin: 2px 0; line-height: 1.4; font-size: 10px; }
 .action-result { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bond-gain { color: #237a57; padding-left: 4px; }
+.bond-gain { color: #237a57; padding-left: 4px; animation: gain-in .3s cubic-bezier(.2,.8,.35,1.4) both; }
+@keyframes gain-in { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: scale(1); } }
 .npc-identity { position: relative; width: 42px; height: 42px; }
 .npc-bond { position: absolute; bottom: calc(100% + 5px); right: 0; width: max-content; max-width: 210px; padding: 3px 7px; border-radius: 9px; background: #edf7ef; color: #285c40; font-size: 10px; line-height: 1.4; box-shadow: 0 1px 5px #18201d12; }
 .npc-bond b { color: #138549; margin-left: 3px; }
+/* 好感飘字:头像上方冒出的「好感 +N」小气泡,上浮淡出;.reply-tabs 的静态小字保留。 */
+.bond-float {
+  position: absolute; right: 0; bottom: calc(100% + 24px);
+  padding: 4px 10px; border-radius: 999px;
+  background: #fff; color: #237a57; font-size: 11px; font-weight: 600;
+  white-space: nowrap; pointer-events: none;
+  box-shadow: 0 2px 8px rgba(25, 38, 32, .12);
+  animation: bond-float 1.2s ease-out both;
+}
+@keyframes bond-float {
+  from { opacity: 0; transform: translateY(6px); }
+  22% { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-24px); }
+}
 
 .scene-info { display: block; margin: 3px auto 0; padding: 2px 5px; border: 0; background: #edf7ef; color: #237a57; font-size: 10px; cursor: pointer; border-radius: 4px; }
+
+/* ========== 手感动画 ========== */
+@keyframes speech-pop { from { opacity: 0; transform: translateY(8px) scale(.94); } 60% { opacity: 1; transform: translateY(-2px) scale(1.02); } to { opacity: 1; transform: none; } }
+@keyframes caret-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes thumb-in { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: none; } }
+@keyframes option-in { from { opacity: 0; transform: translateY(8px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes sprite-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes npc-breathe { from { transform: translate(-50%, -50%) translateY(-4px); } to { transform: translate(-50%, -50%) translateY(4px); } }
+/* dialogueVisible 切换时立绘卡淡入淡出 */
+.npc-sprite-enter-active, .npc-sprite-leave-active { transition: opacity .25s ease; }
+.npc-sprite-enter-from, .npc-sprite-leave-to { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .type-caret { display: none; }
+  .current-speech { animation: none; }
+  .reply-option, .action-option, .speech-thumb, .bond-gain { animation: none; transition: none; }
+  .npc-sprite-outer, .npc-sprite-inner { animation: none; }
+  .npc-icon { transition: none; }
+  .npc-sprite-enter-active, .npc-sprite-leave-active { transition: none; }
+  .bond-float { animation: none; opacity: 0; }
+}
 
 .tutorial-demo { position:absolute; left:18px; right:18px; bottom:22px; z-index:20; padding:14px; border:1px solid #9bc6a4; border-radius:12px; background:#fffdf4; color:#30533a; font-size:12px; line-height:1.8; }
 .tutorial-demo-talk { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:8px 0; }
