@@ -22,6 +22,7 @@ const statItems = [
           <h2 id="life-ending-title">🌅 {{ ending?.name || '七日的旅程' }}</h2>
         </header>
         <div class="ending-content">
+          <img v-if="ending?.image" class="ending-image" :src="ending.image" :alt="ending.name" />
           <p class="ending-story">{{ ending?.text || '晚风轻轻翻过手记，又一个七天落下帷幕。那些平凡的问候、偶然的相遇，已悄悄成为心底温暖的光。不必急着为这段时光寻找答案，你认真走过的每一步，都值得被温柔收藏。' }}</p>
           <h3>此刻的你</h3>
           <dl class="stat-list">
@@ -65,6 +66,11 @@ const statItems = [
 .ending-header h2 { margin: 0; font-size: 20px; color: #237a57; }
 .ending-content { padding: 20px; overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
 .ending-story { margin: 0 0 24px; font-size: 14px; line-height: 1.9; }
+.ending-image {
+  display: block; width: 100%; max-height: 240px; object-fit: cover;
+  border-radius: 12px; margin-bottom: 16px;
+  border: 1px solid #e6eae6; box-shadow: 0 4px 14px rgba(25, 38, 32, .08);
+}
 .ending-content h3 { margin: 0 0 12px; font-size: 14px; color: #237a57; }
 .stat-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0 0 24px; }
 .stat-item { display: flex; justify-content: space-between; gap: 8px; padding: 12px; border-radius: 8px; background: #f5f6f4; font-size: 14px; }

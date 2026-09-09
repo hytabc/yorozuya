@@ -407,6 +407,16 @@ class PackTests(unittest.TestCase):
         content['endings'] = [{'id': 'e1', 'name': 'a', 'text': 'x'}, {'id': 'e1', 'name': 'b', 'text': 'y'}]
         with self.assertRaisesRegex(PackContentError, '重复'):
             validate_pack_content(content)
+        # 结局图片:允许留空或站内 /uploads/ 路径,拒绝外链与非法值。
+        for bad_image in ('https://example.com/a.png', 'relative.png', 1):
+            with self.subTest(image=bad_image):
+                content = mini_pack(['ache'])
+                content['endings'] = [{'id': 'e1', 'name': 'a', 'text': 'x', 'image': bad_image}]
+                with self.assertRaises(PackContentError):
+                    validate_pack_content(content)
+        content = mini_pack(['ache'])
+        content['endings'] = [{'id': 'e1', 'name': 'a', 'text': 'x', 'image': '/uploads/life/end.png'}]
+        validate_pack_content(content)
 
     def test_migrate_adds_events_idempotently(self):
         for content in (mini_pack(['ache']), {}):

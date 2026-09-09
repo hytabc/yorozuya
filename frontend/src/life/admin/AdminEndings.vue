@@ -3,6 +3,7 @@
 // 每个结局可设属性阈值与好感阈值,全部满足才触发;无条件结局恒成立,应排在最后。
 import { computed } from 'vue'
 import { adminState } from './useLifeAdmin'
+import AdminImageField from './AdminImageField.vue'
 
 const content = computed(() => adminState.content)
 const endings = computed(() => content.value?.endings || [])
@@ -14,6 +15,7 @@ function addEnding() {
     id: 'e' + Date.now().toString(36),
     name: '新结局',
     text: '',
+    image: null,
     conditions: { stats: {}, bonds: {} },
   })
 }
@@ -68,6 +70,9 @@ function condSummary(ending) {
         </label>
         <label style="grid-column: 1 / -1">结局文案
           <textarea v-model="ending.text" rows="3" style="width:100%" placeholder="达成条件后展示的结算文字"></textarea>
+        </label>
+        <label style="grid-column: 1 / -1">结局图片（可选）
+          <AdminImageField v-model="ending.image" placeholder="留空则不展示图片" />
         </label>
       </div>
       <div class="la-ending-conds">

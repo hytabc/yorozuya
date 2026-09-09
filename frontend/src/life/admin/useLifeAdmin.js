@@ -80,6 +80,7 @@ function normalizeContent(content) {
     ending.conditions ||= {}
     ending.conditions.stats ||= {}
     ending.conditions.bonds ||= {}
+    ending.image ??= null
   }
   for (const [npcId, days] of Object.entries(content.dialogue || {})) {
     const list = (Array.isArray(days) ? days : [days]).filter(Boolean)

@@ -226,6 +226,9 @@ def validate_pack_content(content) -> dict:
             _fail(f"结局 {ending['id']} 缺少名称")
         if not isinstance(ending.get('text'), str) or not ending['text']:
             _fail(f"结局 {ending['id']} 缺少文案")
+        image = ending.get('image')
+        if image is not None and (not isinstance(image, str) or not image.startswith('/uploads/')):
+            _fail(f"结局 {ending['id']} 图片必须是 /uploads/ 站内路径")
         conditions = ending.get('conditions')
         if conditions is None:
             conditions = {}

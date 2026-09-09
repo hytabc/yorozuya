@@ -186,6 +186,7 @@ export function validateLifePack(pack) {
     endingIds.add(ending.id)
     if (typeof ending.name !== 'string' || !ending.name) fail('结局缺少名称: ' + ending.id)
     if (typeof ending.text !== 'string' || !ending.text) fail('结局缺少文案: ' + ending.id)
+    if (ending.image != null && (typeof ending.image !== 'string' || !ending.image.startsWith('/uploads/'))) fail(`结局 ${ending.id} 图片必须是站内路径`)
     const conditions = ending.conditions || {}
     for (const key of Object.keys(conditions.stats || {})) if (!statKeys.has(key)) fail(`结局 ${ending.id} 条件包含未知属性`)
     for (const id of Object.keys(conditions.bonds || {})) if (!npcIdSet.has(id)) fail(`结局 ${ending.id} 条件包含未知 NPC`)
