@@ -204,6 +204,47 @@ def validate_pack_content(content) -> dict:
 
     _validate_events(content.get('events', []), room_ids, ids)
 
+    # 初始房间:玩家进入游戏的默认位置;空值(None/空串)由前端自动挑选第一个可加入房间。
+    start_room = content.get('startRoomId')
+    if start_room is not None and start_room != '':
+        if not isinstance(start_room, str) or start_room not in room_ids:
+            _fail('startRoomId 必须指向已有房间')
+
+    # 条件结局:列表顺序即优先级,第一个满足全部条件的结局生效;
+    # 条件为空的结局恒成立,排在最后充当兜底结局。
+    endings = content.get('endings', [])
+    if not isinstance(endings, list):
+        _fail('endings 必须是数组')
+    ending_ids = set()
+    for ending in endings:
+        if not isinstance(ending, dict):
+            _fail('结局必须是对象')
+        if not isinstance(ending.get('id'), str) or not ending['id'] or ending['id'] in ending_ids:
+            _fail('结局 id 缺失或重复')
+        ending_ids.add(ending['id'])
+        if not isinstance(ending.get('name'), str) or not ending['name']:
+            _fail(f"结局 {ending['id']} 缺少名称")
+        if not isinstance(ending.get('text'), str) or not ending['text']:
+            _fail(f"结局 {ending['id']} 缺少文案")
+        image = ending.get('image')
+        if image is not None and (not isinstance(image, str) or not image.startswith('/uploads/')):
+            _fail(f"结局 {ending['id']} 图片必须是 /uploads/ 站内路径")
+        conditions = ending.get('conditions')
+        if conditions is None:
+            conditions = {}
+        if not isinstance(conditions, dict):
+            _fail(f"结局 {ending['id']} 条件必须是对象")
+        cond_stats = conditions.get('stats', {})
+        if not isinstance(cond_stats, dict) or not set(cond_stats).issubset(STAT_KEYS):
+            _fail(f"结局 {ending['id']} 条件包含未知属性")
+        if any(not isinstance(v, int) or isinstance(v, bool) or not 0 <= v <= 100 for v in cond_stats.values()):
+            _fail(f"结局 {ending['id']} 属性条件必须是 0-100 整数")
+        cond_bonds = conditions.get('bonds', {})
+        if not isinstance(cond_bonds, dict) or not set(cond_bonds).issubset(ids):
+            _fail(f"结局 {ending['id']} 条件包含未知 NPC")
+        if any(not isinstance(v, int) or isinstance(v, bool) or not 0 <= v <= 100 for v in cond_bonds.values()):
+            _fail(f"结局 {ending['id']} 好感条件必须是 0-100 整数")
+
     presence = content.get('presence')
     if not isinstance(presence, dict) or set(presence) != ids:
         _fail('presence 必须覆盖全部 NPC')
@@ -282,8 +323,9 @@ def validate_pack_content(content) -> dict:
     initial = content.get('initialState')
     if not isinstance(initial, dict):
         _fail('缺少 initialState')
-    if not isinstance(initial.get('day'), int) or initial['day'] < 1:
-        _fail('initialState.day 无效')
+    # 七日制:起始天最多第 6 天,第 7 天开局等于直接结局。
+    if not isinstance(initial.get('day'), int) or not 1 <= initial['day'] <= 6:
+        _fail('initialState.day 必须是 1-6 的整数')
     stats = initial.get('stats')
     if not isinstance(stats, dict) or set(stats) != STAT_KEYS:
         _fail('initialState.stats 必须包含 mood/energy/social/explore')

@@ -74,6 +74,14 @@ export const LIFE_DIALOGUE_DAYS = 7
 
 function normalizeContent(content) {
   content.events ||= []
+  content.startRoomId ??= ''
+  content.endings ||= []
+  for (const ending of content.endings) {
+    ending.conditions ||= {}
+    ending.conditions.stats ||= {}
+    ending.conditions.bonds ||= {}
+    ending.image ??= null
+  }
   for (const [npcId, days] of Object.entries(content.dialogue || {})) {
     const list = (Array.isArray(days) ? days : [days]).filter(Boolean)
     if (!list.length) list.push({ start: 'n1', nodes: { n1: { line: '……', choices: [{ label: '你好', effects: {}, reply: '你好呀。', next: null }] } } })

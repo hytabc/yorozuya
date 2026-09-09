@@ -523,24 +523,30 @@ export const defaultLifePackContent = {
       ],
     },
   ],
+  startRoomId: 'beach-1024',
+  endings: [
+    { id: 'kindred', name: '心有灵犀的七日', text: '七天里，有人记住了你的习惯，你也读懂了有人未说出口的话。分别时没有太多伤感——因为真正的相遇，从来不会被时间收走。', conditions: { stats: {}, bonds: { xiaomi: 80 } } },
+    { id: 'sunny', name: '晴朗收尾', text: '你带着轻快的脚步走完这七天。天气很好，心情更好，连告别都像是明天还会再见的约定。', conditions: { stats: { mood: 70 }, bonds: {} } },
+    { id: 'gentle', name: '温柔的平凡', text: '没有惊天动地的剧情，只有刚刚好的日常。七天很短，但你认真走过的每一步，都值得被温柔收藏。', conditions: {} },
+  ],
   initialState: {
-    day: 7,
+    day: 1,
     stats: { mood: 72, energy: 66, social: 34, explore: 28 },
     tags: ['慢热', '喜欢拍照', '夜猫子'],
     currentWorld: '潮汐之后 · 黄昏',
     unlockedWorlds: 8,
     conversations: {
       ache: [
-        { from: 'npc', text: '你第一次来到这个世界吗？', day: 7, time: '18:20' },
+        { from: 'npc', text: '你第一次来到这个世界吗？', day: 1, time: '18:20' },
       ],
       xiaomi: [
-        { from: 'npc', text: '你好呀，我叫小弥，平时喜欢在这里练舞。', day: 7, time: '18:15' },
+        { from: 'npc', text: '你好呀，我叫小弥，平时喜欢在这里练舞。', day: 1, time: '18:15' },
       ],
       maoyou: [
-        { from: 'npc', text: '……嗯？你也是来拍照的吗？', day: 7, time: '18:10' },
+        { from: 'npc', text: '……嗯？你也是来拍照的吗？', day: 1, time: '18:10' },
       ],
       yu: [
-        { from: 'npc', text: '哇，这里好美！你也是玩家吗？', day: 7, time: '18:05' },
+        { from: 'npc', text: '哇，这里好美！你也是玩家吗？', day: 1, time: '18:05' },
       ],
     },
     diary: [

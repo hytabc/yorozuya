@@ -1,0 +1,644 @@
+{
+  "npc": {
+    "id": "mimi",
+    "name": "米米",
+    "role": "咖啡馆看板娘",
+    "avatar": "🐾",
+    "status": "正在帮猫猫们整理今天的观察档案",
+    "bond": 0,
+    "fallbackReplies": [
+      {
+        "minBond": 0,
+        "text": "欢迎光临喵～今天想喝什么？"
+      },
+      {
+        "minBond": 0,
+        "text": "喵？你看起来面生，先让我观察一下！"
+      },
+      {
+        "minBond": 30,
+        "text": "嘿嘿，你又来啦？你的档案我可记了一笔喵～"
+      },
+      {
+        "minBond": 70,
+        "text": "喵呜…你来我就开心！今天想让我陪你多久？"
+      }
+    ]
+  },
+  "portrait": "/uploads/life/ab18fa5c85c34a8494cb35ec76757f54.png",
+  "presence": {
+    "status": "green",
+    "roomId": "cafe-1101",
+    "intro": "自称喵星人观察员，为了记录每一只猫而驻扎在咖啡馆的猫耳少女。"
+  },
+  "greeting": [
+    {
+      "from": "npc",
+      "text": "喵？新面孔！先站住，让本观察员记录一下。",
+      "day": 1,
+      "time": "18:20"
+    }
+  ],
+  "dialogue": [
+    {
+      "start": "n1",
+      "nodes": {
+        "n1": {
+          "lines": [
+            "欢迎光临喵～新面孔哦！",
+            "我是这里的看板娘米米，兼职喵星人观察员。"
+          ],
+          "image": null,
+          "choices": [
+            {
+              "label": "你好，我是新来的常客",
+              "effects": {
+                "bond": 2,
+                "stats": {
+                  "social": 2
+                }
+              },
+              "replies": [
+                "你好喵！既然来了，就给你建个观察档案。",
+                "放心，档案里都是可爱记录啦～"
+              ],
+              "replyImage": null,
+              "next": "n2"
+            },
+            {
+              "label": "我是来偷看猫咪的",
+              "effects": {
+                "bond": 1,
+                "stats": {
+                  "mood": 2
+                }
+              },
+              "replies": [
+                "喵？偷看我的猫？我要记下来！",
+                "不过嘛…你可以光明正大看，我允许你加入观察员预备队喵～"
+              ],
+              "replyImage": null,
+              "next": "n3"
+            }
+          ]
+        },
+        "n2": {
+          "lines": [
+            "观察档案建造中……好了！"
+          ],
+          "image": null,
+          "choices": [
+            {
+              "label": "谢谢你的档案",
+              "effects": {
+                "bond": 1,
+                "stats": {
+                  "mood": 2
+                }
+              },
+              "replies": [
+                "不用谢喵，以后常来，档案会更丰满哦。",
+                "下次给你拍张照片存档！"
+              ],
+              "replyImage": null,
+              "next": null
+            }
+          ]
+        },
+        "n3": {
+          "lines": [
+            "喵星人观察员预备队，欢迎加入！"
+          ],
+          "image": null,
+          "choices": [
+            {
+              "label": "以后请多指教",
+              "effects": {
+                "bond": 1,
+                "stats": {
+                  "social": 1
+                }
+              },
+              "replies": [
+                "请多指教喵～不过你也要接受我的观察哦。",
+                "好了，今天先到这里，明天见！"
+              ],
+              "replyImage": null,
+              "next": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "start": "n1",
+      "nodes": {
+        "n1": {
+          "lines": [
+            "喵～今天你果然来了！",
+            "我已经把你的档案更新了，看！"
+          ],
+          "image": null,
+          "choices": [
+            {
+              "label": "让我看看档案",
+              "effects": {
+                "bond": 2,
+                "stats": {
+                  "mood": 2
+                }
+              },
+              "replies": [
+                "给，你看！全是我的猫爪字。",
+                "别乱摸，我写的很辛苦的！"
+              ],
+              "replyImage": null,
+              "next": "n4"
+            },
+            {
+              "label": "今天想喝什么",
+              "effects": {
+                "bond": 1,
+                "stats": {
+                  "energy": 2
+                }
+              },
+              "replies": [
+                "推荐你试我的秘密特调，喵～",
+                "等等，我先去调，别乱跑！"
+              ],
+              "replyImage": null,
+              "next": "n4"
+            }
+          ]
+        },
+        "n4": {
+          "lines": [
+            "好了，这是本喵独一无二的特调，喝吧。",
+            "从今天起你算我的半个熟客了喵。"
+          ],
+          "image": null,
+          "choices": [
+            {
+              "label": "好喝！谢谢款待",
+              "effects": {
+                "bond": 2,
+                "stats": {
+                  "mood": 2
+                }
+              },
+              "replies": [
+                "嘿嘿，那是当然，我可是有观察员执照的！",
+                "明天也要来哦，我告诉你小猫的秘密。",
+                "拜拜喵～"
+              ],
+              "replyImage": null,
+              "next": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "start": "n1",
+      "nodes": {
+        "n1": {
+          "lines": [
+            "这是我拍的猫猫照片，你看！",
+            "这张是店长，这只叫雪球，超会摆姿势喵～",
+            "还有这张，偷吃猫粮被抓包！"
+          ],
+          "image": "/uploads/life/ab18fa5c85c34a8494cb35ec76757f54.png",
+          "choices": [
+            {
+              "label": "你拍得真好看",
+              "effects": {
+                "bond": 2,
+                "stats": {
+                  "mood": 2
+                }
+              },
+              "replies": [
+                "嘿嘿，作为喵星人观察员，拍照是基本功喵～",
+                "对了，给你看看我的自拍，这张是戴猫耳的样子！"
+              ],
+              "replyImage": "/uploads/life/ab18fa5c85c34a8494cb35ec76757f54.png",
+              "next": "n2"
+            },
+            {
+              "label": "雪球好可爱",
+              "effects": {
+                "bond": 2,
+                "stats": {
+                  "social": 2
+                }
+              },
+              "replies": [
+                "对啊，雪球最乖了，不过它偷吃的时候也超可爱！"
+              ],
+              "replyImage": null,
+              "next": "n3"
+            }
+          ]
+        },
+        "n2": {
+          "lines": [
+            "怎么样，我的猫耳造型？",
+            "这可是限量版，只给你看的喵～"
+          ],
+          "image": null,
+          "choices": [
+            {
+              "label": "很可爱，也给你建档案",
+              "effects": {
+                "bond": 2,
+                "stats": {
+                  "mood": 2
+                }
+              },
+              "replies": [
+                "给我建档案？真有你的！",
+                "那……你要好好写哦，不然我会生气的喵！"
+              ],
+              "replyImage": null,
+              "next": null
+            }
+          ]
+        },
+        "n3": {
+          "lines": [
+            "你想认识雪球吗？",
+            "它现在在窗台晒太阳，你可以去摸摸它。"
+          ],
+          "image": null,
+          "choices": [
+            {
+              "label": "好，我去逗猫",
+              "effects": {
+                "bond": 1,
+                "stats": {
+                  "explore": 2
+                }
+              },
+              "replies": [
+                "小心哦，它有时候会跑掉。",
+                "看你这么积极，看来你也快变成猫了喵～"
+              ],
+              "replyImage": null,
+              "next": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "start": "n1",
+      "nodes": {
+        "n1": {
+          "lines": [
+            "今天心情不好……有个客人把我的猫粮打翻了。",
+            "那些猫都没吃到饭，我有点生气喵……"
+          ],
+          "image": null,
+          "choices": [
+            {
+              "label": "你也太不小心了吧",
+              "effects": {
+                "bond": 0,
+                "stats": {
+                  "mood": -3
+                }
+              },
+              "replies": [
+                "你！你怎么能这么说！",
+                "那是我照顾的猫，你根本不懂！",
+                "哼，我不想理你了喵！"
+              ],
+              "replyImage": null,
+              "next": "n2"
+            },
+            {
+              "label": "别难过，我帮你买新的",
+              "effects": {
+                "bond": 3,
+                "stats": {
+                  "mood": 2
+                }
+              },
+              "replies": [
+                "真的吗？你不是在骗我吧……",
+                "那……谢谢你喵，我心情好一点了。",
+                "看你这么诚恳，我原谅你了。"
+              ],
+              "replyImage": null,
+              "next": "n3"
+            }
+          ]
+        },
+        "n2": {
+          "lines": [
+            "……",
+            "喵……你还在啊。"
+          ],
+          "image": null,
+          "choices": [
+            {
+              "label": "对不起，我错了",
+              "effects": {
+                "bond": 2,
+                "stats": {
+                  "social": 2
+                }
+              },
+              "replies": [
+                "……算你识相。",
+                "其实我也有一部分责任，不该把猫粮放地上。",
+                "那我们和好吧喵……"
+              ],
+              "replyImage": null,
+              "next": null
+            }
+          ]
+        },
+        "n3": {
+          "lines": [
+            "你愿意帮猫猫们买猫粮，我真的很开心。",
+            "我刚刚说话有点冲，对不起喵……"
+          ],
+          "image": null,
+          "choices": [
+            {
+              "label": "没事，一起去买吧",
+              "effects": {
+                "bond": 2,
+                "stats": {
+                  "energy": 2
+                }
+              },
+              "replies": [
+                "好，走吧！你可要负责提猫粮！",
+                "顺便……我得重新观察你一下了，喵～"
+              ],
+              "replyImage": null,
+              "next": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "start": "n1",
+      "nodes": {
+        "n1": {
+          "lines": [
+            "喵……昨天的事，我想了一晚上。",
+            "我不该乱发脾气，你是好意帮我的。"
+          ],
+          "image": null,
+          "choices": [
+            {
+              "label": "我也有不对的地方",
+              "effects": {
+                "bond": 2,
+                "stats": {
+                  "social": 2
+                }
+              },
+              "replies": [
+                "嗯，我们一起和好吧。",
+                "那今天给你做一杯特制喵咖啡！"
+              ],
+              "replyImage": null,
+              "next": "n2"
+            }
+          ]
+        },
+        "n2": {
+          "lines": [
+            "这杯咖啡叫「和解」，是我刚研发的。",
+            "你看上面有猫咪拉花，像不像你在道歉？"
+          ],
+          "image": null,
+          "choices": [
+            {
+              "label": "这拉花太可爱了",
+              "effects": {
+                "bond": 2,
+                "stats": {
+                  "mood": 2
+                }
+              },
+              "replies": [
+                "嘿嘿，这是雪球教我的！",
+                "喝下去，我们就正式和解了喵～"
+              ],
+              "replyImage": null,
+              "next": "n3"
+            }
+          ]
+        },
+        "n3": {
+          "lines": [
+            "喝完啦？",
+            "心情怎么样？"
+          ],
+          "image": null,
+          "choices": [
+            {
+              "label": "和解了，但档案得重写",
+              "effects": {
+                "bond": 3,
+                "stats": {
+                  "explore": 2
+                }
+              },
+              "replies": [
+                "好，我会在你的档案上画个同心圆。",
+                "猫猫们也会记得你的好喵。",
+                "明天，我要告诉你一个秘密。"
+              ],
+              "replyImage": null,
+              "next": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "start": "n1",
+      "nodes": {
+        "n1": {
+          "lines": [
+            "昨天说要告诉你秘密，其实是我藏了一盒宝贝。",
+            "是这些猫咪的成长照片，我偷偷拍了三个月喵～"
+          ],
+          "image": null,
+          "choices": [
+            {
+              "label": "能给我看看吗？",
+              "effects": {
+                "bond": 5,
+                "stats": {
+                  "mood": 2
+                }
+              },
+              "replies": [
+                "喏，给你看这张，是雪球刚出生时的样子！",
+                "这张是它在打呼噜，超可爱…我也超喜欢你的喵！",
+                "这些照片送你当纪念，以后我们还要一起拍更多喵。"
+              ],
+              "replyImage": "/uploads/life/ab18fa5c85c34a8494cb35ec76757f54.png",
+              "next": "n2"
+            },
+            {
+              "label": "你藏了这么久？",
+              "effects": {
+                "bond": 2,
+                "stats": {
+                  "explore": 2
+                }
+              },
+              "replies": [
+                "当然，观察员的本事喵～",
+                "而且我把你的身影也偷偷拍进去了，嘿嘿。"
+              ],
+              "replyImage": null,
+              "next": "n3"
+            }
+          ]
+        },
+        "n2": {
+          "lines": [
+            "这些照片，你要好好保管哦。",
+            "这样就算以后不在一起，你也能想起我这只猫耳娘喵～"
+          ],
+          "image": null,
+          "choices": [
+            {
+              "label": "约定，下次还要一起看猫",
+              "effects": {
+                "bond": 2,
+                "stats": {
+                  "mood": 2
+                }
+              },
+              "replies": [
+                "嗯，拉钩上吊一百年不许变！",
+                "那明天……我还想见你一面。",
+                "记得来哦。"
+              ],
+              "replyImage": null,
+              "next": null
+            }
+          ]
+        },
+        "n3": {
+          "lines": [
+            "你居然敢偷拍我？那我给你看看我的偷拍技术。",
+            "瞧，你刚才喝咖啡呆呆的样子，我拍下来了喵～"
+          ],
+          "image": null,
+          "choices": [
+            {
+              "label": "哇，你偷袭我",
+              "effects": {
+                "bond": 1,
+                "stats": {
+                  "mood": 1
+                }
+              },
+              "replies": [
+                "嘿嘿，这叫以其人之道还治其人之身！",
+                "不过你放心，这张只给你一个人看。",
+                "明天，我也有话要跟你说喵～"
+              ],
+              "replyImage": null,
+              "next": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "start": "n1",
+      "nodes": {
+        "n1": {
+          "lines": [
+            "今天，是这七天咖啡馆之行的最后一晚了。",
+            "没想到时间过得这么快，喵……",
+            "有些话，我藏在档案里很久了，今晚想告诉你。"
+          ],
+          "image": null,
+          "choices": [
+            {
+              "label": "我也有些话想对你说",
+              "effects": {
+                "bond": 2,
+                "stats": {
+                  "mood": 2
+                }
+              },
+              "replies": [
+                "嗯，我先说……",
+                "其实从你第一次来，我就感觉到你不一样喵。",
+                "你是第一个让我想看真实的人，不只是观察对象。"
+              ],
+              "replyImage": null,
+              "next": "n2"
+            }
+          ]
+        },
+        "n2": {
+          "lines": [
+            "我的观察档案里，写满了这七天的片段。",
+            "你帮我买猫粮、照顾猫猫、听我唠叨，我都记着喵……"
+          ],
+          "image": null,
+          "choices": [
+            {
+              "label": "那以后我们还会再见吗？",
+              "effects": {
+                "bond": 2,
+                "stats": {
+                  "social": 2
+                }
+              },
+              "replies": [
+                "我不知道……但我会一直记得你的。",
+                "如果有一天你路过咖啡馆，可以进来看看我。",
+                "我会坐在窗边，等你喵～"
+              ],
+              "replyImage": null,
+              "next": "n3"
+            }
+          ]
+        },
+        "n3": {
+          "lines": [
+            "时间不早了，咖啡馆要关门了。",
+            "今晚是最后一场月亮，你要陪我一起看吗？"
+          ],
+          "image": null,
+          "choices": [
+            {
+              "label": "好，我们一起看月亮喵",
+              "effects": {
+                "bond": 3,
+                "stats": {
+                  "mood": 2
+                }
+              },
+              "replies": [
+                "喵呜……谢谢你，给了我这么温柔的回忆。",
+                "这张月亮照片给你，当作「喵星人观察员」的认证。",
+                "再见，我的常客——不，我的特别人类。"
+              ],
+              "replyImage": null,
+              "next": null
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

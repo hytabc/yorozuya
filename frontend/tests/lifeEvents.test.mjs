@@ -8,6 +8,7 @@ import { scriptForDay, startMessages, sanitizeDialogueNodes } from '../src/compo
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { eventScriptForDay, eventsForRoom, isEventDone, applyEventChoice, eventEffectsOf, mergeEventChoices, normalizeEventProgress } from '../src/composables/lifeEvents.js'
+import { resolveEnding, startRoomIdOf } from '../src/life/endings.js'
 
 const event = { id: 'tea', roomId: 'room-a', scripts: Array.from({ length: 7 }, (_, i) => ({ messages: [`第${i + 1}天`] })) }
 
@@ -120,6 +121,7 @@ test('game wires event guards, completion, snapshots, hydration and next day', (
     roomFor: id => pack.rooms.find(item => item.id === id),
     worldFor: id => pack.worlds.find(item => item.id === id),
     migrateSocialState: state => state,
+    resolveEnding, startRoomIdOf,
   })
   const source = readFileSync(new URL('../src/life/useLifeGame.js', import.meta.url), 'utf8')
     .replace(/^import .*$/gm, '').replace('export function', 'function')
@@ -163,6 +165,9 @@ test('game wires event guards, completion, snapshots, hydration and next day', (
   assert.equal(changes, 1)
   const saved = game.snapshot()
   assert.equal(saved.eventProgress.done[0], 'tea')
+  // 包内初始是第 1 天;这里显式推进到第 7 天,验证封顶与隔天保留事件进度。
+  game.day.value = 7
+  game.eventProgress.value = { day: 7, done: ['tea'] }
   assert.equal(game.day.value, 7)
   game.nextDay()
   assert.equal(game.day.value, 7)
@@ -239,6 +244,7 @@ test('restartJourney returns to a fresh day one and persists once', async () => 
     roomFor: id => pack.rooms.find(item => item.id === id),
     worldFor: id => pack.worlds.find(item => item.id === id),
     migrateSocialState: state => state,
+    resolveEnding, startRoomIdOf,
   })
   const source = readFileSync(new URL('../src/life/useLifeGame.js', import.meta.url), 'utf8')
     .replace(/^import .*$/gm, '').replace('export function', 'function')

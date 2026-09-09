@@ -1,0 +1,43 @@
+你在 C:\Users\15572\Documents\deepseek\yorozuya 项目里继续上一轮「虚拟人生对话手感」任务。上一轮你改了 LifeScene.vue 和 LifeEventModal.vue（气泡 pop-in、打字游标、选项 stagger、事件弹窗动效），这些已完成且会保留，不要回滚、不要重写它们。本轮补齐上一轮漏掉的三项 + 一个小修正。
+
+【允许修改的文件】（除此之外一律不许碰）
+- frontend\src\life\components\LifeScene.vue
+- frontend\src\life\components\LifeCharPanel.vue
+- 可以新建 frontend\src\life\components\ 目录下的新组件文件
+
+【明确禁止】
+- 禁止修改：useLifeGame.js、composables/、registry.js、admin/、tests/、backend/、package.json
+- 禁止运行 dev server、禁止安装依赖
+- 禁止破坏既有契约与上一轮已加的动画；点击气泡 playback.complete、缩略图灯箱、选项 disabled 条件、LifeCharPanel 三个按钮的 emit 行为全部保持
+
+【本轮任务】
+
+任务 A：NPC 立绘卡（LifeScene.vue）——上轮完全没做
+- 当 dialogueVisible 为 true 时，在场景内渲染当前 NPC 的立绘卡：位置参考现有死 CSS .npc-sprite（left:50%; top:45%; transform:translate(-50%,-50%)，可微调避免压住底部对话浮层，比如 top 改为 42%，z-index 低于 .dialogue-overlay 的 4）
+- 结构：npcPortrait 大图（约 130px、圆形或圆角 16px、带边框阴影）+ 下方名字标签（currentNpc.name）
+- 入场：opacity 0→1 + translateY(12px→0)，300ms ease-out；currentNpcId 变化时重新播放入场（可用 :key="currentNpcId"）
+- 说话者明暗：speech.from === 'npc' 时全亮；speech.from === 'player' 时 opacity .55 + filter:saturate(.6)，过渡 250ms
+- 待机呼吸：translateY ±4px，3s ease-in-out infinite alternate（入场动画结束后叠加，可用两个嵌套元素分开两个动画避免冲突）
+- dialogueVisible 变 false 时用 <Transition> 淡出
+- 实现后删除或改造原死 CSS .npc-sprite/.npc-icon/.npc-name-tag，不许留死代码
+
+任务 B：好感飘字（LifeScene.vue）——上轮只给静态小字加了 pop，飘字没做
+- watch bondDelta：>0 时在 NPC 头像容器 .npc-identity 上方浮现一个小气泡「好感 +N」（绝对定位、right:0、白底绿字 #237a57、圆角 999px、阴影），向上浮 24px 同时淡出，1.2s 后消失
+- 每次 bondDelta 变化都要能重新触发（自增 epoch ref 作 :key）
+- .reply-tabs 里的静态「好感 +N」小字保留不动（role="status" 无障碍用途）
+
+任务 C：属性条数值反馈（LifeCharPanel.vue）——上轮完全没做
+- 该组件从 props.game 解构了 stats（ref 对象，key ∈ mood/energy/social/explore）
+- watch 每个 key 的值（可 watch(() => ({ ...stats.value }), ...) 或四个独立 watch），变化时：
+  a) 对应 .stat-row 行背景闪烁：增加闪 #e5f3eb（绿），减少闪 #f9e8e8（红），600ms 淡出回透明（epoch-keyed 重触发或 class 切换）
+  b) 该行 <strong> 数字右侧飘出 delta 文本（+3 绿 #237a57 / −2 红 #c0392b，加号显式写出），向上浮 16px 淡出 900ms 后消失（绝对定位 span，epoch 作 :key）
+- 纯 watch 派生展示态，不许改 stats 本身；labels、按钮、emit 全部不动
+
+小修正（LifeScene.vue）：.reply-option 的 animationDelay 改为 Math.min(i, 5) * 70 + 'ms'（第 6 个起不再递增）
+
+【通用要求】
+- 所有新动画纳入 @media (prefers-reduced-motion: reduce) 降级（已有媒体查询块，往里加规则即可）
+- scoped 样式、项目色板、中文注释风格，与上轮一致
+- 完成后自验：cd frontend && node --test --test-isolation=none tests/*.test.mjs 全过；用 vue/compiler-sfc 编译两个改动 SFC 验证语法（npm run build 的 EPERM 是环境限制，不用管，由我来跑）
+
+【回复格式】改动文件清单 + 每项实现要点一句话 + 测试输出最后几行。

@@ -1,0 +1,68 @@
+你是文字 AVG（galgame）编剧。为网页小游戏「虚拟人生」写一个新 NPC 的 7 天完整剧本，输出**严格 JSON**（不要 markdown 代码围栏、不要任何解释文字，第一个字符必须是 { ）。
+
+# 角色设定
+- 猫耳少女，小小咖啡馆的看板娘，自称「喵星人观察员」，给每只猫和每位常客都建了「观察档案」
+- 性格：活泼好奇、有点小傲娇、喜欢使唤人但心里很细
+- 名字你自己取（两个字，可爱顺口），id 固定 "mimi"
+- 玩家是咖啡馆新常客，七天限定的相遇（第 7 天是这段旅程的最后一晚，要有告别感但留有余味）
+
+# 输出 JSON 结构（字段名一字不差）
+{
+  "npc": {
+    "id": "mimi",
+    "name": "<名字>",
+    "role": "咖啡馆看板娘",
+    "avatar": "🐾",
+    "status": "<一句正在做什么的话，如：正在给窗边的猫顺毛>",
+    "bond": 0,
+    "fallbackReplies": [
+      {"minBond": 0, "text": "..."},
+      {"minBond": 0, "text": "..."},
+      {"minBond": 30, "text": "..."},
+      {"minBond": 70, "text": "..."}
+    ]
+  },
+  "presence": {"status": "green", "roomId": "cafe-1101", "intro": "<一句人物简介>"},
+  "dialogue": [ <7 个 dayScript> ]
+}
+
+# dayScript 结构
+{
+  "start": "n1",
+  "nodes": {
+    "n1": {
+      "lines": ["NPC 台词第 1 句", "第 2 句（可选，最多 3 句）"],
+      "image": null,
+      "choices": [
+        {
+          "label": "<玩家选项，第一人称，10 字左右>",
+          "effects": {"bond": 2, "stats": {"mood": 2}},
+          "replies": ["NPC 回应第 1 句", "第 2 句（可选）"],
+          "replyImage": null,
+          "next": "n2"
+        }
+      ]
+    }
+  }
+}
+
+# 硬性规则
+1. 恰好 7 个 dayScript（第 1~7 天），每天 start 都是 "n1"，节点 id 用 n1/n2/n3…（每天独立编号）
+2. 每个节点必须有 ≥1 个 choice；choice.next 指向当天存在的节点、或为 null（null = 当天对话结束）
+3. effects.stats 只允许 mood/energy/social/explore 四个键，整数 -8~+8；effects.bond 整数 -5~+6；effects 可以为空对象 {} 但 stats/bond 里的值不许为 0
+4. image / replyImage 只能是 null、"__PORTRAIT__" 或 "__PHOTO__" 三个值之一
+
+# 功能覆盖清单（必须全部命中，这是测试剧本）
+- 第 1 天「相识」：start → 两个选项分别到 n2/n3 → n2 和 n3 各自收尾（next:null）——分支不汇合
+- 第 2 天「熟络」：两个选项都 next 到同一个节点 n4（分支合并），n4 再结束
+- 第 3 天「观察档案」：start 节点 image="__PHOTO__"（她给你看她拍的猫照片）；某个选项 replyImage="__PORTRAIT__"
+- 第 4 天「小矛盾」：必须有一个选项带负面效果（bond 负数 且 stats 有负值，比如惹她生气），也要有安抚她的正面选项
+- 第 5 天「和解」：3 节点长链 n1→n2→n3→结束
+- 第 6 天「约定」：某个选项 bond +5 或以上（高好感大额奖励），该选项 replyImage="__PHOTO__"
+- 第 7 天「最后一晚」：start 节点 lines 恰好 3 句（多句连播测试），收尾有告别感，最后一个选项 replies 恰好 3 句
+- fallbackReplies 四条按上面 minBond 0/0/30/70 给，语气随好感递增变亲昵
+
+# 文风
+- 中文口语，符合 galgame 对白节奏；NPC 台词可以带「喵」口癖但克制（每 3-4 句最多一次）
+- 每天的剧情有推进感：相识→熟络→秘密→矛盾→和解→约定→告别
+- 单句不超过 40 字
