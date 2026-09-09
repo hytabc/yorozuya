@@ -19,7 +19,7 @@ const tutorial = ref(null)
 const auth = useAuthStore()
 const game = useLifeGame()
 const {
-  day, stats, npcs, toast, showHistory, panel,
+  day, stats, npcs, toast, showHistory, panel, ending,
   saveReady, saveBusy, saveDirty, saveError, saveConflict, savedAt,
   save, nextDay, resetToday, restartJourney, reloadConfirmed, prepareTutorial, closeTutorial,
 } = game
@@ -129,7 +129,7 @@ function confirmNextDay() {
         </section>
       </div>
     </Teleport>
-    <LifeEndingModal v-if="endingOpen" :stats="stats" :npcs="npcs" @close="endingOpen = false" @restart="restartConfirmed" />
+    <LifeEndingModal v-if="endingOpen" :stats="stats" :npcs="npcs" :ending="ending" @close="endingOpen = false" @restart="restartConfirmed" />
     <!-- Toast 提示 -->
     <transition name="fade">
       <div v-if="toast" class="toast">{{ toast }}</div>

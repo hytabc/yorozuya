@@ -176,6 +176,20 @@ export function validateLifePack(pack) {
   if (!pack.initialState || typeof pack.initialState !== 'object') fail('缺少 initialState')
   if (!Number.isInteger(pack.initialState.day) || pack.initialState.day < 1) fail('initialState.day 无效')
   if (!pack.initialState.stats || typeof pack.initialState.stats !== 'object') fail('initialState.stats 缺失')
+  // 初始房间与条件结局(与后端 validate_pack_content 同构)。
+  if (pack.startRoomId && !pack.rooms.some(r => r.id === pack.startRoomId)) fail('startRoomId 必须指向已有房间')
+  const endingIds = new Set()
+  const statKeys = new Set(Object.keys(LIFE_STAT_LABELS))
+  const npcIdSet = new Set(pack.npcIds)
+  for (const ending of pack.endings) {
+    if (!ending || typeof ending.id !== 'string' || !ending.id || endingIds.has(ending.id)) fail('结局 id 缺失或重复')
+    endingIds.add(ending.id)
+    if (typeof ending.name !== 'string' || !ending.name) fail('结局缺少名称: ' + ending.id)
+    if (typeof ending.text !== 'string' || !ending.text) fail('结局缺少文案: ' + ending.id)
+    const conditions = ending.conditions || {}
+    for (const key of Object.keys(conditions.stats || {})) if (!statKeys.has(key)) fail(`结局 ${ending.id} 条件包含未知属性`)
+    for (const id of Object.keys(conditions.bonds || {})) if (!npcIdSet.has(id)) fail(`结局 ${ending.id} 条件包含未知 NPC`)
+  }
   if (typeof pack.createInitialState !== 'function') fail('缺少 createInitialState()')
   return true
 }
@@ -236,6 +250,8 @@ export function createLifePackFromContent({ id, version, content }) {
     presence: content.presence,
     actions: content.actions,
     dialogue: content.dialogue,
+    startRoomId: content.startRoomId || null,
+    endings: content.endings || [],
     initialState: initial,
     createInitialState() {
       return JSON.parse(JSON.stringify(initial))

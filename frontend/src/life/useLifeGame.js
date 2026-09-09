@@ -15,12 +15,7 @@ import { eventScriptForDay, eventsForRoom, isEventDone, applyEventChoice, normal
 import './builtin'
 import { getActiveLifePack, portraitFor, effectText } from './registry'
 import { loadActiveLifePack } from './packLoader'
-
-// 初始房间:包内第一个有人、未满的非私密房间。
-function firstEnterableRoomId(pack) {
-  const room = pack.rooms.find(r => !r.private && r.occupants > 0 && r.occupants < r.capacity)
-  return (room || pack.rooms[0]).id
-}
+import { resolveEnding, startRoomIdOf } from './endings'
 
 export function useLifeGame() {
   let pack = getActiveLifePack()
@@ -32,7 +27,7 @@ export function useLifeGame() {
   const day = ref(initial.day)
   const npcListOpen = ref(false)
   const tutorialDemo = ref(false)
-  const currentRoomId = ref(firstEnterableRoomId(pack))
+  const currentRoomId = ref(startRoomIdOf(pack))
   const friendIds = ref([])
   const interactedNpcIds = ref([])
   const stats = ref(initial.stats)
@@ -54,6 +49,11 @@ export function useLifeGame() {
   })
   const currentNpc = computed(() => npcs.value.find(n => n.id === currentNpcId.value))
   const actions = computed(() => currentLifeActions())
+  // 条件结局:实时按当前属性/好感匹配,换包后重算。
+  const ending = computed(() => {
+    packRev.value
+    return resolveEnding(pack, { stats: stats.value, npcs: npcs.value })
+  })
 
   // ==== 对话历史(每个 NPC 独立保存) ====
   const conversations = ref(initial.conversations)
@@ -339,7 +339,7 @@ export function useLifeGame() {
     tags.value = fresh.tags
     currentWorld.value = fresh.currentWorld
     unlockedWorlds.value = fresh.unlockedWorlds
-    currentRoomId.value = firstEnterableRoomId(pack)
+    currentRoomId.value = startRoomIdOf(pack)
     friendIds.value = []
     interactedNpcIds.value = []
     npcs.value = pack.npcs.map(npc => ({ ...npc }))
@@ -469,7 +469,7 @@ export function useLifeGame() {
     // 计算
     friends, sceneNpcs, worldPopulation, currentRoom, currentWorldDef, currentNpc, currentDialogue,
     historyConversation, profileNpc, profilePresence, profileJoin, profileRoom,
-    profileAdd, selectedWorld, visibleRooms, npcPortrait, showChoices, actions,
+    profileAdd, selectedWorld, visibleRooms, npcPortrait, showChoices, actions, ending,
     // UI 状态
     npcListOpen, tutorialDemo, replyTab, actionFeedback, bondDelta, dialogueVisible,
     speech, playback, showHistory, historyNpcId, panel, profileId, selectedWorldId, toast,

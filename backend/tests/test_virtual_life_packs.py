@@ -375,6 +375,39 @@ class PackTests(unittest.TestCase):
                 with self.assertRaises(PackContentError):
                     validate_pack_content(content)
 
+    def test_start_room_and_endings_validation(self):
+        # 合法:初始房间 + 条件结局 + 无条件兜底结局。
+        content = mini_pack(['ache'])
+        content['startRoomId'] = 'w1-1'
+        content['endings'] = [
+            {'id': 'warm', 'name': '温暖的日常', 'text': '……',
+             'conditions': {'stats': {'mood': 60}, 'bonds': {'ache': 50}}},
+            {'id': 'plain', 'name': '平凡收官', 'text': '……', 'conditions': {}},
+        ]
+        validate_pack_content(content)
+        # 初始房间必须指向已有房间。
+        for bad in ('nowhere', 1, []):
+            with self.subTest(startRoomId=bad):
+                content = mini_pack(['ache'])
+                content['startRoomId'] = bad
+                with self.assertRaises(PackContentError):
+                    validate_pack_content(content)
+        # 结局字段与条件校验。
+        for patch in ({'id': ''}, {'name': ''}, {'text': ''}, {'conditions': []},
+                      {'conditions': {'stats': {'bond': 1}}},
+                      {'conditions': {'stats': {'mood': 101}}},
+                      {'conditions': {'bonds': {'ghost': 10}}},
+                      {'conditions': {'bonds': {'ache': -1}}}):
+            with self.subTest(patch=patch):
+                content = mini_pack(['ache'])
+                content['endings'] = [dict({'id': 'e1', 'name': '结局', 'text': '……'}, **patch)]
+                with self.assertRaises(PackContentError):
+                    validate_pack_content(content)
+        content = mini_pack(['ache'])
+        content['endings'] = [{'id': 'e1', 'name': 'a', 'text': 'x'}, {'id': 'e1', 'name': 'b', 'text': 'y'}]
+        with self.assertRaisesRegex(PackContentError, '重复'):
+            validate_pack_content(content)
+
     def test_migrate_adds_events_idempotently(self):
         for content in (mini_pack(['ache']), {}):
             self.assertTrue(migrate_pack_content(content))

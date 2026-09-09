@@ -204,6 +204,44 @@ def validate_pack_content(content) -> dict:
 
     _validate_events(content.get('events', []), room_ids, ids)
 
+    # 初始房间:玩家进入游戏的默认位置;空值(None/空串)由前端自动挑选第一个可加入房间。
+    start_room = content.get('startRoomId')
+    if start_room is not None and start_room != '':
+        if not isinstance(start_room, str) or start_room not in room_ids:
+            _fail('startRoomId 必须指向已有房间')
+
+    # 条件结局:列表顺序即优先级,第一个满足全部条件的结局生效;
+    # 条件为空的结局恒成立,排在最后充当兜底结局。
+    endings = content.get('endings', [])
+    if not isinstance(endings, list):
+        _fail('endings 必须是数组')
+    ending_ids = set()
+    for ending in endings:
+        if not isinstance(ending, dict):
+            _fail('结局必须是对象')
+        if not isinstance(ending.get('id'), str) or not ending['id'] or ending['id'] in ending_ids:
+            _fail('结局 id 缺失或重复')
+        ending_ids.add(ending['id'])
+        if not isinstance(ending.get('name'), str) or not ending['name']:
+            _fail(f"结局 {ending['id']} 缺少名称")
+        if not isinstance(ending.get('text'), str) or not ending['text']:
+            _fail(f"结局 {ending['id']} 缺少文案")
+        conditions = ending.get('conditions')
+        if conditions is None:
+            conditions = {}
+        if not isinstance(conditions, dict):
+            _fail(f"结局 {ending['id']} 条件必须是对象")
+        cond_stats = conditions.get('stats', {})
+        if not isinstance(cond_stats, dict) or not set(cond_stats).issubset(STAT_KEYS):
+            _fail(f"结局 {ending['id']} 条件包含未知属性")
+        if any(not isinstance(v, int) or isinstance(v, bool) or not 0 <= v <= 100 for v in cond_stats.values()):
+            _fail(f"结局 {ending['id']} 属性条件必须是 0-100 整数")
+        cond_bonds = conditions.get('bonds', {})
+        if not isinstance(cond_bonds, dict) or not set(cond_bonds).issubset(ids):
+            _fail(f"结局 {ending['id']} 条件包含未知 NPC")
+        if any(not isinstance(v, int) or isinstance(v, bool) or not 0 <= v <= 100 for v in cond_bonds.values()):
+            _fail(f"结局 {ending['id']} 好感条件必须是 0-100 整数")
+
     presence = content.get('presence')
     if not isinstance(presence, dict) or set(presence) != ids:
         _fail('presence 必须覆盖全部 NPC')

@@ -6,6 +6,7 @@ import AdminImageField from './AdminImageField.vue'
 
 const content = computed(() => adminState.content)
 const roomsOf = worldId => content.value.rooms.filter(r => r.worldId === worldId)
+const worldName = worldId => content.value.worlds.find(w => w.id === worldId)?.name || worldId
 
 const worldDraft = reactive({ id: '', name: '', error: '' })
 function submitAddWorld() {
@@ -55,6 +56,17 @@ function submitRemoveRoom(room) {
       <input v-model="worldDraft.name" type="text" placeholder="名称" />
       <button class="la-mini" @click="submitAddWorld">+ 新增世界</button>
       <small v-if="worldDraft.error" class="la-missing">{{ worldDraft.error }}</small>
+    </div>
+
+    <h3 class="la-sub">初始房间</h3>
+    <div class="la-add-row">
+      <select v-model="content.startRoomId">
+        <option value="">自动（第一个可加入的有人房间）</option>
+        <option v-for="r in content.rooms" :key="r.id" :value="r.id">
+          {{ r.id }} · {{ r.label }}（{{ worldName(r.worldId) }}）
+        </option>
+      </select>
+      <small class="la-hint">玩家进入游戏时的默认位置；换成「重新开始」也会回到这里。</small>
     </div>
 
     <h3 class="la-sub">房间</h3>
