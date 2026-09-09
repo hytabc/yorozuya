@@ -111,6 +111,7 @@ from .schemas import (
 )
 from .security import create_access_token, hash_password, verify_password
 from .virtual_life import router as virtual_life_router
+from .virtual_life_packs import router as virtual_life_packs_router, seed_virtual_life_packs
 
 
 TaskStatusFilter = Annotated[
@@ -134,6 +135,7 @@ def initialize_database() -> None:
                 )
             )
             db.commit()
+        seed_virtual_life_packs(db)
 
 
 def migrate_schema() -> None:
@@ -306,6 +308,7 @@ from .mascot import router as mascot_router  # noqa: E402
 
 app.include_router(mascot_router)
 app.include_router(virtual_life_router)
+app.include_router(virtual_life_packs_router)
 
 
 def expire_due_tasks(db: Session) -> None:
