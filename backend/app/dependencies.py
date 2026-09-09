@@ -46,6 +46,12 @@ def get_admin(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+def get_life_player(user: User = Depends(get_current_user)) -> User:
+    if not (user.is_admin or user.role == UserRole.STAFF or user.is_beta_tester):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要内测资格")
+    return user
+
+
 def get_role_manager(user: User = Depends(get_current_user)) -> User:
     if not user.is_admin and user.role != UserRole.STAFF:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员权限")

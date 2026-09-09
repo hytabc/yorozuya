@@ -17,8 +17,9 @@ onMounted(() => {
   window.addEventListener('resize', checkViewport)
 })
 onBeforeUnmount(() => window.removeEventListener('resize', checkViewport))
-watch(() => [route.meta.lifeOnly, auth.isLoggedIn, auth.canManageRoles, lifeDesktop.value], () => {
-  if (route.meta.lifeOnly && (!auth.isLoggedIn || !auth.canManageRoles || !lifeDesktop.value)) router.replace('/')
+watch(() => [route.meta.lifeOnly, route.meta.lifeManager, auth.isLoggedIn, auth.canPlayLife, auth.canManageRoles, lifeDesktop.value], () => {
+  if (route.meta.lifeOnly && (!auth.isLoggedIn || !auth.canPlayLife || !lifeDesktop.value)) router.replace('/')
+  if (route.meta.lifeManager && (!auth.isLoggedIn || !auth.canManageRoles || !lifeDesktop.value)) router.replace('/')
 })
 </script>
 
@@ -26,11 +27,11 @@ watch(() => [route.meta.lifeOnly, auth.isLoggedIn, auth.canManageRoles, lifeDesk
   <div class="app-frame">
     <AppHeader />
     <main>
-      <RouterView v-if="!route.meta.lifeOnly || (auth.isLoggedIn && auth.canManageRoles && lifeDesktop)" />
+      <RouterView v-if="(!route.meta.lifeOnly || (auth.isLoggedIn && auth.canPlayLife && lifeDesktop)) && (!route.meta.lifeManager || (auth.isLoggedIn && auth.canManageRoles && lifeDesktop))" />
     </main>
-    <footer v-if="!route.meta.lifeOnly" class="app-version"><RouterLink to="/versions">V0.1-Beta</RouterLink></footer>
+    <footer v-if="!route.meta.lifeOnly && !route.meta.lifeManager" class="app-version"><RouterLink to="/versions">V0.1-Beta</RouterLink></footer>
     <ToastHost />
-    <KanbanNiang v-if="!route.meta.lifeOnly" />
+    <KanbanNiang v-if="!route.meta.lifeOnly && !route.meta.lifeManager" />
   </div>
 </template>
 

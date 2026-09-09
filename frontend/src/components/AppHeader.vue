@@ -37,7 +37,7 @@ function logout() {
         <RouterLink to="/sugar">砂糖社</RouterLink>
         <RouterLink to="/announcements">公告</RouterLink>
         <RouterLink to="/versions">版本</RouterLink>
-        <RouterLink v-if="auth.ready && auth.isLoggedIn && auth.canManageRoles && lifeDesktop" to="/life">虚拟人生</RouterLink>
+        <RouterLink v-if="auth.ready && auth.isLoggedIn && auth.canPlayLife && lifeDesktop" to="/life">虚拟人生</RouterLink>
         <RouterLink v-if="auth.isLoggedIn" to="/mine">我的委托</RouterLink>
         <RouterLink v-if="auth.canModerate" to="/admin">{{ auth.isAdmin ? '监管台' : auth.isDisciplinarian ? '审核台' : '权限管理' }}</RouterLink>
         <RouterLink v-if="auth.canOperate" to="/operations">运营台</RouterLink>

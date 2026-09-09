@@ -32,6 +32,7 @@ const router = createRouter({
     { path: '/versions', component: VersionsView, meta: { analyticsKey: 'versions' } },
     { path: '/operations', component: OperationsView, meta: { operations: true } },
     { path: '/life', component: () => import('./views/LifeSimulator.vue'), meta: { lifeOnly: true } },
+    { path: '/life-admin', component: () => import('./views/LifeAdmin.vue'), meta: { lifeManager: true } },
     { path: '/admin', component: AdminView, meta: { moderator: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
@@ -39,11 +40,13 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
-  if (to.meta.lifeOnly) {
+  if (to.meta.lifeOnly || to.meta.lifeManager) {
     if (!isLifeDesktop() || !auth.token) return '/'
-    // Check the server identity, not a cached localStorage admin flag.
+    // Check the server identity, not cached localStorage permission flags.
     await auth.restore()
-    if (!auth.isLoggedIn || !auth.canManageRoles) return '/'
+    if (!auth.isLoggedIn) return '/'
+    if (to.meta.lifeOnly && !auth.canPlayLife) return '/'
+    if (to.meta.lifeManager && !auth.canManageRoles) return '/'
   }
   if (to.meta.auth && !auth.isLoggedIn) return { path: '/login', query: { redirect: to.fullPath } }
   if (to.meta.roleManager && !auth.canManageRoles) return '/'

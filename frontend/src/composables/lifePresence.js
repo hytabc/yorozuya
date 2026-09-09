@@ -1,8 +1,12 @@
 // Static mock worlds/rooms/presence; not real VRC or shared multiplayer state.
+// 阶段 4b 起:下方导出常量为「内置默认数据」,游戏加载内容包后经
+// setLifePresenceData 注入包数据;全部规则函数读取当前数据(响应式)。
+import { shallowRef } from 'vue'
+
 export const WORLDS = [
-  { id: 'beach', name: '潮汐之后', vibe: '安静 · 海边拍照', color: '#3f7777' },
-  { id: 'cafe', name: '小小咖啡馆', vibe: '轻松 · 咖啡闲聊', color: '#9a7563' },
-  { id: 'hall', name: '夜间聚会大厅', vibe: '热闹 · 社交聚会', color: '#576c80' },
+  { id: 'beach', name: '潮汐之后', vibe: '安静 · 海边拍照', color: '#3f7777', bg: '' },
+  { id: 'cafe', name: '小小咖啡馆', vibe: '轻松 · 咖啡闲聊', color: '#9a7563', bg: '' },
+  { id: 'hall', name: '夜间聚会大厅', vibe: '热闹 · 社交聚会', color: '#576c80', bg: '' },
 ]
 export const ROOMS = [
   { id: 'beach-1024', worldId: 'beach', label: '#1024', private: false, capacity: 16, occupants: 1 },
@@ -20,9 +24,23 @@ export const MOCK_PRESENCE = {
   yu: { status: 'green', roomId: 'hall-1001', intro: '喜欢探索没去过的世界。' },
 }
 export const STATUS_LABELS = { green: '在线 · 可加入', orange: '请勿加入', red: '忙碌', offline: '离线' }
-export const roomFor = id => ROOMS.find(room => room.id === id)
-export const worldFor = id => WORLDS.find(world => world.id === id)
-export const presenceFor = id => MOCK_PRESENCE[id] || { status: 'offline', roomId: null, intro: '暂无资料' }
+
+const worldsData = shallowRef(WORLDS)
+const roomsData = shallowRef(ROOMS)
+const presenceData = shallowRef(MOCK_PRESENCE)
+
+// 游戏侧在应用内容包时调用;缺省的字段保留当前值。
+export function setLifePresenceData({ worlds, rooms, presence } = {}) {
+  if (Array.isArray(worlds) && worlds.length) worldsData.value = worlds
+  if (Array.isArray(rooms) && rooms.length) roomsData.value = rooms
+  if (presence && typeof presence === 'object') presenceData.value = presence
+}
+export const currentWorlds = () => worldsData.value
+export const currentRooms = () => roomsData.value
+
+export const roomFor = id => roomsData.value.find(room => room.id === id)
+export const worldFor = id => worldsData.value.find(world => world.id === id)
+export const presenceFor = id => presenceData.value[id] || { status: 'offline', roomId: null, intro: '暂无资料' }
 export const normalizeWorld = world => world === '潮汐之后 · 黄昏' ? '潮汐之后' : world
 export function roomDecision(room) {
   if (!room) return { allowed: false, reason: '房间不可用' }
@@ -42,10 +60,10 @@ export function canInteract(id, roomId) {
 }
 export const sceneRoster = (npcs, roomId) => npcs.filter(npc => canInteract(npc.id, roomId))
 export function migrateSocialState(state) {
-  const legacyWorld = WORLDS.find(w => w.name === normalizeWorld(state.currentWorld))
-  const fallback = ROOMS.find(r => r.worldId === legacyWorld?.id && roomDecision(r).allowed) || ROOMS[0]
+  const legacyWorld = worldsData.value.find(w => w.name === normalizeWorld(state.currentWorld))
+  const fallback = roomsData.value.find(r => r.worldId === legacyWorld?.id && roomDecision(r).allowed) || roomsData.value[0]
   const currentRoomId = roomDecision(roomFor(state.currentRoomId)).allowed ? state.currentRoomId : fallback.id
-  const interactedNpcIds = state.interactedNpcIds || Object.keys(MOCK_PRESENCE).filter(id => state.conversations?.[id]?.some(m => m.from === 'player'))
+  const interactedNpcIds = state.interactedNpcIds || Object.keys(presenceData.value).filter(id => state.conversations?.[id]?.some(m => m.from === 'player'))
   return { currentRoomId, friendIds: state.friendIds || [], interactedNpcIds }
 }
 export function friendshipDecision(npcId, bond, interactedIds, friendIds) {

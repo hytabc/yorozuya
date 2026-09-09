@@ -51,6 +51,8 @@ export const useAuthStore = defineStore('auth', () => {
   const canModerate = computed(() => isAdmin.value || isStaff.value || isDisciplinarian.value)
   const canManageRoles = computed(() => isAdmin.value || isStaff.value)
   const canOperate = computed(() => isAdmin.value || isMascot.value)
+  const isBetaTester = computed(() => Boolean(user.value?.is_beta_tester))
+  const canPlayLife = computed(() => isAdmin.value || isStaff.value || isBetaTester.value)
 
   function persist(payload) {
     token.value = payload.access_token
@@ -106,5 +108,5 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   window.addEventListener('auth-expired', logout)
-  return { token, user, ready, isLoggedIn, isAdmin, isStaff, isMascot, isDisciplinarian, canModerate, canManageRoles, canOperate, login, register, restore, updateUser, logout }
+  return { token, user, ready, isLoggedIn, isAdmin, isStaff, isMascot, isDisciplinarian, canModerate, canManageRoles, canOperate, isBetaTester, canPlayLife, login, register, restore, updateUser, logout }
 })
