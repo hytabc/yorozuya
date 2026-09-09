@@ -1,9 +1,9 @@
 <script setup>
 // 中央场景：位置标签、场景背景(包内 bg 或占位)、NPC 头像列表、对话浮层与回应面板。
 // 样式从 LifeSimulator.vue 迁出，行为不变。
-// 阶段 8a：气泡内图片缩略图 + 全屏灯箱（点击弹出、再点消失）。
+// 阶段 8a 改写：节点级持续背景图（bg）作为场景中央的「CG/照片」层显示；
+// 气泡内不再展示缩略图；全屏灯箱已移除（历史抽屉/事件弹窗各自独立）。
 import { ref, watch } from 'vue'
-import LifeImageLightbox from './LifeImageLightbox.vue'
 import LifeEventModal from './LifeEventModal.vue'
 import { mergeEventChoices } from '../../composables/lifeEvents'
 const props = defineProps({ game: { type: Object, required: true } })
@@ -16,7 +16,6 @@ const {
   roomEvents, activeEvent, openEvent, closeEvent, finishEvent, npcs,
   switchNpc, selectFriend, openHistory, chooseOption, actionState, performAction, portraitFor,
 } = props.game
-const lightboxSrc = ref('')
 const pendingEventEffects = ref([])
 
 // 手感：纯展示层，不加改动到播放/存档/结算。
@@ -85,6 +84,13 @@ watch(activeEvent, () => {
         </template>
       </div>
 
+      <!-- 节点级持续背景图：悬在场景中央，像一张「CG/照片」，不参与点击。 -->
+      <Transition name="dialog-bg">
+        <div v-if="dialogueVisible && speech.bg" :key="speech.bg" class="dialog-bg">
+          <img :src="speech.bg" alt="对话背景" />
+        </div>
+      </Transition>
+
       <!-- NPC 立绘卡(阶段9):对话中展示中央偏左,说话者为玩家时变暗,切换人物重新入场。 -->
       <Transition name="npc-sprite" mode="out-in">
         <div v-if="dialogueVisible" :key="currentNpcId" class="npc-sprite-outer">
@@ -128,7 +134,6 @@ watch(activeEvent, () => {
           <button :key="speechPop" class="current-speech" @click="playback.complete" :aria-label="speech.typing ? '显示完整发言' : '当前发言'">
             <span>{{ speech.text || '…' }}</span>
             <span v-if="speech.typing" class="type-caret" aria-hidden="true"></span>
-            <img v-if="speech.image && !speech.typing" :src="speech.image" class="speech-thumb" alt="对话图片" @click.stop="lightboxSrc = speech.image" />
             <small v-if="speech.typing">点击显示全文</small>
           </button>
           <div class="npc-identity">
@@ -168,7 +173,6 @@ watch(activeEvent, () => {
     <LifeEventModal v-if="activeEvent" :script="activeEvent.script" :title="activeEvent.event.title" :icon="activeEvent.event.icon"
                     :resolve-speaker="resolveEventSpeaker" player-name="白昼梦"
                     @choice="onEventChoice" @finish="onEventFinish" @close="closeEvent" />
-    <LifeImageLightbox v-if="lightboxSrc" :src="lightboxSrc" alt="对话图片" @close="lightboxSrc = ''" />
   </main>
 </template>
 
@@ -222,17 +226,31 @@ watch(activeEvent, () => {
 .scene-bg p { margin: 0; font-size: 12px; }
 .scene-bg-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 
-/* NPC 头像列表(浮在场景右侧边缘) */
-.speech-thumb {
-  display: block;
-  max-width: 180px;
-  max-height: 120px;
-  border-radius: 8px;
-  margin-top: 6px;
-  cursor: zoom-in;
-  border: 1px solid #d9dedb;
-  animation: thumb-in .3s ease both;
+/* 节点级持续背景图：悬在场景中央的「CG/照片」层，不挡点击。 */
+.dialog-bg {
+  position: absolute;
+  left: 50%; top: 42%;
+  transform: translate(-50%, -50%);
+  width: min(520px, 72%);
+  z-index: 1;
+  pointer-events: none;
+  padding: 10px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(25, 38, 32, .13);
 }
+.dialog-bg img {
+  display: block;
+  width: 100%;
+  max-height: 46vh;
+  object-fit: contain;
+  border-radius: 6px;
+}
+.dialog-bg-enter-active { transition: opacity .3s ease, transform .3s ease; }
+.dialog-bg-leave-active { transition: opacity .25s ease, transform .25s ease; }
+.dialog-bg-enter-from, .dialog-bg-leave-to { opacity: 0; transform: translate(-50%, -50%) scale(.98); }
+
+/* NPC 头像列表(浮在场景右侧边缘) */
 .npc-avatars {
   position: absolute;
   top: 50%; right: 20px;
@@ -465,7 +483,6 @@ watch(activeEvent, () => {
 /* ========== 手感动画 ========== */
 @keyframes speech-pop { from { opacity: 0; transform: translateY(8px) scale(.94); } 60% { opacity: 1; transform: translateY(-2px) scale(1.02); } to { opacity: 1; transform: none; } }
 @keyframes caret-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
-@keyframes thumb-in { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: none; } }
 @keyframes option-in { from { opacity: 0; transform: translateY(8px) scale(.96); } to { opacity: 1; transform: none; } }
 @keyframes sprite-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes npc-breathe { from { transform: translate(-50%, -50%) translateY(-4px); } to { transform: translate(-50%, -50%) translateY(4px); } }
@@ -475,11 +492,12 @@ watch(activeEvent, () => {
 @media (prefers-reduced-motion: reduce) {
   .type-caret { display: none; }
   .current-speech { animation: none; }
-  .reply-option, .action-option, .speech-thumb, .bond-gain { animation: none; transition: none; }
+  .reply-option, .action-option, .bond-gain { animation: none; transition: none; }
   .npc-sprite-outer, .npc-sprite-inner { animation: none; }
   .npc-icon { transition: none; }
   .npc-sprite-enter-active, .npc-sprite-leave-active { transition: none; }
   .bond-float { animation: none; opacity: 0; }
+  .dialog-bg-enter-active, .dialog-bg-leave-active { transition: none; }
 }
 
 .tutorial-demo { position:absolute; left:18px; right:18px; bottom:22px; z-index:20; padding:14px; border:1px solid #9bc6a4; border-radius:12px; background:#fffdf4; color:#30533a; font-size:12px; line-height:1.8; }

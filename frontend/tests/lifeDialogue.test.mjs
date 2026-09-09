@@ -90,7 +90,14 @@ test('completed avatar clicks append and play a single fallback, persisted witho
   assert.equal(game.cancelled, 2)
   assert.equal(game.changed, 2)
   assert.equal(game.conversations.value.ache.length, 3)
-  assert.deepEqual(game.played, [[{ from: 'npc', text: '坐一会儿吧', day: 7, time: '18:20' }], [{ from: 'npc', text: '坐一会儿吧', day: 7, time: '18:20' }]])
+  assert.equal(game.played.length, 2)
+  for (const group of game.played) {
+    assert.equal(group.length, 1)
+    assert.equal(group[0].from, 'npc')
+    assert.equal(group[0].text, '坐一会儿吧')
+    assert.equal(group[0].day, 7)
+    assert.equal(group[0].time, '18:20')
+  }
   // 旧存档 NPC 没有配置字段也能从活动包取得台词。
   assert.equal(game.currentNpc.value.fallbackReplies, undefined)
   const saved = game.snapshot()
@@ -149,23 +156,25 @@ test('nodeFor falls back to the start node for missing positions', () => {
   assert.deepEqual(nodeFor(chainScript, undefined).lines, ['第一句'])
 })
 
-test('groupMessages expands a message group with the image on the last line', () => {
+test('groupMessages expands a message group with image on the last line and bg on every line', () => {
   const msgs = groupMessages(['一', '二', '三'], '/uploads/life/x.png', 2)
   assert.deepEqual(msgs.map(m => m.text), ['一', '二', '三'])
   assert.deepEqual(msgs.map(m => m.image), [null, null, '/uploads/life/x.png'])
+  assert.deepEqual(msgs.map(m => m.bg), ['/uploads/life/x.png', '/uploads/life/x.png', '/uploads/life/x.png'])
   assert.ok(msgs.every(m => m.from === 'npc' && m.day === 2 && m.time === '18:20'))
+  assert.ok(msgs.every(m => m.bg === '/uploads/life/x.png'))
   const noImage = groupMessages(['单'], null, 1)
-  assert.deepEqual(noImage, [{ from: 'npc', text: '单', day: 1, time: '18:20', image: null }])
+  assert.deepEqual(noImage, [{ from: 'npc', text: '单', day: 1, time: '18:20', image: null, bg: null }])
 })
 
 test('startMessages expands the start node as npc messages', () => {
   assert.deepEqual(startMessages(chainScript, 9), [
-    { from: 'npc', text: '第一句', day: 9, time: '18:20', image: null },
+    { from: 'npc', text: '第一句', day: 9, time: '18:20', image: null, bg: null },
   ])
   const multi = startMessages({ start: 'n1', nodes: { n1: { lines: ['早', '吃了吗'], image: '/uploads/life/m.png', choices: [{ label: 'x', effects: {}, replies: ['y'], replyImage: null, next: null }] } } }, 3)
   assert.deepEqual(multi, [
-    { from: 'npc', text: '早', day: 3, time: '18:20', image: null },
-    { from: 'npc', text: '吃了吗', day: 3, time: '18:20', image: '/uploads/life/m.png' },
+    { from: 'npc', text: '早', day: 3, time: '18:20', image: null, bg: '/uploads/life/m.png' },
+    { from: 'npc', text: '吃了吗', day: 3, time: '18:20', image: '/uploads/life/m.png', bg: '/uploads/life/m.png' },
   ])
 })
 

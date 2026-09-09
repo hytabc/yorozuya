@@ -232,7 +232,8 @@ export function useLifeGame() {
     // 回复消息组(8a 多句连播;图片挂最后一句)。完整轮次原子写入,导航不丢回复。
     const replyMsgs = groupMessages(result.replies, result.replyImage, sentDay)
     conversations.value[npcId].push(...replyMsgs)
-    const played = [{ from: 'player', text: choice.label }, ...replyMsgs]
+    const currentNode = nodeFor(scriptForDay(pack.dialogue[npcId], day.value), dialogueNodes.value[npcId])
+    const played = [{ from: 'player', text: choice.label, bg: result.replyImage || currentNode.image || null }, ...replyMsgs]
     if (result.done) {
       delete dialogueNodes.value[npcId]
       completed.value[npcId] = true
