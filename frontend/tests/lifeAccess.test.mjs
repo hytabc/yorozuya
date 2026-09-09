@@ -41,7 +41,7 @@ test('life-admin route uses the separate lifeManager guard', () => {
   assert.match(router, /path: '\/life'.*meta: \{ lifeOnly: true \}/)
   assert.match(router, /path: '\/life-admin'.*meta: \{ lifeManager: true \}/)
   assert.match(source('views/LifeAdmin.vue'), /loadPacks/)
-  assert.match(source('views/LifeSimulator.vue'), /<button v-if="auth\.canManageRoles" title="内容管理"/)
+  assert.match(source('views/LifeSimulator.vue'), /<button v-if="auth\.canManageRoles"[^>]*title="内容管理"/)
 })
 test('life routes refresh identity and allow staff or superadmin, not other roles or mobile', async () => {
   for (const role of ['user', 'volunteer', 'staff']) {

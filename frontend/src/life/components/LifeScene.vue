@@ -153,16 +153,19 @@ watch(activeEvent, () => {
   position: relative;
   flex: 1;
   background: #fff;
-  border: 1px solid #d9dedb;
-  border-radius: 12px;
+  border: 1px solid #e4e9e4;
+  border-radius: 16px;
+  box-shadow: 0 6px 22px rgba(25, 38, 32, .07);
   overflow: hidden;
   min-height: 600px;
 }
 .location-tag {
   position: absolute; top: 16px; left: 16px;
   padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid #d9dedb; border-radius: 999px;
+  background: rgba(255, 255, 255, .82);
+  backdrop-filter: blur(4px);
+  border: 1px solid #e4e9e4; border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(25, 38, 32, .06);
   font-size: 12px; color: #69736e; z-index: 2;
 }
 /* 事件入口横向滚动，避免多事件挤占下方对话区域。 */
@@ -172,19 +175,20 @@ watch(activeEvent, () => {
 }
 .room-event-btn {
   flex-shrink: 0; padding: 6px 12px;
-  background: #fff; border: 1px solid #d9dedb; border-radius: 999px;
+  background: rgba(242, 249, 244, .95); border: 1px solid #d5e8dc; border-radius: 999px;
   color: #237a57; font-size: 12px; cursor: pointer;
   box-shadow: 0 2px 8px rgba(25, 38, 32, .08);
+  transition: all 0.2s;
 }
-.room-event-btn:hover:not(:disabled) { border-color: #237a57; }
-.room-event-btn:disabled { color: #69736e; opacity: .55; cursor: default; }
+.room-event-btn:hover:not(:disabled) { background: #e5f3eb; border-color: #237a57; transform: translateY(-1px); }
+.room-event-btn:disabled { color: #69736e; opacity: .55; cursor: default; background: rgba(255, 255, 255, .9); }
 .room-event-btn:focus-visible { outline: 2px solid #237a57; outline-offset: 2px; }
 .scene-bg {
   position: absolute; inset: 0;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   gap: 12px;
-  background: linear-gradient(145deg, #f0f2f0, #e8eae8);
+  background: linear-gradient(160deg, #f1f6f2 0%, #eaeff0 55%, #f3f0e9 100%);
   color: #9a9fa0;
 }
 .scene-bg svg { opacity: 0.4; }

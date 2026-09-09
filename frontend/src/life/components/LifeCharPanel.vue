@@ -31,6 +31,9 @@ const labels = { mood: '心情', energy: '精力', social: '社交', explore: '�
 
 <style scoped>
 .section-title {
+  width: fit-content;
+  padding: 4px 12px; border-radius: 999px;
+  background: #e5f3eb;
   font-size: 12px; font-weight: 700; color: #237a57;
   margin-bottom: 12px; letter-spacing: 0.05em;
 }
@@ -38,7 +41,8 @@ const labels = { mood: '心情', energy: '精力', social: '社交', explore: '�
 .char-card {
   display: flex; align-items: center; gap: 16px;
   padding: 20px; background: #fff;
-  border: 1px solid #d9dedb; border-radius: 8px;
+  border: 1px solid #e6eae6; border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(25, 38, 32, .05);
   margin-bottom: 20px;
 }
 .avatar {
@@ -46,19 +50,20 @@ const labels = { mood: '心情', energy: '精力', social: '社交', explore: '�
   background: linear-gradient(145deg, #e5f3eb, #c8e6d4);
   display: grid; place-items: center;
   font-size: 28px; border: 2px solid #fff;
-  box-shadow: 0 2px 8px rgba(25, 38, 32, 0.08);
+  box-shadow: 0 2px 8px rgba(25, 38, 32, 0.08), 0 0 0 3px #eef6f0;
 }
 .char-info h2 { margin: 0 0 4px; font-size: 20px; font-family: Georgia, serif; }
 .char-info p { margin: 0 0 8px; color: #69736e; font-size: 12px; }
 .tags { display: flex; gap: 6px; flex-wrap: wrap; }
 .tags span {
-  padding: 4px 8px; border-radius: 4px;
+  padding: 4px 8px; border-radius: 999px;
   background: #e5f3eb; color: #237a57;
   font-size: 10px; font-weight: 600;
 }
 .stats-bars {
-  background: #fff; border: 1px solid #d9dedb;
-  border-radius: 8px; padding: 20px; margin-bottom: 16px;
+  background: #fff; border: 1px solid #e6eae6;
+  border-radius: 14px; padding: 20px; margin-bottom: 16px;
+  box-shadow: 0 4px 14px rgba(25, 38, 32, .05);
 }
 .stat-row {
   display: grid; grid-template-columns: 40px 1fr 32px;
@@ -67,10 +72,12 @@ const labels = { mood: '心情', energy: '精力', social: '社交', explore: '�
 .stat-row:last-child { margin-bottom: 0; }
 .stat-row span { font-size: 12px; color: #69736e; }
 .stat-row strong { font-size: 13px; color: #18201d; text-align: right; }
-.bar { height: 6px; border-radius: 3px; background: #e5e8e5; overflow: hidden; }
-.bar b { display: block; height: 100%; background: #237a57; border-radius: inherit; transition: width 0.3s ease; }
+.bar { height: 8px; border-radius: 999px; background: #edf1ed; overflow: hidden; }
+.bar b { display: block; height: 100%; background: linear-gradient(90deg, #6cc49b, #237a57); border-radius: inherit; transition: width 0.3s ease; }
 .prompt-text {
-  padding: 16px 20px; background: #e5f3eb; border-radius: 8px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #e5f3eb, #f0f8f2);
+  border: 1px solid #dcebe1; border-radius: 14px;
   color: #237a57; font-size: 13px; font-style: italic;
 }
 </style>

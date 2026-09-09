@@ -55,10 +55,10 @@ function restartConfirmed() {
         <span>⚡ 精力 {{ stats.energy }}</span>
       </div>
       <div class="header-actions">
-        <button v-if="day < 7" :disabled="!saveReady || saveConflict" @click="nextDay">下一天 ▶</button>
-        <button v-else :disabled="!saveReady || saveConflict" @click="endingOpen = true">🌅 查看结局</button>
-        <button :disabled="!saveReady || saveConflict" @click="tutorial?.start()">新手指引</button>
-        <button v-if="auth.canManageRoles" title="内容管理" @click="$router.push('/life-admin')">内容管理</button>
+        <button v-if="day < 7" class="btn-primary" :disabled="!saveReady || saveConflict" @click="nextDay">下一天 ▶</button>
+        <button v-else class="btn-primary" :disabled="!saveReady || saveConflict" @click="endingOpen = true">🌅 查看结局</button>
+        <button class="btn-ghost" :disabled="!saveReady || saveConflict" @click="tutorial?.start()">新手指引</button>
+        <button v-if="auth.canManageRoles" class="btn-ghost" title="内容管理" @click="$router.push('/life-admin')">内容管理</button>
         <button class="icon-btn" title="设置">⚙</button>
         <button class="icon-btn" title="返回" @click="$router.back()">↩</button>
       </div>
@@ -84,10 +84,10 @@ function restartConfirmed() {
 
     <!-- 底部操作 -->
     <footer class="life-footer">
-      <button @click="save" :disabled="!saveReady || saveConflict || saveBusy">存档</button>
-      <button @click="resetTodayConfirmed" :disabled="!saveReady || saveConflict"
+      <button class="btn-primary" @click="save" :disabled="!saveReady || saveConflict || saveBusy">存档</button>
+      <button class="btn-warm" @click="resetTodayConfirmed" :disabled="!saveReady || saveConflict"
               title="清空今天的对话、事件与动作进度（测试用）">↺ 重置当天</button>
-      <button @click="day >= 7 ? endingOpen = true : nextDay()" :disabled="!saveReady || saveConflict">下一天</button>
+      <button class="btn-ghost" @click="day >= 7 ? endingOpen = true : nextDay()" :disabled="!saveReady || saveConflict">下一天</button>
       <small>对话将写入今天的手记</small>
     </footer>
 
@@ -123,65 +123,103 @@ function restartConfirmed() {
 <style scoped>
 .life-page {
   min-height: calc(100vh - 72px);
-  background: #f5f6f4;
+  background: linear-gradient(180deg, #eef4ef 0%, #f5f6f4 34%, #f7f4ee 100%);
   color: #18201d;
   padding: 24px 32px 40px;
   font-family: Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
-/* ========== 顶部信息栏 ========== */
+/* ========== 顶部信息栏(柔和悬浮卡片) ========== */
 .life-header {
   display: flex; align-items: center; gap: 24px;
-  margin-bottom: 28px; padding-bottom: 20px;
-  border-bottom: 1px solid #d9dedb;
+  margin-bottom: 28px; padding: 14px 20px;
+  background: rgba(255, 255, 255, .78);
+  backdrop-filter: blur(8px);
+  border: 1px solid #e4e9e4; border-radius: 16px;
+  box-shadow: 0 4px 18px rgba(25, 38, 32, .06);
 }
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand-mark {
   display: grid; place-items: center;
-  width: 44px; height: 44px;
-  background: #18201d; color: white;
+  width: 44px; height: 44px; border-radius: 13px;
+  background: linear-gradient(145deg, #2e8b64, #1d6446); color: white;
   font-family: Georgia, serif; font-size: 22px; font-weight: 700;
   transform: rotate(-3deg);
+  box-shadow: 0 3px 10px rgba(35, 122, 87, .3);
 }
 .brand-text strong { display: block; font-size: 18px; }
 .brand-text small { display: block; margin-top: 2px; color: #69736e; font-size: 11px; }
-.status-pills { display: flex; gap: 16px; margin-left: auto; }
+.status-pills { display: flex; gap: 10px; margin-left: auto; }
 .status-pills span {
   padding: 6px 12px; border-radius: 999px;
-  background: #fff; border: 1px solid #d9dedb;
+  background: #fff; border: 1px solid #e4e9e4;
+  box-shadow: 0 1px 4px rgba(25, 38, 32, .05);
   font-size: 12px; color: #69736e;
 }
-.header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.header-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .header-actions button { white-space: nowrap; }
+
+/* 三级按钮体系:实心主按钮 / 描边次按钮 / 圆形图标按钮 */
+.btn-primary {
+  padding: 8px 18px; border: 0; border-radius: 999px;
+  background: #237a57; color: #fff; font-size: 13px; cursor: pointer;
+  box-shadow: 0 3px 10px rgba(35, 122, 87, .28);
+  transition: all 0.2s;
+}
+.btn-primary:hover:not(:disabled) { background: #1e6b4c; transform: translateY(-1px); box-shadow: 0 5px 14px rgba(35, 122, 87, .34); }
+.btn-ghost {
+  padding: 8px 16px; border: 1px solid #cfe0d4; border-radius: 999px;
+  background: #fff; color: #237a57; font-size: 13px; cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-ghost:hover:not(:disabled) { background: #e5f3eb; border-color: #237a57; }
+.btn-warm {
+  padding: 8px 16px; border: 1px solid #eadfc2; border-radius: 999px;
+  background: #fdf7ea; color: #a67c2e; font-size: 13px; cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-warm:hover:not(:disabled) { background: #f8edd6; border-color: #d9b96a; }
+.btn-primary:disabled, .btn-ghost:disabled, .btn-warm:disabled { opacity: .5; cursor: not-allowed; }
 .icon-btn {
   width: 36px; height: 36px;
-  border: 1px solid #d9dedb; border-radius: 6px;
-  background: #fff; color: #69736e;
-  cursor: pointer;
+  border: 1px solid #e4e9e4; border-radius: 50%;
+  background: #f3f6f3; color: #69736e;
+  cursor: pointer; transition: all 0.2s;
 }
+.icon-btn:hover { background: #e5f3eb; color: #237a57; border-color: #cfe0d4; }
 
-/* ========== 三栏布局 ========== */
-.life-layout {
+/* ========== 存档状态条 ========== */
+.save-status {
+  display: flex; align-items: center; gap: 10px;
+  width: fit-content; margin: -14px auto 20px;
+  padding: 6px 16px; border-radius: 999px;
+  background: rgba(255, 255, 255, .66);
+  border: 1px solid #e4e9e4;
+  font-size: 11px; color: #8a938c;
+}
+.save-status button {
+  padding: 3px 12px; border: 1px solid #cfe0d4; border-radius: 999px;
+  background: #fff; color: #237a57; font-size: 11px; cursor: pointer;
+}
+.save-status button:hover:not(:disabled) { background: #e5f3eb; }
+.save-status button:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ========== 三栏布局 ========== */.life-layout {
   display: grid;
   grid-template-columns: 280px 1fr 280px;
   gap: 24px;
   margin-bottom: 28px;
 }
 
-/* ========== 底部操作 ========== */
+/* ========== 底部操作(柔和悬浮卡片) ========== */
 .life-footer {
-  display: flex; align-items: center; gap: 24px;
-  padding-top: 20px;
-  border-top: 1px solid #d9dedb;
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 20px;
+  background: rgba(255, 255, 255, .78);
+  backdrop-filter: blur(8px);
+  border: 1px solid #e4e9e4; border-radius: 16px;
+  box-shadow: 0 4px 18px rgba(25, 38, 32, .06);
 }
-.life-footer button {
-  padding: 8px 16px;
-  background: transparent; border: 1px solid #d9dedb;
-  border-radius: 6px; color: #69736e;
-  font-size: 12px; cursor: pointer;
-  transition: all 0.2s;
-}
-.life-footer button:hover { border-color: #237a57; color: #237a57; }
 .life-footer small {
   margin-left: auto;
   color: #9a9fa0; font-size: 11px;
