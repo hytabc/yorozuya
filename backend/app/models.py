@@ -38,10 +38,28 @@ class FeedbackStatus(str, Enum):
     HANDLED = "handled"  # 已处理
 
 
+class ApplicationStatus(str, Enum):
+    PENDING = "pending"  # 待审核
+    APPROVED = "approved"  # 已通过：申请人升为志愿者
+    REJECTED = "rejected"  # 已拒绝：可重新提交申请
+
+
+class ReportStatus(str, Enum):
+    PENDING = "pending"  # 待处理
+    HANDLED = "handled"  # 已处理
+
+
 class UserRole(str, Enum):
-    USER = "user"  # 普通用户：可发布委托，也可接取无密码委托
+    USER = "user"  # 普通用户：可发布委托，凭正确密码也可接取带密码委托
     VOLUNTEER = "volunteer"  # 志愿者：可发布并接取全部委托（管理员账号可升级）
-    STAFF = "staff"  # 店员：志愿者能力 + 管理非管理员账号的普通用户/志愿者等级
+    STAFF = "staff"  # 管理员组（内部值保留 staff）：志愿者能力 + 管理用户等级 + 处理反馈
+    MASCOT = "mascot"  # 看板娘：管理公告并查看社区运营数据，不继承内容审核权限
+    DISCIPLINARIAN = "disciplinarian"  # 风纪委员：仅处理内容审核与委托/地图举报
+
+
+class AnnouncementKind(str, Enum):
+    SITE = "site"
+    EVENT = "event"
 
 
 class SugarPairStatus(str, Enum):
@@ -61,7 +79,6 @@ class User(Base):
     qq_public: Mapped[bool] = mapped_column(Boolean, default=False)
     bio: Mapped[str | None] = mapped_column(String(300), nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
-    is_beta_tester: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     role: Mapped[UserRole] = mapped_column(
         SqlEnum(UserRole, values_callable=lambda values: [item.value for item in values]),
@@ -69,7 +86,16 @@ class User(Base):
         index=True,
     )
     max_concurrent_tasks: Mapped[int] = mapped_column(default=2)
+    is_beta_tester: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    # 头像：仅存相对 uploads 目录的路径；上传后需管理员审核（avatar_visible）才公开展示。
+    avatar_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    avatar_visible: Mapped[bool] = mapped_column(Boolean, default=False)
+    avatar_moderated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    @property
+    def avatar_url(self) -> str | None:
+        return f"/uploads/{self.avatar_path}" if self.avatar_path else None
 
     published_tasks: Mapped[list["Task"]] = relationship(
         foreign_keys="Task.publisher_id", back_populates="publisher"
@@ -127,8 +153,10 @@ class Task(Base):
     accept_password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # 需要几人接取该委托：null 表示人数不限（仅能由委托人手动点击开始）
     required_takers: Mapped[int | None] = mapped_column(nullable=True)
-    # 指定店员/志愿者的委托不会向大厅开放接取，须等全部指定人员响应后开始。
+    # 指定管理员/志愿者的委托不会向大厅开放接取，须等全部指定人员响应后开始。
     is_designated: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # 匿名委托：个人信息不公开显示，接取后联系方式仅双方可见。
+    is_anonymous: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
@@ -153,6 +181,11 @@ class Task(Base):
         back_populates="task",
         cascade="all, delete-orphan",
         order_by="TaskMember.joined_at",
+    )
+    reports: Mapped[list["TaskReport"]] = relationship(
+        back_populates="task",
+        cascade="all, delete-orphan",
+        order_by="TaskReport.created_at",
     )
 
     # ---- 便捷判断 ----
@@ -204,6 +237,59 @@ class TaskMember(Base):
     user: Mapped[User] = relationship(foreign_keys=[user_id], back_populates="memberships")
 
 
+class TaskReport(Base):
+    """委托举报：被举报的委托不进入大厅，仅由管理员/超级管理员处理。"""
+
+    __tablename__ = "task_reports"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"), index=True)
+    reporter_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    reason: Mapped[str] = mapped_column(String(200))
+    status: Mapped[ReportStatus] = mapped_column(
+        SqlEnum(ReportStatus, values_callable=lambda values: [item.value for item in values]),
+        default=ReportStatus.PENDING,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    handled_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    handled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    task: Mapped[Task] = relationship(foreign_keys=[task_id], back_populates="reports")
+    reporter: Mapped[User] = relationship(foreign_keys=[reporter_id])
+
+
+class VolunteerApplication(Base):
+    """志愿者申请：普通用户在成员展示页提交理由，由管理员/超级管理员审核。"""
+
+    __tablename__ = "volunteer_applications"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    reason: Mapped[str] = mapped_column(Text)
+    status: Mapped[ApplicationStatus] = mapped_column(
+        SqlEnum(ApplicationStatus, values_callable=lambda values: [item.value for item in values]),
+        default=ApplicationStatus.PENDING,
+        index=True,
+    )
+    review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    handled_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    handled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    user: Mapped[User] = relationship(foreign_keys=[user_id])
+    handled_by: Mapped[User | None] = relationship(foreign_keys=[handled_by_id])
+
+
+class AppSetting(Base):
+    """平台级配置（键值对），例如每日举报上限。"""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(String(255))
+
+
 class Feedback(Base):
     """用户反馈/建议。"""
 
@@ -224,6 +310,162 @@ class Feedback(Base):
     handled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     user: Mapped[User | None] = relationship(foreign_keys=[user_id])
+
+
+class Announcement(Base):
+    """由看板娘维护的网站公告或活动公告。"""
+
+    __tablename__ = "announcements"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[AnnouncementKind] = mapped_column(
+        SqlEnum(AnnouncementKind, values_callable=lambda values: [item.value for item in values]),
+        index=True,
+    )
+    title: Mapped[str] = mapped_column(String(80))
+    content: Mapped[str] = mapped_column(Text)
+    is_published: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    is_pinned: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    starts_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    author: Mapped[User] = relationship(foreign_keys=[author_id])
+
+
+class PageView(Base):
+    """隐私友好的页面访问事件；visitor_key 仅保存账号 ID 或匿名会话摘要。"""
+
+    __tablename__ = "page_views"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    page_key: Mapped[str] = mapped_column(String(32), index=True)
+    visitor_key: Mapped[str] = mapped_column(String(80), index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    viewed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
+class BoardMessage(Base):
+    """留言板留言：登录用户发布，留言者本人或管理员组可删除（删除时级联删评论）。"""
+
+    __tablename__ = "board_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    user: Mapped[User] = relationship(foreign_keys=[user_id])
+    comments: Mapped[list["BoardComment"]] = relationship(
+        back_populates="message",
+        cascade="all, delete-orphan",
+        order_by="(BoardComment.created_at, BoardComment.id)",
+    )
+
+
+class BoardComment(Base):
+    """留言板评论：挂在某条留言下，评论者本人或管理员组可删除。"""
+
+    __tablename__ = "board_comments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    message_id: Mapped[int] = mapped_column(ForeignKey("board_messages.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    message: Mapped[BoardMessage] = relationship(back_populates="comments")
+    user: Mapped[User] = relationship(foreign_keys=[user_id])
+
+
+class VrMap(Base):
+    """VRChat 地图推荐：用户提交，按点赞数排序；被举报待审/被屏蔽时不公开。"""
+
+    __tablename__ = "vr_maps"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(80), index=True)
+    description: Mapped[str] = mapped_column(Text)
+    category: Mapped[str] = mapped_column(String(16), index=True)
+    uploader_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    like_count: Mapped[int] = mapped_column(default=0)
+    is_visible: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    admin_note: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    uploader: Mapped[User] = relationship(foreign_keys=[uploader_id])
+    likes: Mapped[list["VrMapLike"]] = relationship(
+        back_populates="map",
+        cascade="all, delete-orphan",
+    )
+    photos: Mapped[list["VrMapPhoto"]] = relationship(
+        back_populates="map",
+        cascade="all, delete-orphan",
+        order_by="VrMapPhoto.created_at",
+    )
+    reports: Mapped[list["VrMapReport"]] = relationship(
+        back_populates="map",
+        cascade="all, delete-orphan",
+        order_by="VrMapReport.created_at",
+    )
+
+
+class VrMapLike(Base):
+    """地图点赞：一人对同一张地图只能点赞一次（取消后可重新点赞）。"""
+
+    __tablename__ = "vr_map_likes"
+    __table_args__ = (UniqueConstraint("map_id", "user_id", name="uq_vr_map_like"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    map_id: Mapped[int] = mapped_column(ForeignKey("vr_maps.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    map: Mapped[VrMap] = relationship(back_populates="likes")
+
+
+class VrMapReport(Base):
+    """地图举报：待处理举报使地图退出公开列表，由管理员关闭（放开）或屏蔽。"""
+
+    __tablename__ = "vr_map_reports"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    map_id: Mapped[int] = mapped_column(ForeignKey("vr_maps.id"), index=True)
+    reporter_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    reason: Mapped[str] = mapped_column(String(200))
+    status: Mapped[ReportStatus] = mapped_column(
+        SqlEnum(ReportStatus, values_callable=lambda values: [item.value for item in values]),
+        default=ReportStatus.PENDING,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    handled_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    handled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    map: Mapped[VrMap] = relationship(back_populates="reports")
+    reporter: Mapped[User] = relationship(foreign_keys=[reporter_id])
+
+
+class VrMapPhoto(Base):
+    """地图实拍照片：每张地图累计最多 5 张，需审核后才公开展示。"""
+
+    __tablename__ = "vr_map_photos"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    map_id: Mapped[int] = mapped_column(ForeignKey("vr_maps.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    # 仅存相对上传目录的路径，文件本体由服务端本地磁盘保存。
+    file_path: Mapped[str] = mapped_column(String(255), unique=True)
+    is_visible: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    moderated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    moderated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    map: Mapped[VrMap] = relationship(back_populates="photos")
+    user: Mapped[User] = relationship(foreign_keys=[user_id])
+    moderated_by: Mapped[User | None] = relationship(foreign_keys=[moderated_by_id])
 
 
 class SugarProfile(Base):
@@ -250,9 +492,15 @@ class SugarPhoto(Base):
     profile_id: Mapped[int] = mapped_column(ForeignKey("sugar_profiles.id"), index=True)
     # 仅存相对上传目录的路径，文件本体由服务端本地磁盘保存。
     file_path: Mapped[str] = mapped_column(String(255), unique=True)
+    # 管理员屏蔽状态：屏蔽时必须填写 admin_note，对主人展示遮罩与理由，对其他人隐藏。
+    is_visible: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    admin_note: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    moderated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    moderated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     profile: Mapped[SugarProfile] = relationship(back_populates="photos")
+    moderated_by: Mapped[User | None] = relationship(foreign_keys=[moderated_by_id])
 
 
 class SugarPair(Base):

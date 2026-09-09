@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, Image as ImageIcon, MessageCircle, RotateCcw, Save, Search, ShieldCheck, Store, UsersRound } from 'lucide-vue-next'
+import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, Flag, HeartHandshake, Image as ImageIcon, KeyRound, Map as MapIcon, MessageCircle, RotateCcw, Save, Search, ShieldCheck, Store, UsersRound, X } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
@@ -14,19 +14,39 @@ const router = useRouter()
 const tasks = ref([])
 const users = ref([])
 const feedbacks = ref([])
+const applications = ref([])
 const photoUsers = ref([])
+const sugarPhotos = ref([])
+const vrMapReports = ref([])
+const vrMapPhotos = ref([])
+const moderatingSugarId = ref(null)
+const moderatingVrPhotoId = ref(null)
+const resolvingVrReportId = ref(null)
+const reports = ref([])
+const reportLimit = ref(2)
+const reportLimitInput = ref(2)
+const savingReportLimit = ref(false)
+const savingReportId = ref(null)
 const userLimits = reactive({})
 const stats = ref({ users: 0, tasks: 0, processing: 0, completed: 0, hidden: 0 })
-const activeTab = ref('tasks')
+const activeTab = ref(auth.isDisciplinarian ? 'reports' : 'tasks')
 const taskSearch = ref('')
 const userSearch = ref('')
 const loading = ref(true)
 const savingUserId = ref(null)
 const savingRoleId = ref(null)
-const savingBetaId = ref(null)
+const reviewAppId = ref(null)
+const resetUser = ref(null)
+const resetPasswordBusy = ref(false)
+const resetPasswordForm = reactive({ password: '', confirm: '' })
 const filteredTasks = computed(() => tasks.value.filter((task) => `${task.title}${task.publisher.nickname}`.toLowerCase().includes(taskSearch.value.toLowerCase())))
 const filteredUsers = computed(() => users.value.filter((user) => `${user.username}${user.nickname}`.toLowerCase().includes(userSearch.value.toLowerCase())))
 const pendingFeedbacks = computed(() => feedbacks.value.filter((item) => item.status === 'pending').length)
+const pendingApplications = computed(() => applications.value.filter((item) => item.status === 'pending').length)
+const pendingVrMapReports = computed(() => vrMapReports.value.filter((item) => item.status === 'pending').length)
+const pendingVrMapPhotos = computed(() => vrMapPhotos.value.filter((item) => !item.moderated).length)
+const pendingReports = computed(() => reports.value.filter((item) => item.status === 'pending').length)
+const sortedReports = computed(() => [...reports.value].sort((a, b) => (a.status === 'pending' ? -1 : 1) - (b.status === 'pending' ? -1 : 1)))
 const statItems = computed(() => [
   { label: '注册用户', value: stats.value.users, icon: UsersRound },
   { label: '全部委托', value: stats.value.tasks, icon: ClipboardList },
@@ -36,26 +56,59 @@ const statItems = computed(() => [
 async function load() {
   loading.value = true
   try {
+    if (auth.isDisciplinarian) {
+      const [photoRes, reportRes, sugarPhotoRes, vrReportRes, vrPhotoRes] = await Promise.all([
+        api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/sugar/photos'),
+        api.get('/admin/vr-map-reports'), api.get('/admin/vr-map-photos'),
+      ])
+      photoUsers.value = photoRes.data
+      reports.value = reportRes.data
+      sugarPhotos.value = sugarPhotoRes.data
+      vrMapReports.value = vrReportRes.data
+      vrMapPhotos.value = vrPhotoRes.data
+      return
+    }
     if (!auth.isAdmin) {
-      const [taskRes, userRes, photoRes] = await Promise.all([api.get('/admin/tasks'), api.get('/admin/users'), api.get('/admin/photos')])
+      const [taskRes, userRes, photoRes, reportRes, limitRes, feedbackRes, applicationRes, sugarPhotoRes, vrReportRes, vrPhotoRes] = await Promise.all([api.get('/admin/tasks'), api.get('/admin/users'), api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/settings/report-limit'), api.get('/admin/feedback'), api.get('/admin/volunteer-applications'), api.get('/admin/sugar/photos'), api.get('/admin/vr-map-reports'), api.get('/admin/vr-map-photos')])
       tasks.value = taskRes.data
       stats.value.hidden = tasks.value.filter((task) => !task.is_visible).length
       users.value = userRes.data
       photoUsers.value = photoRes.data
+      reports.value = reportRes.data
+      reportLimit.value = limitRes.data.daily_limit
+      reportLimitInput.value = limitRes.data.daily_limit
+      feedbacks.value = feedbackRes.data
+      applications.value = applicationRes.data
+      sugarPhotos.value = sugarPhotoRes.data
+      vrMapReports.value = vrReportRes.data
+      vrMapPhotos.value = vrPhotoRes.data
       return
     }
-    const [taskRes, userRes, statRes, feedbackRes, photoRes] = await Promise.all([
+    const [taskRes, userRes, statRes, feedbackRes, photoRes, reportRes, limitRes, applicationRes, sugarPhotoRes, vrReportRes, vrPhotoRes] = await Promise.all([
       api.get('/admin/tasks'),
       api.get('/admin/users'),
       api.get('/admin/stats'),
       api.get('/admin/feedback'),
       api.get('/admin/photos'),
+      api.get('/admin/reports'),
+      api.get('/admin/settings/report-limit'),
+      api.get('/admin/volunteer-applications'),
+      api.get('/admin/sugar/photos'),
+      api.get('/admin/vr-map-reports'),
+      api.get('/admin/vr-map-photos'),
     ])
     tasks.value = taskRes.data
     users.value = userRes.data
     stats.value = statRes.data
     feedbacks.value = feedbackRes.data
     photoUsers.value = photoRes.data
+    reports.value = reportRes.data
+    applications.value = applicationRes.data
+    sugarPhotos.value = sugarPhotoRes.data
+    vrMapReports.value = vrReportRes.data
+    vrMapPhotos.value = vrPhotoRes.data
+    reportLimit.value = limitRes.data.daily_limit
+    reportLimitInput.value = limitRes.data.daily_limit
     users.value.forEach((user) => { userLimits[user.id] = user.max_concurrent_tasks })
   } catch (error) {
     toast.error(errorMessage(error))
@@ -68,6 +121,14 @@ async function togglePhoto(user, photo) {
     const { data } = await api.patch(`/admin/photos/${photo.id}`, { is_visible: !photo.is_visible })
     photoUsers.value[photoUsers.value.findIndex((item) => item.id === user.id)] = data
     toast.success(photo.is_visible ? '图片已屏蔽' : '图片已恢复展示')
+  } catch (error) { toast.error(errorMessage(error)) }
+}
+async function moderateAvatar(user) {
+  const approve = !user.avatar_visible
+  try {
+    const { data } = await api.patch(`/admin/users/${user.id}/avatar`, { is_visible: approve })
+    photoUsers.value[photoUsers.value.findIndex((item) => item.id === user.id)] = data
+    toast.success(approve ? `已通过 ${data.nickname} 的头像审核` : `已驳回 ${data.nickname} 的头像`)
   } catch (error) { toast.error(errorMessage(error)) }
 }
 async function saveUserLimit(user) {
@@ -107,17 +168,31 @@ async function changeUserRole(user, targetRole, select) {
   }
 }
 async function toggleBetaTester(user) {
-  if (!auth.isAdmin || user.is_admin || savingBetaId.value !== null) return
-  savingBetaId.value = user.id
   try {
     const { data } = await api.patch(`/admin/users/${user.id}/beta-tester`, { is_beta_tester: !user.is_beta_tester })
     users.value[users.value.findIndex((item) => item.id === user.id)] = data
-    toast.success(`已${data.is_beta_tester ? '授予' : '取消'} ${data.nickname} 的内测资格`)
-  } catch (error) {
-    toast.error(errorMessage(error))
-  } finally {
-    savingBetaId.value = null
-  }
+    toast.success(data.is_beta_tester ? '已标记为内测用户' : '已取消内测用户标记')
+  } catch (error) { toast.error(errorMessage(error)) }
+}
+function openPasswordReset(user) {
+  resetUser.value = user
+  resetPasswordForm.password = ''
+  resetPasswordForm.confirm = ''
+}
+function closePasswordReset() {
+  if (resetPasswordBusy.value) return
+  resetUser.value = null
+}
+async function resetUserPassword() {
+  if (resetPasswordForm.password.length < 8) return toast.error('新密码至少需要 8 位')
+  if (resetPasswordForm.password !== resetPasswordForm.confirm) return toast.error('两次输入的新密码不一致')
+  resetPasswordBusy.value = true
+  try {
+    const { data } = await api.patch(`/admin/users/${resetUser.value.id}/password`, { password: resetPasswordForm.password })
+    users.value[users.value.findIndex((item) => item.id === data.id)] = data
+    toast.success(`已重置 ${data.nickname} 的密码`)
+    resetUser.value = null
+  } catch (error) { toast.error(errorMessage(error)) } finally { resetPasswordBusy.value = false }
 }
 async function toggle(task) {
   let note = task.admin_note
@@ -154,6 +229,85 @@ async function reopenFeedback(item) {
   } catch (error) { toast.error(errorMessage(error)) }
 }
 
+async function resolveReport(report, action) {
+  let adminNote = null
+  if (action === 'hide') {
+    adminNote = window.prompt('请输入屏蔽理由（将展示给委托人）', report.task_title ? '' : '')
+    if (adminNote === null) return
+    if (!adminNote.trim()) return toast.error('屏蔽委托时必须填写理由')
+  }
+  savingReportId.value = report.id
+  try {
+    const { data } = await api.post(`/admin/reports/${report.id}/resolve`, { action, admin_note: action === 'hide' ? adminNote.trim() : null })
+    reports.value[reports.value.findIndex((r) => r.id === report.id)] = data
+    toast.success(action === 'close' ? '举报已关闭' : action === 'hide' ? '委托已屏蔽' : '委托已重新放开')
+  } catch (error) { toast.error(errorMessage(error)) } finally { savingReportId.value = null }
+}
+
+async function reviewApplication(item, action) {
+  let note = null
+  if (action === 'reject') {
+    note = window.prompt('请输入拒绝理由（会展示给申请人，可留空）', item.review_note || '')
+    if (note === null) return
+  }
+  reviewAppId.value = item.id
+  try {
+    const { data } = await api.post(`/admin/volunteer-applications/${item.id}/review`, { action, note: note?.trim() || null })
+    applications.value[applications.value.findIndex((a) => a.id === item.id)] = data
+    toast.success(action === 'approve' ? `已通过 ${data.user.nickname} 的志愿者申请` : '已拒绝该志愿者申请')
+  } catch (error) { toast.error(errorMessage(error)) } finally { reviewAppId.value = null }
+}
+
+async function moderateSugarPhoto(photo, isVisible) {
+  let note = null
+  if (!isVisible) {
+    note = window.prompt('请输入屏蔽理由（将展示给照片主人）', photo.admin_note || '')
+    if (note === null) return
+    if (!note.trim()) return toast.error('屏蔽照片时必须填写理由')
+  }
+  moderatingSugarId.value = photo.id
+  try {
+    const { data } = await api.patch(`/admin/sugar/photos/${photo.id}`, { is_visible: isVisible, admin_note: isVisible ? null : note.trim() })
+    sugarPhotos.value[sugarPhotos.value.findIndex((item) => item.id === photo.id)] = data
+    toast.success(isVisible ? '照片已恢复展示' : '照片已屏蔽')
+  } catch (error) { toast.error(errorMessage(error)) } finally { moderatingSugarId.value = null }
+}
+async function resolveVrMapReport(report, action) {
+  let adminNote = null
+  if (action === 'hide') {
+    adminNote = window.prompt('请输入屏蔽理由（必要）', '')
+    if (adminNote === null) return
+    if (!adminNote.trim()) return toast.error('屏蔽地图时必须填写理由')
+  }
+  resolvingVrReportId.value = report.id
+  try {
+    const { data } = await api.post(`/admin/vr-map-reports/${report.id}/resolve`, { action, admin_note: action === 'hide' ? adminNote.trim() : null })
+    vrMapReports.value[vrMapReports.value.findIndex((item) => item.id === report.id)] = data
+    toast.success(action === 'close' ? '举报已关闭，地图恢复公开' : action === 'hide' ? '地图已屏蔽' : '地图已重新放开')
+  } catch (error) { toast.error(errorMessage(error)) } finally { resolvingVrReportId.value = null }
+}
+
+async function moderateVrMapPhoto(photo, isVisible) {
+  moderatingVrPhotoId.value = photo.id
+  try {
+    const { data } = await api.patch(`/admin/vr-map-photos/${photo.id}`, { is_visible: isVisible })
+    vrMapPhotos.value[vrMapPhotos.value.findIndex((item) => item.id === photo.id)] = data
+    toast.success(isVisible ? '照片已通过审核' : '照片已驳回')
+  } catch (error) { toast.error(errorMessage(error)) } finally { moderatingVrPhotoId.value = null }
+}
+
+async function saveReportLimit() {
+  const value = Number(reportLimitInput.value)
+  if (!Number.isInteger(value) || value < 1) return toast.error('每日举报上限需为不小于 1 的整数')
+  savingReportLimit.value = true
+  try {
+    const { data } = await api.patch('/admin/settings/report-limit', { daily_limit: value })
+    reportLimit.value = data.daily_limit
+    reportLimitInput.value = data.daily_limit
+    toast.success('每日举报上限已更新')
+  } catch (error) { toast.error(errorMessage(error)) } finally { savingReportLimit.value = false }
+}
+
 const date = (value) => new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 const authorOf = (item) => (item.user ? item.user.nickname : item.contact || '游客')
 onMounted(load)
@@ -161,15 +315,104 @@ onMounted(load)
 
 <template>
   <div class="page inner-page admin-page">
-    <div class="page-title"><div><span class="eyebrow"><component :is="auth.isAdmin ? ShieldCheck : Store" :size="15" />{{ auth.isAdmin ? 'ADMIN CONSOLE' : 'STAFF CONSOLE' }}</span><h1>{{ auth.isAdmin ? '委托监管台' : '委托与用户管理' }}</h1><p>{{ auth.isAdmin ? '查看平台运行状态，管理委托、用户权限与接单额度。' : '屏蔽不当委托，管理非管理员账号的基础权限。' }}</p></div></div>
+    <div class="page-title"><div><span class="eyebrow"><component :is="auth.isAdmin ? ShieldCheck : Store" :size="15" />{{ auth.isDisciplinarian ? 'MODERATION CONSOLE' : auth.isAdmin ? 'ADMIN CONSOLE' : 'STAFF CONSOLE' }}</span><h1>{{ auth.isDisciplinarian ? '内容审核台' : auth.isAdmin ? '委托监管台' : '委托与用户管理' }}</h1><p>{{ auth.isDisciplinarian ? '审核社区图片，处理被举报的委托与地图推荐。' : auth.isAdmin ? '查看平台运行状态，管理委托、用户权限与接单额度。' : '屏蔽不当委托，管理非管理员账号的基础权限。' }}</p></div></div>
     <div v-if="auth.isAdmin" class="admin-stats"><div v-for="item in statItems" :key="item.label"><component :is="item.icon" :size="20" /><span>{{ item.label }}</span><strong>{{ item.value }}</strong></div></div>
 
     <div class="tabs admin-tabs" role="tablist" aria-label="后台管理内容">
-      <button :class="{ active: activeTab === 'tasks' }" role="tab" :aria-selected="activeTab === 'tasks'" @click="activeTab = 'tasks'">委托管理</button>
-      <button :class="{ active: activeTab === 'users' }" role="tab" :aria-selected="activeTab === 'users'" @click="activeTab = 'users'">用户与权限</button>
+      <button v-if="!auth.isDisciplinarian" :class="{ active: activeTab === 'tasks' }" role="tab" :aria-selected="activeTab === 'tasks'" @click="activeTab = 'tasks'">委托管理</button>
+      <button :class="{ active: activeTab === 'reports' }" role="tab" :aria-selected="activeTab === 'reports'" @click="activeTab = 'reports'">举报处理<span v-if="pendingReports">{{ pendingReports }}</span></button>
+      <button v-if="!auth.isDisciplinarian" :class="{ active: activeTab === 'applications' }" role="tab" :aria-selected="activeTab === 'applications'" @click="activeTab = 'applications'">志愿者申请<span v-if="pendingApplications">{{ pendingApplications }}</span></button>
+      <button :class="{ active: activeTab === 'vrmaps' }" role="tab" :aria-selected="activeTab === 'vrmaps'" @click="activeTab = 'vrmaps'">地图推荐<span v-if="pendingVrMapReports + pendingVrMapPhotos">{{ pendingVrMapReports + pendingVrMapPhotos }}</span></button>
+      <button v-if="!auth.isDisciplinarian" :class="{ active: activeTab === 'users' }" role="tab" :aria-selected="activeTab === 'users'" @click="activeTab = 'users'">用户与权限</button>
       <button :class="{ active: activeTab === 'photos' }" role="tab" :aria-selected="activeTab === 'photos'" @click="activeTab = 'photos'">图片管理</button>
-      <button v-if="auth.isAdmin" :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
+      <button v-if="!auth.isDisciplinarian" :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
     </div>
+
+    <section v-if="activeTab === 'reports'" class="admin-table-section">
+      <div class="admin-toolbar"><div><h2>举报处理</h2><span>待处理 {{ pendingReports }} 条</span></div>
+        <div v-if="!auth.isDisciplinarian" class="report-limit-box"><span>每日举报上限</span><input v-model.number="reportLimitInput" class="limit-input" type="number" min="1" max="100" aria-label="每日举报上限" /><button class="button secondary small" :disabled="savingReportLimit || reportLimitInput === reportLimit" @click="saveReportLimit"><Save :size="15" />{{ savingReportLimit ? '保存中…' : '保存' }}</button></div>
+      </div>
+      <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
+      <ul v-else-if="sortedReports.length" class="feedback-admin-list">
+        <li v-for="item in sortedReports" :key="item.id" :class="{ handled: item.status === 'handled' }">
+          <div class="fb-head">
+            <span class="fb-state" :class="`state-${item.status}`">{{ item.status === 'pending' ? '待处理' : '已处理' }}</span>
+            <strong>#{{ item.task_id }} {{ item.task_title }}</strong>
+            <span class="muted">举报人：{{ item.reporter.nickname }}</span>
+            <time class="muted">{{ date(item.created_at) }}</time>
+          </div>
+          <p class="fb-content">原因：{{ item.reason }}</p>
+          <div class="fb-actions">
+            <button v-if="item.status === 'pending'" class="button secondary small" :disabled="savingReportId === item.id" @click="resolveReport(item, 'close')"><Check :size="15" />关闭举报</button>
+            <button v-if="item.status === 'pending'" class="button secondary small" :disabled="savingReportId === item.id" @click="resolveReport(item, 'hide')"><EyeOff :size="15" />屏蔽委托</button>
+            <button v-if="item.status === 'pending'" class="button secondary small" :disabled="savingReportId === item.id" @click="resolveReport(item, 'restore')"><RotateCcw :size="15" />重新放开</button>
+            <span v-if="item.status === 'handled'" class="muted"><Flag :size="14" /> 已处理</span>
+          </div>
+        </li>
+      </ul>
+      <div v-else class="feedback-admin-empty"><Flag :size="28" />暂无举报</div>
+    </section>
+
+    <section v-if="activeTab === 'applications'" class="admin-table-section">
+      <div class="admin-toolbar"><div><h2>志愿者申请</h2><span>待审核 {{ pendingApplications }} 条</span></div><span class="muted"><HeartHandshake :size="15" /> 通过后申请人将升级为志愿者</span></div>
+      <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
+      <ul v-else-if="applications.length" class="feedback-admin-list">
+        <li v-for="item in applications" :key="item.id" :class="{ handled: item.status !== 'pending' }">
+          <div class="fb-head">
+            <span class="fb-state" :class="`state-${item.status}`">{{ item.status === 'pending' ? '待审核' : item.status === 'approved' ? '已通过' : '已拒绝' }}</span>
+            <strong>{{ item.user.nickname }}</strong>
+            <time class="muted">{{ date(item.created_at) }}</time>
+          </div>
+          <p class="fb-content">{{ item.reason }}</p>
+          <div class="fb-actions">
+            <span v-if="item.status !== 'pending' && item.review_note" class="fb-reply-admin">审核说明：{{ item.review_note }}</span>
+            <template v-if="item.status === 'pending'">
+              <button class="button secondary small" :disabled="reviewAppId === item.id" @click="reviewApplication(item, 'approve')"><Check :size="15" />通过</button>
+              <button class="button secondary small" :disabled="reviewAppId === item.id" @click="reviewApplication(item, 'reject')"><X :size="15" />拒绝</button>
+            </template>
+          </div>
+        </li>
+      </ul>
+      <div v-else class="feedback-admin-empty"><HeartHandshake :size="28" />还没有收到志愿者申请</div>
+    </section>
+
+    <section v-if="activeTab === 'vrmaps'" class="admin-table-section">
+      <div class="admin-toolbar"><div><h2>地图举报</h2><span>待处理 {{ pendingVrMapReports }} 条</span></div><span class="muted"><MapIcon :size="15" /> 有待处理举报的地图已暂停公开展示</span></div>
+      <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
+      <ul v-else-if="vrMapReports.length" class="feedback-admin-list">
+        <li v-for="item in vrMapReports" :key="item.id" :class="{ handled: item.status === 'handled' }">
+          <div class="fb-head">
+            <span class="fb-state" :class="`state-${item.status}`">{{ item.status === 'pending' ? '待处理' : '已处理' }}</span>
+            <strong>#{{ item.map_id }} {{ item.map_name }}</strong>
+            <span class="muted">举报人：{{ item.reporter.nickname }}</span>
+            <time class="muted">{{ date(item.created_at) }}</time>
+          </div>
+          <p class="fb-content">原因：{{ item.reason }}</p>
+          <div class="fb-actions">
+            <button v-if="item.status === 'pending'" class="button secondary small" :disabled="resolvingVrReportId === item.id" @click="resolveVrMapReport(item, 'close')"><Check :size="15" />关闭举报（放开）</button>
+            <button v-if="item.status === 'pending'" class="button secondary small" :disabled="resolvingVrReportId === item.id" @click="resolveVrMapReport(item, 'hide')"><EyeOff :size="15" />屏蔽地图</button>
+            <button v-else class="button secondary small" :disabled="resolvingVrReportId === item.id" @click="resolveVrMapReport(item, 'restore')"><RotateCcw :size="15" />重新放开</button>
+          </div>
+        </li>
+      </ul>
+      <div v-else class="feedback-admin-empty"><MapIcon :size="28" />暂无地图举报</div>
+
+      <div class="admin-toolbar vrmap-photo-toolbar"><div><h2>地图实拍照片审核</h2><span>待审核 {{ pendingVrMapPhotos }} 张</span></div><span class="muted">通过后照片会在地图详情页公开展示</span></div>
+      <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
+      <div v-else-if="vrMapPhotos.length" class="moderation-photo-grid vrmap-photo-grid">
+        <figure v-for="photo in vrMapPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
+          <img :src="photo.image_url" :alt="`${photo.map_name} 的实拍照片`" />
+          <span v-if="!photo.moderated" class="photo-blocked vrmap-photo-state"><Clock3 :size="14" />审核中</span>
+          <span v-else-if="!photo.is_visible" class="photo-blocked vrmap-photo-state"><EyeOff :size="14" />已驳回</span>
+          <div class="fb-actions vrmap-photo-actions">
+            <button v-if="!photo.is_visible" class="button secondary small" :disabled="moderatingVrPhotoId === photo.id" @click="moderateVrMapPhoto(photo, true)"><Check :size="15" />通过</button>
+            <button v-else class="button secondary small" :disabled="moderatingVrPhotoId === photo.id" @click="moderateVrMapPhoto(photo, false)"><EyeOff :size="15" />驳回</button>
+          </div>
+          <figcaption class="muted">{{ photo.map_name }} · {{ photo.user.nickname }}</figcaption>
+        </figure>
+      </div>
+      <div v-else class="feedback-admin-empty"><ImageIcon :size="28" />暂无地图照片</div>
+    </section>
 
     <section v-if="activeTab === 'tasks'" class="admin-table-section">
       <div class="admin-toolbar"><div><h2>全部委托</h2><span>隐藏 {{ stats.hidden }} 项</span></div><label class="search-field"><Search :size="17" /><input v-model="taskSearch" placeholder="搜索标题或发布人" /></label></div>
@@ -179,7 +422,7 @@ onMounted(load)
           <tbody>
             <tr v-if="loading"><td colspan="6" class="table-loading">正在加载…</td></tr>
             <tr v-for="task in filteredTasks" v-else :key="task.id" :class="{ dimmed: !task.is_visible }">
-              <td><strong>{{ task.title }}</strong><small>#{{ task.id }} · {{ task.category }}</small></td>
+              <td><strong>{{ task.title }}<span v-if="task.is_anonymous" class="role-tag anon-tag">匿名</span></strong><small>#{{ task.id }} · {{ task.category }}</small></td>
               <td>{{ task.publisher.nickname }}</td><td><StatusBadge :status="task.status" /></td><td>{{ date(task.expires_at) }}</td>
               <td><span class="visibility"><Eye v-if="task.is_visible" :size="15" /><EyeOff v-else :size="15" />{{ task.is_visible ? '公开' : '已隐藏' }}</span></td>
               <td><button class="icon-button" :title="task.is_visible ? '隐藏委托' : '恢复公开'" :aria-label="task.is_visible ? '隐藏委托' : '恢复公开'" @click="toggle(task)"><EyeOff v-if="task.is_visible" :size="18" /><Eye v-else :size="18" /></button></td>
@@ -193,25 +436,24 @@ onMounted(load)
       <div class="admin-toolbar"><div><h2>用户管理</h2><span>共 {{ users.length }} 人</span></div><label class="search-field"><Search :size="17" /><input v-model="userSearch" placeholder="搜索账号或昵称" /></label></div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>用户</th><th>权限等级</th><th v-if="auth.isAdmin">内测</th><th v-if="auth.isAdmin">当前接单</th><th v-if="auth.isAdmin">接单上限</th><th><span class="sr-only">操作</span></th></tr></thead>
+          <thead><tr><th>用户</th><th>权限等级</th><th v-if="auth.isAdmin">当前接单</th><th v-if="auth.isAdmin">接单上限</th><th><span class="sr-only">操作</span></th></tr></thead>
           <tbody>
-            <tr v-if="loading"><td :colspan="auth.isAdmin ? 6 : 3" class="table-loading">正在加载…</td></tr>
+            <tr v-if="loading"><td :colspan="auth.isAdmin ? 5 : 3" class="table-loading">正在加载…</td></tr>
             <tr v-for="user in filteredUsers" v-else :key="user.id">
-              <td><strong>{{ user.nickname }}</strong><small>@{{ user.username }} · #{{ user.id }}</small></td>
-              <td><span v-if="user.is_admin" class="admin-tag"><ShieldCheck :size="13" />管理员</span><span v-else class="role-tag" :class="`role-${user.role}`"><Store v-if="user.role === 'staff'" :size="13" />{{ roleLabel(user) }}</span></td>
-              <td v-if="auth.isAdmin">
-                <span v-if="user.is_admin" class="muted">无需内测资格</span>
-                <button v-else class="button secondary small" :aria-pressed="user.is_beta_tester" :aria-label="`切换 ${user.nickname} 的内测资格`" :disabled="savingBetaId !== null" @click="toggleBetaTester(user)">{{ user.is_beta_tester ? '取消内测' : '授予内测' }}</button>
-              </td>
+              <td><strong>{{ user.nickname }}</strong><small>@{{ user.username }} · #{{ user.id }}</small><label class="beta-toggle"><input type="checkbox" :checked="user.is_beta_tester" :disabled="!auth.isAdmin" @change="toggleBetaTester(user)" /> 内测用户</label></td>
+              <td><span v-if="user.is_admin" class="admin-tag"><ShieldCheck :size="13" />超级管理员</span><span v-else class="role-tag" :class="`role-${user.role}`"><Store v-if="user.role === 'staff'" :size="13" />{{ roleLabel(user) }}</span></td>
               <td v-if="auth.isAdmin"><span class="limit-usage" :class="{ full: user.active_task_count >= user.max_concurrent_tasks }">{{ user.active_task_count }} / {{ user.max_concurrent_tasks }}</span></td>
               <td v-if="auth.isAdmin"><input v-model.number="userLimits[user.id]" class="limit-input" type="number" min="0" max="999" :aria-label="`${user.nickname} 的接单上限`" /></td>
               <td>
                 <div class="user-row-actions">
-                  <button v-if="auth.isAdmin" class="button secondary small" title="保存接单上限" aria-label="保存接单上限" :disabled="savingUserId === user.id || userLimits[user.id] === user.max_concurrent_tasks" @click="saveUserLimit(user)"><Save :size="15" /></button>
+                  <button v-if="auth.isAdmin" class="button secondary small" :class="{ 'is-saving': savingUserId === user.id }" :title="savingUserId === user.id ? '保存中…' : '保存接单上限'" aria-label="保存接单上限" :disabled="savingUserId === user.id || userLimits[user.id] === user.max_concurrent_tasks" @click="saveUserLimit(user)">{{ savingUserId === user.id ? '…' : '' }}<Save :size="15" /></button>
+                  <button class="button secondary small" title="重置密码" :aria-label="`重置 ${user.nickname} 的密码`" @click="openPasswordReset(user)"><KeyRound :size="15" />重置密码</button>
                   <select v-if="!user.is_admin" class="role-select" :value="user.role" :disabled="savingRoleId === user.id" :aria-label="`修改 ${user.nickname} 的权限等级`" @change="changeUserRole(user, $event.target.value, $event.target)">
                     <option value="user">普通用户</option>
                     <option value="volunteer">志愿者</option>
-                    <option v-if="auth.isAdmin || user.role === 'staff'" value="staff" :disabled="!auth.isAdmin">店员{{ auth.isAdmin ? '' : '（仅管理员可授予）' }}</option>
+                    <option v-if="auth.isAdmin || user.role === 'staff'" value="staff" :disabled="!auth.isAdmin">管理员{{ auth.isAdmin ? '' : '（仅超级管理员可管理）' }}</option>
+                    <option v-if="auth.isAdmin || user.role === 'mascot'" value="mascot" :disabled="!auth.isAdmin">看板娘{{ auth.isAdmin ? '' : '（仅超级管理员可管理）' }}</option>
+                    <option v-if="auth.isAdmin || user.role === 'disciplinarian'" value="disciplinarian" :disabled="!auth.isAdmin">风纪委员{{ auth.isAdmin ? '' : '（仅超级管理员可管理）' }}</option>
                   </select>
                 </div>
               </td>
@@ -224,23 +466,53 @@ onMounted(load)
     <section v-else-if="activeTab === 'photos'" class="admin-table-section">
       <div class="admin-toolbar"><div><h2>用户介绍图片</h2><span>不适合展示的图片可手动屏蔽</span></div></div>
       <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
-      <div v-else-if="photoUsers.length" class="moderation-users">
-        <section v-for="user in photoUsers" :key="user.id" class="moderation-user">
-          <header><strong>{{ user.nickname }}</strong><span>#{{ user.id }} · {{ roleLabel(user) }}</span></header>
-          <div class="moderation-photo-grid">
-            <figure v-for="photo in user.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
-              <img :src="photo.image_url" :alt="`${user.nickname} 的介绍图片`" />
-              <button class="button secondary small" type="button" @click="togglePhoto(user, photo)">
-                <EyeOff v-if="photo.is_visible" :size="15" /><Eye v-else :size="15" />{{ photo.is_visible ? '屏蔽' : '恢复' }}
+      <template v-else>
+        <div v-if="photoUsers.length" class="moderation-users">
+          <section v-for="user in photoUsers" :key="user.id" class="moderation-user">
+            <header><strong>{{ user.nickname }}</strong><span>#{{ user.id }} · {{ roleLabel(user) }}</span></header>
+            <div v-if="user.avatar_url" class="moderation-avatar-row">
+              <figure class="moderation-avatar" :class="{ blocked: !user.avatar_visible }">
+                <img :src="user.avatar_url" :alt="`${user.nickname} 的头像`" />
+                <span v-if="!user.avatar_visible" class="photo-blocked"><Clock3 :size="14" />审核中</span>
+                <button class="button secondary small" type="button" @click="moderateAvatar(user)">
+                  <Check v-if="!user.avatar_visible" :size="15" /><EyeOff v-else :size="15" />{{ user.avatar_visible ? '驳回' : '通过' }}
+                </button>
+              </figure>
+              <span class="muted">头像</span>
+            </div>
+            <div v-if="user.photos.length" class="moderation-photo-grid">
+              <figure v-for="photo in user.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
+                <img :src="photo.image_url" :alt="`${user.nickname} 的介绍图片`" />
+                <button class="button secondary small" type="button" @click="togglePhoto(user, photo)">
+                  <EyeOff v-if="photo.is_visible" :size="15" /><Eye v-else :size="15" />{{ photo.is_visible ? '屏蔽' : '恢复' }}
+                </button>
+              </figure>
+            </div>
+          </section>
+        </div>
+        <div v-else-if="!sugarPhotos.length" class="feedback-admin-empty"><ImageIcon :size="28" />暂无用户图片</div>
+
+        <div class="admin-toolbar sugar-photos-toolbar"><div><h2>砂糖社照片</h2><span>屏蔽时需填写理由，理由会展示给照片主人</span></div></div>
+        <div v-if="sugarPhotos.length" class="moderation-photo-grid sugar-photos">
+          <figure v-for="photo in sugarPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
+            <img :src="photo.image_url" :alt="`${photo.user.nickname} 的砂糖社照片`" />
+            <span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.admin_note }}</span>
+            <div class="sugar-photo-actions">
+              <button class="button secondary small" type="button" :disabled="moderatingSugarId === photo.id" @click="moderateSugarPhoto(photo, false)">
+                <EyeOff :size="15" />屏蔽
               </button>
-            </figure>
-          </div>
-        </section>
-      </div>
-      <div v-else class="feedback-admin-empty"><ImageIcon :size="28" />暂无用户图片</div>
+              <button v-if="!photo.is_visible" class="button secondary small" type="button" :disabled="moderatingSugarId === photo.id" @click="moderateSugarPhoto(photo, true)">
+                <Eye :size="15" />恢复
+              </button>
+            </div>
+            <figcaption class="muted">{{ photo.user.nickname }}</figcaption>
+          </figure>
+        </div>
+        <div v-else class="feedback-admin-empty"><ImageIcon :size="28" />暂无砂糖社照片</div>
+      </template>
     </section>
 
-    <section v-else-if="auth.isAdmin && activeTab === 'feedback'" class="admin-table-section">
+    <section v-else-if="activeTab === 'feedback'" class="admin-table-section">
       <div class="admin-toolbar"><div><h2>用户反馈</h2><span>待处理 {{ pendingFeedbacks }} 条</span></div><span class="muted"><MessageCircle :size="15" /> 提交者会收到处理状态与回复</span></div>
       <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
       <ul v-else-if="feedbacks.length" class="feedback-admin-list">
@@ -261,5 +533,146 @@ onMounted(load)
       </ul>
       <div v-else class="feedback-admin-empty"><MessageCircle :size="28" />还没有收到任何反馈</div>
     </section>
+
+    <div v-if="resetUser" class="modal-backdrop" @mousedown.self="closePasswordReset">
+      <section class="dialog password-reset-dialog" role="dialog" aria-modal="true" aria-label="重置用户密码">
+        <button class="icon-button dialog-close" title="关闭" aria-label="关闭" :disabled="resetPasswordBusy" @click="closePasswordReset"><X :size="20" /></button>
+        <div class="dialog-heading"><span class="eyebrow"><KeyRound :size="14" /> PASSWORD RESET</span><h2>重置用户密码</h2><p>为 {{ resetUser.nickname }}（@{{ resetUser.username }}）设置新密码。</p></div>
+        <form class="form-stack" @submit.prevent="resetUserPassword">
+          <label>新密码<input v-model="resetPasswordForm.password" type="password" required minlength="8" maxlength="72" autocomplete="new-password" placeholder="至少 8 位" /></label>
+          <label>确认新密码<input v-model="resetPasswordForm.confirm" type="password" required minlength="8" maxlength="72" autocomplete="new-password" placeholder="再次输入新密码" /></label>
+          <div class="dialog-footer"><button type="button" class="button secondary" :disabled="resetPasswordBusy" @click="closePasswordReset">取消</button><button class="button" :disabled="resetPasswordBusy"><KeyRound :size="16" />{{ resetPasswordBusy ? '重置中…' : '确认重置' }}</button></div>
+        </form>
+      </section>
+    </div>
   </div>
 </template>
+
+<style scoped>
+.vrmap-photo-toolbar {
+  margin-top: 24px;
+}
+
+.vrmap-photo-grid figure {
+  aspect-ratio: auto;
+  overflow: visible;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.vrmap-photo-grid img {
+  border-radius: 4px;
+}
+
+.vrmap-photo-state {
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  white-space: normal;
+}
+
+.vrmap-photo-actions {
+  margin-top: 6px;
+}
+
+.vrmap-photo-grid figcaption {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.moderation-avatar-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.sugar-photos-toolbar {
+  margin-top: 24px;
+}
+
+.sugar-photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.sugar-photos figure {
+  position: relative;
+  aspect-ratio: auto;
+  overflow: visible;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+.sugar-photos figure img {
+  width: 100%;
+  height: 120px;
+  border-radius: 4px;
+  object-fit: cover;
+  display: block;
+}
+
+.sugar-photos figure.blocked img {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+
+.sugar-photos .photo-blocked {
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  white-space: normal;
+}
+
+.sugar-photo-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.sugar-photos figcaption {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.moderation-avatar-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.moderation-avatar {
+  position: relative;
+  width: 84px;
+  margin: 0;
+  text-align: center;
+}
+
+.moderation-avatar img {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  margin: 0 auto 6px;
+}
+
+.moderation-avatar .photo-blocked {
+  top: 46px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.moderation-avatar.blocked img {
+  filter: grayscale(0.7);
+  opacity: 0.75;
+}
+</style>

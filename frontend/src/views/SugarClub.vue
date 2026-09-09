@@ -1,12 +1,13 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { Camera, Crown, HeartHandshake, ImagePlus, MessageCircle, Pencil, Save, Trash2, X } from 'lucide-vue-next'
-import { api, errorMessage } from '../api'
+import { Camera, Crown, HeartHandshake, ImagePlus, EyeOff, MessageCircle, Pencil, Save, Trash2, X } from 'lucide-vue-next'
+import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 const MAX_PHOTOS = 6
+const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
 const auth = useAuthStore()
 const toast = useToast()
 const profiles = ref([])
@@ -22,7 +23,7 @@ const form = reactive({ about: '' })
 
 const ownProfile = computed(() => profiles.value.find((profile) => profile.user.id === auth.user.id) || null)
 const activePair = computed(() => myPairs.value.find((pair) => pair.status === 'active') || null)
-const pendingPair = computed(() => myPairs.value.find((pair) => pair.status === 'pending') || null)
+const pendingPairs = computed(() => myPairs.value.filter((pair) => pair.status === 'pending'))
 const canAddPhotos = computed(() => (ownProfile.value?.photos.length || 0) + pendingPhotos.value.length < MAX_PHOTOS)
 
 function partner(pair) {
@@ -58,8 +59,8 @@ function selectPhotos(event) {
       toast.error(`${file.name} 超过 5 MiB`)
       continue
     }
-    if (!file.type.startsWith('image/')) {
-      toast.error(`${file.name} 不是图片`)
+    if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
+      toast.error(`${file.name} 仅支持 JPEG、PNG、GIF 或 WebP 格式`)
       continue
     }
     accepted.push({ file, url: URL.createObjectURL(file) })
@@ -105,7 +106,7 @@ async function saveProfile() {
     await load()
     toast.success('砂糖社档案已保存')
   } catch (error) {
-    toast.error(errorMessage(error))
+    toast.error(pendingPhotos.value.length ? imageUploadErrorMessage(error) : errorMessage(error))
   } finally {
     saving.value = false
   }
@@ -116,6 +117,18 @@ async function deletePhoto(photo) {
   try {
     await api.delete(`/sugar/photos/${photo.id}`)
     await load()
+  } catch (error) {
+    toast.error(errorMessage(error))
+  }
+}
+
+async function deleteProfile() {
+  if (!window.confirm('确定删除已登记的砂糖社资料吗？进行中的关系也会结束。')) return
+  try {
+    await api.delete('/sugar/profile')
+    editorOpen.value = false
+    await load()
+    toast.success('砂糖社资料已删除')
   } catch (error) {
     toast.error(errorMessage(error))
   }
@@ -168,12 +181,11 @@ onBeforeUnmount(clearPendingPhotos)
       <button class="button" @click="setEditor()"><Pencil :size="17" />{{ ownProfile ? '编辑档案' : '登记资料' }}</button>
     </div>
 
-    <section v-if="activePair || pendingPair" class="sugar-status" :class="{ active: activePair }">
+    <section v-if="activePair || pendingPairs.length" class="sugar-status" :class="{ active: activePair }">
       <HeartHandshake :size="22" />
       <div v-if="activePair"><small>当前砂糖</small><strong>{{ partner(activePair).nickname }}</strong><span>已维持 {{ duration(activePair.duration_seconds) }}</span></div>
-      <div v-else><small>待确认砂糖</small><strong>{{ partner(pendingPair).nickname }}</strong><span>{{ pendingPair.initiated_by_id === auth.user.id ? '等待对方确认' : '等待你的确认' }}</span></div>
+      <div v-else class="pending-sugar-list"><small>待确认砂糖</small><div v-for="pair in pendingPairs" :key="pair.id" class="pending-sugar-row"><strong>{{ partner(pair).nickname }}</strong><span>{{ pair.initiated_by_id === auth.user.id ? '等待对方确认' : '等待你的确认' }}</span><button class="button secondary small" @click="openDetail(partner(pair).id)">查看</button></div></div>
       <button v-if="activePair" class="button secondary small" @click="endPair(activePair)">结束关系</button>
-      <button v-else class="button small" @click="openDetail(partner(pendingPair).id)">查看</button>
     </section>
 
     <section class="sugar-ranking">
@@ -211,12 +223,12 @@ onBeforeUnmount(clearPendingPhotos)
           <label>介绍<textarea v-model="form.about" rows="5" maxlength="1000" placeholder="写下想让别人认识的你" /><small>{{ form.about.length }}/1000</small></label>
           <div class="photo-field"><span>照片 <small>单张不超过 5 MiB，最多 {{ MAX_PHOTOS }} 张</small></span>
             <div class="photo-grid edit">
-              <figure v-for="photo in ownProfile?.photos || []" :key="photo.id"><img :src="photo.image_url" alt="已上传照片" /><button class="icon-button photo-delete" type="button" title="删除照片" aria-label="删除照片" @click="deletePhoto(photo)"><Trash2 :size="15" /></button></figure>
+              <figure v-for="photo in ownProfile?.photos || []" :key="photo.id" :class="{ blocked: !photo.is_visible }"><img :src="photo.image_url" alt="已上传照片" /><span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />已屏蔽：{{ photo.admin_note || '未说明理由' }}</span><button class="icon-button photo-delete" type="button" title="删除照片" aria-label="删除照片" @click="deletePhoto(photo)"><Trash2 :size="15" /></button></figure>
               <figure v-for="(photo, index) in pendingPhotos" :key="photo.url"><img :src="photo.url" alt="待上传照片" /><button class="icon-button photo-delete" type="button" title="移除照片" aria-label="移除照片" @click="removePending(index)"><X :size="15" /></button></figure>
               <label v-if="canAddPhotos" class="photo-add"><ImagePlus :size="22" /><input type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple @change="selectPhotos" /></label>
             </div>
           </div>
-          <div class="dialog-footer"><button class="button secondary" type="button" @click="editorOpen = false">取消</button><button class="button" :disabled="saving"><Save :size="16" />{{ saving ? '保存中…' : '保存档案' }}</button></div>
+          <div class="dialog-footer"><button v-if="ownProfile" class="button danger small" type="button" @click="deleteProfile">删除档案</button><span class="dialog-footer-spacer" /><button class="button secondary" type="button" @click="editorOpen = false">取消</button><button class="button" :disabled="saving"><Save :size="16" />{{ saving ? '保存中…' : '保存档案' }}</button></div>
         </form>
       </section>
     </div>
@@ -227,7 +239,12 @@ onBeforeUnmount(clearPendingPhotos)
         <p v-if="detailLoading" class="muted">正在加载资料…</p>
         <template v-else-if="detail">
           <div class="dialog-heading"><span class="eyebrow">SUGAR PROFILE</span><h2>{{ detail.user.nickname }}</h2></div>
-          <div class="photo-grid detail"><img v-for="photo in detail.photos" :key="photo.id" :src="photo.image_url" :alt="`${detail.user.nickname} 的照片`" /></div>
+          <div class="photo-grid detail">
+            <figure v-for="photo in detail.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
+              <img :src="photo.image_url" :alt="`${detail.user.nickname} 的照片`" />
+              <span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />已屏蔽：{{ photo.admin_note || '未说明理由' }}</span>
+            </figure>
+          </div>
           <p class="sugar-about">{{ detail.about }}</p>
           <div class="sugar-qq"><MessageCircle :size="17" /><span><small>QQ</small><strong>{{ detail.qq || '暂未填写' }}</strong></span></div>
           <div v-if="detail.user.id !== auth.user.id" class="dialog-footer sugar-detail-actions">
@@ -241,3 +258,12 @@ onBeforeUnmount(clearPendingPhotos)
     </div>
   </div>
 </template>
+
+<style scoped>
+.sugar-blocked {
+  right: auto;
+  max-width: 85%;
+  white-space: normal;
+  line-height: 1.5;
+}
+</style>

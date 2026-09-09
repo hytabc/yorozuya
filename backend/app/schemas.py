@@ -3,9 +3,18 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
 
-from .models import FeedbackStatus, SugarPairStatus, TaskMemberResponse, TaskStatus, UserRole
+from .models import (
+    ApplicationStatus,
+    AnnouncementKind,
+    FeedbackStatus,
+    ReportStatus,
+    SugarPairStatus,
+    TaskMemberResponse,
+    TaskStatus,
+    UserRole,
+)
 
 
 class ApiModel(BaseModel):
@@ -27,6 +36,8 @@ class ApiModel(BaseModel):
         "initiated_at",
         "activated_at",
         "ended_at",
+        "starts_at",
+        "ends_at",
         check_fields=False,
     )
     def serialize_datetime(self, value: datetime | None):
@@ -63,6 +74,10 @@ class UserPublic(ApiModel):
     nickname: str
     bio: str | None = None
     photos: list[UserPhotoOut] = []
+    # avatar_url 仅在查看者有权看到时由后端填充；未过审头像仅本人和管理员组可见
+    avatar_url: str | None = None
+    avatar_visible: bool = False
+    is_beta_tester: bool = False
 
 
 class UserProfileOut(ApiModel):
@@ -73,10 +88,12 @@ class UserProfileOut(ApiModel):
     qq: str | None = None
     qq_public: bool = False
     is_admin: bool = False
-    is_beta_tester: bool = False
     role: UserRole = UserRole.USER
+    is_beta_tester: bool = False
     created_at: datetime
     photos: list[UserPhotoOut] = []
+    avatar_url: str | None = None
+    avatar_visible: bool = False
 
 
 class UserSelf(UserPublic):
@@ -84,10 +101,10 @@ class UserSelf(UserPublic):
     qq: str | None = None
     qq_public: bool = False
     is_admin: bool
-    is_beta_tester: bool = False
     is_active: bool
     role: UserRole = UserRole.USER
     max_concurrent_tasks: int
+    is_beta_tester: bool = False
     created_at: datetime
 
 
@@ -120,8 +137,10 @@ class TaskCreate(RequestModel):
     accept_password: str | None = Field(default=None, min_length=4, max_length=32)
     # 需要几人接取；null / 缺省表示人数不限（只能由委托人手动开始）
     required_takers: int | None = Field(default=None, ge=1, le=999)
-    # 非空时为指定委托，只允许名单内的店员/志愿者响应。
+    # 非空时为指定委托，只允许名单内的管理员/志愿者响应。
     designated_user_ids: list[int] = Field(default_factory=list, max_length=999)
+    # 匿名发布：大厅仅展示标题和内容，接取后联系方式仅双方可见。
+    is_anonymous: bool = False
     expires_in_days: Literal[1, 2, 3, 5, 10]
 
 
@@ -131,6 +150,11 @@ class AcceptRequest(RequestModel):
 
 class PasswordUpdate(RequestModel):
     password: str = Field(min_length=4, max_length=32)
+
+
+class UserPasswordUpdate(RequestModel):
+    """用户登录密码；比委托接取密码要求更长。"""
+    password: str = Field(min_length=8, max_length=72)
 
 
 class TaskMemberOut(ApiModel):
@@ -157,6 +181,8 @@ class TaskOut(ApiModel):
     requires_password: bool
     required_takers: int | None = None
     is_designated: bool = False
+    is_anonymous: bool = False
+    reported: bool = False
     members: list[TaskMemberOut] = []
     publisher_id: int
     publisher_confirmed_at: datetime | None = None
@@ -182,21 +208,21 @@ class AdminUserOut(ApiModel):
     username: str
     nickname: str
     is_admin: bool
-    is_beta_tester: bool = False
     is_active: bool
     role: UserRole = UserRole.USER
+    is_beta_tester: bool = False
     max_concurrent_tasks: int
     active_task_count: int = 0
     created_at: datetime
     photos: list[UserPhotoOut] = []
 
 
-class AdminUserBetaTesterUpdate(RequestModel):
-    is_beta_tester: bool
-
-
 class AdminUserRoleUpdate(RequestModel):
-    role: Literal["user", "volunteer", "staff"]
+    role: Literal["user", "volunteer", "staff", "mascot", "disciplinarian"]
+
+
+class AdminUserBetaUpdate(RequestModel):
+    is_beta_tester: bool
 
 
 class AdminPhotoUpdate(RequestModel):
@@ -204,8 +230,9 @@ class AdminPhotoUpdate(RequestModel):
 
 
 class StaffDirectoryOut(BaseModel):
-    group_chat_id: str
     staff: list[UserProfileOut]
+    disciplinarians: list[UserProfileOut]
+    mascots: list[UserProfileOut]
     volunteers: list[UserProfileOut]
 
 
@@ -238,6 +265,59 @@ class FeedbackOut(ApiModel):
     user: UserPublic | None = None
 
 
+class ReportCreate(RequestModel):
+    reason: str = Field(min_length=2, max_length=200)
+
+
+class TaskReportOut(ApiModel):
+    id: int
+    task_id: int
+    task_title: str = ''
+    task_status: TaskStatus = TaskStatus.PUBLISHED
+    reporter: UserPublic
+    reason: str
+    status: ReportStatus = ReportStatus.PENDING
+    created_at: datetime
+    handled_at: datetime | None = None
+
+
+class ReportResolveRequest(RequestModel):
+    action: Literal['close', 'hide', 'restore']
+    admin_note: str | None = Field(default=None, max_length=200)
+
+
+class ReportLimitOut(BaseModel):
+    daily_limit: int
+
+
+class VolunteerApplicationCreate(RequestModel):
+    reason: str = Field(min_length=10, max_length=500)
+
+
+class VolunteerApplicationReview(RequestModel):
+    """管理员审核志愿者申请：approve 通过（升为志愿者）/ reject 拒绝。"""
+    action: Literal["approve", "reject"]
+    note: str | None = Field(default=None, max_length=500)
+
+
+class VolunteerApplicationOut(ApiModel):
+    id: int
+    reason: str
+    status: ApplicationStatus
+    review_note: str | None = None
+    created_at: datetime
+    handled_at: datetime | None = None
+    user: UserPublic
+
+
+class VolunteerApplicationAdminOut(VolunteerApplicationOut):
+    handled_by: UserPublic | None = None
+
+
+class ReportLimitUpdate(RequestModel):
+    daily_limit: int = Field(ge=1, le=100)
+
+
 class AdminStats(BaseModel):
     users: int
     tasks: int
@@ -247,9 +327,164 @@ class AdminStats(BaseModel):
     hidden: int
 
 
+class TaskStats(BaseModel):
+    """大厅顶部统计：仅返回数量，不含任何委托内容。"""
+    published: int
+    processing: int
+    completed: int
+
+
+class AnnouncementWrite(RequestModel):
+    kind: AnnouncementKind
+    title: str = Field(min_length=2, max_length=80)
+    content: str = Field(min_length=2, max_length=5000)
+    is_published: bool = False
+    is_pinned: bool = False
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+
+    @model_validator(mode="after")
+    def validate_schedule(self):
+        def comparable(value: datetime) -> datetime:
+            if value.tzinfo is None:
+                return value
+            return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+        if self.starts_at and self.ends_at and comparable(self.ends_at) <= comparable(self.starts_at):
+            raise ValueError("结束时间必须晚于开始时间")
+        return self
+
+
+class AnnouncementOut(ApiModel):
+    id: int
+    kind: AnnouncementKind
+    title: str
+    content: str
+    is_published: bool
+    is_pinned: bool
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+    author_name: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class PageViewCreate(RequestModel):
+    page_key: Literal["hall", "staff", "board", "maps", "sugar", "announcements", "versions", "mine", "profile", "login"]
+    session_id: str = Field(min_length=16, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
+
+
+class PageMetric(BaseModel):
+    page_key: str
+    label: str
+    views: int
+    visitors: int
+
+
+class DailyMetric(BaseModel):
+    date: str
+    views: int
+    visitors: int
+
+
+class AnalyticsOut(BaseModel):
+    days: int
+    total_views: int
+    total_visitors: int
+    today_views: int
+    today_visitors: int
+    pages: list[PageMetric]
+    daily: list[DailyMetric]
+
+
 class SugarPhotoOut(BaseModel):
     id: int
     image_url: str
+    # is_visible=False 的照片仅主人和管理员组会收到；admin_note 为屏蔽理由
+    is_visible: bool = True
+    admin_note: str | None = None
+
+
+class SugarPhotoAdminOut(ApiModel):
+    id: int
+    image_url: str
+    is_visible: bool
+    admin_note: str | None = None
+    created_at: datetime
+    user: UserPublic
+
+
+class SugarPhotoModerateUpdate(RequestModel):
+    """砂糖社照片审核：屏蔽时必须提供理由，恢复时可清空。"""
+    is_visible: bool
+    admin_note: str | None = Field(default=None, max_length=200)
+
+
+class VrMapCreate(RequestModel):
+    name: str = Field(min_length=1, max_length=80)
+    description: str = Field(min_length=10, max_length=2000)
+    category: str = Field(min_length=1, max_length=16)
+
+
+class VrMapLikeState(BaseModel):
+    like_count: int
+    liked: bool
+
+
+class VrMapPhotoOut(BaseModel):
+    id: int
+    image_url: str
+    # is_visible=False 的照片仅上传者和管理员组会收到；moderated_at 为空表示审核中
+    is_visible: bool = False
+    moderated: bool = False
+    uploaded_by_me: bool = False
+
+
+class VrMapOut(ApiModel):
+    id: int
+    name: str
+    description: str
+    category: str
+    like_count: int = 0
+    liked_by_me: bool = False
+    reported_by_me: bool = False
+    has_pending_report: bool = False
+    is_visible: bool = True
+    admin_note: str | None = None
+    uploader: UserPublic
+    photos: list[VrMapPhotoOut] = []
+    created_at: datetime
+
+
+class VrMapReportCreate(RequestModel):
+    reason: str = Field(min_length=2, max_length=200)
+
+
+class VrMapReportOut(ApiModel):
+    id: int
+    map_id: int
+    map_name: str = ''
+    reporter: UserPublic
+    reason: str
+    status: ReportStatus = ReportStatus.PENDING
+    created_at: datetime
+    handled_at: datetime | None = None
+
+
+class VrMapReportResolveRequest(RequestModel):
+    action: Literal["close", "hide", "restore"]
+    admin_note: str | None = Field(default=None, max_length=200)
+
+
+class VrMapPhotoAdminOut(ApiModel):
+    id: int
+    image_url: str
+    is_visible: bool
+    moderated: bool
+    map_id: int
+    map_name: str
+    user: UserPublic
+    created_at: datetime
 
 
 class SugarProfileCardOut(ApiModel):
@@ -276,3 +511,28 @@ class SugarPairOut(ApiModel):
 class SugarProfileDetailOut(SugarProfileCardOut):
     qq: str | None = None
     relationship: SugarPairOut | None = None
+
+
+class BoardPostCreate(RequestModel):
+    content: str = Field(min_length=1, max_length=500)
+
+
+class BoardCommentCreate(RequestModel):
+    content: str = Field(min_length=1, max_length=500)
+
+
+class BoardCommentOut(ApiModel):
+    id: int
+    content: str
+    created_at: datetime
+    user: UserPublic
+    can_delete: bool = False
+
+
+class BoardMessageOut(ApiModel):
+    id: int
+    content: str
+    created_at: datetime
+    user: UserPublic
+    comments: list[BoardCommentOut] = []
+    can_delete: bool = False

@@ -7,13 +7,13 @@ class Settings(BaseSettings):
     app_name: str = "万事屋委托站"
     database_url: str = "sqlite:///./data/wsw.db"
     secret_key: str = "change-this-secret-in-production"
-    access_token_minutes: int = 60 * 24 * 7
+    # 登录会话最多持续 24 小时，超时后必须重新验证密码。
+    access_token_minutes: int = 60 * 24
     # 每次数据库写入后自动快照，保留的最近备份份数
     db_backup_keep: int = 100
     admin_username: str = "admin"
     admin_password: str = "Admin123!"
     admin_nickname: str = "万事屋管理员"
-    staff_group_id: str = ""
     # 留空时跟随 SQLite 数据库所在目录，保证数据库与上传图片能一起通过 Docker 挂载持久化。
     sugar_upload_dir: str = ""
     cors_origins: str = "http://localhost:5173,http://localhost:8080"

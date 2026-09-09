@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import hmac
 import json
@@ -11,6 +12,9 @@ from typing import Any
 from fastapi import HTTPException, status
 
 from .config import settings
+
+
+SESSION_MAX_AGE_SECONDS = 24 * 60 * 60
 
 
 def hash_password(password: str) -> str:
@@ -41,10 +45,15 @@ def _b64decode(data: str) -> bytes:
 
 
 def create_access_token(user_id: int) -> str:
+    issued_at = int(time.time())
     header = _b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}, separators=(",", ":")).encode())
     payload = _b64encode(
         json.dumps(
-            {"sub": str(user_id), "exp": int(time.time()) + settings.access_token_minutes * 60},
+            {
+                "sub": str(user_id),
+                "iat": issued_at,
+                "exp": issued_at + min(settings.access_token_minutes * 60, SESSION_MAX_AGE_SECONDS),
+            },
             separators=(",", ":"),
         ).encode()
     )
@@ -66,8 +75,10 @@ def decode_access_token(token: str) -> int:
         if not hmac.compare_digest(signature, expected):
             raise credentials_error
         data: dict[str, Any] = json.loads(_b64decode(payload))
-        if int(data["exp"]) < int(time.time()):
+        now = int(time.time())
+        issued_at = int(data["iat"])
+        if issued_at > now or now - issued_at >= SESSION_MAX_AGE_SECONDS or int(data["exp"]) <= now:
             raise credentials_error
         return int(data["sub"])
-    except (ValueError, KeyError, json.JSONDecodeError):
+    except (TypeError, ValueError, KeyError, OverflowError, json.JSONDecodeError, binascii.Error):
         raise credentials_error

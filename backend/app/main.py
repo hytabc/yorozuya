@@ -1,24 +1,35 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta, timezone
+from errno import EACCES, ENOSPC, EPERM, EROFS
+from hashlib import sha256
 from pathlib import Path
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Response, UploadFile, status
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BeforeValidator
-from sqlalchemy import func, or_, select, text, update
+from pydantic import BeforeValidator, ValidationError
+from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.orm import Session, joinedload
 
 from .config import settings
+from .backup import skip_next_snapshot
 from .database import Base, SessionLocal, engine, get_db
-from .dependencies import get_admin, get_current_user, get_optional_user, get_role_manager
+from .dependencies import get_admin, get_content_moderator, get_current_user, get_operations_manager, get_optional_user, get_role_manager
 from .models import (
+    AppSetting,
+    ApplicationStatus,
+    Announcement,
+    AnnouncementKind,
+    BoardComment,
+    BoardMessage,
     Feedback,
     FeedbackStatus,
+    PageView,
+    ReportStatus,
     SugarPair,
     SugarPairStatus,
     SugarPhoto,
@@ -26,17 +37,26 @@ from .models import (
     Task,
     TaskMember,
     TaskMemberResponse,
+    TaskReport,
     TaskStatus,
     User,
     UserPhoto,
     UserRole,
+    VrMap,
+    VrMapLike,
+    VrMapPhoto,
+    VrMapReport,
+    VolunteerApplication,
 )
 from .schemas import (
     AcceptRequest,
+    AnalyticsOut,
+    AnnouncementOut,
+    AnnouncementWrite,
     AdminStats,
     AdminTaskUpdate,
-    AdminUserBetaTesterUpdate,
     AdminUserLimitUpdate,
+    AdminUserBetaUpdate,
     AdminUserOut,
     AdminUserRoleUpdate,
     AdminPhotoUpdate,
@@ -45,26 +65,52 @@ from .schemas import (
     FeedbackUpdate,
     LoginRequest,
     PasswordUpdate,
+    PageMetric,
+    PageViewCreate,
+    DailyMetric,
+    ReportCreate,
+    ReportLimitOut,
+    ReportLimitUpdate,
+    ReportResolveRequest,
     RegisterRequest,
     TaskCreate,
     TaskMemberOut,
     TaskOut,
+    TaskReportOut,
+    TaskStats,
     StaffDirectoryOut,
     SugarPairOut,
+    SugarPhotoAdminOut,
     SugarPhotoOut,
+    SugarPhotoModerateUpdate,
     SugarProfileCardOut,
     SugarProfileDetailOut,
     TokenResponse,
+    UserPasswordUpdate,
     UserPublic,
     UserProfileOut,
     UserPhotoOut,
     UserSelf,
     UserUpdate,
+    BoardCommentCreate,
+    BoardCommentOut,
+    BoardMessageOut,
+    BoardPostCreate,
+    VolunteerApplicationAdminOut,
+    VolunteerApplicationCreate,
+    VolunteerApplicationOut,
+    VolunteerApplicationReview,
+    VrMapCreate,
+    VrMapLikeState,
+    VrMapOut,
+    VrMapPhotoAdminOut,
+    VrMapPhotoOut,
+    VrMapReportCreate,
+    VrMapReportOut,
+    VrMapReportResolveRequest,
 )
 from .security import create_access_token, hash_password, verify_password
 from .virtual_life import router as virtual_life_router
-from .virtual_life_packs import router as virtual_life_packs_router
-from .virtual_life_packs import seed_virtual_life_packs
 
 
 TaskStatusFilter = Annotated[
@@ -88,7 +134,6 @@ def initialize_database() -> None:
                 )
             )
             db.commit()
-        seed_virtual_life_packs(db)
 
 
 def migrate_schema() -> None:
@@ -109,8 +154,15 @@ def migrate_schema() -> None:
                 connection.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(16) NOT NULL DEFAULT 'user'"))
             if "qq_public" not in user_columns:
                 connection.execute(text("ALTER TABLE users ADD COLUMN qq_public BOOLEAN NOT NULL DEFAULT 0"))
+            if "avatar_path" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN avatar_path VARCHAR(255)"))
+            if "avatar_visible" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN avatar_visible BOOLEAN NOT NULL DEFAULT 0"))
+            if "avatar_moderated_at" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN avatar_moderated_at DATETIME"))
             if "is_beta_tester" not in user_columns:
                 connection.execute(text("ALTER TABLE users ADD COLUMN is_beta_tester BOOLEAN NOT NULL DEFAULT 0"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_users_is_beta_tester ON users (is_beta_tester)"))
         if not inspector.has_table("tasks"):
             return
         task_columns = {column["name"] for column in inspector.get_columns("tasks")}
@@ -118,6 +170,8 @@ def migrate_schema() -> None:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN required_takers INTEGER"))
         if "is_designated" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN is_designated BOOLEAN NOT NULL DEFAULT 0"))
+        if "is_anonymous" not in task_columns:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN is_anonymous BOOLEAN NOT NULL DEFAULT 0"))
         if "started_at" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN started_at DATETIME"))
         if "pay_type" not in task_columns:
@@ -192,6 +246,43 @@ def migrate_schema() -> None:
                 connection.execute(text("ALTER TABLE user_photos ADD COLUMN moderated_by_id INTEGER"))
             if "moderated_at" not in photo_columns:
                 connection.execute(text("ALTER TABLE user_photos ADD COLUMN moderated_at DATETIME"))
+        if inspector.has_table("sugar_photos"):
+            sugar_photo_columns = {column["name"] for column in inspector.get_columns("sugar_photos")}
+            if "is_visible" not in sugar_photo_columns:
+                connection.execute(text("ALTER TABLE sugar_photos ADD COLUMN is_visible BOOLEAN NOT NULL DEFAULT 1"))
+            if "admin_note" not in sugar_photo_columns:
+                connection.execute(text("ALTER TABLE sugar_photos ADD COLUMN admin_note VARCHAR(200)"))
+            if "moderated_by_id" not in sugar_photo_columns:
+                connection.execute(text("ALTER TABLE sugar_photos ADD COLUMN moderated_by_id INTEGER"))
+            if "moderated_at" not in sugar_photo_columns:
+                connection.execute(text("ALTER TABLE sugar_photos ADD COLUMN moderated_at DATETIME"))
+        # 旧版本为地图照片建立了 (map_id, user_id) 唯一索引，重建表以支持同一用户上传多张。
+        if inspector.has_table("vr_map_photos"):
+            unique_constraints = inspector.get_unique_constraints("vr_map_photos")
+            if any(set(item.get("column_names") or []) == {"map_id", "user_id"} for item in unique_constraints):
+                connection.execute(text("""
+                    CREATE TABLE vr_map_photos_new (
+                        id INTEGER NOT NULL PRIMARY KEY,
+                        map_id INTEGER NOT NULL REFERENCES vr_maps (id),
+                        user_id INTEGER NOT NULL REFERENCES users (id),
+                        file_path VARCHAR(255) NOT NULL UNIQUE,
+                        is_visible BOOLEAN NOT NULL DEFAULT 0,
+                        moderated_by_id INTEGER REFERENCES users (id),
+                        moderated_at DATETIME,
+                        created_at DATETIME NOT NULL
+                    )
+                """))
+                connection.execute(text("""
+                    INSERT INTO vr_map_photos_new
+                        (id, map_id, user_id, file_path, is_visible, moderated_by_id, moderated_at, created_at)
+                    SELECT id, map_id, user_id, file_path, is_visible, moderated_by_id, moderated_at, created_at
+                    FROM vr_map_photos
+                """))
+                connection.execute(text("DROP TABLE vr_map_photos"))
+                connection.execute(text("ALTER TABLE vr_map_photos_new RENAME TO vr_map_photos"))
+                connection.execute(text("CREATE INDEX ix_vr_map_photos_map_id ON vr_map_photos (map_id)"))
+                connection.execute(text("CREATE INDEX ix_vr_map_photos_user_id ON vr_map_photos (user_id)"))
+                connection.execute(text("CREATE INDEX ix_vr_map_photos_is_visible ON vr_map_photos (is_visible)"))
 
 
 @asynccontextmanager
@@ -200,7 +291,7 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title=settings.app_name, version="1.1.0", lifespan=lifespan)
+app = FastAPI(title=settings.app_name, version="0.1-beta", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
@@ -215,7 +306,6 @@ from .mascot import router as mascot_router  # noqa: E402
 
 app.include_router(mascot_router)
 app.include_router(virtual_life_router)
-app.include_router(virtual_life_packs_router)
 
 
 def expire_due_tasks(db: Session) -> None:
@@ -231,16 +321,53 @@ def expire_due_tasks(db: Session) -> None:
         db.commit()
 
 
+PAGE_LABELS = {
+    "hall": "委托大厅",
+    "staff": "成员名录",
+    "board": "留言板",
+    "maps": "地图推荐",
+    "versions": "版本更新",
+    "sugar": "砂糖社",
+    "announcements": "公告中心",
+    "mine": "我的委托",
+    "profile": "个人设置",
+    "login": "登录注册",
+}
+
+
+def utc_naive(value: datetime | None) -> datetime | None:
+    if value is None or value.tzinfo is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def present_announcement(item: Announcement) -> AnnouncementOut:
+    return AnnouncementOut(
+        id=item.id,
+        kind=item.kind,
+        title=item.title,
+        content=item.content,
+        is_published=item.is_published,
+        is_pinned=item.is_pinned,
+        starts_at=item.starts_at,
+        ends_at=item.ends_at,
+        author_name=item.author.nickname,
+        created_at=item.created_at,
+        updated_at=item.updated_at,
+    )
+
+
 def task_query():
     return select(Task).options(
         joinedload(Task.publisher).joinedload(User.photos),
         joinedload(Task.members).joinedload(TaskMember.user).joinedload(User.photos),
+        joinedload(Task.reports),
     )
 
 
 def visible_user_photos(user: User, viewer: User | None = None) -> list[UserPhotoOut]:
     """资料主人和审核人员可看全部；其他访问者只能看已通过展示的图片。"""
-    can_manage = viewer is not None and (viewer.id == user.id or viewer.is_admin or viewer.role == UserRole.STAFF)
+    can_manage = viewer is not None and (viewer.id == user.id or can_review_content(viewer))
     return [
         UserPhotoOut(id=photo.id, image_url=photo.image_url, is_visible=photo.is_visible)
         for photo in user.photos
@@ -248,21 +375,46 @@ def visible_user_photos(user: User, viewer: User | None = None) -> list[UserPhot
     ]
 
 
+def visible_avatar(user: User, viewer: User | None = None) -> str | None:
+    """头像 URL：审核通过后对所有人可见，未过审时仅本人和管理员组可见。"""
+    if not user.avatar_path:
+        return None
+    if user.avatar_visible or (viewer is not None and (viewer.id == user.id or can_review_content(viewer))):
+        return user.avatar_url
+    return None
+
+
 def present_user_public(user: User, viewer: User | None = None) -> UserPublic:
-    return UserPublic(id=user.id, nickname=user.nickname, bio=user.bio, photos=visible_user_photos(user, viewer))
+    return UserPublic(
+        id=user.id, nickname=user.nickname, bio=user.bio, photos=visible_user_photos(user, viewer),
+        avatar_url=visible_avatar(user, viewer), avatar_visible=user.avatar_visible,
+        is_beta_tester=user.is_beta_tester,
+    )
+
+
+ANONYMOUS_PUBLISHER = UserPublic(id=0, nickname="匿名委托人", bio=None, photos=[])
 
 
 def present_user_profile(user: User, viewer: User | None = None) -> UserProfileOut:
     return UserProfileOut(
         id=user.id, nickname=user.nickname, bio=user.bio, qq=user.qq, qq_public=user.qq_public,
-        is_admin=user.is_admin, is_beta_tester=user.is_beta_tester,
+        is_admin=user.is_admin,
         role=user.role, created_at=user.created_at, photos=visible_user_photos(user, viewer),
+        avatar_url=visible_avatar(user, viewer), avatar_visible=user.avatar_visible, is_beta_tester=user.is_beta_tester,
     )
 
 
+def present_moderation_profile(user: User, moderator: User) -> UserProfileOut:
+    profile = present_user_profile(user, moderator)
+    return profile.model_copy(update={"qq": None}) if moderator.role == UserRole.DISCIPLINARIAN else profile
+
+
 def present_members(task: Task, viewer: User | None) -> list[TaskMemberOut]:
-    """成员序列化；qq 只在协作相关方（委托人/成员/管理员）可见。"""
-    can_see_qq = viewer is not None and (viewer.is_admin or viewer.id == task.publisher_id or any(m.user_id == viewer.id for m in task.members))
+    """成员序列化；qq 只在协作相关方（委托人/成员/管理员）可见。
+
+    匿名委托中，联系方式只对“发布人 ↔ 已接取成员”双方可见：发布人可看所有成员，
+    成员只能看到自己的 QQ，成员之间互不可见。
+    """
     out: list[TaskMemberOut] = []
     for member in task.members:
         item = TaskMemberOut(
@@ -270,7 +422,15 @@ def present_members(task: Task, viewer: User | None) -> list[TaskMemberOut]:
             response_status=member.response_status, confirmed_at=member.confirmed_at,
             cancel_confirmed_at=member.cancel_confirmed_at,
         )
-        if can_see_qq:
+        if task.is_anonymous:
+            can_see_this = viewer is not None and (
+                viewer.is_admin or viewer.id == task.publisher_id or member.user_id == viewer.id
+            )
+        else:
+            can_see_this = viewer is not None and (
+                viewer.is_admin or viewer.id == task.publisher_id or any(m.user_id == viewer.id for m in task.members)
+            )
+        if can_see_this:
             item.qq = member.user.qq
         out.append(item)
     return out
@@ -278,6 +438,7 @@ def present_members(task: Task, viewer: User | None) -> list[TaskMemberOut]:
 
 def present_task(task: Task, viewer: User | None = None) -> TaskOut:
     data = TaskOut.model_validate(task)
+    data.reported = any(report.status == ReportStatus.PENDING for report in task.reports)
     can_see_hidden = viewer is not None and (
         viewer.is_admin or viewer.role == UserRole.STAFF or viewer.id == task.publisher_id
     )
@@ -285,6 +446,40 @@ def present_task(task: Task, viewer: User | None = None) -> TaskOut:
     data.admin_note = task.admin_note if (not task.is_visible and can_see_hidden) else None
     data.publisher = present_user_public(task.publisher, viewer)
     data.members = present_members(task, viewer)
+    if task.is_anonymous:
+        # 匿名委托：接取前仅展示标题与内容，个人信息不公开；接取后联系方式仅双方可见。
+        is_collaborator = viewer is not None and (
+            viewer.id == task.publisher_id
+            or any(
+                m.user_id == viewer.id and m.response_status == TaskMemberResponse.ACCEPTED
+                for m in task.members
+            )
+        )
+        is_pending_designated = viewer is not None and any(
+            m.user_id == viewer.id and m.response_status == TaskMemberResponse.PENDING for m in task.members
+        )
+        can_inspect = viewer is not None and (viewer.is_admin or viewer.role == UserRole.STAFF)
+        if not (is_collaborator or is_pending_designated or can_inspect):
+            data.publisher = ANONYMOUS_PUBLISHER
+            data.publisher_id = 0
+            data.members = []
+            return data
+        if is_pending_designated and not is_collaborator:
+            # 匿名指定委托：被指定者仅看到自己的待响应状态，不暴露发布人与其他成员。
+            data.publisher = ANONYMOUS_PUBLISHER
+            data.publisher_id = 0
+            data.members = [member for member in data.members if member.user.id == viewer.id]
+            return data
+        if task.publisher_id == viewer.id:
+            # 委托人：成员 QQ 已由 present_members 填充
+            return data
+        if is_collaborator:
+            # 已接取成员：可见委托人联系方式
+            data.contact_qq = task.publisher.qq
+            return data
+        if viewer.is_admin:
+            data.contact_qq = task.publisher.qq
+        return data
     if viewer is None:
         return data
     if viewer.is_admin:
@@ -317,6 +512,48 @@ def can_view_hidden_task(task: Task, viewer: User | None) -> bool:
     )
 
 
+def is_task_manager(viewer: User | None) -> bool:
+    return viewer is not None and (viewer.is_admin or viewer.role == UserRole.STAFF)
+
+
+def is_task_participant(task: Task, viewer: User | None) -> bool:
+    return viewer is not None and (
+        viewer.id == task.publisher_id or any(m.user_id == viewer.id for m in task.members)
+    )
+
+
+def get_setting_int(db: Session, key: str, default: int) -> int:
+    setting = db.get(AppSetting, key)
+    if setting is None:
+        return default
+    try:
+        return int(setting.value)
+    except (TypeError, ValueError):
+        return default
+
+
+def set_setting(db: Session, key: str, value: str) -> None:
+    setting = db.get(AppSetting, key)
+    if setting is None:
+        db.add(AppSetting(key=key, value=value))
+    else:
+        setting.value = value
+
+
+def present_report(report: TaskReport) -> TaskReportOut:
+    return TaskReportOut(
+        id=report.id,
+        task_id=report.task_id,
+        task_title=report.task.title if report.task else '',
+        task_status=report.task.status if report.task else TaskStatus.PUBLISHED,
+        reporter=present_user_public(report.reporter),
+        reason=report.reason,
+        status=report.status,
+        created_at=report.created_at,
+        handled_at=report.handled_at,
+    )
+
+
 def present_feedback(feedback: Feedback) -> FeedbackOut:
     return FeedbackOut.model_validate(feedback)
 
@@ -336,18 +573,43 @@ def accepted_member_of(db: Session, task_id: int, user_id: int) -> TaskMember | 
 
 
 def shares_task_with(db: Session, viewer_id: int, target_id: int) -> bool:
-    """两人是否在同一委托中共事过（一个委托人发布、另一个成员接取，或同为成员）。"""
+    """两人是否在同一委托中共事过（一个委托人发布、另一个成员接取，或同为成员）。
+
+    匿名委托只算“发布人 ↔ 已接取成员”这一对关系：接单人之间不算共事，
+    避免通过资料页互相看到联系方式。
+    """
     if viewer_id == target_id:
         return True
     viewer_tasks = set(db.scalars(select(Task.id).where(Task.publisher_id == viewer_id)))
     viewer_tasks |= set(db.scalars(select(TaskMember.task_id).where(TaskMember.user_id == viewer_id)))
     target_tasks = set(db.scalars(select(Task.id).where(Task.publisher_id == target_id)))
     target_tasks |= set(db.scalars(select(TaskMember.task_id).where(TaskMember.user_id == target_id)))
-    return bool(viewer_tasks & target_tasks)
+    shared_ids = viewer_tasks & target_tasks
+    for task_id in shared_ids:
+        task = db.get(Task, task_id)
+        if task is None:
+            continue
+        if not task.is_anonymous:
+            return True
+        # 匿名委托：必须是发布人与已接取成员之间的对应关系
+        viewer_is_pub = task.publisher_id == viewer_id
+        target_is_pub = task.publisher_id == target_id
+        if viewer_is_pub != target_is_pub:
+            member_id = target_id if viewer_is_pub else viewer_id
+            member_row = db.scalar(
+                select(TaskMember).where(
+                    TaskMember.task_id == task_id,
+                    TaskMember.user_id == member_id,
+                    TaskMember.response_status == TaskMemberResponse.ACCEPTED,
+                )
+            )
+            if member_row is not None:
+                return True
+    return False
 
 
 def can_view_user_qq(db: Session, viewer: User | None, target: User) -> bool:
-    """店员及主动公开的志愿者对外可见；原有协作关系始终优先放行。"""
+    """管理员组及主动公开的志愿者对外可见；原有协作关系始终优先放行。"""
     if target.role == UserRole.STAFF:
         return True
     if target.role == UserRole.VOLUNTEER and target.qq_public:
@@ -364,6 +626,7 @@ def can_view_user_qq(db: Session, viewer: User | None, target: User) -> bool:
             Task.publisher_id == target.id,
             Task.status == TaskStatus.PUBLISHED,
             Task.is_visible.is_(True),
+            Task.is_anonymous.is_(False),
         )
         .limit(1)
     )
@@ -379,6 +642,19 @@ IMAGE_SIGNATURES = (
     (b"GIF89a", ".gif"),
 )
 
+# 头像：仅 PNG/JPG，最大 2 MB，上传后需管理员审核
+MAX_AVATAR_BYTES = 2 * 1024 * 1024
+AVATAR_SIGNATURES = (
+    (b"\xff\xd8\xff", ".jpg"),
+    (b"\x89PNG\r\n\x1a\n", ".png"),
+)
+
+# VRChat 地图推荐：实拍照片仅 PNG/JPG，最大 10 MB，需管理员审核
+MAX_VR_MAP_PHOTO_BYTES = 10 * 1024 * 1024
+MAX_VR_MAP_UPLOAD_TOTAL_BYTES = 50 * 1024 * 1024
+MAX_VR_MAP_PHOTOS = 5
+MAP_CATEGORIES = ("游戏", "休闲", "恐怖", "风景", "解谜", "社交", "其他")
+
 
 def sugar_profile_query():
     return select(SugarProfile).options(joinedload(SugarProfile.user), joinedload(SugarProfile.photos))
@@ -392,9 +668,20 @@ def photo_url(photo: SugarPhoto) -> str:
     return f"/uploads/{photo.file_path}"
 
 
+def present_sugar_photos(profile: SugarProfile, viewer: User | None) -> list[SugarPhotoOut]:
+    """被屏蔽的照片仅主人和管理员组可见（附带屏蔽理由），对其他查看者隐藏。"""
+    can_manage = viewer is not None and (viewer.id == profile.user_id or can_review_content(viewer))
+    return [
+        SugarPhotoOut(id=photo.id, image_url=photo_url(photo), is_visible=photo.is_visible, admin_note=photo.admin_note)
+        for photo in profile.photos
+        if photo.is_visible or can_manage
+    ]
+
+
 def present_sugar_profile(
     profile: SugarProfile,
     *,
+    viewer: User | None = None,
     qq: str | None = None,
     relationship: SugarPair | None = None,
     detailed: bool = False,
@@ -403,7 +690,7 @@ def present_sugar_profile(
         "id": profile.id,
         "user": profile.user,
         "about": profile.about,
-        "photos": [SugarPhotoOut(id=photo.id, image_url=photo_url(photo)) for photo in profile.photos],
+        "photos": present_sugar_photos(profile, viewer),
         "created_at": profile.created_at,
         "updated_at": profile.updated_at,
     }
@@ -458,6 +745,16 @@ def ongoing_sugar_pair_for(db: Session, user_id: int, exclude_pair_id: int | Non
     return db.scalar(sugar_pair_query().where(*filters).order_by(SugarPair.initiated_at.desc()))
 
 
+def active_sugar_pair_for(db: Session, user_id: int, exclude_pair_id: int | None = None) -> SugarPair | None:
+    filters = [
+        SugarPair.status == SugarPairStatus.ACTIVE,
+        or_(SugarPair.first_user_id == user_id, SugarPair.second_user_id == user_id),
+    ]
+    if exclude_pair_id is not None:
+        filters.append(SugarPair.id != exclude_pair_id)
+    return db.scalar(sugar_pair_query().where(*filters).order_by(SugarPair.initiated_at.desc()))
+
+
 def image_extension(content: bytes) -> str | None:
     for signature, extension in IMAGE_SIGNATURES:
         if content.startswith(signature):
@@ -482,6 +779,14 @@ async def read_sugar_images(photos: list[UploadFile]) -> list[tuple[str, bytes]]
     return images
 
 
+def image_storage_error_detail(error: OSError) -> str:
+    if error.errno == ENOSPC:
+        return "服务器存储空间不足，请稍后重试"
+    if error.errno in (EACCES, EPERM, EROFS):
+        return "服务器暂时无法写入图片，请稍后重试"
+    return "图片保存失败，请稍后重试"
+
+
 def store_sugar_images(profile: SugarProfile, images: list[tuple[str, bytes]]) -> list[SugarPhoto]:
     settings.ensure_storage_directory()
     stored: list[tuple[str, str]] = []
@@ -498,7 +803,7 @@ def store_sugar_images(profile: SugarProfile, images: list[tuple[str, bytes]]) -
                 Path(destination).unlink(missing_ok=True)
             except OSError:
                 pass
-        raise HTTPException(status_code=500, detail="照片保存失败，请稍后重试") from error
+        raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
     records = [SugarPhoto(profile=profile, file_path=file_path) for file_path, _ in stored]
     return records
 
@@ -583,6 +888,18 @@ def update_profile(payload: UserUpdate, user: User = Depends(get_current_user), 
     return user
 
 
+@app.patch("/api/users/me/password", response_model=UserSelf)
+def update_my_password(
+    payload: UserPasswordUpdate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user.password_hash = hash_password(payload.password)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 MAX_USER_PHOTOS = 3
 
 
@@ -626,7 +943,7 @@ def store_user_images(user: User, images: list[tuple[str, bytes]]) -> list[UserP
     except OSError as error:
         for _, destination in stored:
             destination.unlink(missing_ok=True)
-        raise HTTPException(status_code=500, detail="图片保存失败，请稍后重试") from error
+        raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
     return [UserPhoto(user=user, file_path=file_path) for file_path, _ in stored]
 
 
@@ -661,31 +978,139 @@ def delete_user_photo(photo_id: int, user: User = Depends(get_current_user), db:
     return present_user_profile(user, user)
 
 
+def avatar_extension(content: bytes) -> str | None:
+    for signature, extension in AVATAR_SIGNATURES:
+        if content.startswith(signature):
+            return extension
+    return None
+
+
+def clear_avatar_file(user: User) -> None:
+    """移除旧头像文件并清空头像字段（重新上传换头像、删除头像时复用）。"""
+    if not user.avatar_path:
+        return
+    root = settings.sugar_upload_path.resolve()
+    destination = (root / user.avatar_path).resolve()
+    if destination.is_relative_to(root):
+        try:
+            destination.unlink(missing_ok=True)
+        except OSError:
+            pass
+    user.avatar_path = None
+    user.avatar_visible = False
+    user.avatar_moderated_at = None
+
+
+@app.post("/api/users/me/avatar", response_model=UserProfileOut, status_code=status.HTTP_201_CREATED)
+async def upload_avatar(
+    avatar: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """上传头像：仅支持 PNG/JPG、最大 2 MB；需管理员审核通过后才公开展示。"""
+    content = await avatar.read(MAX_AVATAR_BYTES + 1)
+    if not content:
+        raise HTTPException(status_code=422, detail="请选择要上传的头像图片")
+    if len(content) > MAX_AVATAR_BYTES:
+        raise HTTPException(status_code=422, detail="头像图片不能超过 2 MB")
+    extension = avatar_extension(content)
+    if extension is None:
+        raise HTTPException(status_code=422, detail="头像仅支持 PNG 或 JPG 格式")
+    settings.ensure_storage_directory()
+    file_path = f"avatars/{user.id}/{uuid4().hex}{extension}"
+    destination = settings.sugar_upload_path / file_path
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        destination.write_bytes(content)
+    except OSError as error:
+        raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
+    clear_avatar_file(user)
+    user.avatar_path = file_path
+    user.avatar_visible = False
+    user.avatar_moderated_at = None
+    db.commit()
+    db.refresh(user)
+    return present_user_profile(user, user)
+
+
+@app.delete("/api/users/me/avatar", response_model=UserProfileOut)
+def delete_avatar(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    clear_avatar_file(user)
+    db.commit()
+    db.refresh(user)
+    return present_user_profile(user, user)
+
+
+@app.patch("/api/admin/users/{user_id}/avatar", response_model=UserProfileOut)
+def moderate_avatar(
+    user_id: int,
+    payload: AdminPhotoUpdate,
+    manager: User = Depends(get_content_moderator),
+    db: Session = Depends(get_db),
+):
+    """管理员组审核头像：通过后公开展示，驳回则仅本人可见。"""
+    target = db.get(User, user_id)
+    if target is None or not target.avatar_path:
+        raise HTTPException(status_code=404, detail="头像不存在")
+    target.avatar_visible = payload.is_visible
+    target.avatar_moderated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(target)
+    return present_moderation_profile(target, manager)
+
+
 @app.get("/api/users/{user_id}", response_model=UserProfileOut)
 def user_profile(user_id: int, viewer: User | None = Depends(get_optional_user), db: Session = Depends(get_db)):
-    """名录中的店员/志愿者允许匿名查看，QQ 仍按公开偏好和协作关系脱敏。"""
+    """名录成员允许匿名查看，QQ 仍按公开偏好和协作关系脱敏。"""
     target = db.scalar(user_with_photos_query().where(User.id == user_id))
     if target is None or not target.is_active:
         raise HTTPException(status_code=404, detail="用户不存在")
     data = present_user_profile(target, viewer)
-    if target.role not in (UserRole.STAFF, UserRole.VOLUNTEER) and viewer is None:
+    directory_roles = (
+        UserRole.STAFF,
+        UserRole.DISCIPLINARIAN,
+        UserRole.MASCOT,
+        UserRole.VOLUNTEER,
+    )
+    if target.role not in directory_roles and viewer is None:
         raise HTTPException(status_code=401, detail="请先登录")
     if not can_view_user_qq(db, viewer, target):
         data.qq = None
     return data
 
 
+@app.get("/api/users/{user_id}/public", response_model=UserProfileOut)
+def user_public_profile(user_id: int, viewer: User | None = Depends(get_optional_user), db: Session = Depends(get_db)):
+    """公开资料（无联系方式）：留言板等公开场景点击用户时使用，游客可访问。"""
+    target = db.scalar(user_with_photos_query().where(User.id == user_id))
+    if target is None or not target.is_active:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    data = present_user_profile(target, viewer)
+    data.qq = None
+    return data
+
+
 @app.get("/api/staff", response_model=StaffDirectoryOut)
 def staff_directory(db: Session = Depends(get_db)):
-    staff = db.scalars(
-        user_with_photos_query().where(User.role == UserRole.STAFF, User.is_active.is_(True), User.is_admin.is_(False)).order_by(User.created_at.asc())
-    ).unique().all()
-    volunteers = db.scalars(
-        user_with_photos_query().where(User.role == UserRole.VOLUNTEER, User.is_active.is_(True), User.is_admin.is_(False)).order_by(User.created_at.asc())
-    ).unique().all()
+    def users_with_role(role: UserRole) -> list[User]:
+        return db.scalars(
+            user_with_photos_query()
+            .where(User.role == role, User.is_active.is_(True), User.is_admin.is_(False))
+            .order_by(User.created_at.asc())
+        ).unique().all()
+
+    staff = users_with_role(UserRole.STAFF)
+    disciplinarians = users_with_role(UserRole.DISCIPLINARIAN)
+    mascots = users_with_role(UserRole.MASCOT)
+    volunteers = users_with_role(UserRole.VOLUNTEER)
+
+    def profile_without_qq(user: User) -> UserProfileOut:
+        return present_user_profile(user).model_copy(update={"qq": None})
+
     return StaffDirectoryOut(
-        group_chat_id=settings.staff_group_id,
         staff=[present_user_profile(user) for user in staff],
+        disciplinarians=[profile_without_qq(user) for user in disciplinarians],
+        mascots=[profile_without_qq(user) for user in mascots],
         volunteers=[
             present_user_profile(user).model_copy(update={"qq": user.qq if user.qq_public else None})
             for user in volunteers
@@ -703,7 +1128,7 @@ def list_sugar_profiles(user: User = Depends(get_current_user), db: Session = De
         .order_by(SugarProfile.updated_at.desc())
         .limit(200)
     ).unique().all()
-    return [present_sugar_profile(profile) for profile in profiles]
+    return [present_sugar_profile(profile, viewer=user) for profile in profiles]
 
 
 @app.get("/api/sugar/profiles/{user_id}", response_model=SugarProfileDetailOut)
@@ -720,6 +1145,7 @@ def sugar_profile_detail(
     # QQ 不出现在公共列表；此详情请求的查看者与资料主人构成唯一的可见双方。
     return present_sugar_profile(
         profile,
+        viewer=viewer,
         qq=target.qq,
         relationship=relationship,
         detailed=True,
@@ -770,7 +1196,7 @@ async def save_sugar_profile(
         raise
     saved = get_sugar_profile_or_404(db, user.id)
     response.status_code = status.HTTP_201_CREATED if is_new else status.HTTP_200_OK
-    return present_sugar_profile(saved, qq=user.qq, detailed=True)
+    return present_sugar_profile(saved, viewer=user, qq=user.qq, detailed=True)
 
 
 @app.delete("/api/sugar/photos/{photo_id}", response_model=SugarProfileDetailOut)
@@ -793,7 +1219,40 @@ def delete_sugar_photo(photo_id: int, user: User = Depends(get_current_user), db
             destination.unlink(missing_ok=True)
         except OSError:
             pass
-    return present_sugar_profile(get_sugar_profile_or_404(db, user.id), qq=user.qq, detailed=True)
+    return present_sugar_profile(get_sugar_profile_or_404(db, user.id), viewer=user, qq=user.qq, detailed=True)
+
+
+@app.delete("/api/sugar/profile", status_code=status.HTTP_204_NO_CONTENT)
+def delete_sugar_profile(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """删除本人砂糖资料；待确认关系一并移除，进行中的关系标记为已结束。"""
+    profile = db.scalars(sugar_profile_query().where(SugarProfile.user_id == user.id)).unique().one_or_none()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="砂糖社资料不存在")
+    photo_paths = [photo.file_path for photo in profile.photos]
+    now = datetime.utcnow()
+    pairs = db.scalars(
+        sugar_pair_query().where(
+            or_(SugarPair.first_user_id == user.id, SugarPair.second_user_id == user.id),
+            SugarPair.status.in_([SugarPairStatus.PENDING, SugarPairStatus.ACTIVE]),
+        )
+    ).all()
+    for pair in pairs:
+        if pair.status == SugarPairStatus.ACTIVE:
+            pair.status = SugarPairStatus.ENDED
+            pair.ended_at = now
+        else:
+            db.delete(pair)
+    db.delete(profile)
+    db.commit()
+    root = settings.sugar_upload_path.resolve()
+    for file_path in photo_paths:
+        destination = (root / file_path).resolve()
+        if destination.is_relative_to(root):
+            try:
+                destination.unlink(missing_ok=True)
+            except OSError:
+                pass
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.get("/api/sugar/pairs/mine", response_model=list[SugarPairOut])
@@ -841,15 +1300,31 @@ def confirm_sugar_pair(
             raise HTTPException(status_code=409, detail="你们已经是砂糖")
         if existing.initiated_by_id == user.id:
             raise HTTPException(status_code=409, detail="已等待对方确认")
-        conflict = ongoing_sugar_pair_for(db, user.id, existing.id) or ongoing_sugar_pair_for(db, target_user_id, existing.id)
-        if conflict is not None:
-            raise HTTPException(status_code=409, detail="双方有人已有待确认或进行中的砂糖关系")
+        # 已有待确认记录时，资料发布人（被邀请方）再次确认即可选择并激活该关系。
+        # 其他人的待确认请求可以同时存在，待发布人逐一选择。
+        if active_sugar_pair_for(db, user.id, existing.id) or active_sugar_pair_for(db, target_user_id, existing.id):
+            raise HTTPException(status_code=409, detail="双方已有进行中的砂糖关系")
         existing.status = SugarPairStatus.ACTIVE
         existing.activated_at = now
+        # 关系激活后，双方档案都被锁定；清理涉及任一方的其他待确认请求。
+        locked_user_ids = [existing.first_user_id, existing.second_user_id]
+        other_pending = db.scalars(
+            select(SugarPair).where(
+                SugarPair.id != existing.id,
+                SugarPair.status == SugarPairStatus.PENDING,
+                or_(
+                    SugarPair.first_user_id.in_(locked_user_ids),
+                    SugarPair.second_user_id.in_(locked_user_ids),
+                ),
+            )
+        ).all()
+        for pending in other_pending:
+            db.delete(pending)
         db.commit()
         return present_sugar_pair(existing)
-    if ongoing_sugar_pair_for(db, user.id) or ongoing_sugar_pair_for(db, target_user_id):
-        raise HTTPException(status_code=409, detail="双方有人已有待确认或进行中的砂糖关系")
+    # 允许同一资料发布人同时收到多条待确认请求，但任一方已有进行中的关系时不可再发起。
+    if active_sugar_pair_for(db, user.id) or active_sugar_pair_for(db, target_user_id):
+        raise HTTPException(status_code=409, detail="双方已有进行中的砂糖关系")
     pair = SugarPair(
         first_user_id=user.id,
         second_user_id=target_user_id,
@@ -909,7 +1384,7 @@ def my_feedback(user: User = Depends(get_current_user), db: Session = Depends(ge
 
 
 @app.get("/api/admin/feedback", response_model=list[FeedbackOut])
-def admin_feedback(_: User = Depends(get_admin), db: Session = Depends(get_db)):
+def admin_feedback(_: User = Depends(get_role_manager), db: Session = Depends(get_db)):
     feedback_list = db.scalars(select(Feedback).order_by(Feedback.created_at.desc()).limit(500)).all()
     return [present_feedback(item) for item in feedback_list]
 
@@ -918,10 +1393,10 @@ def admin_feedback(_: User = Depends(get_admin), db: Session = Depends(get_db)):
 def handle_feedback(
     feedback_id: int,
     payload: FeedbackUpdate,
-    _: User = Depends(get_admin),
+    _: User = Depends(get_role_manager),
     db: Session = Depends(get_db),
 ):
-    """管理员处理反馈：标记状态并填写处理回复。"""
+    """管理员组处理反馈：标记状态并填写处理回复。"""
     feedback = db.get(Feedback, feedback_id)
     if feedback is None:
         raise HTTPException(status_code=404, detail="反馈不存在")
@@ -935,6 +1410,574 @@ def handle_feedback(
     return present_feedback(feedback)
 
 
+def present_application(
+    application: VolunteerApplication, viewer: User | None = None
+) -> VolunteerApplicationAdminOut:
+    return VolunteerApplicationAdminOut(
+        id=application.id,
+        reason=application.reason,
+        status=application.status,
+        review_note=application.review_note,
+        created_at=application.created_at,
+        handled_at=application.handled_at,
+        user=present_user_public(application.user, viewer),
+        handled_by=present_user_public(application.handled_by, viewer) if application.handled_by else None,
+    )
+
+
+@app.post("/api/volunteer-applications", response_model=VolunteerApplicationOut, status_code=status.HTTP_201_CREATED)
+def create_volunteer_application(
+    payload: VolunteerApplicationCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """普通用户申请成为志愿者，需提交理由，由管理员组审核。"""
+    if user.is_admin or user.role != UserRole.USER:
+        raise HTTPException(status_code=403, detail="只有普通用户可以申请成为志愿者")
+    pending = db.scalar(
+        select(VolunteerApplication).where(
+            VolunteerApplication.user_id == user.id,
+            VolunteerApplication.status == ApplicationStatus.PENDING,
+        )
+    )
+    if pending is not None:
+        raise HTTPException(status_code=409, detail="你已提交过申请，请等待管理员处理")
+    application = VolunteerApplication(user_id=user.id, reason=payload.reason.strip())
+    db.add(application)
+    db.commit()
+    db.refresh(application)
+    return present_application(application, viewer=user)
+
+
+@app.get("/api/volunteer-applications/mine", response_model=VolunteerApplicationOut | None)
+def my_volunteer_application(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """当前用户最近一次志愿者申请及审核状态。"""
+    application = db.scalars(
+        select(VolunteerApplication)
+        .where(VolunteerApplication.user_id == user.id)
+        .order_by(VolunteerApplication.created_at.desc(), VolunteerApplication.id.desc())
+        .limit(1)
+    ).first()
+    return present_application(application, viewer=user) if application else None
+
+
+@app.get("/api/admin/volunteer-applications", response_model=list[VolunteerApplicationAdminOut])
+def admin_volunteer_applications(
+    manager: User = Depends(get_role_manager), db: Session = Depends(get_db)
+):
+    applications = db.scalars(
+        select(VolunteerApplication)
+        .options(joinedload(VolunteerApplication.user), joinedload(VolunteerApplication.handled_by))
+        .order_by(VolunteerApplication.created_at.desc(), VolunteerApplication.id.desc())
+        .limit(500)
+    ).all()
+    return [present_application(item, viewer=manager) for item in applications]
+
+
+@app.post("/api/admin/volunteer-applications/{application_id}/review", response_model=VolunteerApplicationAdminOut)
+def review_volunteer_application(
+    application_id: int,
+    payload: VolunteerApplicationReview,
+    manager: User = Depends(get_role_manager),
+    db: Session = Depends(get_db),
+):
+    """管理员组审核志愿者申请：通过则申请人升为志愿者。"""
+    application = db.get(VolunteerApplication, application_id)
+    if application is None:
+        raise HTTPException(status_code=404, detail="申请不存在")
+    if application.status != ApplicationStatus.PENDING:
+        raise HTTPException(status_code=409, detail="该申请已处理过")
+    if payload.action == "approve":
+        applicant = db.get(User, application.user_id)
+        if applicant is None:
+            raise HTTPException(status_code=404, detail="申请用户不存在")
+        if applicant.role != UserRole.VOLUNTEER:
+            applicant.role = UserRole.VOLUNTEER
+            applicant.qq_public = False
+        application.status = ApplicationStatus.APPROVED
+    else:
+        application.status = ApplicationStatus.REJECTED
+    application.review_note = payload.note.strip() if payload.note else None
+    application.handled_by_id = manager.id
+    application.handled_at = datetime.utcnow()
+    db.commit()
+    db.refresh(application)
+    return present_application(application, viewer=manager)
+
+
+def can_moderate(user: User | None) -> bool:
+    """留言板删除权限：管理员组（超管/管理员）。"""
+    return user is not None and (user.is_admin or user.role == UserRole.STAFF)
+
+
+def can_review_content(user: User | None) -> bool:
+    return user is not None and (user.is_admin or user.role in (UserRole.STAFF, UserRole.DISCIPLINARIAN))
+
+
+def present_board_comment(comment: BoardComment, viewer: User | None) -> BoardCommentOut:
+    return BoardCommentOut(
+        id=comment.id,
+        content=comment.content,
+        created_at=comment.created_at,
+        user=present_user_public(comment.user, viewer),
+        can_delete=can_moderate(viewer) or (viewer is not None and viewer.id == comment.user_id),
+    )
+
+
+def present_board_message(message: BoardMessage, viewer: User | None) -> BoardMessageOut:
+    return BoardMessageOut(
+        id=message.id,
+        content=message.content,
+        created_at=message.created_at,
+        user=present_user_public(message.user, viewer),
+        comments=[present_board_comment(comment, viewer) for comment in message.comments],
+        can_delete=can_moderate(viewer) or (viewer is not None and viewer.id == message.user_id),
+    )
+
+
+@app.get("/api/board", response_model=list[BoardMessageOut])
+def list_board_messages(
+    viewer: User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    """留言板：最新 200 条留言及其评论，游客可浏览。"""
+    messages = db.scalars(
+        select(BoardMessage)
+        .options(joinedload(BoardMessage.user), joinedload(BoardMessage.comments).joinedload(BoardComment.user))
+        .order_by(BoardMessage.created_at.desc(), BoardMessage.id.desc())
+        .limit(200)
+    ).unique().all()
+    return [present_board_message(message, viewer) for message in messages]
+
+
+@app.post("/api/board", response_model=BoardMessageOut, status_code=status.HTTP_201_CREATED)
+def create_board_message(
+    payload: BoardPostCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    message = BoardMessage(user_id=user.id, content=payload.content.strip())
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+    return present_board_message(message, viewer=user)
+
+
+@app.post("/api/board/{message_id}/comments", response_model=BoardMessageOut, status_code=status.HTTP_201_CREATED)
+def create_board_comment(
+    message_id: int,
+    payload: BoardCommentCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    message = db.get(BoardMessage, message_id)
+    if message is None:
+        raise HTTPException(status_code=404, detail="留言不存在或已被删除")
+    message.comments.append(BoardComment(user_id=user.id, content=payload.content.strip()))
+    db.commit()
+    db.refresh(message)
+    return present_board_message(message, viewer=user)
+
+
+def delete_board_item_allowed(item_user_id: int, user: User) -> None:
+    if user.id != item_user_id and not can_moderate(user):
+        raise HTTPException(status_code=403, detail="只能删除自己的留言或评论")
+
+
+@app.delete("/api/board/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_board_message(
+    message_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    message = db.get(BoardMessage, message_id)
+    if message is None:
+        raise HTTPException(status_code=404, detail="留言不存在或已被删除")
+    delete_board_item_allowed(message.user_id, user)
+    db.delete(message)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.delete("/api/board/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_board_comment(
+    comment_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    comment = db.get(BoardComment, comment_id)
+    if comment is None:
+        raise HTTPException(status_code=404, detail="评论不存在或已被删除")
+    delete_board_item_allowed(comment.user_id, user)
+    db.delete(comment)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ---- VRChat 地图推荐 ----
+
+
+def vr_map_query():
+    return select(VrMap).options(
+        joinedload(VrMap.uploader).joinedload(User.photos),
+        joinedload(VrMap.likes),
+        joinedload(VrMap.reports),
+        joinedload(VrMap.photos),
+    )
+
+
+def vr_map_pending_report_ids():
+    return select(VrMapReport.map_id).where(VrMapReport.status == ReportStatus.PENDING)
+
+
+def present_vr_map_photos(vr_map: VrMap, viewer: User | None) -> list[VrMapPhotoOut]:
+    """待审/被驳回的照片仅上传者本人和管理员组可见。"""
+    photos: list[VrMapPhotoOut] = []
+    for photo in vr_map.photos:
+        can_see = photo.is_visible or (viewer is not None and (viewer.id == photo.user_id or can_review_content(viewer)))
+        if can_see:
+            photos.append(
+                VrMapPhotoOut(
+                    id=photo.id,
+                    image_url=f"/uploads/{photo.file_path}",
+                    is_visible=photo.is_visible,
+                    moderated=photo.moderated_at is not None,
+                    uploaded_by_me=viewer is not None and viewer.id == photo.user_id,
+                )
+            )
+    return photos
+
+
+def present_vr_map(vr_map: VrMap, viewer: User | None) -> VrMapOut:
+    return VrMapOut(
+        id=vr_map.id,
+        name=vr_map.name,
+        description=vr_map.description,
+        category=vr_map.category,
+        like_count=vr_map.like_count,
+        liked_by_me=viewer is not None and any(like.user_id == viewer.id for like in vr_map.likes),
+        reported_by_me=viewer is not None and any(report.reporter_id == viewer.id for report in vr_map.reports),
+        has_pending_report=any(report.status == ReportStatus.PENDING for report in vr_map.reports),
+        is_visible=vr_map.is_visible,
+        admin_note=vr_map.admin_note,
+        uploader=present_user_public(vr_map.uploader, viewer),
+        photos=present_vr_map_photos(vr_map, viewer),
+        created_at=vr_map.created_at,
+    )
+
+
+def get_vr_map_or_404(db: Session, map_id: int) -> VrMap:
+    vr_map = db.get(VrMap, map_id)
+    if vr_map is None:
+        raise HTTPException(status_code=404, detail="地图不存在或已被删除")
+    return vr_map
+
+
+async def save_vr_map_photos(
+    photos: list[UploadFile], map_id: int, user_id: int,
+) -> list[VrMapPhoto]:
+    """先完整校验全部文件，再落盘；总量限制防止多文件绕过单图上限。"""
+    contents: list[tuple[bytes, str]] = []
+    total_bytes = 0
+    for photo in photos:
+        content = await photo.read(MAX_VR_MAP_PHOTO_BYTES + 1)
+        if not content:
+            raise HTTPException(status_code=422, detail="请选择要上传的照片")
+        if len(content) > MAX_VR_MAP_PHOTO_BYTES:
+            raise HTTPException(status_code=422, detail="地图照片不能超过 10 MB")
+        total_bytes += len(content)
+        if total_bytes > MAX_VR_MAP_UPLOAD_TOTAL_BYTES:
+            raise HTTPException(status_code=422, detail="本次地图图片总大小不能超过 50 MB")
+        extension = avatar_extension(content)
+        if extension is None:
+            raise HTTPException(status_code=422, detail="地图照片仅支持 PNG 或 JPG 格式")
+        contents.append((content, extension))
+
+    settings.ensure_storage_directory()
+    stored: list[tuple[str, Path]] = []
+    try:
+        for content, extension in contents:
+            file_path = f"vrmaps/{map_id}/{uuid4().hex}{extension}"
+            destination = settings.sugar_upload_path / file_path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(content)
+            stored.append((file_path, destination))
+    except OSError as error:
+        for _, destination in stored:
+            destination.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
+
+    return [VrMapPhoto(map_id=map_id, user_id=user_id, file_path=file_path) for file_path, _ in stored]
+
+
+@app.get("/api/vr-maps", response_model=list[VrMapOut])
+def list_vr_maps(
+    viewer: User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    """地图推荐列表：按点赞数排序；被举报待审/被屏蔽的地图对公众隐藏。"""
+    query = vr_map_query()
+    if viewer is None:
+        query = query.where(VrMap.is_visible.is_(True), ~VrMap.id.in_(vr_map_pending_report_ids()))
+    elif not can_review_content(viewer):
+        publicly_ok = VrMap.is_visible.is_(True) & ~VrMap.id.in_(vr_map_pending_report_ids())
+        query = query.where(or_(VrMap.uploader_id == viewer.id, publicly_ok))
+    maps = db.scalars(
+        query.order_by(VrMap.like_count.desc(), VrMap.created_at.desc(), VrMap.id.desc()).limit(200)
+    ).unique().all()
+    return [present_vr_map(vr_map, viewer) for vr_map in maps]
+
+
+@app.post("/api/vr-maps", response_model=VrMapOut, status_code=status.HTTP_201_CREATED)
+async def create_vr_map(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        if request.headers.get("content-type", "").startswith("multipart/form-data"):
+            form = await request.form()
+            payload = VrMapCreate(
+                name=str(form.get("name") or ""),
+                description=str(form.get("description") or ""),
+                category=str(form.get("category") or ""),
+            )
+            photos = [item for item in form.getlist("photos") if getattr(item, "filename", None) is not None]
+        else:
+            payload = VrMapCreate.model_validate(await request.json())
+            photos = []
+    except (ValidationError, ValueError):
+        raise HTTPException(status_code=422, detail="地图信息格式不正确")
+    if payload.category not in MAP_CATEGORIES:
+        raise HTTPException(status_code=422, detail="地图类型不正确")
+    if len(photos) > 3:
+        raise HTTPException(status_code=422, detail="创建推荐时最多上传 3 张图片")
+    vr_map = VrMap(
+        name=payload.name.strip(),
+        description=payload.description.strip(),
+        category=payload.category,
+        uploader_id=user.id,
+    )
+    db.add(vr_map)
+    db.flush()
+    if photos:
+        records = await save_vr_map_photos(photos, vr_map.id, user.id)
+        db.add_all(records)
+    db.commit()
+    db.refresh(vr_map)
+    return present_vr_map(vr_map, viewer=user)
+
+
+@app.get("/api/vr-maps/{map_id}", response_model=VrMapOut)
+def vr_map_detail(
+    map_id: int,
+    viewer: User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    vr_map = get_vr_map_or_404(db, map_id)
+    publicly_ok = vr_map.is_visible and not any(
+        report.status == ReportStatus.PENDING for report in vr_map.reports
+    )
+    if not publicly_ok and not (viewer and (viewer.id == vr_map.uploader_id or can_review_content(viewer))):
+        raise HTTPException(status_code=404, detail="地图不存在或已被删除")
+    return present_vr_map(vr_map, viewer)
+
+
+@app.post("/api/vr-maps/{map_id}/like", response_model=VrMapLikeState)
+def toggle_vr_map_like(
+    map_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """点赞/取消点赞：一人对同一张地图只能有一个有效点赞。"""
+    vr_map = get_vr_map_or_404(db, map_id)
+    like = db.scalar(select(VrMapLike).where(VrMapLike.map_id == map_id, VrMapLike.user_id == user.id))
+    if like is not None:
+        db.delete(like)
+        vr_map.like_count = max(0, vr_map.like_count - 1)
+        liked = False
+    else:
+        db.add(VrMapLike(map_id=map_id, user_id=user.id))
+        vr_map.like_count += 1
+        liked = True
+    db.commit()
+    return VrMapLikeState(like_count=vr_map.like_count, liked=liked)
+
+
+@app.post("/api/vr-maps/{map_id}/report", response_model=VrMapOut, status_code=status.HTTP_201_CREATED)
+def report_vr_map(
+    map_id: int,
+    payload: VrMapReportCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """举报地图：每人限一次；待处理举报会使地图退出公开列表。"""
+    vr_map = get_vr_map_or_404(db, map_id)
+    if vr_map.uploader_id == user.id:
+        raise HTTPException(status_code=422, detail="不能举报自己推荐的地图")
+    existing = db.scalar(
+        select(VrMapReport).where(VrMapReport.map_id == map_id, VrMapReport.reporter_id == user.id)
+    )
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="你已举报过这张地图")
+    db.add(VrMapReport(map_id=map_id, reporter_id=user.id, reason=payload.reason.strip()))
+    db.commit()
+    db.refresh(vr_map)
+    return present_vr_map(vr_map, viewer=user)
+
+
+@app.post("/api/vr-maps/{map_id}/photos", response_model=VrMapOut, status_code=status.HTTP_201_CREATED)
+async def upload_vr_map_photo(
+    map_id: int,
+    photos: list[UploadFile] = File(default=[]),
+    photo: UploadFile | None = File(default=None),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """上传地图实拍照片：单次最多 5 张，每位用户对每张地图最多 5 张；需审核后公开。"""
+    vr_map = get_vr_map_or_404(db, map_id)
+    if photo is not None:
+        photos = [*photos, photo]
+    if not photos:
+        raise HTTPException(status_code=422, detail="请选择要上传的照片")
+    if len(photos) > MAX_VR_MAP_PHOTOS:
+        raise HTTPException(status_code=422, detail="单次最多上传 5 张图片")
+    current_count = db.scalar(
+        select(func.count()).select_from(VrMapPhoto).where(
+            VrMapPhoto.map_id == map_id,
+            VrMapPhoto.user_id == user.id,
+        )
+    ) or 0
+    if current_count + len(photos) > MAX_VR_MAP_PHOTOS:
+        raise HTTPException(status_code=422, detail="你在每张地图最多上传 5 张图片")
+    records = await save_vr_map_photos(photos, map_id, user.id)
+    db.add_all(records)
+    db.commit()
+    db.refresh(vr_map)
+    return present_vr_map(vr_map, viewer=user)
+
+
+@app.get("/api/admin/vr-map-reports", response_model=list[VrMapReportOut])
+def admin_vr_map_reports(
+    manager: User = Depends(get_content_moderator), db: Session = Depends(get_db)
+):
+    reports = db.scalars(
+        select(VrMapReport)
+        .options(joinedload(VrMapReport.map), joinedload(VrMapReport.reporter).joinedload(User.photos))
+        .order_by(VrMapReport.created_at.desc(), VrMapReport.id.desc())
+        .limit(500)
+    ).unique().all()
+    return [
+        VrMapReportOut(
+            id=report.id,
+            map_id=report.map_id,
+            map_name=report.map.name,
+            reporter=present_user_public(report.reporter, manager),
+            reason=report.reason,
+            status=report.status,
+            created_at=report.created_at,
+            handled_at=report.handled_at,
+        )
+        for report in reports
+    ]
+
+
+@app.post("/api/admin/vr-map-reports/{report_id}/resolve", response_model=VrMapReportOut)
+def resolve_vr_map_report(
+    report_id: int,
+    payload: VrMapReportResolveRequest,
+    manager: User = Depends(get_content_moderator),
+    db: Session = Depends(get_db),
+):
+    """处置地图举报：close 放开（举报不成立）/ hide 屏蔽 / restore 重新放开已屏蔽地图。"""
+    report = db.get(VrMapReport, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="举报不存在")
+    vr_map = db.get(VrMap, report.map_id)
+    if payload.action == "close":
+        report.status = ReportStatus.HANDLED
+    elif payload.action == "hide":
+        if not (payload.admin_note or "").strip():
+            raise HTTPException(status_code=422, detail="屏蔽地图时必须填写理由")
+        report.status = ReportStatus.HANDLED
+        vr_map.is_visible = False
+        vr_map.admin_note = payload.admin_note.strip()
+    else:
+        vr_map.is_visible = True
+        vr_map.admin_note = None
+        report.status = ReportStatus.HANDLED
+    report.handled_by_id = manager.id
+    report.handled_at = datetime.utcnow()
+    db.commit()
+    db.refresh(report)
+    return VrMapReportOut(
+        id=report.id,
+        map_id=report.map_id,
+        map_name=report.map.name,
+        reporter=present_user_public(report.reporter, manager),
+        reason=report.reason,
+        status=report.status,
+        created_at=report.created_at,
+        handled_at=report.handled_at,
+    )
+
+
+@app.get("/api/admin/vr-map-photos", response_model=list[VrMapPhotoAdminOut])
+def admin_vr_map_photos(
+    manager: User = Depends(get_content_moderator), db: Session = Depends(get_db)
+):
+    photos = db.scalars(
+        select(VrMapPhoto)
+        .options(
+            joinedload(VrMapPhoto.user).joinedload(User.photos),
+            joinedload(VrMapPhoto.map),
+        )
+        .order_by(VrMapPhoto.created_at.desc(), VrMapPhoto.id.desc())
+        .limit(500)
+    ).unique().all()
+    return [
+        VrMapPhotoAdminOut(
+            id=photo.id,
+            image_url=f"/uploads/{photo.file_path}",
+            is_visible=photo.is_visible,
+            moderated=photo.moderated_at is not None,
+            map_id=photo.map_id,
+            map_name=photo.map.name,
+            user=present_user_public(photo.user, manager),
+            created_at=photo.created_at,
+        )
+        for photo in photos
+    ]
+
+
+@app.patch("/api/admin/vr-map-photos/{photo_id}", response_model=VrMapPhotoAdminOut)
+def moderate_vr_map_photo(
+    photo_id: int,
+    payload: AdminPhotoUpdate,
+    manager: User = Depends(get_content_moderator),
+    db: Session = Depends(get_db),
+):
+    """审核地图照片：通过后公开展示，驳回则仅上传者本人可见。"""
+    photo = db.get(VrMapPhoto, photo_id)
+    if photo is None:
+        raise HTTPException(status_code=404, detail="照片不存在")
+    photo.is_visible = payload.is_visible
+    photo.moderated_by_id = manager.id
+    photo.moderated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(photo)
+    return VrMapPhotoAdminOut(
+        id=photo.id,
+        image_url=f"/uploads/{photo.file_path}",
+        is_visible=photo.is_visible,
+        moderated=photo.moderated_at is not None,
+        map_id=photo.map_id,
+        map_name=photo.map.name,
+        user=present_user_public(photo.user, manager),
+        created_at=photo.created_at,
+    )
+
+
 @app.get("/api/tasks", response_model=list[TaskOut])
 def list_tasks(
     search: str = Query(default="", max_length=80),
@@ -945,17 +1988,43 @@ def list_tasks(
     db: Session = Depends(get_db),
 ):
     expire_due_tasks(db)
-    query = task_query().where(Task.is_visible.is_(True))
+    reported_ids = select(TaskReport.task_id).where(TaskReport.status == ReportStatus.PENDING)
+    query = task_query().where(Task.is_visible.is_(True), ~Task.id.in_(reported_ids))
     if search:
         query = query.where(or_(Task.title.contains(search), Task.description.contains(search)))
     if category:
         query = query.where(Task.category == category)
-    if task_status:
+    # 普通用户只能浏览招募中的委托；超级管理员/管理员可查看全部状态。
+    if task_status and is_task_manager(viewer):
         query = query.where(Task.status == task_status)
+    elif not is_task_manager(viewer):
+        query = query.where(Task.status == TaskStatus.PUBLISHED)
     if pay_type in ("paid", "free"):
         query = query.where(Task.pay_type == pay_type)
     tasks = db.scalars(query.order_by(Task.created_at.desc()).limit(200)).unique().all()
     return [present_task(task, viewer) for task in tasks]
+
+
+@app.get("/api/tasks/stats", response_model=TaskStats)
+def task_stats(db: Session = Depends(get_db)):
+    """大厅顶部统计：全站数量（正在招募/正在处理/顺利完成），不受筛选影响。
+
+    仅返回数量不返回内容；被后台屏蔽的委托不计入。路由需注册在
+    /api/tasks/{task_id} 之前，避免 "stats" 被当作委托 ID 解析。
+    """
+    expire_due_tasks(db)
+    visible = Task.is_visible.is_(True)
+    return TaskStats(
+        published=db.scalar(
+            select(func.count()).select_from(Task).where(visible, Task.status == TaskStatus.PUBLISHED)
+        ) or 0,
+        processing=db.scalar(
+            select(func.count()).select_from(Task).where(visible, Task.status.in_([TaskStatus.ACCEPTED, TaskStatus.AWAITING]))
+        ) or 0,
+        completed=db.scalar(
+            select(func.count()).select_from(Task).where(visible, Task.status == TaskStatus.COMPLETED)
+        ) or 0,
+    )
 
 
 @app.get("/api/tasks/mine", response_model=list[TaskOut])
@@ -981,11 +2050,23 @@ def task_detail(task_id: int, viewer: User | None = Depends(get_optional_user), 
     task = get_task_or_404(db, task_id)
     if not task.is_visible and not can_view_hidden_task(task, viewer):
         raise HTTPException(status_code=404, detail="委托不存在")
+    reported = db.scalar(
+        select(TaskReport.id).where(
+            TaskReport.task_id == task_id,
+            TaskReport.status == ReportStatus.PENDING,
+        ).limit(1)
+    ) is not None
+    # 被举报的委托仅管理员/超级管理员/委托双方可见；处理中或已完成的委托仅委托双方可见。
+    if reported or task.status != TaskStatus.PUBLISHED:
+        if not is_task_manager(viewer) and not is_task_participant(task, viewer):
+            raise HTTPException(status_code=404, detail="委托不存在")
     return present_task(task, viewer)
 
 
 @app.post("/api/tasks", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
 def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not user.qq:
+        raise HTTPException(status_code=422, detail="发布委托需要先填写联系方式（QQ），请在个人设置中添加后再发布")
     now = datetime.utcnow()
     designated_user_ids = list(dict.fromkeys(payload.designated_user_ids))
     if user.id in designated_user_ids:
@@ -1001,7 +2082,7 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
             )
         ).all()
         if len(designated_users) != len(designated_user_ids):
-            raise HTTPException(status_code=422, detail="只能指定当前可用的店员或志愿者")
+            raise HTTPException(status_code=422, detail="只能指定当前可用的管理员或志愿者")
     task = Task(
         title=payload.title.strip(),
         description=payload.description.strip(),
@@ -1010,6 +2091,7 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
         reward=payload.reward.strip() if payload.reward else None,
         expires_at=now + timedelta(days=payload.expires_in_days),
         publisher_id=user.id,
+        is_anonymous=payload.is_anonymous,
         required_takers=len(designated_user_ids) if designated_user_ids else payload.required_takers,
         # 指定委托无须密码，响应权限由指定名单保证。
         accept_password_hash=None if designated_user_ids else (hash_password(payload.accept_password) if payload.accept_password else None),
@@ -1029,6 +2111,106 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
     return present_task(get_task_or_404(db, task.id), user)
 
 
+@app.post("/api/tasks/{task_id}/report", response_model=TaskReportOut, status_code=status.HTTP_201_CREATED)
+def report_task(
+    task_id: int,
+    payload: ReportCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """举报委托：被举报的委托不进入大厅，仅由管理员/超级管理员处理。"""
+    task = get_task_or_404(db, task_id)
+    if task.publisher_id == user.id:
+        raise HTTPException(status_code=422, detail="不能举报自己发布的委托")
+    existing = db.scalar(
+        select(TaskReport).where(
+            TaskReport.task_id == task_id,
+            TaskReport.reporter_id == user.id,
+        )
+    )
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="你已经举报过该委托")
+    daily_limit = get_setting_int(db, "report_daily_limit", 2)
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_count = db.scalar(
+        select(func.count()).select_from(TaskReport).where(
+            TaskReport.reporter_id == user.id,
+            TaskReport.created_at >= today_start,
+        )
+    ) or 0
+    if today_count >= daily_limit:
+        raise HTTPException(status_code=429, detail=f"今日举报次数已达上限（{daily_limit} 次）")
+    report = TaskReport(task_id=task_id, reporter_id=user.id, reason=payload.reason.strip())
+    db.add(report)
+    db.commit()
+    return present_report(db.get(TaskReport, report.id))
+
+
+@app.get("/api/admin/reports", response_model=list[TaskReportOut])
+def admin_reports(_: User = Depends(get_content_moderator), db: Session = Depends(get_db)):
+    reports = db.scalars(
+        select(TaskReport)
+        .options(joinedload(TaskReport.task), joinedload(TaskReport.reporter))
+        .order_by(TaskReport.created_at.desc())
+        .limit(500)
+    ).unique().all()
+    return [present_report(report) for report in reports]
+
+
+@app.post("/api/admin/reports/{report_id}/resolve", response_model=TaskReportOut)
+def resolve_report(
+    report_id: int,
+    payload: ReportResolveRequest,
+    manager: User = Depends(get_content_moderator),
+    db: Session = Depends(get_db),
+):
+    """处理被举报的委托：close 关闭举报 / hide 屏蔽委托 / restore 重新放开。"""
+    report = db.get(TaskReport, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="举报不存在")
+    task = report.task
+    if payload.action == "hide":
+        note = payload.admin_note.strip() if payload.admin_note else None
+        if not note:
+            raise HTTPException(status_code=422, detail="屏蔽委托时必须填写理由")
+        task.is_visible = False
+        task.admin_note = note
+    elif payload.action == "restore":
+        task.is_visible = True
+        task.admin_note = None
+    now = datetime.utcnow()
+    pending = db.scalars(
+        select(TaskReport).where(
+            TaskReport.task_id == task.id,
+            TaskReport.status == ReportStatus.PENDING,
+        )
+    ).all()
+    for item in pending:
+        item.status = ReportStatus.HANDLED
+        item.handled_by_id = manager.id
+        item.handled_at = now
+    task.updated_at = now
+    db.commit()
+    db.refresh(report)
+    return present_report(report)
+
+
+@app.get("/api/admin/settings/report-limit", response_model=ReportLimitOut)
+def get_report_limit(_: User = Depends(get_role_manager), db: Session = Depends(get_db)):
+    return ReportLimitOut(daily_limit=get_setting_int(db, "report_daily_limit", 2))
+
+
+@app.patch("/api/admin/settings/report-limit", response_model=ReportLimitOut)
+def set_report_limit(
+    payload: ReportLimitUpdate,
+    _: User = Depends(get_role_manager),
+    db: Session = Depends(get_db),
+):
+    set_setting(db, "report_daily_limit", str(payload.daily_limit))
+    db.commit()
+    return ReportLimitOut(daily_limit=payload.daily_limit)
+
+
 @app.post("/api/tasks/{task_id}/accept", response_model=TaskOut)
 def accept_task(
     task_id: int,
@@ -1036,7 +2218,7 @@ def accept_task(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """加入委托（有密码时限志愿者/店员，无密码时所有非管理员用户可加入）。"""
+    """加入委托（有密码时需凭正确密码，无密码时所有非管理员用户可加入）。"""
     expire_due_tasks(db)
     task = get_task_or_404(db, task_id)
     if not task.is_visible:
@@ -1050,7 +2232,7 @@ def accept_task(
     existing_member = member_of(db, task_id, user.id)
     if task.is_designated:
         if existing_member is None:
-            raise HTTPException(status_code=403, detail="该委托已指定其他店员或志愿者")
+            raise HTTPException(status_code=403, detail="该委托已指定其他管理员或志愿者")
         if existing_member.response_status != TaskMemberResponse.PENDING:
             raise HTTPException(status_code=409, detail="你已响应此指定委托")
         # 在支持行锁的数据库上串行化同一用户的接单操作，避免并发突破个人上限。
@@ -1079,8 +2261,6 @@ def accept_task(
         if joined >= task.required_takers:
             raise HTTPException(status_code=409, detail="需要的人数已满，委托即将开始")
     if task.requires_password:
-        if user.role not in (UserRole.VOLUNTEER, UserRole.STAFF):
-            raise HTTPException(status_code=403, detail="有密码委托只有志愿者或店员可以接取，请联系店员申请升级")
         if not payload.password or not verify_password(payload.password, task.accept_password_hash):
             raise HTTPException(status_code=403, detail="接取密码不正确，请联系委托人确认")
     # 在支持行锁的数据库上串行化同一用户的接单操作，避免并发突破个人上限。
@@ -1288,6 +2468,180 @@ def reject_cancel_task(task_id: int, user: User = Depends(get_current_user), db:
     return present_task(get_task_or_404(db, task_id), user)
 
 
+@app.get("/api/announcements", response_model=list[AnnouncementOut])
+def public_announcements(
+    kind: AnnouncementKind | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    """返回当前展示期内的公告，供游客和登录用户查看。"""
+    now = datetime.utcnow()
+    query = (
+        select(Announcement)
+        .where(
+            Announcement.is_published.is_(True),
+            or_(Announcement.starts_at.is_(None), Announcement.starts_at <= now),
+            or_(Announcement.ends_at.is_(None), Announcement.ends_at > now),
+        )
+        .options(joinedload(Announcement.author))
+        .order_by(Announcement.is_pinned.desc(), Announcement.created_at.desc())
+    )
+    if kind is not None:
+        query = query.where(Announcement.kind == kind)
+    return [present_announcement(item) for item in db.scalars(query).unique().all()]
+
+
+@app.get("/api/operations/announcements", response_model=list[AnnouncementOut])
+def operations_announcements(
+    _: User = Depends(get_operations_manager),
+    db: Session = Depends(get_db),
+):
+    query = (
+        select(Announcement)
+        .options(joinedload(Announcement.author))
+        .order_by(Announcement.updated_at.desc())
+    )
+    return [present_announcement(item) for item in db.scalars(query).unique().all()]
+
+
+@app.post("/api/operations/announcements", response_model=AnnouncementOut, status_code=status.HTTP_201_CREATED)
+def create_announcement(
+    payload: AnnouncementWrite,
+    operator: User = Depends(get_operations_manager),
+    db: Session = Depends(get_db),
+):
+    item = Announcement(
+        kind=payload.kind,
+        title=payload.title,
+        content=payload.content,
+        is_published=payload.is_published,
+        is_pinned=payload.is_pinned,
+        starts_at=utc_naive(payload.starts_at),
+        ends_at=utc_naive(payload.ends_at),
+        author_id=operator.id,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    item.author = operator
+    return present_announcement(item)
+
+
+@app.put("/api/operations/announcements/{announcement_id}", response_model=AnnouncementOut)
+def update_announcement(
+    announcement_id: int,
+    payload: AnnouncementWrite,
+    _: User = Depends(get_operations_manager),
+    db: Session = Depends(get_db),
+):
+    item = db.scalar(
+        select(Announcement)
+        .where(Announcement.id == announcement_id)
+        .options(joinedload(Announcement.author))
+    )
+    if item is None:
+        raise HTTPException(status_code=404, detail="公告不存在")
+    item.kind = payload.kind
+    item.title = payload.title
+    item.content = payload.content
+    item.is_published = payload.is_published
+    item.is_pinned = payload.is_pinned
+    item.starts_at = utc_naive(payload.starts_at)
+    item.ends_at = utc_naive(payload.ends_at)
+    item.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(item)
+    return present_announcement(item)
+
+
+@app.delete("/api/operations/announcements/{announcement_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_announcement(
+    announcement_id: int,
+    _: User = Depends(get_operations_manager),
+    db: Session = Depends(get_db),
+):
+    item = db.get(Announcement, announcement_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="公告不存在")
+    db.delete(item)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.post("/api/analytics/page-view", status_code=status.HTTP_204_NO_CONTENT)
+def track_page_view(
+    payload: PageViewCreate,
+    viewer: User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    visitor_key = f"user:{viewer.id}" if viewer else f"anon:{sha256(payload.session_id.encode()).hexdigest()}"
+    now = datetime.utcnow()
+    skip_next_snapshot(db)
+    db.add(PageView(page_key=payload.page_key, visitor_key=visitor_key, user_id=viewer.id if viewer else None, viewed_at=now))
+    db.execute(delete(PageView).where(PageView.viewed_at < now - timedelta(days=180)))
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.get("/api/operations/analytics", response_model=AnalyticsOut)
+def operations_analytics(
+    days: int = Query(default=7, ge=1, le=90),
+    _: User = Depends(get_operations_manager),
+    db: Session = Depends(get_db),
+):
+    """按北京时间统计页面浏览量和去重访客，不暴露任何访客明细。"""
+    utc_now = datetime.utcnow()
+    local_today = (utc_now + timedelta(hours=8)).date()
+    first_day = local_today - timedelta(days=days - 1)
+    range_start = datetime.combine(first_day, time.min) - timedelta(hours=8)
+    range_end = datetime.combine(local_today + timedelta(days=1), time.min) - timedelta(hours=8)
+    events = db.scalars(
+        select(PageView)
+        .where(PageView.viewed_at >= range_start, PageView.viewed_at < range_end)
+        .order_by(PageView.viewed_at.asc())
+    ).all()
+
+    page_buckets = {key: {"views": 0, "visitors": set()} for key in PAGE_LABELS}
+    daily_buckets = {
+        first_day + timedelta(days=offset): {"views": 0, "visitors": set()}
+        for offset in range(days)
+    }
+    all_visitors: set[str] = set()
+    for event in events:
+        local_day = (event.viewed_at + timedelta(hours=8)).date()
+        if event.page_key not in page_buckets or local_day not in daily_buckets:
+            continue
+        page_buckets[event.page_key]["views"] += 1
+        page_buckets[event.page_key]["visitors"].add(event.visitor_key)
+        daily_buckets[local_day]["views"] += 1
+        daily_buckets[local_day]["visitors"].add(event.visitor_key)
+        all_visitors.add(event.visitor_key)
+
+    pages = [
+        PageMetric(
+            page_key=key,
+            label=PAGE_LABELS[key],
+            views=bucket["views"],
+            visitors=len(bucket["visitors"]),
+        )
+        for key, bucket in page_buckets.items()
+    ]
+    pages.sort(key=lambda item: (-item.visitors, -item.views, item.label))
+    daily = [
+        DailyMetric(date=day.isoformat(), views=bucket["views"], visitors=len(bucket["visitors"]))
+        for day, bucket in daily_buckets.items()
+    ]
+    today_bucket = daily_buckets[local_today]
+    return AnalyticsOut(
+        days=days,
+        total_views=len(events),
+        total_visitors=len(all_visitors),
+        today_views=today_bucket["views"],
+        today_visitors=len(today_bucket["visitors"]),
+        pages=pages,
+        daily=daily,
+    )
+
+
 @app.get("/api/admin/stats", response_model=AdminStats)
 def admin_stats(_: User = Depends(get_admin), db: Session = Depends(get_db)):
     expire_due_tasks(db)
@@ -1324,16 +2678,16 @@ def admin_users(manager: User = Depends(get_role_manager), db: Session = Depends
 
 
 @app.get("/api/admin/photos", response_model=list[UserProfileOut])
-def admin_photos(_: User = Depends(get_role_manager), db: Session = Depends(get_db)):
+def admin_photos(_: User = Depends(get_content_moderator), db: Session = Depends(get_db)):
     users = db.scalars(user_with_photos_query().order_by(User.created_at.desc())).unique().all()
-    return [present_user_profile(user, _) for user in users if user.photos]
+    return [present_moderation_profile(user, _) for user in users if user.photos or user.avatar_path]
 
 
 @app.patch("/api/admin/photos/{photo_id}", response_model=UserProfileOut)
 def moderate_user_photo(
     photo_id: int,
     payload: AdminPhotoUpdate,
-    manager: User = Depends(get_role_manager),
+    manager: User = Depends(get_content_moderator),
     db: Session = Depends(get_db),
 ):
     photo = db.get(UserPhoto, photo_id)
@@ -1344,7 +2698,51 @@ def moderate_user_photo(
     photo.moderated_at = datetime.utcnow()
     db.commit()
     user = db.scalar(user_with_photos_query().where(User.id == photo.user_id))
-    return present_user_profile(user, manager)
+    return present_moderation_profile(user, manager)
+
+
+def present_sugar_photo_admin(photo: SugarPhoto) -> SugarPhotoAdminOut:
+    return SugarPhotoAdminOut(
+        id=photo.id,
+        image_url=photo_url(photo),
+        is_visible=photo.is_visible,
+        admin_note=photo.admin_note,
+        created_at=photo.created_at,
+        user=present_user_public(photo.profile.user),
+    )
+
+
+@app.get("/api/admin/sugar/photos", response_model=list[SugarPhotoAdminOut])
+def admin_sugar_photos(_: User = Depends(get_content_moderator), db: Session = Depends(get_db)):
+    photos = db.scalars(
+        select(SugarPhoto)
+        .options(joinedload(SugarPhoto.profile).joinedload(SugarProfile.user))
+        .order_by(SugarPhoto.created_at.desc())
+        .limit(500)
+    ).unique().all()
+    return [present_sugar_photo_admin(photo) for photo in photos]
+
+
+@app.patch("/api/admin/sugar/photos/{photo_id}", response_model=SugarPhotoAdminOut)
+def moderate_sugar_photo(
+    photo_id: int,
+    payload: SugarPhotoModerateUpdate,
+    manager: User = Depends(get_content_moderator),
+    db: Session = Depends(get_db),
+):
+    """管理员组屏蔽/恢复砂糖社照片：屏蔽必须填写理由，恢复时清空理由。"""
+    photo = db.get(SugarPhoto, photo_id)
+    if photo is None:
+        raise HTTPException(status_code=404, detail="照片不存在")
+    if not payload.is_visible and not (payload.admin_note or "").strip():
+        raise HTTPException(status_code=422, detail="屏蔽照片时必须填写理由")
+    photo.is_visible = payload.is_visible
+    photo.admin_note = payload.admin_note.strip() if payload.admin_note and payload.admin_note.strip() else None
+    photo.moderated_by_id = manager.id
+    photo.moderated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(photo)
+    return present_sugar_photo_admin(photo)
 
 
 @app.patch("/api/admin/users/{user_id}/task-limit", response_model=AdminUserOut)
@@ -1365,19 +2763,17 @@ def update_user_task_limit(
     )
 
 
-@app.patch("/api/admin/users/{user_id}/beta-tester", response_model=AdminUserOut)
-def update_user_beta_tester(
+@app.patch("/api/admin/users/{user_id}/password", response_model=AdminUserOut)
+def reset_user_password(
     user_id: int,
-    payload: AdminUserBetaTesterUpdate,
+    payload: UserPasswordUpdate,
     _: User = Depends(get_admin),
     db: Session = Depends(get_db),
 ):
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="用户不存在")
-    if user.is_admin:
-        raise HTTPException(status_code=409, detail="管理员账号的内测资格不可修改")
-    user.is_beta_tester = payload.is_beta_tester
+    user.password_hash = hash_password(payload.password)
     db.commit()
     db.refresh(user)
     return AdminUserOut.model_validate(user).model_copy(
@@ -1392,17 +2788,36 @@ def update_user_role(
     manager: User = Depends(get_role_manager),
     db: Session = Depends(get_db),
 ):
-    """管理员可设置全部角色；店员只能把非管理员账号设为普通用户或志愿者。"""
+    """超级管理员可设置全部角色；管理员只能管理普通用户和志愿者。"""
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="用户不存在")
     if user.is_admin:
         raise HTTPException(status_code=409, detail="管理员账号的权限等级不可修改")
-    if not manager.is_admin and payload.role == UserRole.STAFF:
-        raise HTTPException(status_code=403, detail="只有管理员可以授予店员权限")
+    protected_roles = (UserRole.STAFF, UserRole.MASCOT, UserRole.DISCIPLINARIAN)
+    if not manager.is_admin and (payload.role in protected_roles or user.role in protected_roles):
+        raise HTTPException(status_code=403, detail="只有超级管理员可以管理管理员、看板娘和风纪委员权限")
     if payload.role == UserRole.VOLUNTEER and user.role != UserRole.VOLUNTEER:
         user.qq_public = False
     user.role = payload.role
+    db.commit()
+    db.refresh(user)
+    return AdminUserOut.model_validate(user).model_copy(
+        update={"active_task_count": active_task_count(db, user.id)}
+    )
+
+
+@app.patch("/api/admin/users/{user_id}/beta-tester", response_model=AdminUserOut)
+def update_user_beta_tester(
+    user_id: int,
+    payload: AdminUserBetaUpdate,
+    _: User = Depends(get_admin),
+    db: Session = Depends(get_db),
+):
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    user.is_beta_tester = payload.is_beta_tester
     db.commit()
     db.refresh(user)
     return AdminUserOut.model_validate(user).model_copy(
