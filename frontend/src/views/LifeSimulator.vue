@@ -13,6 +13,7 @@ import LifeFeatureDrawer from '../life/components/LifeFeatureDrawer.vue'
 import LifeEndingModal from '../life/components/LifeEndingModal.vue'
 
 const endingOpen = ref(false)
+const nextDayOpen = ref(false)
 
 const tutorial = ref(null)
 const auth = useAuthStore()
@@ -34,6 +35,16 @@ function restartConfirmed() {
     endingOpen.value = false
     restartJourney()
   }
+}
+
+function openNextDayConfirm() {
+  if (!saveReady.value || saveConflict.value || day.value >= 7) return
+  nextDayOpen.value = true
+}
+
+function confirmNextDay() {
+  nextDayOpen.value = false
+  nextDay()
 }
 </script>
 
@@ -71,7 +82,7 @@ function restartConfirmed() {
     <!-- 主内容三栏 -->
     <div class="life-layout" :inert="!saveReady || saveConflict">
       <!-- 左侧角色(含存档/重置/下一天操作) -->
-      <LifeCharPanel :game="game" @reset-today="resetTodayConfirmed" @show-ending="endingOpen = true" />
+      <LifeCharPanel :game="game" @reset-today="resetTodayConfirmed" @show-ending="endingOpen = true" @next-day="openNextDayConfirm" />
 
       <!-- 中央场景(大空间,UI 浮在上面) -->
       <LifeScene :game="game" />
@@ -101,6 +112,23 @@ function restartConfirmed() {
     </transition>
 
     <LifeTutorial ref="tutorial" :ready="saveReady && !saveConflict" :user-id="auth.user?.id" @prepare="prepareTutorial" @close="closeTutorial" />
+    <!-- 下一天二次确认:预告属性变化 -->
+    <Teleport to="body">
+      <div v-if="nextDayOpen" class="confirm-overlay" @click.self="nextDayOpen = false">
+        <section class="confirm-panel" role="dialog" aria-modal="true" aria-labelledby="next-day-title">
+          <h2 id="next-day-title">🌙 进入第 {{ day + 1 }} 天？</h2>
+          <p class="confirm-desc">今天的对话与事件进度将翻篇，好感与手记会保留。</p>
+          <div class="confirm-stats">
+            <span class="confirm-stat">⚡ 精力 {{ stats.energy }} → {{ Math.min(100, stats.energy + 10) }}<em>+10</em></span>
+            <span class="confirm-stat muted">♥ 心情 {{ stats.mood }} 不变</span>
+          </div>
+          <footer class="confirm-footer">
+            <button type="button" class="cf-ghost" @click="nextDayOpen = false">再待一会儿</button>
+            <button type="button" class="cf-primary" @click="confirmNextDay">进入新的一天</button>
+          </footer>
+        </section>
+      </div>
+    </Teleport>
     <LifeEndingModal v-if="endingOpen" :stats="stats" :npcs="npcs" @close="endingOpen = false" @restart="restartConfirmed" />
     <!-- Toast 提示 -->
     <transition name="fade">
@@ -229,6 +257,40 @@ function restartConfirmed() {
 .slide-enter-from, .slide-leave-to { opacity: 0; }
 .slide-enter-active .drawer-content { transition: transform 0.3s; }
 .slide-enter-from .drawer-content { transform: translateX(100%); }
+
+/* ========== 下一天确认弹窗 ========== */
+.confirm-overlay {
+  position: fixed; inset: 0; z-index: 9000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px; box-sizing: border-box; background: rgba(0, 0, 0, .4);
+}
+.confirm-panel {
+  width: 100%; max-width: 380px;
+  background: #fff; border-radius: 16px; padding: 22px;
+  box-shadow: 0 12px 40px rgba(25, 38, 32, .2);
+}
+.confirm-panel h2 { margin: 0 0 8px; font-size: 17px; color: #237a57; }
+.confirm-desc { margin: 0 0 14px; font-size: 13px; color: #69736e; line-height: 1.7; }
+.confirm-stats { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.confirm-stat {
+  padding: 10px 14px; border-radius: 10px;
+  background: #f0f8f2; border: 1px solid #dcebe1;
+  font-size: 13px; color: #237a57;
+}
+.confirm-stat em { margin-left: 6px; font-style: normal; font-weight: 700; }
+.confirm-stat.muted { background: #f5f6f4; border-color: #e6eae6; color: #8a938c; }
+.confirm-footer { display: flex; gap: 10px; justify-content: flex-end; }
+.cf-ghost {
+  padding: 9px 16px; border: 1px solid #e4e9e4; border-radius: 999px;
+  background: #f3f6f3; color: #69736e; font-size: 13px; cursor: pointer;
+}
+.cf-ghost:hover { background: #e9ede9; }
+.cf-primary {
+  padding: 9px 18px; border: 0; border-radius: 999px;
+  background: #237a57; color: #fff; font-size: 13px; cursor: pointer;
+  box-shadow: 0 3px 10px rgba(35, 122, 87, .28);
+}
+.cf-primary:hover { background: #1e6b4c; }
 
 /* ========== Toast ========== */
 .toast {

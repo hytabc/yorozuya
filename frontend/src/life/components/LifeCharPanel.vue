@@ -1,8 +1,8 @@
 <script setup>
 // 左侧角色面板：角色卡 + 属性条 + 主操作(存档/重置当天/下一天)。
 const props = defineProps({ game: { type: Object, required: true } })
-const emit = defineEmits(['reset-today', 'show-ending'])
-const { stats, tags, day, saveReady, saveBusy, saveConflict, save, nextDay } = props.game
+const emit = defineEmits(['reset-today', 'show-ending', 'next-day'])
+const { stats, tags, day, saveReady, saveBusy, saveConflict, save } = props.game
 const labels = { mood: '心情', energy: '精力', social: '社交', explore: '探索' }
 </script>
 
@@ -28,7 +28,7 @@ const labels = { mood: '心情', energy: '精力', social: '社交', explore: '�
     </div>
     <div class="panel-actions">
       <button class="pa-primary" @click="save" :disabled="!saveReady || saveConflict || saveBusy">存档</button>
-      <button class="pa-ghost" @click="day >= 7 ? emit('show-ending') : nextDay()" :disabled="!saveReady || saveConflict">{{ day >= 7 ? '🌅 查看结局' : '下一天' }}</button>
+      <button class="pa-ghost" @click="day >= 7 ? emit('show-ending') : emit('next-day')" :disabled="!saveReady || saveConflict">{{ day >= 7 ? '🌅 查看结局' : '下一天' }}</button>
       <button class="pa-warm" @click="emit('reset-today')" :disabled="!saveReady || saveConflict"
               title="清空今天的对话、事件与动作进度（测试用）">↺ 重置当天</button>
       <small>对话将写入今天的手记</small>
