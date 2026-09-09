@@ -1,10 +1,10 @@
 <script setup>
-// 默认七日结局只展示当前结算，不修改游戏进度或存档。
+// 默认七日结局展示当前结算;「重新开始」由父组件确认后重置整段人生。
 defineProps({
   stats: { type: Object, required: true },
   npcs: { type: Array, required: true },
 })
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'restart'])
 const statItems = [
   { key: 'mood', label: '心情' },
   { key: 'energy', label: '精力' },
@@ -40,6 +40,7 @@ const statItems = [
           </ul>
         </div>
         <footer class="ending-footer">
+          <button type="button" class="restart" @click="emit('restart')">重新开始</button>
           <button type="button" @click="emit('close')">收下这段回忆</button>
         </footer>
       </section>
@@ -72,7 +73,8 @@ const statItems = [
 .bond-label strong { color: #237a57; }
 .bond-track { height: 4px; background: #d9dedb; border-radius: 999px; overflow: hidden; }
 .bond-fill { height: 100%; background: #237a57; border-radius: inherit; }
-.ending-footer { padding: 16px 20px; border-top: 1px solid #d9dedb; text-align: center; }
+.ending-footer { display: flex; gap: 10px; justify-content: center; padding: 16px 20px; border-top: 1px solid #d9dedb; }
 .ending-footer button { padding: 10px 20px; border: 1px solid #237a57; border-radius: 8px; background: #237a57; color: #fff; font: inherit; font-size: 14px; cursor: pointer; }
+.ending-footer .restart { background: #fff; color: #237a57; }
 button:focus-visible { outline: 2px solid #237a57; outline-offset: 2px; }
 </style>

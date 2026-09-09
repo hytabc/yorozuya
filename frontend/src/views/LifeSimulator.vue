@@ -20,12 +20,20 @@ const game = useLifeGame()
 const {
   day, stats, npcs, toast, showHistory, panel,
   saveReady, saveBusy, saveDirty, saveError, saveConflict, savedAt,
-  save, nextDay, resetToday, reloadConfirmed, prepareTutorial, closeTutorial,
+  save, nextDay, resetToday, restartJourney, reloadConfirmed, prepareTutorial, closeTutorial,
 } = game
 
 function resetTodayConfirmed() {
   if (!saveReady.value || saveConflict.value) return
   if (window.confirm('重置今天？今天的对话完成度、房间事件与动作奖励进度都会清零（属性与好感不回滚）。')) resetToday()
+}
+
+function restartConfirmed() {
+  if (!saveReady.value || saveConflict.value) return
+  if (window.confirm('重新开始？当前七天的属性、好感、对话与手记都会回到初始状态。')) {
+    endingOpen.value = false
+    restartJourney()
+  }
 }
 </script>
 
@@ -104,7 +112,7 @@ function resetTodayConfirmed() {
     </transition>
 
     <LifeTutorial ref="tutorial" :ready="saveReady && !saveConflict" :user-id="auth.user?.id" @prepare="prepareTutorial" @close="closeTutorial" />
-    <LifeEndingModal v-if="endingOpen" :stats="stats" :npcs="npcs" @close="endingOpen = false" />
+    <LifeEndingModal v-if="endingOpen" :stats="stats" :npcs="npcs" @close="endingOpen = false" @restart="restartConfirmed" />
     <!-- Toast 提示 -->
     <transition name="fade">
       <div v-if="toast" class="toast">{{ toast }}</div>

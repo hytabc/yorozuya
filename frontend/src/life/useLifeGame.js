@@ -452,6 +452,15 @@ export function useLifeGame() {
     markChanged()
   }
 
+  // 结局后的「重新开始」:整段人生回到第 1 天初始态,并立即落库。
+  // 与 resetToday 不同:天数、属性、好感、好友、手记、对话全部回滚。
+  async function restartJourney() {
+    if (!saveReady.value || saveConflict.value) return
+    applyPack(pack)
+    markChanged()
+    if (await flushSave()) showToast('🌱 已重新开始：回到第 1 天')
+  }
+
   return {
     // 状态
     day, stats, tags, currentWorld, unlockedWorlds, npcs, currentNpcId,
@@ -467,7 +476,7 @@ export function useLifeGame() {
     // 动作
     actionState, performAction, switchNpc, chooseOption, openHistory,
     openEvent, closeEvent, finishEvent,
-    addFriend, selectFriend, joinFriend, exploreWorld, enterRoom, nextDay, resetToday,
+    addFriend, selectFriend, joinFriend, exploreWorld, enterRoom, nextDay, resetToday, restartJourney,
     cancelPresentation, showToast, showBondGain, portraitFor,
     // 引导
     prepareTutorial, closeTutorial,

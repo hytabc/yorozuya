@@ -221,3 +221,55 @@ test('game wires event guards, completion, snapshots, hydration and next day', (
   game.hydrate(saved)
   assert.equal(game.eventProgress.value.done.length, 0)
 })
+
+// 七日结局后的「重新开始」：回到包内初始第 1 天并立即落库一次。
+test('restartJourney returns to a fresh day one and persists once', async () => {
+  const pack = defaultLifePack
+  let changes = 0
+  let flushes = 0
+  const context = vm.createContext({
+    ref: value => ({ value }), computed: get => ({ get value() { return get() } }),
+    onMounted() {}, onBeforeUnmount() {}, setTimeout: () => 1, clearTimeout() {},
+    getActiveLifePack: () => pack, portraitFor: id => pack.portraits[id],
+    setLifePresenceData() {}, setLifeActions() {}, currentLifeActions: () => pack.actions,
+    useLifeSave: () => ({ ready: { value: true }, conflict: { value: false }, changed: () => { changes++ }, flush: async () => { flushes += 1; return true } }),
+    createLifePlayback: () => ({ stop() {} }),
+    eventScriptForDay, eventsForRoom, isEventDone, applyEventChoice, normalizeEventProgress,
+    effectText, scriptForDay, startMessages, sanitizeDialogueNodes,
+    roomFor: id => pack.rooms.find(item => item.id === id),
+    worldFor: id => pack.worlds.find(item => item.id === id),
+    migrateSocialState: state => state,
+  })
+  const source = readFileSync(new URL('../src/life/useLifeGame.js', import.meta.url), 'utf8')
+    .replace(/^import .*$/gm, '').replace('export function', 'function')
+  vm.runInContext(source + '\nglobalThis.game = useLifeGame()', context)
+  const game = context.game
+  const npcId = game.npcs.value[0].id
+  game.day.value = 7
+  game.stats.value.mood = 100
+  game.npcs.value[0].bond = 100
+  game.completed.value = { [npcId]: true }
+  game.friendIds.value = [npcId]
+  game.interactedNpcIds.value = [npcId]
+  game.diaryHistory.value = [{ day: 7, text: '尾声', mood: 'calm' }]
+  game.eventProgress.value = { day: 7, done: ['tea'] }
+  game.saveReady.value = false
+  await game.restartJourney()
+  assert.equal(game.day.value, 7)
+  assert.equal(flushes, 0)
+  game.saveReady.value = true
+  await game.restartJourney()
+  const fresh = pack.createInitialState()
+  assert.equal(game.day.value, fresh.day)
+  assert.deepEqual(JSON.parse(JSON.stringify(game.stats.value)), fresh.stats)
+  assert.deepEqual(JSON.parse(JSON.stringify(game.npcs.value)), JSON.parse(JSON.stringify(pack.npcs.map(npc => ({ ...npc })))))
+  assert.deepEqual(JSON.parse(JSON.stringify(game.conversations.value)), fresh.conversations)
+  assert.deepEqual(JSON.parse(JSON.stringify(game.diaryHistory.value)), fresh.diary)
+  assert.deepEqual(Object.keys(game.completed.value), [])
+  assert.deepEqual(JSON.parse(JSON.stringify(game.eventProgress.value)), { day: fresh.day, done: [] })
+  assert.deepEqual(JSON.parse(JSON.stringify(game.friendIds.value)), [])
+  assert.deepEqual(JSON.parse(JSON.stringify(game.interactedNpcIds.value)), [])
+  assert.equal(flushes, 1)
+  assert.equal(changes, 1)
+  assert.equal(game.toast.value, '🌱 已重新开始：回到第 1 天')
+})
