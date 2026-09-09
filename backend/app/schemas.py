@@ -314,6 +314,29 @@ class VolunteerApplicationAdminOut(VolunteerApplicationOut):
     handled_by: UserPublic | None = None
 
 
+class BetaApplicationCreate(RequestModel):
+    reason: str = Field(min_length=10, max_length=500)
+
+
+class BetaApplicationReview(RequestModel):
+    action: Literal["approve", "reject"]
+    note: str | None = Field(default=None, max_length=500)
+
+
+class BetaApplicationOut(ApiModel):
+    id: int
+    reason: str
+    status: ApplicationStatus
+    review_note: str | None = None
+    created_at: datetime
+    handled_at: datetime | None = None
+    user: UserPublic
+
+
+class BetaApplicationAdminOut(BetaApplicationOut):
+    handled_by: UserPublic | None = None
+
+
 class ReportLimitUpdate(RequestModel):
     daily_limit: int = Field(ge=1, le=100)
 

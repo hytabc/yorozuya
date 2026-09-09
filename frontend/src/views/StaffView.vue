@@ -6,6 +6,7 @@ import { useAuthStore } from '../stores/auth'
 import UserProfileCard from '../components/UserProfileCard.vue'
 import UserAvatar from '../components/UserAvatar.vue'
 import VolunteerApplyDialog from '../components/VolunteerApplyDialog.vue'
+import BetaApplyDialog from '../components/BetaApplyDialog.vue'
 
 const auth = useAuthStore()
 const loading = ref(true)
@@ -17,10 +18,13 @@ const volunteers = ref([])
 const selectedUser = ref(null)
 const showApplyDialog = ref(false)
 const myApplication = ref(null)
+const showBetaDialog = ref(false)
+const myBetaApplication = ref(null)
 
 const canApply = computed(() =>
   auth.user && !auth.user.is_admin && auth.user.role === 'user' && myApplication.value?.status !== 'pending'
 )
+const canApplyBeta = computed(() => auth.user && !auth.canPlayLife && myBetaApplication.value?.status !== 'pending')
 
 const directorySections = computed(() => [
   { id: 'staff', label: '管理员', members: staff.value, icon: Store, cardClass: '', empty: '暂时没有可联系的管理员' },
@@ -40,6 +44,14 @@ async function loadMyApplication() {
   } catch { /* 未登录或加载失败时不展示申请状态 */ }
 }
 
+async function loadMyBetaApplication() {
+  if (!auth.user) return
+  try {
+    const { data } = await api.get('/beta-applications/mine')
+    myBetaApplication.value = data
+  } catch { /* 未登录或加载失败时不展示申请状态 */ }
+}
+
 onMounted(async () => {
   try {
     const { data } = await api.get('/staff')
@@ -53,6 +65,7 @@ onMounted(async () => {
     loading.value = false
   }
   loadMyApplication()
+  loadMyBetaApplication()
 })
 </script>
 
@@ -71,6 +84,18 @@ onMounted(async () => {
           <span>上一次申请未通过{{ myApplication.review_note ? `：${myApplication.review_note}` : '' }}，欢迎补充理由后再次申请。</span>
         </div>
         <button class="button" type="button" @click="showApplyDialog = true"><HeartHandshake :size="16" />申请成为志愿者</button>
+      </template>
+    </section>
+
+    <section v-if="auth.user && !auth.canPlayLife" class="apply-section" aria-label="虚拟人生内测申请">
+      <div v-if="myBetaApplication?.status === 'pending'" class="apply-banner pending">
+        <Sparkles :size="18" /><span>你的虚拟人生内测申请正在审核中。</span>
+      </div>
+      <template v-else>
+        <div v-if="myBetaApplication?.status === 'rejected'" class="apply-banner rejected">
+          <span>上一次内测申请未通过{{ myBetaApplication.review_note ? `：${myBetaApplication.review_note}` : '' }}，可以补充理由后再次申请。</span>
+        </div>
+        <button v-if="canApplyBeta" class="button" type="button" @click="showBetaDialog = true"><Sparkles :size="16" />申请虚拟人生内测</button>
       </template>
     </section>
 
@@ -99,6 +124,7 @@ onMounted(async () => {
       <UserProfileCard :initial-user="selectedUser" class="directory-profile-dialog" @close="selectedUser = null" />
     </div>
     <VolunteerApplyDialog v-if="showApplyDialog" @close="showApplyDialog = false" @submitted="myApplication = $event" />
+    <BetaApplyDialog v-if="showBetaDialog" @close="showBetaDialog = false" @submitted="myBetaApplication = $event" />
   </div>
 </template>
 

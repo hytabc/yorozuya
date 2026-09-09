@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session, joinedload
 from .config import settings
 from .backup import skip_next_snapshot
 from .database import Base, SessionLocal, engine, get_db
-from .dependencies import get_admin, get_content_moderator, get_current_user, get_operations_manager, get_optional_user, get_role_manager
+from .dependencies import get_admin, get_beta_application_manager, get_content_moderator, get_current_user, get_operations_manager, get_optional_user, get_role_manager
 from .models import (
     AppSetting,
     ApplicationStatus,
@@ -26,6 +26,7 @@ from .models import (
     AnnouncementKind,
     BoardComment,
     BoardMessage,
+    BetaApplication,
     Feedback,
     FeedbackStatus,
     PageView,
@@ -96,6 +97,10 @@ from .schemas import (
     BoardCommentOut,
     BoardMessageOut,
     BoardPostCreate,
+    BetaApplicationAdminOut,
+    BetaApplicationCreate,
+    BetaApplicationOut,
+    BetaApplicationReview,
     VolunteerApplicationAdminOut,
     VolunteerApplicationCreate,
     VolunteerApplicationOut,
@@ -1506,6 +1511,99 @@ def review_volunteer_application(
     db.commit()
     db.refresh(application)
     return present_application(application, viewer=manager)
+
+
+def present_beta_application(
+    application: BetaApplication, viewer: User | None = None
+) -> BetaApplicationAdminOut:
+    return BetaApplicationAdminOut(
+        id=application.id,
+        reason=application.reason,
+        status=application.status,
+        review_note=application.review_note,
+        created_at=application.created_at,
+        handled_at=application.handled_at,
+        user=present_user_public(application.user, viewer),
+        handled_by=present_user_public(application.handled_by, viewer) if application.handled_by else None,
+    )
+
+
+@app.post("/api/beta-applications", response_model=BetaApplicationOut, status_code=status.HTTP_201_CREATED)
+def create_beta_application(
+    payload: BetaApplicationCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """普通用户申请虚拟人生内测资格。"""
+    if user.is_admin or user.role in (UserRole.STAFF, UserRole.MASCOT) or user.is_beta_tester:
+        raise HTTPException(status_code=403, detail="当前账号无需申请内测资格")
+    pending = db.scalar(
+        select(BetaApplication).where(
+            BetaApplication.user_id == user.id,
+            BetaApplication.status == ApplicationStatus.PENDING,
+        )
+    )
+    if pending is not None:
+        raise HTTPException(status_code=409, detail="你已提交过内测申请，请等待审核")
+    application = BetaApplication(user_id=user.id, reason=payload.reason.strip())
+    db.add(application)
+    db.commit()
+    db.refresh(application)
+    return present_beta_application(application, viewer=user)
+
+
+@app.get("/api/beta-applications/mine", response_model=BetaApplicationOut | None)
+def my_beta_application(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    application = db.scalars(
+        select(BetaApplication)
+        .where(BetaApplication.user_id == user.id)
+        .order_by(BetaApplication.created_at.desc(), BetaApplication.id.desc())
+        .limit(1)
+    ).first()
+    return present_beta_application(application, viewer=user) if application else None
+
+
+@app.get("/api/admin/beta-applications", response_model=list[BetaApplicationAdminOut])
+@app.get("/api/operations/beta-applications", response_model=list[BetaApplicationAdminOut])
+def beta_applications(
+    manager: User = Depends(get_beta_application_manager), db: Session = Depends(get_db)
+):
+    applications = db.scalars(
+        select(BetaApplication)
+        .options(joinedload(BetaApplication.user), joinedload(BetaApplication.handled_by))
+        .order_by(BetaApplication.created_at.desc(), BetaApplication.id.desc())
+        .limit(500)
+    ).all()
+    return [present_beta_application(item, viewer=manager) for item in applications]
+
+
+@app.post("/api/admin/beta-applications/{application_id}/review", response_model=BetaApplicationAdminOut)
+@app.post("/api/operations/beta-applications/{application_id}/review", response_model=BetaApplicationAdminOut)
+def review_beta_application(
+    application_id: int,
+    payload: BetaApplicationReview,
+    manager: User = Depends(get_beta_application_manager),
+    db: Session = Depends(get_db),
+):
+    application = db.get(BetaApplication, application_id)
+    if application is None:
+        raise HTTPException(status_code=404, detail="申请不存在")
+    if application.status != ApplicationStatus.PENDING:
+        raise HTTPException(status_code=409, detail="该申请已处理过")
+    applicant = db.get(User, application.user_id)
+    if applicant is None:
+        raise HTTPException(status_code=404, detail="申请用户不存在")
+    if payload.action == "approve":
+        applicant.is_beta_tester = True
+        application.status = ApplicationStatus.APPROVED
+    else:
+        application.status = ApplicationStatus.REJECTED
+    application.review_note = payload.note.strip() if payload.note else None
+    application.handled_by_id = manager.id
+    application.handled_at = datetime.utcnow()
+    db.commit()
+    db.refresh(application)
+    return present_beta_application(application, viewer=manager)
 
 
 def can_moderate(user: User | None) -> bool:

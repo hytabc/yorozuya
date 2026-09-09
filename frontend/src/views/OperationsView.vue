@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { BarChart3, Edit3, Eye, EyeOff, Megaphone, Pin, Plus, Save, Trash2, UsersRound, X } from 'lucide-vue-next'
+import { BarChart3, Check, Edit3, Eye, EyeOff, Megaphone, Pin, Plus, Save, Sparkles, Trash2, UsersRound, X } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
 
@@ -8,12 +8,15 @@ const toast = useToast()
 const activeTab = ref('analytics')
 const loading = ref(true)
 const announcements = ref([])
+const betaApplications = ref([])
+const reviewBetaAppId = ref(null)
 const rangeDays = ref(7)
 const analytics = ref({ days: 7, total_views: 0, total_visitors: 0, today_views: 0, today_visitors: 0, pages: [], daily: [] })
 const editing = ref(false)
 const saving = ref(false)
 const form = reactive({ id: null, kind: 'site', title: '', content: '', is_published: false, is_pinned: false, starts_at: '', ends_at: '' })
 const maxDailyViews = computed(() => Math.max(1, ...analytics.value.daily.map((item) => item.views)))
+const pendingBetaApplications = computed(() => betaApplications.value.filter((item) => item.status === 'pending').length)
 
 function formatDate(value) {
   if (!value) return '长期有效'
@@ -47,10 +50,13 @@ async function loadAnnouncements() {
 async function loadAnalytics() {
   analytics.value = (await api.get('/operations/analytics', { params: { days: rangeDays.value } })).data
 }
+async function loadBetaApplications() {
+  betaApplications.value = (await api.get('/operations/beta-applications')).data
+}
 async function load() {
   loading.value = true
   try {
-    await Promise.all([loadAnnouncements(), loadAnalytics()])
+    await Promise.all([loadAnnouncements(), loadAnalytics(), loadBetaApplications()])
   } catch (error) {
     toast.error(errorMessage(error, '运营数据加载失败'))
   } finally {
@@ -91,6 +97,20 @@ async function removeAnnouncement(item) {
   } catch (error) { toast.error(errorMessage(error)) }
 }
 
+async function reviewBetaApplication(item, action) {
+  let note = null
+  if (action === 'reject') {
+    note = window.prompt('请输入拒绝理由（会展示给申请人，可留空）', item.review_note || '')
+    if (note === null) return
+  }
+  reviewBetaAppId.value = item.id
+  try {
+    const { data } = await api.post(`/operations/beta-applications/${item.id}/review`, { action, note: note?.trim() || null })
+    betaApplications.value[betaApplications.value.findIndex((current) => current.id === item.id)] = data
+    toast.success(action === 'approve' ? `已为 ${data.user.nickname} 开通虚拟人生` : '已拒绝该内测申请')
+  } catch (error) { toast.error(errorMessage(error)) } finally { reviewBetaAppId.value = null }
+}
+
 onMounted(load)
 </script>
 
@@ -104,6 +124,7 @@ onMounted(load)
     <div class="tabs operations-tabs" role="tablist">
       <button :class="{ active: activeTab === 'analytics' }" role="tab" @click="activeTab = 'analytics'"><BarChart3 :size="16" />数据分析</button>
       <button :class="{ active: activeTab === 'announcements' }" role="tab" @click="activeTab = 'announcements'"><Megaphone :size="16" />公告管理</button>
+      <button :class="{ active: activeTab === 'beta-applications' }" role="tab" @click="activeTab = 'beta-applications'"><Sparkles :size="16" />内测申请<span v-if="pendingBetaApplications">{{ pendingBetaApplications }}</span></button>
     </div>
 
     <div v-if="loading" class="notice-empty">正在加载运营数据…</div>
@@ -134,7 +155,7 @@ onMounted(load)
       </div>
     </template>
 
-    <template v-else>
+    <template v-else-if="activeTab === 'announcements'">
       <div class="announcement-admin-list">
         <article v-for="item in announcements" :key="item.id" class="announcement-admin-row">
           <div class="announcement-admin-main"><span class="notice-kind" :class="item.kind">{{ item.kind === 'site' ? '网站公告' : '活动公告' }}</span><span v-if="item.is_pinned" class="pin-label"><Pin :size="12" />置顶</span><h2>{{ item.title }}</h2><p>{{ item.content }}</p></div>
@@ -143,6 +164,21 @@ onMounted(load)
         <div v-if="!announcements.length" class="notice-empty"><Megaphone :size="28" />暂无公告</div>
       </div>
     </template>
+
+    <section v-else class="admin-table-section">
+      <div class="admin-toolbar"><div><h2>虚拟人生内测申请</h2><span>待审核 {{ pendingBetaApplications }} 条</span></div><span>通过后自动开通内测资格</span></div>
+      <ul v-if="betaApplications.length" class="feedback-admin-list">
+        <li v-for="item in betaApplications" :key="item.id" :class="{ handled: item.status !== 'pending' }">
+          <div class="fb-head"><span class="fb-state" :class="`state-${item.status}`">{{ item.status === 'pending' ? '待审核' : item.status === 'approved' ? '已通过' : '已拒绝' }}</span><strong>{{ item.user.nickname }}</strong><time class="muted">{{ formatDate(item.created_at) }}</time></div>
+          <p class="fb-content">{{ item.reason }}</p>
+          <div class="fb-actions">
+            <span v-if="item.status !== 'pending' && item.review_note" class="fb-reply-admin">审核说明：{{ item.review_note }}</span>
+            <template v-if="item.status === 'pending'"><button class="button secondary small" :disabled="reviewBetaAppId === item.id" @click="reviewBetaApplication(item, 'approve')"><Check :size="15" />通过</button><button class="button secondary small" :disabled="reviewBetaAppId === item.id" @click="reviewBetaApplication(item, 'reject')"><X :size="15" />拒绝</button></template>
+          </div>
+        </li>
+      </ul>
+      <div v-else class="notice-empty"><Sparkles :size="28" />还没有收到内测申请</div>
+    </section>
 
     <div v-if="editing" class="modal-backdrop" @click.self="editing = false">
       <form class="dialog announcement-editor" @submit.prevent="saveAnnouncement">

@@ -1,11 +1,12 @@
 <script setup>
-import { computed, reactive, ref } from 'vue'
-import { CalendarDays, EyeOff, Heart, ImagePlus, KeyRound, Save, ShieldCheck, Store, Trash2, UserRound } from 'lucide-vue-next'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { CalendarDays, EyeOff, Heart, ImagePlus, KeyRound, Save, ShieldCheck, Sparkles, Store, Trash2, UserRound } from 'lucide-vue-next'
 import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import { roleLabel, ROLE_HINTS } from '../constants'
 import UserAvatar from '../components/UserAvatar.vue'
+import BetaApplyDialog from '../components/BetaApplyDialog.vue'
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
 const AVATAR_TYPES = new Set(['image/jpeg', 'image/png'])
@@ -16,6 +17,8 @@ const busy = ref(false)
 const passwordBusy = ref(false)
 const photoBusy = ref(false)
 const avatarBusy = ref(false)
+const showBetaDialog = ref(false)
+const myBetaApplication = ref(null)
 const photos = ref(auth.user.photos || [])
 const remaining = computed(() => Math.max(0, 3 - photos.value.length))
 const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
@@ -96,6 +99,14 @@ async function deleteAvatar() {
     toast.success('头像已删除')
   } catch (error) { toast.error(errorMessage(error)) } finally { avatarBusy.value = false }
 }
+async function loadBetaApplication() {
+  if (auth.canPlayLife) return
+  try {
+    const { data } = await api.get('/beta-applications/mine')
+    myBetaApplication.value = data
+  } catch { /* 申请状态不影响个人资料的其他功能 */ }
+}
+onMounted(loadBetaApplication)
 </script>
 
 <template>
@@ -123,6 +134,13 @@ async function deleteAvatar() {
           <span v-if="auth.user.is_beta_tester" class="role-tag beta-tag">内测用户</span>
         </div>
         <p v-if="!auth.isAdmin" class="role-hint muted">{{ ROLE_HINTS[auth.user.role] }}</p>
+        <div v-if="!auth.canPlayLife" class="profile-beta-access">
+          <div v-if="myBetaApplication?.status === 'pending'" class="profile-beta-pending"><Sparkles :size="16" /><span>内测申请审核中</span></div>
+          <template v-else>
+            <p v-if="myBetaApplication?.status === 'rejected'">上次申请未通过{{ myBetaApplication.review_note ? `：${myBetaApplication.review_note}` : '' }}</p>
+            <button class="button small" type="button" @click="showBetaDialog = true"><Sparkles :size="15" />申请虚拟人生内测</button>
+          </template>
+        </div>
         <div class="profile-divider" />
         <span class="profile-since"><CalendarDays :size="16" />{{ joined }} 加入</span>
       </aside>
@@ -159,6 +177,7 @@ async function deleteAvatar() {
         </div>
       </section>
     </div>
+    <BetaApplyDialog v-if="showBetaDialog" @close="showBetaDialog = false" @submitted="myBetaApplication = $event" />
   </div>
 </template>
 
@@ -203,5 +222,28 @@ async function deleteAvatar() {
 .role-tag.beta-tag {
   color: var(--green);
   background: var(--green-soft);
+}
+
+.profile-beta-access {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.profile-beta-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--green);
+}
+
+.profile-beta-access p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
 }
 </style>
