@@ -1,0 +1,165 @@
+{
+  "version": "1.0",
+  "note": "DLC1 新增结局。判定沿用 data/endings.json 的规则：lock 必中，其余取 score 最高者；本文件为增量，需与本体 endings 合并后使用。",
+  "scoring": {
+    "vars": [
+      "hours",
+      "friends",
+      "mood",
+      "fame",
+      "avatars",
+      "assets",
+      "sugarCount",
+      "breakupCount",
+      "favor",
+      "circle.count",
+      "tag.count",
+      "skill.max",
+      "hint.mediator",
+      "hint.best_friend",
+      "hint.reunion",
+      "hint.circle_hopper",
+      "hint.gearhead",
+      "hint.tracker",
+      "hint.night_dancer"
+    ]
+  },
+  "endingPaths": [
+    "mediator",
+    "best_friend",
+    "reunion",
+    "circle_hopper",
+    "gearhead",
+    "tracker",
+    "night_dancer"
+  ],
+  "endings": [
+    {
+      "id": "end_mediator",
+      "title": "圈子里的调解人",
+      "priority": 74,
+      "lock": false,
+      "rarity": "rare",
+      "condition": {
+        "minHours": 400,
+        "minFriends": 45,
+        "minSkills": { "social": 36 },
+        "requireFlags": ["resolved_feud"]
+      },
+      "score": "hint.mediator * 6 + friends * 0.8 + skill.social * 1.3 + favor * 0.6",
+      "desc": "你不属于任何一边，但两边都信你。",
+      "summaryTemplate": "你调解过 {N} 次吵架，其中 {N} 次两边都没和好，只是不再互相拉黑了。你记得每一次是谁先低了头。你的好友列表有 {friends} 个人，横跨好几个圈子——他们平时不来往，但都认识你。",
+      "keyStats": ["friends", "skill.social", "favor", "hours"],
+      "color": "#10b981",
+      "unlockCondition": "在圈子冲突中成功调解"
+    },
+    {
+      "id": "end_best_friend",
+      "title": "有人叫你挚友",
+      "priority": 72,
+      "lock": false,
+      "rarity": "rare",
+      "condition": {
+        "minHours": 300,
+        "minFavor": 80,
+        "minFriends": 20
+      },
+      "score": "hint.best_friend * 6 + favor * 1.4 + friends * 0.6 + mood * 0.5",
+      "desc": "好友列表很长，但你只对一个人好。",
+      "summaryTemplate": "{friends} 个好友，{hours} 小时。看起来你玩得很热闹。只有你自己知道，从头到尾只有一个名字是真的——难过的时候你会找 {ta}，开心的时候也是。有人把「挚友」这两个字打给你的时候，你盯着看了很久。",
+      "keyStats": ["favor", "friends", "hours", "mood"],
+      "color": "#f472b6",
+      "unlockCondition": "好感度 ≥ 80"
+    },
+    {
+      "id": "end_reunion",
+      "title": "多年后的一句最近好吗",
+      "priority": 68,
+      "lock": false,
+      "rarity": "uncommon",
+      "condition": {
+        "minHours": 700,
+        "requireFlags": ["got_reunion_message"]
+      },
+      "score": "hint.reunion * 6 + (hasFlag.got_reunion_message ? 40 : 0) + hours / 120 + mood * 0.4",
+      "desc": "有些人只是暂时离开。",
+      "summaryTemplate": "你在 {hours} 小时里送走过很多人。大多数都没再回来。但有一个，在一千多天之后，给你发了一句「最近好吗」。你回了一个字，又删掉，最后回了两句。你们约了个时间，谁也没提当年。",
+      "keyStats": ["hours", "friends", "mood"],
+      "color": "#38bdf8",
+      "unlockCondition": "收到旧友的回归消息"
+    },
+    {
+      "id": "end_circle_hopper",
+      "title": "圈子浪人",
+      "priority": 62,
+      "lock": false,
+      "rarity": "uncommon",
+      "condition": {
+        "minHours": 400,
+        "minCircles": 4,
+        "requireFlags": ["circle_hopper"]
+      },
+      "score": "hint.circle_hopper * 6 + (hasFlag.circle_hopper ? 30 : 0) + circle.count * 12 + friends * 0.3 - favor * 0.6",
+      "desc": "你哪里都待过，哪里都不属于你。",
+      "summaryTemplate": "你加入过 {circle.count} 个圈子。跳舞的、改模的、玩恐怖图的、搞设备的，每个群你都熟，每个人都叫得出你的名字。但没有一个人会在凌晨三点想起你。你哪里都能去，这件事你以前觉得是自由。",
+      "keyStats": ["circle.count", "friends", "favor", "hours"],
+      "color": "#a78bfa",
+      "unlockCondition": "加过多个圈子，却在哪个圈子里都没留下深交"
+    },
+    {
+      "id": "end_gearhead",
+      "title": "设备折腾家",
+      "priority": 58,
+      "lock": false,
+      "rarity": "uncommon",
+      "condition": {
+        "minHours": 250,
+        "minSkills": { "coding": 30 },
+        "requireFlags": ["gearhead"]
+      },
+      "score": "hint.gearhead * 6 + skill.coding * 1.2 + avatars * 0.5 + (hasFlag.gearhead ? 40 : 0)",
+      "desc": "你一半时间在玩游戏，一半在修设备。",
+      "summaryTemplate": "你为 {hours} 小时的游戏，搭了 {N} 套设备。你给自己写过一份串流参数笔记，给别人调过 {N} 次追踪。真正戴着它玩的时间，可能还没有拆它、装它、给它跑分的时间多。你说这不算浪费时间——你确实这么觉得。",
+      "keyStats": ["skill.coding", "avatars", "hours"],
+      "color": "#06b6d4",
+      "unlockCondition": "编程 ≥ 30 且以折腾设备为主线"
+    },
+    {
+      "id": "end_tracker_dancer",
+      "title": "全身追踪的人",
+      "priority": 56,
+      "lock": false,
+      "rarity": "uncommon",
+      "condition": {
+        "minHours": 300,
+        "minSkills": { "dance": 36 },
+        "requireFlags": ["owns_fbt"]
+      },
+      "score": "hint.tracker * 6 + skill.dance * 1.1 + skill.coding * 0.6 + (hasFlag.owns_fbt ? 30 : 0)",
+      "desc": "你会动脚了，这件事改变了一切。",
+      "summaryTemplate": "你从 {N} 个跳舞的人里挤出来，靠的不是手，是脚。为了那几公分的动作，你买了追踪器、调了校准、掉追掉到想砸设备。但音乐一响，你整个人是完整的——不是飘在半空的头和两只手，是一个人。",
+      "keyStats": ["skill.dance", "skill.coding", "hours"],
+      "color": "#f43f5e",
+      "unlockCondition": "全身追踪 + 舞蹈 ≥ 36"
+    },
+    {
+      "id": "end_night_dancer",
+      "title": "深夜的独舞者",
+      "priority": 54,
+      "lock": false,
+      "rarity": "uncommon",
+      "condition": {
+        "minHours": 250,
+        "minSkills": { "dance": 30 },
+        "maxFriends": 30,
+        "requireFlags": ["night_owl"]
+      },
+      "score": "hint.night_dancer * 6 + skill.dance * 1.2 + (hasFlag.night_owl ? 30 : 0) + (friends < 10 ? 25 : 0)",
+      "desc": "凌晨的舞房只有你一个人。",
+      "summaryTemplate": "你在 {hours} 小时里跳过 {N} 支舞，大部分是凌晨跳的。舞房里没有观众，只有你的影子和循环的鼓点。有人问过你为什么总在深夜上线，你说：白天太吵了，听不见自己。",
+      "keyStats": ["skill.dance", "friends", "hours"],
+      "color": "#818cf8",
+      "unlockCondition": "舞蹈 ≥ 30、好友少、长期深夜在线"
+    }
+  ]
+}

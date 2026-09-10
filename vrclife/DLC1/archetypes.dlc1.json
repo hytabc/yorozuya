@@ -1,0 +1,62 @@
+{
+  "version": "1.0",
+  "note": "DLC1 新增出生。结构与 data/archetypes.json 一致；init 里可写 favor（DLC 新增字段）。",
+  "archetypes": [
+    {
+      "id": "arch_011",
+      "name": "Pico 一体机党",
+      "weight": 8,
+      "rarity": "uncommon",
+      "desc": "你没有 PC，只有一台 Pico。别人聊的串流参数，你一个都看不懂。",
+      "startText": "盒子里只有一台一体机，和一根充电线。你把它戴上，世界就亮了。",
+      "init": { "mood": 72, "friends": 0, "avatars": 1, "assets": 150, "favor": 50 },
+      "skills": { "modeling": 0, "coding": 5, "photo": 0, "music": 0, "dance": 0, "language": 0, "social": 0, "meme": 5 },
+      "tags": ["萌新", "Pico党", "设备党"],
+      "flags": { "add": ["has_device", "pico_player"] },
+      "hourStepMod": 1.0,
+      "specialRule": "「串流/画质妥协」类事件权重 ×2；资产增长较慢，但心态更稳定（负面设备事件 -2 mood 减半）"
+    },
+    {
+      "id": "arch_012",
+      "name": "全身追踪狂热者",
+      "weight": 6,
+      "rarity": "rare",
+      "desc": "你买追踪器的时候就想过：我要用脚跳舞。",
+      "startText": "你把追踪器一个一个绑好，站起来，第一次在虚拟世界里看见了自己的脚。",
+      "init": { "mood": 68, "friends": 0, "avatars": 2, "assets": 400, "favor": 50 },
+      "skills": { "modeling": 0, "coding": 5, "photo": 0, "music": 0, "dance": 15, "language": 0, "social": 0, "meme": 0 },
+      "tags": ["萌新", "全身追踪", "设备党"],
+      "flags": { "add": ["has_device", "owns_fbt"] },
+      "hourStepMod": 1.1,
+      "specialRule": "开局拥有全身追踪；「掉追/校准」事件权重 ×1.8；舞蹈成长更快"
+    },
+    {
+      "id": "arch_013",
+      "name": "硬件折腾党",
+      "weight": 7,
+      "rarity": "rare",
+      "desc": "你玩游戏的时间，可能还没有调设备的时间长。",
+      "startText": "你坐在一地线材中间，看着跑分曲线，比看任何风景都专注。",
+      "init": { "mood": 70, "friends": 0, "avatars": 3, "assets": 600, "favor": 50 },
+      "skills": { "modeling": 0, "coding": 20, "photo": 0, "music": 0, "dance": 0, "language": 0, "social": 0, "meme": 0 },
+      "tags": ["萌新", "设备党", "技术宅"],
+      "flags": { "add": ["has_device", "gearhead"] },
+      "hourStepMod": 1.0,
+      "specialRule": "设备线事件权重 ×2；编程成长更快；mood 上限 85"
+    },
+    {
+      "id": "arch_014",
+      "name": "圈子调和者",
+      "weight": 7,
+      "rarity": "uncommon",
+      "desc": "你天生就是那个被拉去劝架的人。",
+      "startText": "两个群同时 @ 你，一边说另一边的坏话。你打字打了半天，一个字都没发出去。",
+      "init": { "mood": 75, "friends": 2, "avatars": 1, "assets": 100, "favor": 65 },
+      "skills": { "modeling": 0, "coding": 0, "photo": 0, "music": 0, "dance": 0, "language": 0, "social": 15, "meme": 0 },
+      "tags": ["萌新", "社牛"],
+      "flags": { "add": ["mediator_start"] },
+      "hourStepMod": 1.0,
+      "specialRule": "调解类选项的技能门槛 -10；初始好感度 65；调解成功额外 +1 计数器"
+    }
+  ]
+}

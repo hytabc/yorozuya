@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(python DLC1/scripts/validate_dlc1.py)",
+      "Shell(python DLC1/scripts/merge_dlc1.py)",
+      "Shell(python DLC1/scripts/simulate_dlc1.py 500)",
+      "Shell(python DLC1/scripts/simulate_dlc1.py 500 2 >& 1)",
+      "Shell(Select-String:*)",
+      "Shell(findstr:*)",
+      "Shell(rd:*)",
+      "Shell(python DLC1/scripts/validate_dlc1.py >nul 2>&1 && echo VALIDATE_OK && python DLC1/scripts/simulate_dlc1.py 100 | findstr /C:\"DLC 结局可达\" /C:\"DLC 事件触达\" /C:\"不可达\")",
+      "Shell(python DLC1/scripts/simulate_dlc1.py 100)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
+}

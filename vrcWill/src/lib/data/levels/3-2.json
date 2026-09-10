@@ -1,0 +1,204 @@
+{
+  "id": "3-2",
+  "title": "已读不回",
+  "chapter": 3,
+  "order": 2,
+  "epigraph": "",
+  "intro": "消息发出去之后，对话框上方的「正在输入」亮了三次，然后消失了。",
+  "hasButterfly": false,
+  "anchors": { "first": "frag_3_2_01", "last": "frag_3_2_07" },
+  "initialOrder": [
+    "frag_3_2_01",
+    "frag_3_2_05",
+    "frag_3_2_03",
+    "frag_3_2_06",
+    "frag_3_2_02",
+    "frag_3_2_04",
+    "frag_3_2_07"
+  ],
+  "fragments": [
+    {
+      "id": "frag_3_2_01",
+      "levelId": "3-2",
+      "type": "gray",
+      "character": "Mio",
+      "text": "澪发了一条消息：「今天要不要一起看那个新 World？」",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": 1,
+      "note": "固定起点。"
+    },
+    {
+      "id": "frag_3_2_02",
+      "levelId": "3-2",
+      "type": "white",
+      "character": "Narrator",
+      "text": "「对方正在输入……」亮了三次，又暗下去。",
+      "tags": ["waiting"],
+      "draggable": true,
+      "valence": -1,
+      "note": "等待。它之后的排列决定了这次等待的性质。"
+    },
+    {
+      "id": "frag_3_2_03",
+      "levelId": "3-2",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪把手机翻过去，又翻回来，屏幕还是那个页面。",
+      "tags": ["anxiety"],
+      "draggable": true,
+      "valence": -1,
+      "note": "焦躁的循环。"
+    },
+    {
+      "id": "frag_3_2_04",
+      "levelId": "3-2",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪又发了一条：「算了，我随口问的。」",
+      "tags": ["self_erasure", "withdraw"],
+      "draggable": true,
+      "valence": -2,
+      "note": "本关最重要的一句。它可以是'自我否定'，也可以是'主动收回'——差别在于它排在等待之前还是之后。"
+    },
+    {
+      "id": "frag_3_2_05",
+      "levelId": "3-2",
+      "type": "white",
+      "character": "Shiori",
+      "text": "凌晨两点，栞才回复：「今天有点忙，改天吧。」",
+      "tags": ["excuse"],
+      "draggable": true,
+      "valence": 0,
+      "note": "迟到的回复。它既不是拒绝，也不是答应。"
+    },
+    {
+      "id": "frag_3_2_06",
+      "levelId": "3-2",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪看着那条消息，打了很久，最后只回了一个「好」。",
+      "tags": ["silence"],
+      "draggable": true,
+      "valence": 0,
+      "note": "最后一个动作。'好'字的分量由它前面的一切决定。"
+    },
+    {
+      "id": "frag_3_2_07",
+      "levelId": "3-2",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "那一晚，澪没有登入。",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": -1,
+      "note": "固定终点。中性——没登入，可以是崩溃，也可以是终于睡了个好觉。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "3_2_good",
+      "levelId": "3-2",
+      "type": "good",
+      "title": "体面的告别",
+      "threshold": 70,
+      "valence": 1,
+      "constraints": [
+        { "kind": "before", "a": "frag_3_2_02", "b": "frag_3_2_04", "weight": 25 },
+        { "kind": "before", "a": "frag_3_2_04", "b": "frag_3_2_06", "weight": 25 },
+        { "kind": "before", "a": "frag_3_2_04", "b": "frag_3_2_03", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_3_2_06", "b": "frag_3_2_07", "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_3_2_03", "b": "frag_3_2_04", "weight": 40 }
+      ],
+      "text": "「正在输入」亮了三次，暗下去。澪看着它，然后打了一句「算了，我随口问的」——但这一次，她不是在缩回去，她是在收回。\n\n凌晨两点，栞回了「改天吧」。澪打了很久，回了一个「好」，然后关掉了对话框。\n\n她没有等一个解释。因为她开始明白，有些沉默本身，就是答案。\n\n那一晚她没登入，但她睡得很好。",
+      "excerpt": "有些沉默本身，就是答案。",
+      "bondEffect": { "Mio": 8, "Shiori": 2 }
+    },
+    {
+      "id": "3_2_bittersweet",
+      "levelId": "3-2",
+      "type": "bittersweet",
+      "title": "还在等",
+      "threshold": 60,
+      "valence": -1,
+      "constraints": [
+        { "kind": "before", "a": "frag_3_2_03", "b": "frag_3_2_04", "weight": 25 },
+        { "kind": "before", "a": "frag_3_2_04", "b": "frag_3_2_05", "weight": 25 },
+        { "kind": "before", "a": "frag_3_2_05", "b": "frag_3_2_06", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_3_2_06", "b": "frag_3_2_07", "weight": 25 }
+      ],
+      "anti": [],
+      "text": "澪把手机翻来覆去地看，然后把那句「算了」又咽了回去。\n\n她等了很久，等到的是「改天吧」。她回了「好」，但那一整晚都在刷新页面。\n\n关系没有断，只是从那以后，每一次见面都变成了需要提前预约的事。",
+      "excerpt": "见面变成了需要预约的事。",
+      "bondEffect": { "Mio": -4, "Shiori": -2 }
+    },
+    {
+      "id": "3_2_bad",
+      "levelId": "3-2",
+      "type": "bad",
+      "title": "执念",
+      "threshold": 55,
+      "valence": -2,
+      "constraints": [
+        { "kind": "before", "a": "frag_3_2_02", "b": "frag_3_2_05", "weight": 25 },
+        { "kind": "before", "a": "frag_3_2_05", "b": "frag_3_2_06", "weight": 25 },
+        { "kind": "before", "a": "frag_3_2_06", "b": "frag_3_2_04", "weight": 25 },
+        { "kind": "position", "frag": "frag_3_2_04", "index": 5, "weight": 25 }
+      ],
+      "anti": [],
+      "text": "澪反复回看「正在输入」那三次闪烁，认定「她其实想回我，只是没时间」。\n\n于是第二天、第三天，她又发了消息。第一条栞回了，第二条隔了很久，第三条没有回。\n\n一个月后，是栞先点了「隐藏动态」。",
+      "excerpt": "她认定对方只是没时间。",
+      "bondEffect": { "Mio": -15, "Shiori": -12 }
+    },
+    {
+      "id": "3_2_true",
+      "levelId": "3-2",
+      "type": "true",
+      "title": "我也可以先走",
+      "threshold": 75,
+      "valence": 1,
+      "hidden": true,
+      "constraints": [
+        { "kind": "before", "a": "frag_3_2_04", "b": "frag_3_2_02", "weight": 30 },
+        { "kind": "before", "a": "frag_3_2_04", "b": "frag_3_2_03", "weight": 25 },
+        { "kind": "before", "a": "frag_3_2_03", "b": "frag_3_2_06", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_3_2_06", "b": "frag_3_2_07", "weight": 20 }
+      ],
+      "anti": [],
+      "text": "澪在等待开始之前，就说了那句「算了」。\n\n这一次不是自我否定，而是主动收回——她没有把自己的心情交给一个还没亮起来的输入框。\n\n第二天，栞反而先发了消息过来，问：「你还好吗？」\n\n——放手不是失败。它是另一种形态的靠近。",
+      "excerpt": "她没有把心情交给输入框。",
+      "bondEffect": { "Mio": 15, "Shiori": 8 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "3_2_chaos",
+    "levelId": "3-2",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……这一晚的因果里，藏着一个玩家无法改变的事实。\n\n想想看：这里并不存在「把栞找回来」的解法。你能改变的，只有澪怎么离开。",
+    "excerpt": "这里没有「把她找回来」的解法。"
+  },
+  "hints": [
+    {
+      "tier": 1,
+      "text": "没有任何一种排列能让栞早点回复。你能决定的，只有「算了」这句话什么时候说。"
+    },
+    {
+      "tier": 2,
+      "text": "把那句「算了，我随口问的」放在等待之前——它就从句号变成句读。",
+      "highlight": ["frag_3_2_04", "frag_3_2_02"]
+    },
+    {
+      "tier": 3,
+      "text": "推荐顺序：「算了，我随口问的」→ 正在输入 → 反复翻手机 → 栞的迟到回复 → 澪的「好」。",
+      "highlight": ["frag_3_2_04", "frag_3_2_02", "frag_3_2_03", "frag_3_2_05", "frag_3_2_06"]
+    }
+  ],
+  "behindTheScenes": "3-2 是本作最重要的设计实验，也是对「Happy End」定义的一次翻转。\n\n我把「让栞回来」这个选项从因果空间里彻底删掉了：无论玩家怎么排，栞都不会早回。玩家唯一能改变的，是澪如何对待自己的等待。\n\n所以这一关的 good 结局叫「体面的告别」——它不是胜利，它是体面。而 true 结局更进一步：不是被动接受，而是主动收回。"
+}

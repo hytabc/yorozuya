@@ -1,0 +1,59 @@
+{
+  "version": "1.0",
+  "note": "DLC1 契约增量。只做加法：在主 SCHEMA v1.0 之上新增字段与词表。字段名与语义在此冻结，DLC 事件必须遵守。",
+  "basedOn": "data/SCHEMA.md v1.0",
+
+  "effectsAdditions": {
+    "favor": {
+      "type": "number",
+      "range": [-100, 100],
+      "desc": "好感度增减。引擎把 favor 夹取到 0-100。友情线核心数值，见 favorTiers。"
+    }
+  },
+
+  "conditionAdditions": {
+    "minFavor": { "type": "int", "range": [0, 100], "desc": "好感度下限（事件与结局通用）" },
+    "maxFavor": { "type": "int", "range": [0, 100], "desc": "好感度上限" },
+    "minCircles": { "type": "int", "range": [0, 12], "desc": "已加入圈子数量下限（结局条件用）" },
+    "minCounters": {
+      "type": "object",
+      "desc": "自定义计数器下限，如 { \"friendsHelped\": 3 }。用于给重复行为设门槛。"
+    }
+  },
+
+  "stateAdditions": {
+    "favor": { "type": "int", "range": [0, 100], "default": 50, "desc": "好感度" },
+    "favorDrift": { "type": "number", "default": -0.35, "desc": "每回合自然衰减，不互动就会淡" },
+    "autoTags": {
+      "挚友": "favor >= 80 时添加，favor < 60 时移除",
+      "圈子浪人": "circles.length >= 5 时添加"
+    }
+  },
+
+  "favorTiers": [
+    { "key": "生分", "min": 0, "max": 19 },
+    { "key": "客套", "min": 20, "max": 39 },
+    { "key": "聊得来", "min": 40, "max": 59 },
+    { "key": "交心", "min": 60, "max": 79 },
+    { "key": "挚友", "min": 80, "max": 100 }
+  ],
+
+  "weightMods": [
+    "事件带「设备」tag 且玩家持有任一设备 tag → ×1.5",
+    "玩家持「挚友」tag 且事件带「友情」「正面」→ ×1.4",
+    "favor < 30 且事件带「友情」→ ×1.3"
+  ],
+
+  "scoreVarsAdditions": ["favor"],
+
+  "idRule": "DLC 桶前缀固定为 device / circle / friend / favor；序号 device_001.. / circle_001.. / friend_001.. / favor_001..；key 事件 device_k01 等。",
+
+  "validateAdditions": [
+    "effects.favor 必须为数字",
+    "condition.minFavor / maxFavor 必须在 0-100",
+    "condition.minCounters 的键必须是非空字符串，值为数字",
+    "所有新 tag / circle / world / endingPath 必须在 vocab.dlc1.json 的 additions 中声明",
+    "每个设备术语（vocab.dlc1.json 的 glossary 键）至少出现在一个 DLC 事件文案中",
+    "每个新 ending.path 至少被一个 DLC 事件的 endingHint 引用"
+  ]
+}

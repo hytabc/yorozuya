@@ -1,0 +1,215 @@
+{
+  "id": "4-1",
+  "title": "观测者",
+  "chapter": 4,
+  "order": 1,
+  "epigraph": "世界会记住每一个登入过的人。哪怕他们自己都忘了。",
+  "intro": "回声服务器第一次开口说话。它说：「你终于排到了你自己。」",
+  "hasButterfly": false,
+  "anchors": { "first": "frag_4_1_01", "last": "frag_4_1_08" },
+  "initialOrder": [
+    "frag_4_1_01",
+    "frag_4_1_06",
+    "frag_4_1_04",
+    "frag_4_1_02",
+    "frag_4_1_07",
+    "frag_4_1_05",
+    "frag_4_1_03",
+    "frag_4_1_08"
+  ],
+  "fragments": [
+    {
+      "id": "frag_4_1_01",
+      "levelId": "4-1",
+      "type": "gray",
+      "character": "Observer",
+      "text": "观测者第一次登入，是一段被删除过又恢复的记忆。",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定起点。此关起，碎片归属由 'Observer' 指代。"
+    },
+    {
+      "id": "frag_4_1_02",
+      "levelId": "4-1",
+      "type": "white",
+      "character": "Observer",
+      "text": "记忆里，有一个女孩说：「和你在一起，我不用一直说话。」",
+      "tags": ["echo_2_1"],
+      "draggable": true,
+      "valence": 1,
+      "note": "回声自 2-1。玩家如果玩过 2-1，会立刻认出来。"
+    },
+    {
+      "id": "frag_4_1_03",
+      "levelId": "4-1",
+      "type": "white",
+      "character": "Observer",
+      "text": "记忆里，有一个女孩换上了新 Avatar，配色是蓝色。",
+      "tags": ["echo_2_2"],
+      "draggable": true,
+      "valence": 1,
+      "note": "回声自 2-2。'澪蓝'。"
+    },
+    {
+      "id": "frag_4_1_04",
+      "levelId": "4-1",
+      "type": "white",
+      "character": "Observer",
+      "text": "记忆里，有一个新人叫「悠」，笑得很紧张。",
+      "tags": ["echo_3_1"],
+      "draggable": true,
+      "valence": 0,
+      "note": "回声自 3-1。"
+    },
+    {
+      "id": "frag_4_1_05",
+      "levelId": "4-1",
+      "type": "white",
+      "character": "Observer",
+      "text": "记忆里，有一条消息，打了很久，最后只回了「好」。",
+      "tags": ["echo_3_2"],
+      "draggable": true,
+      "valence": -1,
+      "note": "回声自 3-2。"
+    },
+    {
+      "id": "frag_4_1_06",
+      "levelId": "4-1",
+      "type": "white",
+      "character": "Observer",
+      "text": "记忆里，观测者——不，是澪——关掉了头显，再也没有登入。",
+      "tags": ["reveal"],
+      "draggable": true,
+      "valence": -2,
+      "note": "本关的翻转句。它出现的位置决定了玩家是否愿意承认这件事。"
+    },
+    {
+      "id": "frag_4_1_07",
+      "levelId": "4-1",
+      "type": "white",
+      "character": "Rin",
+      "text": "记忆里，有一个沉默的人在雪原上，为她建了一座房子。",
+      "tags": ["echo_rin"],
+      "draggable": true,
+      "valence": 2,
+      "note": "回声自 4-2。凛的伏笔在此第一次被显式指出。"
+    },
+    {
+      "id": "frag_4_1_08",
+      "levelId": "4-1",
+      "type": "gray",
+      "character": "Echo",
+      "text": "回声服务器说：「这些不是别人的故事。是你没走完的那一段。」",
+      "tags": ["anchor", "end", "truth"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定终点。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "4_1_good",
+      "levelId": "4-1",
+      "type": "good",
+      "title": "承认",
+      "threshold": 70,
+      "valence": 1,
+      "constraints": [
+        { "kind": "before", "a": "frag_4_1_02", "b": "frag_4_1_03", "weight": 20 },
+        { "kind": "before", "a": "frag_4_1_03", "b": "frag_4_1_04", "weight": 20 },
+        { "kind": "before", "a": "frag_4_1_04", "b": "frag_4_1_05", "weight": 20 },
+        { "kind": "before", "a": "frag_4_1_05", "b": "frag_4_1_06", "weight": 20 },
+        { "kind": "adjacent", "a": "frag_4_1_06", "b": "frag_4_1_07", "weight": 20 }
+      ],
+      "anti": [],
+      "text": "观测者把那些碎片按顺序摆好：那句话、那件蓝色的 Avatar、那个叫悠的新人、那条只回了「好」的消息……然后是关掉头显。\n\n它第一次承认：「这是我最想删掉的那一年。」\n\n回声服务器没有安慰它。它只是把雪原上那盏灯调亮了一点——那盏灯，是凛的。",
+      "excerpt": "「这是我最想删掉的那一年。」",
+      "bondEffect": { "Mio": 15, "Rin": 8 }
+    },
+    {
+      "id": "4_1_bittersweet",
+      "levelId": "4-1",
+      "type": "bittersweet",
+      "title": "否认",
+      "threshold": 60,
+      "valence": -1,
+      "constraints": [
+        { "kind": "position", "frag": "frag_4_1_06", "index": 1, "weight": 30 },
+        { "kind": "before", "a": "frag_4_1_06", "b": "frag_4_1_02", "weight": 25 },
+        { "kind": "before", "a": "frag_4_1_06", "b": "frag_4_1_03", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_4_1_05", "b": "frag_4_1_07", "weight": 20 }
+      ],
+      "anti": [],
+      "text": "观测者把「关掉头显」那段排到了最前面，像是在说：我不认识这个人。\n\n后面的记忆依然是那些记忆，但它们不再连成一条线——它们只是散落在那里。\n\n回声服务器沉默了很久，然后播放了一段没有画面的音频。是有人在很远的地方，轻轻喊了一声「澪」。",
+      "excerpt": "「我不认识这个人。」",
+      "bondEffect": { "Mio": -8, "Rin": 0 }
+    },
+    {
+      "id": "4_1_bad",
+      "levelId": "4-1",
+      "type": "bad",
+      "title": "删除",
+      "threshold": 55,
+      "valence": -2,
+      "constraints": [
+        { "kind": "position", "frag": "frag_4_1_06", "index": 1, "weight": 30 },
+        { "kind": "position", "frag": "frag_4_1_07", "index": 6, "weight": 30 },
+        { "kind": "before", "a": "frag_4_1_06", "b": "frag_4_1_05", "weight": 20 },
+        { "kind": "before", "a": "frag_4_1_05", "b": "frag_4_1_04", "weight": 20 }
+      ],
+      "anti": [],
+      "text": "观测者选择把整段记忆清空。\n\n它把「关掉头显」放在最前面，把凛的那座房子推到最后一个——像一个人收拾房间时，把不想看的东西全部塞进最底层的抽屉。\n\n回声服务器的一盏灯灭了。\n\n同一时刻，雪原上那间房子里的灯也灭了。那是凛唯一一次，没能等到有人回来。",
+      "excerpt": "最底层的抽屉，被塞满了。",
+      "bondEffect": { "Mio": -15, "Rin": -18 }
+    },
+    {
+      "id": "4_1_true",
+      "levelId": "4-1",
+      "type": "true",
+      "title": "不是别人的故事",
+      "threshold": 75,
+      "valence": 1,
+      "hidden": true,
+      "constraints": [
+        { "kind": "group", "frags": ["frag_4_1_02", "frag_4_1_03", "frag_4_1_07"], "weight": 30 },
+        { "kind": "before", "a": "frag_4_1_03", "b": "frag_4_1_07", "weight": 20 },
+        { "kind": "before", "a": "frag_4_1_07", "b": "frag_4_1_06", "weight": 25 },
+        { "kind": "before", "a": "frag_4_1_04", "b": "frag_4_1_05", "weight": 25 }
+      ],
+      "anti": [],
+      "text": "观测者把「凛建房子」那段，排在了所有关于澪和栞的回忆之前——排列完成的一瞬间，因果的方向反了过来。\n\n原来在故事最开始的地方，就已经有人在等它回家了。\n\n它一直以为自己在找一个替它说「欢迎回来」的人。\n\n其实那个人一直都在雪原上，把灯留着。",
+      "excerpt": "那个人一直都在雪原上。",
+      "bondEffect": { "Mio": 15, "Rin": 25 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "4_1_chaos",
+    "levelId": "4-1",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……这段记忆还没有被决定，是承认它，还是删掉它。\n\n「关掉头显」这一句放在哪里，就是你的答案。",
+    "excerpt": "承认还是删除，是你自己的答案。"
+  },
+  "hints": [
+    {
+      "tier": 1,
+      "text": "「关掉头显」这一句，放在最前面和放在最后，是两个完全不同的人。"
+    },
+    {
+      "tier": 2,
+      "text": "试着把「凛建房子」排到其他回忆之前——那不是结局，那是开始。",
+      "highlight": ["frag_4_1_07"]
+    },
+    {
+      "tier": 3,
+      "text": "推荐顺序：那句「不用一直说话」→ 蓝色的新 Avatar → 凛的房子 → 叫悠的新人 → 只回了「好」→ 关掉头显。",
+      "highlight": ["frag_4_1_02", "frag_4_1_03", "frag_4_1_07", "frag_4_1_04", "frag_4_1_05", "frag_4_1_06"]
+    }
+  ],
+  "behindTheScenes": "4-1 是全作的转折点。前六关玩家一直在替别人排因果，这一关第一次被迫面对：这些碎片属于观测者自己。\n\n设计上我避免用'解释'来完成揭示——回声服务器只说了一句'是你没走完的那一段'，剩下的靠玩家自己认出那些回声碎片（它们分别来自 2-1、2-2、3-1、3-2）。\n\n玩过前面关卡的玩家会在这里体验到强烈的既视感，这正是设计目的。"
+}

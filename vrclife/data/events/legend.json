@@ -1,0 +1,3600 @@
+{
+  "bucket": "legend",
+  "version": "1.0",
+  "events": [
+    {
+      "id": "legend_k01",
+      "title": "一千小时",
+      "category": "key",
+      "stage": "传奇",
+      "hoursRange": [
+        1000,
+        1025
+      ],
+      "weight": 100,
+      "rarity": "legendary",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "关键",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 1000,
+        "maxHours": 1025
+      },
+      "text": "登录界面右上角跳出四位数：1000。你站在{世界}的角落里，什么也没做，耳机里是别人的笑声。",
+      "options": [
+        {
+          "id": "screenshot",
+          "text": "把这个数字截图存下来",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你把数字和身后的世界一起框进去。存进文件夹时你想，那个文件夹里已经躺了几百张差不多的图。",
+              "effects": {
+                "mood": 4,
+                "fame": 1,
+                "counters": {
+                  "photosTaken": 1
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 2
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "截图时有人路过，问你在拍什么。你说没什么。他说：我知道你，我去过你的世界，屋顶那面墙我坐过。",
+              "effects": {
+                "mood": 7,
+                "fame": 4,
+                "friends": 1
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "你把截图发了出去，配文只有两个字。第二天醒来，评论区有 {N} 个人说，自己是被你带进来的。",
+              "effects": {
+                "mood": 11,
+                "fame": 12,
+                "friends": 3,
+                "tags": {
+                  "add": [
+                    "社区名人"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "leader",
+                "score": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "timeline",
+          "text": "翻自己的时间线",
+          "condition": {
+            "minFriends": 3
+          },
+          "lockedHint": "需要好友 ≥ 3",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你从上往下拉。有些名字你记得脸，有些只剩一个灰头像。拉到一半你停住了，把页面关了。",
+              "effects": {
+                "mood": -8,
+                "fame": 1
+              },
+              "endingHint": {
+                "path": "lonely",
+                "score": 2
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你发现自己第一次去中文吧的那天，正好是三年前的今天。你把这一条单独截了下来。",
+              "effects": {
+                "mood": 6,
+                "fame": 2,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "logout",
+          "text": "关掉客户端，去睡觉",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你按下退出。桌面壁纸亮起来，是现实里的房间。你忽然觉得，这个房间比刚才那个世界小很多。",
+              "effects": {
+                "mood": 3,
+                "fame": 0
+              },
+              "endingHint": {
+                "path": "zen",
+                "score": 2
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "躺下之后你又爬起来，把客户端重新打开，看了三分钟登录界面，再关掉。",
+              "effects": {
+                "mood": -10,
+                "tags": {
+                  "add": [
+                    "疲惫"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "burnout",
+                "score": 2
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_k02",
+      "title": "五千小时",
+      "category": "key",
+      "stage": "传奇",
+      "hoursRange": [
+        1350,
+        2150
+      ],
+      "weight": 100,
+      "rarity": "legendary",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "关键",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 1350,
+        "maxHours": 2150
+      },
+      "text": "你点开个人资料：{N} 位好友，{技能}在列表最上面，累计 5000 小时。你看了一会儿，把页面关了。",
+      "options": [
+        {
+          "id": "ignore",
+          "text": "和昨天没什么两样",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你没有截图，也没有告诉任何人。五千这个数字在你这里，和四千九百九十九没有区别。",
+              "effects": {
+                "mood": 3,
+                "fame": 2
+              },
+              "endingHint": {
+                "path": "zen",
+                "score": 3
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "晚上有人问你现在多少小时了。你说不知道。对方沉默了一会儿，说：真好，你还在玩。",
+              "effects": {
+                "mood": 5,
+                "fame": 4,
+                "friends": 1
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "tell_newbie",
+          "text": "在中文吧随口提了一句",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "几个萌新围过来，问你是不是不用工作。你笑了笑，没解释。他们开始叫你大佬。",
+              "effects": {
+                "mood": 4,
+                "fame": 6,
+                "friends": 2
+              },
+              "endingHint": {
+                "path": "leader",
+                "score": 2
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "extreme",
+              "text": "有个萌新说：我也想玩到你这样。你看着他，第一次想劝他别。话到嘴边，变成了「慢慢来」。",
+              "effects": {
+                "mood": -18,
+                "fame": 5,
+                "friends": 1
+              },
+              "endingHint": {
+                "path": "burnout",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "upgrade",
+          "text": "给自己换一整套设备",
+          "condition": {
+            "minAssets": 500
+          },
+          "lockedHint": "需要资产 ≥ 500",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "新的头显很轻，画面很干净。你戴上它进{世界}，第一次觉得这个世界可以更好看，也更陌生。",
+              "effects": {
+                "assets": -2000,
+                "mood": 8,
+                "fame": 2,
+                "tags": {
+                  "add": [
+                    "设备党"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "creator",
+                "score": 3
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "设备到了，你却把箱子放了三天才拆。拆开之后你发现，旧头显的海绵上有一圈自己的汗渍。",
+              "effects": {
+                "assets": -1800,
+                "mood": -8,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_k03",
+      "title": "最后一扇门",
+      "category": "key",
+      "stage": "传奇",
+      "hoursRange": [
+        1000,
+        99999
+      ],
+      "weight": 100,
+      "rarity": "legendary",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "关键",
+        "退坑"
+      ],
+      "condition": {
+        "minHours": 1000,
+        "maxHours": 99999
+      },
+      "text": "你在登录界面停了很久，手指放在 Enter 上，{N} 分钟没动。窗外天已经亮了。你知道这一次进去，可能就是为了告别。",
+      "options": [
+        {
+          "id": "farewell",
+          "text": "办一场告别会",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你发了公告，时间定在周六晚八点。那天房间里站满了人，一半是你认识的，一半只是听说过你。",
+              "effects": {
+                "mood": 12,
+                "fame": 10,
+                "friends": 2
+              },
+              "endingHint": {
+                "path": "leader",
+                "score": 5
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "来的人比你预想的多。你没准备稿子，只说了一句「谢谢你们陪我这么久」，然后大家一起拍了张照。",
+              "effects": {
+                "mood": 14,
+                "fame": 12
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 5
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "你站在台上，看着下面那些人。有一瞬间你想说「我还会回来」。最后你说的是「晚安」。",
+              "effects": {
+                "mood": -23,
+                "fame": 8,
+                "tags": {
+                  "add": [
+                    "传奇"
+                  ],
+                  "remove": [
+                    "退坑边缘"
+                  ]
+                }
+              },
+              "endingHint": {
+                "path": "retire",
+                "score": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "give_avatars",
+          "text": "把模型一个个送出去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你把列表从头翻到尾，给每个模型找了个去处。最后剩下一只默认模型，你留给了自己。",
+              "effects": {
+                "mood": 7,
+                "fame": 6,
+                "avatars": -3
+              },
+              "endingHint": {
+                "path": "creator",
+                "score": 4
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "收到你模型的人后来发了照片，穿着它站在你造的那个屋顶上。你看了很久，没有回复。",
+              "effects": {
+                "mood": 9,
+                "fame": 8,
+                "avatars": -4
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 4
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "最后一个收到模型的新人问你：那你以后还来吗。你说不知道。他说：那我先替你留着。",
+              "effects": {
+                "mood": 6,
+                "fame": 5,
+                "friends": 1,
+                "flags": {
+                  "add": [
+                    "heir_named"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "creator",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "quiet",
+          "text": "安静地不来了",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你退出登录，没有发任何动态。日子照常过。几个月后你想起这件事，发现自己已经不记得那天是几号。",
+              "effects": {
+                "mood": 5,
+                "fame": 2,
+                "tags": {
+                  "add": [
+                    "佛系"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "zen",
+                "score": 4
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你没有告别。但有人发现你很久没上线，在你主页留了句「最近还好吗」。你一直没登上去看。",
+              "effects": {
+                "mood": -13,
+                "fame": 3
+              },
+              "endingHint": {
+                "path": "lonely",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "delete",
+          "text": "删号",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 60,
+              "tier": "normal",
+              "text": "确认框弹了两次。你按下去，{N} 个模型、几个世界、一堆聊天记录，一起变成了服务器上不再存在的字节。",
+              "effects": {
+                "mood": -26,
+                "fame": 0,
+                "assets": -2000,
+                "avatars": -5,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "retire",
+                "score": 4
+              }
+            },
+            {
+              "weight": 40,
+              "tier": "extreme",
+              "text": "删到最后一步，你退出了。不是因为舍不得，是因为你发现，删掉它并不能让那一千小时少一秒。",
+              "effects": {
+                "mood": 8,
+                "fame": 4,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": [
+                    "断舍离"
+                  ]
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_001",
+      "title": "都市传说",
+      "category": "normal",
+      "stage": "传奇",
+      "hoursRange": [
+        1000,
+        1500
+      ],
+      "weight": 45,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 120,
+      "tags": [
+        "社交",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 1000,
+        "maxHours": 1500
+      },
+      "text": "中文吧 2 号房的角落里，两个萌新在小声说话。一个说：听说这游戏里有个玩了 {N} 千小时的人，现在还在。你没有回头。",
+      "options": [
+        {
+          "id": "admit",
+          "text": "转过身说：就是我",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "两个人愣住，然后笑了，说以为那是编的。他们围着你问了一晚上，问的都是你早就忘了的小事。",
+              "effects": {
+                "mood": 5,
+                "fame": 6,
+                "friends": 2
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "其中一个说：那你一定见过这个游戏最好看的时候。你想了想，说：现在也还行。",
+              "effects": {
+                "mood": 7,
+                "fame": 8,
+                "friends": 2
+              },
+              "endingHint": {
+                "path": "leader",
+                "score": 3
+              },
+              "schedule": [
+                {
+                  "eventId": "legend_002",
+                  "delayHours": [
+                    10,
+                    40
+                  ],
+                  "chance": 0.6,
+                  "requireFlags": [],
+                  "excludeIfFlags": [
+                    "saw_legend_video"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "silent",
+          "text": "假装没听见",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你继续盯着墙上的海报。他们聊了几句就散了。房间里安静下来，只剩你自己的脚步声。",
+              "effects": {
+                "mood": -6,
+                "fame": 1,
+                "tags": {
+                  "add": [
+                    "独行侠"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "lonely",
+                "score": 2
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你听着他们的声音走远。忽然想起很多年前，你也是那样站在角落里，小声问别人谁是这里最厉害的人。",
+              "effects": {
+                "mood": 4,
+                "fame": 1,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "teach",
+          "text": "走过去教他们改模",
+          "condition": {
+            "minSkills": {
+              "modeling": 30
+            }
+          },
+          "lockedHint": "需要建模 ≥ 30",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你打开工程文件，从 UV 开始讲。讲到第二十分钟，其中一个说：原来这个游戏还能这么玩。",
+              "effects": {
+                "mood": 7,
+                "fame": 7,
+                "friends": 2,
+                "skills": {
+                  "modeling": 4,
+                  "social": 2
+                }
+              },
+              "endingHint": {
+                "path": "creator",
+                "score": 3
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你教到一半，发现自己有些很久没用过的技巧还记得。你有点意外，也有点高兴。",
+              "effects": {
+                "mood": 8,
+                "fame": 5,
+                "skills": {
+                  "modeling": 7
+                }
+              },
+              "endingHint": {
+                "path": "creator",
+                "score": 4
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_002",
+      "title": "视频里的你",
+      "category": "chain",
+      "stage": "传奇",
+      "hoursRange": [
+        1050,
+        1750
+      ],
+      "weight": 40,
+      "rarity": "rare",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "回忆",
+        "正面"
+      ],
+      "condition": {
+        "minHours": 1050,
+        "maxHours": 1750
+      },
+      "text": "有人把一段{世界}的录像剪成视频，标题里出现了你的名字。画面里的你在跳舞，动作是 {N} 年前学会的那一套。",
+      "options": [
+        {
+          "id": "watch",
+          "text": "从头看完",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "三分四十秒。你在视频里看见自己，也看见背景里几个已经不上线的名字。你把它存进了收藏夹。",
+              "effects": {
+                "mood": 7,
+                "fame": 5,
+                "flags": {
+                  "add": [
+                    "saw_legend_video"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "视频下面有条评论：这个人还在玩，我上周见过他。你盯着那句话看了很久。",
+              "effects": {
+                "mood": 9,
+                "fame": 8,
+                "flags": {
+                  "add": [
+                    "saw_legend_video"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "comment",
+          "text": "在评论区留一句话",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你写：谢谢。发出去之后又觉得太短，想改，想了想还是算了。作者回了一个字：在。",
+              "effects": {
+                "mood": 5,
+                "fame": 4,
+                "friends": 1,
+                "flags": {
+                  "add": [
+                    "saw_legend_video"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "leader",
+                "score": 3
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你什么也没写，但私信了作者，把当年那段舞的原始录像发给了他。他说这是他见过最旧的一份素材。",
+              "effects": {
+                "mood": 6,
+                "fame": 6,
+                "flags": {
+                  "add": [
+                    "saw_legend_video"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "creator",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "close",
+          "text": "关掉，不评论",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 85,
+              "tier": "normal",
+              "text": "你点了不感兴趣。算法以后不会再推给你。视频里的那个人继续在别人的屏幕里跳着那支舞。",
+              "effects": {
+                "mood": -6,
+                "fame": 2,
+                "flags": {
+                  "add": [
+                    "saw_legend_video"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "zen",
+                "score": 2
+              }
+            },
+            {
+              "weight": 15,
+              "tier": "rare",
+              "text": "你关掉了。但那天晚上，你在{中文吧|跳舞房|私人世界}里，把那支舞自己跳了一遍。",
+              "effects": {
+                "mood": 5,
+                "fame": 3,
+                "skills": {
+                  "dance": 4
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_003",
+      "title": "你的模型成了经典",
+      "category": "normal",
+      "stage": "传奇",
+      "hoursRange": [
+        1125,
+        2250
+      ],
+      "weight": 40,
+      "rarity": "rare",
+      "once": false,
+      "cooldown": 200,
+      "tags": [
+        "回忆",
+        "技能"
+      ],
+      "condition": {
+        "minHours": 1125,
+        "maxHours": 2250
+      },
+      "text": "你在{中文吧}看到一个新人，穿着你两年前改的那只猫娘。贴图边缘还是你当年没修干净的那道缝。",
+      "options": [
+        {
+          "id": "tell",
+          "text": "告诉他那是你改的",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "他先是怀疑，然后翻出下载记录，发现作者栏里确实是你。他说这是他最喜欢的模型。",
+              "effects": {
+                "mood": 8,
+                "fame": 7,
+                "friends": 1
+              },
+              "endingHint": {
+                "path": "creator",
+                "score": 4
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "他说：那你能不能帮我把那道缝修好。你说不用修，那是我故意留的。他信了。",
+              "effects": {
+                "mood": 6,
+                "fame": 5,
+                "skills": {
+                  "modeling": 2
+                }
+              },
+              "endingHint": {
+                "path": "creator",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "fix",
+          "text": "默默帮他把那道缝修好",
+          "condition": {
+            "minSkills": {
+              "modeling": 40
+            }
+          },
+          "lockedHint": "需要建模 ≥ 40",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你花了一晚上重做贴图，把文件放了回去。第二天他上线，说模型好像变好看了，但不知道哪里变了。",
+              "effects": {
+                "mood": 10,
+                "fame": 6,
+                "skills": {
+                  "modeling": 7
+                }
+              },
+              "endingHint": {
+                "path": "creator",
+                "score": 4
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "修完之后你自己也换上了旧版本。你发现自己还是更喜欢有线的那件。",
+              "effects": {
+                "mood": 5,
+                "fame": 3,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "nothing",
+          "text": "什么都不说",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你看着他穿着你的模型跳了一晚上舞。散场时他向你道谢，说这个模型真好看。你说，是啊。",
+              "effects": {
+                "mood": 4,
+                "fame": 2
+              },
+              "endingHint": {
+                "path": "forever_newbie",
+                "score": 2
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_004",
+      "title": "世界还在被玩",
+      "category": "normal",
+      "stage": "传奇",
+      "hoursRange": [
+        1000,
+        99999
+      ],
+      "weight": 40,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 150,
+      "tags": [
+        "回忆",
+        "正面"
+      ],
+      "condition": {
+        "minHours": 1000,
+        "maxHours": 99999
+      },
+      "text": "你随手点开自己做的{世界}，在线人数 3。三个人在屋顶上坐着，谁也没说话。你当年造这个屋顶，是为了看日落。",
+      "options": [
+        {
+          "id": "join",
+          "text": "进去，坐在他们旁边",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你坐下，没人认出你。你们一起看完了那场日落。有人说了句「这图做得真好」，你说嗯。",
+              "effects": {
+                "mood": 10,
+                "fame": 4,
+                "friends": 1
+              },
+              "endingHint": {
+                "path": "creator",
+                "score": 4
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "其中一个忽然说：你是谁啊。你说，造这个地方的人。房间安静了两秒，然后他们开始问个不停。",
+              "effects": {
+                "mood": 12,
+                "fame": 10,
+                "friends": 2
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 4
+              },
+              "schedule": [
+                {
+                  "eventId": "legend_007",
+                  "delayHours": [
+                    90,
+                    270
+                  ],
+                  "chance": 0.4,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "leave",
+          "text": "退出，不打扰",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你退出了。之后每隔几天你都会来看一眼那个数字。它一直在 1 到 5 之间，从没到过 0。",
+              "effects": {
+                "mood": 5,
+                "fame": 2
+              },
+              "endingHint": {
+                "path": "zen",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "board",
+          "text": "在留言板上写一句",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你写：屋顶的日落是我留的，随便坐。第二天有人回：谢谢，我每周都来。",
+              "effects": {
+                "mood": 7,
+                "fame": 5
+              },
+              "endingHint": {
+                "path": "creator",
+                "score": 3
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "留言板已经有一百多条了，最早的一条是四年前。你一条条读完，发现有人在这里求过婚。",
+              "effects": {
+                "mood": 11,
+                "fame": 6,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 4
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_005",
+      "title": "关掉自己的世界",
+      "category": "normal",
+      "stage": "传奇",
+      "hoursRange": [
+        1075,
+        99999
+      ],
+      "weight": 32,
+      "rarity": "rare",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "回忆",
+        "负面"
+      ],
+      "condition": {
+        "minHours": 1075,
+        "maxHours": 99999
+      },
+      "text": "服务器的账单身又来了。你把{世界}设成私密，停在当年自己刷的那面墙前。墙上是你写的字：欢迎随时来。",
+      "options": [
+        {
+          "id": "delete",
+          "text": "删除这个世界",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "确认键按下去，房间的灯一层层灭掉。你听见机箱的风扇停了一下。第二天有人在群里问：那个图怎么进不去了。",
+              "effects": {
+                "mood": -32,
+                "fame": 0,
+                "assets": -600
+              },
+              "endingHint": {
+                "path": "burnout",
+                "score": 3
+              },
+              "schedule": [
+                {
+                  "eventId": "legend_021",
+                  "delayHours": [
+                    67,
+                    202
+                  ],
+                  "chance": 0.35,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            },
+            {
+              "weight": 30,
+              "tier": "extreme",
+              "text": "你删到一半又退了出来。服务器还在，账单还在，屋顶上的日落每天照常发生，只是没人看。",
+              "effects": {
+                "mood": -16,
+                "fame": 3,
+                "assets": -300,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "keep",
+          "text": "保留，但不再更新",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你把它挂在服务器上，像一间不再营业但灯还亮着的店。偶尔有人进来，在留言板上说一句好久不见。",
+              "effects": {
+                "mood": 4,
+                "fame": 4,
+                "assets": -400
+              },
+              "endingHint": {
+                "path": "zen",
+                "score": 3
+              },
+              "schedule": [
+                {
+                  "eventId": "legend_007",
+                  "delayHours": [
+                    180,
+                    540
+                  ],
+                  "chance": 0.5,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你顺手更新了一下屋顶的天气。第二天有人留言：今天这里下雪了，我记得你以前说过想加雪。",
+              "effects": {
+                "mood": 8,
+                "fame": 6,
+                "skills": {
+                  "coding": 10
+                }
+              },
+              "endingHint": {
+                "path": "creator",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "handover",
+          "text": "交给一个还在玩的人托管",
+          "condition": {
+            "minFriends": 5
+          },
+          "lockedHint": "需要好友 ≥ 5",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你把权限转给了他。他说他会照看。你退出的时候，看见他已经在改公告牌上的日期了。",
+              "effects": {
+                "mood": 6,
+                "fame": 5,
+                "friends": 1
+              },
+              "endingHint": {
+                "path": "leader",
+                "score": 4
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "半年后你回来看，世界变了样，多了几栋楼。公告牌第一条写着：原作者还在，只是不常来。",
+              "effects": {
+                "mood": 9,
+                "fame": 7
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 4
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_006",
+      "title": "最后一个老朋友",
+      "category": "normal",
+      "stage": "传奇",
+      "hoursRange": [
+        1075,
+        99999
+      ],
+      "weight": 40,
+      "rarity": "rare",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "回忆",
+        "负面"
+      ],
+      "condition": {
+        "minHours": 1075,
+        "maxHours": 99999,
+        "minFriends": 1
+      },
+      "text": "你们认识 {N} 年了。他上线了，头像是灰的。签名里写：退了，感谢遇见。聊天记录最后一条是三年前的「明天见」。",
+      "options": [
+        {
+          "id": "message",
+          "text": "发一条消息过去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "消息显示已送达，没有回复。三个星期后他回了一句：刚看到，我挺好的，你也要好。",
+              "effects": {
+                "mood": 6,
+                "fame": 1,
+                "friends": -1
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            },
+            {
+              "weight": 35,
+              "tier": "extreme",
+              "text": "他回得很快。他说现实里孩子刚出生，头显已经在柜子里放了两年。你们聊到凌晨，谁也没提回来。",
+              "effects": {
+                "mood": 12,
+                "fame": 3,
+                "friends": -1,
+                "flags": {
+                  "add": [
+                    "old_friend_left"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "retire",
+                "score": 3
+              },
+              "schedule": [
+                {
+                  "eventId": "legend_021",
+                  "delayHours": [
+                    90,
+                    270
+                  ],
+                  "chance": 0.3,
+                  "requireFlags": [
+                    "old_friend_left"
+                  ],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "silent",
+          "text": "什么也不做",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把对话框关掉。之后的几年里，他的头像一直灰着，排在你好友列表的第一个。",
+              "effects": {
+                "mood": -13,
+                "friends": -1,
+                "tags": {
+                  "add": [
+                    "独行侠"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "lonely",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "photo",
+          "text": "把你们的旧合照设成主页",
+          "condition": {
+            "minFriends": 2
+          },
+          "lockedHint": "需要好友 ≥ 2",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "照片是三年前跨年拍的，两个人都没看镜头。你把它挂上去，从此每次有人点开你的主页，都会先看到它。",
+              "effects": {
+                "mood": 5,
+                "fame": 4,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "设完之后有人问你那是谁。你说了他的名字。对方说：没听过。你说，嗯，很久以前了。",
+              "effects": {
+                "mood": -8,
+                "fame": 2
+              },
+              "endingHint": {
+                "path": "lonely",
+                "score": 2
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_007",
+      "title": "房间从此没人来",
+      "category": "chain",
+      "stage": "传奇",
+      "hoursRange": [
+        1080,
+        99999
+      ],
+      "weight": 35,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "孤独",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 1080,
+        "maxHours": 99999
+      },
+      "text": "你习惯性地点开那个房间。在线人数 0。你已经连续 {N} 天看到 0 了。屋里那盏灯还亮着，是你当年设的。",
+      "options": [
+        {
+          "id": "lights_off",
+          "text": "把灯关掉",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你调暗了那盏灯，房间变得和别的空房间没什么两样。这样也不错，你想，至少不用一直亮着。",
+              "effects": {
+                "mood": -10,
+                "fame": 1
+              },
+              "endingHint": {
+                "path": "lonely",
+                "score": 3
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "手停在参数面板上，你最后没关。你说不清为什么，只是觉得有人半夜进来时，应该看得见路。",
+              "effects": {
+                "mood": 4,
+                "fame": 3
+              },
+              "endingHint": {
+                "path": "zen",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "letter",
+          "text": "在世界里留一封信",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你写了三百字，删到只剩一句：这里以前很热闹。然后把它贴在了门后，一般人不会去看的地方。",
+              "effects": {
+                "mood": 4,
+                "fame": 4
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "半年后有人发现了那封信，截图发了动态。底下有人说：我去过这个图，原来它有故事。",
+              "effects": {
+                "mood": 7,
+                "fame": 8
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "stay",
+          "text": "自己留下来待一会儿",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 85,
+              "tier": "normal",
+              "text": "你一个人在里面走了两圈，站到当年大家常挤的那个位置。镜子里只有你自己一个人。",
+              "effects": {
+                "mood": -6,
+                "fame": 2
+              },
+              "endingHint": {
+                "path": "lonely",
+                "score": 2
+              }
+            },
+            {
+              "weight": 15,
+              "tier": "rare",
+              "text": "你待了很久。临走前有个陌生人进来了，看了一眼，说这里怎么这么暗，然后走了。你把灯又调亮了些。",
+              "effects": {
+                "mood": 5,
+                "fame": 3
+              },
+              "endingHint": {
+                "path": "creator",
+                "score": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_008",
+      "title": "一万小时",
+      "category": "normal",
+      "stage": "传奇",
+      "hoursRange": [
+        1300,
+        99999
+      ],
+      "weight": 28,
+      "rarity": "legendary",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "回忆",
+        "关键"
+      ],
+      "condition": {
+        "minHours": 1300,
+        "maxHours": 99999
+      },
+      "text": "你在{世界}里挂了一整天，晚上才发现资料页上的数字变成了五位数。你想不起来第一万小时是哪一秒到的。",
+      "options": [
+        {
+          "id": "count",
+          "text": "算一算这些年的比例",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "一万小时是四百多天。你算完，把计算器关了，去洗了个澡。热水冲下来的时候你什么也没想。",
+              "effects": {
+                "mood": -16,
+                "fame": 3,
+                "tags": {
+                  "add": [
+                    "疲惫"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "burnout",
+                "score": 3
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你算完发现，这里面有整整八百个小时是在同一个房间里挂机。你居然记得那个房间的样子。",
+              "effects": {
+                "mood": 3,
+                "fame": 4,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "zen",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "indifferent",
+          "text": "无所谓",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你关掉资料页，继续去{中文吧}排队。数字对你已经没有任何意义，这大概是最彻底的毕业。",
+              "effects": {
+                "mood": 5,
+                "fame": 3,
+                "tags": {
+                  "add": [
+                    "佛系"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "zen",
+                "score": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "post",
+          "text": "把数字发出去",
+          "condition": {
+            "minFame": 20
+          },
+          "lockedHint": "需要声望 ≥ 20",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "评论区一半人在膜拜，一半人在问你是不是没有生活。你一条都没回。",
+              "effects": {
+                "mood": -8,
+                "fame": 14
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "extreme",
+              "text": "有个陌生人私信你，说他现在三百小时，很怕变成你这样。你回了很长一段话，最后只发了句：那就多去现实里走走。",
+              "effects": {
+                "mood": 7,
+                "fame": 10,
+                "friends": 1
+              },
+              "endingHint": {
+                "path": "leader",
+                "score": 4
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_009",
+      "title": "换来什么",
+      "category": "normal",
+      "stage": "传奇",
+      "hoursRange": [
+        1075,
+        99999
+      ],
+      "weight": 50,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 300,
+      "tags": [
+        "回忆",
+        "负面"
+      ],
+      "condition": {
+        "minHours": 1075,
+        "maxHours": 99999
+      },
+      "text": "在{中文吧}的群里，有人问你：这么多小时，你换来了什么。你打了一行字，删掉，又打了一行。",
+      "options": [
+        {
+          "id": "people",
+          "text": "换来了人",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你发出去：认识了几个现在还联系的人。发完你自己数了数，准确地说，是三个。",
+              "effects": {
+                "mood": 6,
+                "fame": 3,
+                "friends": 1
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "有人回你：那也不少了。你盯着这句话，忽然觉得它比你想的更有分量。",
+              "effects": {
+                "mood": 8,
+                "fame": 4
+              },
+              "endingHint": {
+                "path": "zen",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "craft",
+          "text": "换来了手艺",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你说：学会了做东西。这话是真的——你现在闭着眼都能布线，虽然这门手艺在外面没什么用。",
+              "effects": {
+                "mood": 5,
+                "fame": 5,
+                "skills": {
+                  "modeling": 4,
+                  "coding": 4
+                }
+              },
+              "endingHint": {
+                "path": "creator",
+                "score": 3
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "群里有人接话：你这手艺接到现实里也能吃饭吧。你第一次认真想了想这件事。",
+              "effects": {
+                "mood": 7,
+                "fame": 6,
+                "skills": {
+                  "modeling": 4
+                },
+                "flags": {
+                  "add": [
+                    "thought_about_real_work"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "creator",
+                "score": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "unknown",
+          "text": "不知道",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你最后发了「不知道」。群里很快聊起了别的。你退出了群聊窗口，没有再看。",
+              "effects": {
+                "mood": -23,
+                "fame": 2,
+                "tags": {
+                  "add": [
+                    "疲惫"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "burnout",
+                "score": 3
+              },
+              "schedule": [
+                {
+                  "eventId": "legend_021",
+                  "delayHours": [
+                    112,
+                    337
+                  ],
+                  "chance": 0.3,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            },
+            {
+              "weight": 35,
+              "tier": "extreme",
+              "text": "你说不知道，然后关掉了电脑。那天晚上你在现实里走了很远的路，回来之后睡得很好。",
+              "effects": {
+                "mood": 8,
+                "fame": 1,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "retire",
+                "score": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_010",
+      "title": "如果重来",
+      "category": "normal",
+      "stage": "传奇",
+      "hoursRange": [
+        1075,
+        99999
+      ],
+      "weight": 45,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 400,
+      "tags": [
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 1075,
+        "maxHours": 99999
+      },
+      "text": "你在{世界}的镜子前站着，看这张用了很久的脸。你想起第一次登录时那具默认模型，笨拙得可笑。",
+      "options": [
+        {
+          "id": "again",
+          "text": "还会这么选",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你想了想，答案是会。不是因为没有别的路，是因为别的路上没有这些人。",
+              "effects": {
+                "mood": 8,
+                "fame": 4
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你说会，但会早一点学会拒绝。这句话你说出口的时候，才发现自己一直是这么想的。",
+              "effects": {
+                "mood": 5,
+                "fame": 5
+              },
+              "endingHint": {
+                "path": "leader",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "quit_early",
+          "text": "会早点退出",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你说，应该在第五百小时就停下来，那时候最好的部分已经经历完了。说完你觉得这句话对谁都不公平。",
+              "effects": {
+                "mood": -21,
+                "fame": 3,
+                "tags": {
+                  "add": [
+                    "疲惫"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "retire",
+                "score": 3
+              },
+              "schedule": [
+                {
+                  "eventId": "legend_021",
+                  "delayHours": [
+                    135,
+                    405
+                  ],
+                  "chance": 0.35,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            },
+            {
+              "weight": 25,
+              "tier": "extreme",
+              "text": "你说了这句话，然后真的开始收拾。你发现自己能一口气删掉两百个好友，手没有抖。",
+              "effects": {
+                "mood": 4,
+                "fame": 2,
+                "friends": -4,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "burnout",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "start_earlier",
+          "text": "会早点开始",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你有点遗憾没能更早进来——那时候这里的人更多，世界更野，你听说过的那些房间现在都进不去了。",
+              "effects": {
+                "mood": -6,
+                "fame": 3,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 2
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_011",
+      "title": "现实里也在用 VR",
+      "category": "normal",
+      "stage": "传奇",
+      "hoursRange": [
+        1125,
+        99999
+      ],
+      "weight": 42,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "现实",
+        "成长"
+      ],
+      "condition": {
+        "minHours": 1125,
+        "maxHours": 99999
+      },
+      "text": "你在{世界}里练熟的那套手势，今天用在了会议软件上。同事说这样挺好，比摄像头省事。你忽然分不清哪边才是练习。",
+      "options": [
+        {
+          "id": "freelance",
+          "text": "开始接远程的活",
+          "condition": {
+            "minSkills": {
+              "modeling": 30
+            }
+          },
+          "lockedHint": "需要建模 ≥ 30",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "第一单是给一家小公司做虚拟展厅。收到转账那天你想，原来这些年不是白玩的。",
+              "effects": {
+                "assets": 1200,
+                "mood": 10,
+                "fame": 4,
+                "skills": {
+                  "modeling": 7,
+                  "coding": 10
+                }
+              },
+              "endingHint": {
+                "path": "creator",
+                "score": 5
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "客户不知道你的模型是自学的。你也没说。你只是把报价单发过去，然后回到自己那个屋顶上坐了一会儿。",
+              "effects": {
+                "assets": 900,
+                "mood": 7,
+                "fame": 6,
+                "skills": {
+                  "modeling": 4
+                }
+              },
+              "endingHint": {
+                "path": "creator",
+                "score": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "keep_separate",
+          "text": "只在游戏里用",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把头显收进柜子，开会时打开摄像头。两道门被你重新分开了，你觉得这样安全一些。",
+              "effects": {
+                "mood": 4,
+                "fame": 1,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "zen",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "living_room",
+          "text": "把设备搬到客厅",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "家里人第一次看你戴上头显，问你在里面干什么。你说，见朋友。他们说，哦，那就好。",
+              "effects": {
+                "mood": 7,
+                "fame": 2,
+                "assets": -300,
+                "tags": {
+                  "add": [
+                    "元气"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "retire",
+                "score": 3
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你妹妹试了十分钟，出来说头晕。你笑她，然后想起自己第一次也是这样，吐了一整晚。",
+              "effects": {
+                "mood": 5,
+                "fame": 1,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_012",
+      "title": "朋友变成了现实朋友",
+      "category": "normal",
+      "stage": "传奇",
+      "hoursRange": [
+        1125,
+        99999
+      ],
+      "weight": 40,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "现实",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 1125,
+        "maxHours": 99999,
+        "minFriends": 2
+      },
+      "text": "你们从{中文吧|跳舞房|私人世界}聊到了现实。今天约在车站，两个人在人群里靠发型认出对方。第一句话是：你比模型矮一点。",
+      "options": [
+        {
+          "id": "dinner",
+          "text": "一起吃顿饭",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "现实里的他话比线上少。吃完饭你们在街上走了很久，聊的还是那个世界里的旧事。",
+              "effects": {
+                "mood": 11,
+                "fame": 4,
+                "friends": 1
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 4
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "他说他下个月要结婚了，对象是当年一起在中文吧认识的人。你举杯的时候手有点抖。",
+              "effects": {
+                "mood": 12,
+                "fame": 6,
+                "friends": 2
+              },
+              "endingHint": {
+                "path": "retire",
+                "score": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "tell",
+          "text": "把这次见面发到网上",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 85,
+              "tier": "normal",
+              "text": "照片里两个人都有点拘谨。评论区有人写：原来你们真的存在。这句话让你愣了一会儿。",
+              "effects": {
+                "mood": 6,
+                "fame": 8,
+                "friends": 1
+              },
+              "endingHint": {
+                "path": "leader",
+                "score": 3
+              }
+            },
+            {
+              "weight": 15,
+              "tier": "rare",
+              "text": "有人私信你，说他和你同城，想约。你犹豫了三天，最后还是答应了。",
+              "effects": {
+                "mood": 5,
+                "fame": 4,
+                "friends": 2,
+                "flags": {
+                  "add": [
+                    "met_offline"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "stop",
+          "text": "见面之后不再上线",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "现实见过之后，那个世界的他忽然变得多余。你们留了联系方式，但再也没在虚拟世界里见过。",
+              "effects": {
+                "mood": -10,
+                "fame": 2,
+                "friends": -1,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "retire",
+                "score": 4
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_013",
+      "title": "有人成了伴侣",
+      "category": "normal",
+      "stage": "传奇",
+      "hoursRange": [
+        1075,
+        99999
+      ],
+      "weight": 30,
+      "rarity": "rare",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "现实",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 1075,
+        "maxHours": 99999
+      },
+      "text": "你们从{中文吧|跳舞房|私人世界}开始，后来到了现实里的冬天。有人问你这段关系算不算网恋，你想了想，没回答。",
+      "options": [
+        {
+          "id": "serious",
+          "text": "认真走下去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你们把两个城市之间的车票攒了一叠。有一天他问你，要不要把账号都放着，去过一段不戴头显的日子。",
+              "effects": {
+                "mood": 13,
+                "fame": 6,
+                "friends": 1,
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "稳定",
+                  "initIntimacy": 90,
+                  "initTrust": 85,
+                  "initFreshness": 60,
+                  "initDependence": 40,
+                  "initRealPressure": 20,
+                  "name": "auto"
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 4
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你们搬到了一起。头显被收进同一个柜子。偶尔夜深，你们两个会一起登进去，回到当年认识的那个房间。",
+              "effects": {
+                "mood": 15,
+                "fame": 8,
+                "assets": -800
+              },
+              "endingHint": {
+                "path": "retire",
+                "score": 5
+              },
+              "schedule": [
+                {
+                  "eventId": "legend_021",
+                  "delayHours": [
+                    180,
+                    540
+                  ],
+                  "chance": 0.25,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "两年后你们分开了，理由是现实里那些最普通的原因。但你至今觉得，认识他仍然是这一万小时里最值的事。",
+              "effects": {
+                "mood": -29,
+                "fame": 5,
+                "breakupCount": 1,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "keep",
+          "text": "保持现状",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你们谁都没提。日子继续，上线，下线。有些关系就是靠不提来维持的。",
+              "effects": {
+                "mood": 4,
+                "fame": 3,
+                "relationOp": {
+                  "type": "setState",
+                  "state": "常一起玩"
+                }
+              },
+              "endingHint": {
+                "path": "sugar_loop",
+                "score": 3
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "半年后他先开了口。你没有拒绝，也没有答应，只是那晚你们在屋顶坐到天亮。",
+              "effects": {
+                "mood": 7,
+                "fame": 4,
+                "relationOp": {
+                  "type": "setState",
+                  "state": "暧昧"
+                }
+              },
+              "endingHint": {
+                "path": "sugar_loop",
+                "score": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "separate",
+          "text": "分开，各自回到屏幕后",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你们把话说清楚了。他删了你的好友。你没有删他，只是把他移到了列表最下面。",
+              "effects": {
+                "mood": -26,
+                "fame": 3,
+                "friends": -1,
+                "breakupCount": 1,
+                "tags": {
+                  "add": [
+                    "失恋"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "end"
+                }
+              },
+              "endingHint": {
+                "path": "lonely",
+                "score": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_014",
+      "title": "有人去世了",
+      "category": "normal",
+      "stage": "传奇",
+      "hoursRange": [
+        1075,
+        99999
+      ],
+      "weight": 22,
+      "rarity": "rare",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "现实",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 1075,
+        "maxHours": 99999
+      },
+      "text": "消息是从他妹妹的账号发来的，凌晨三点。她说，哥哥上个月走了，账号会留着。他的模型还站在{中文吧}的角落里挂机。",
+      "options": [
+        {
+          "id": "stand",
+          "text": "去那个角落站一会儿",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你在他旁边站了很久，没有说话。有人过来问你们在干什么，你说，等一个人回来。",
+              "effects": {
+                "mood": -21,
+                "fame": 3,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 4
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "extreme",
+              "text": "你站到天亮。第二天你做了一个决定：以后每年这天，你都来这个角落站十分钟。你做到了七年。",
+              "effects": {
+                "mood": -13,
+                "fame": 8,
+                "flags": {
+                  "add": [
+                    "memorial_vow"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "memorial",
+          "text": "组织一场纪念",
+          "condition": {
+            "minFriends": 3
+          },
+          "lockedHint": "需要好友 ≥ 3",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你联系了他认识的所有人。那天来了四十多个，有人从别的时区爬起来。大家在那个角落放了一地的花。",
+              "effects": {
+                "mood": 5,
+                "fame": 10,
+                "friends": 3
+              },
+              "endingHint": {
+                "path": "leader",
+                "score": 5
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "纪念结束后，有人说：以后这个角落就归我们守着了。你说了声好。",
+              "effects": {
+                "mood": 7,
+                "fame": 8,
+                "friends": 2,
+                "flags": {
+                  "add": [
+                    "memorial_vow"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "leader",
+                "score": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "nothing",
+          "text": "什么也没做",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你关掉了消息。第二天那个角落空了，模型被撤了。你从此再没见过那个名字。",
+              "effects": {
+                "mood": -26,
+                "fame": 1,
+                "tags": {
+                  "add": [
+                    "独行侠"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "lonely",
+                "score": 4
+              },
+              "schedule": [
+                {
+                  "eventId": "legend_021",
+                  "delayHours": [
+                    135,
+                    450
+                  ],
+                  "chance": 0.3,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_015",
+      "title": "安静地不来了",
+      "category": "normal",
+      "stage": "传奇",
+      "hoursRange": [
+        1125,
+        99999
+      ],
+      "weight": 40,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 300,
+      "tags": [
+        "退坑",
+        "日常"
+      ],
+      "condition": {
+        "minHours": 1125,
+        "maxHours": 99999
+      },
+      "text": "你已经 {N} 天没登录了。没有人问你去了哪。客户端还躺在桌面上，图标是很久以前的版本。",
+      "options": [
+        {
+          "id": "uninstall",
+          "text": "卸载",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "进度条走到头，桌面空出一块。你盯着那块空白看了两秒，然后打开了别的东西。",
+              "effects": {
+                "mood": -8,
+                "fame": 1,
+                "assets": -200,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "retire",
+                "score": 4
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "卸载之后你清了一次硬盘，翻出几个旧工程文件。你没有打开，把它们一起删了。",
+              "effects": {
+                "mood": 5,
+                "fame": 1,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "retire",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "keep",
+          "text": "留着，不删",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 85,
+              "tier": "normal",
+              "text": "你想了想，没删。它在那儿占着几十个 G，像一个你随时可以回去但一直没回去的房间。",
+              "effects": {
+                "mood": 3,
+                "fame": 2,
+                "tags": {
+                  "add": [
+                    "佛系"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "zen",
+                "score": 4
+              }
+            },
+            {
+              "weight": 15,
+              "tier": "rare",
+              "text": "你把它留在任务栏上。每次开机看见那个图标，就像看见一件挂了很多年、已经不穿的外套。",
+              "effects": {
+                "mood": -6,
+                "fame": 2,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "lonely",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "login",
+          "text": "登录看一眼",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "更新包下了二十分钟。进去之后，好友列表最上面几个人还亮着。有人认出你，说：好久不见啊。",
+              "effects": {
+                "mood": 7,
+                "fame": 4,
+                "friends": 1
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你进去转了一圈，发现中文吧改版了，跳舞房换了名字。你像个游客一样逛了十分钟，然后下线。",
+              "effects": {
+                "mood": -9,
+                "fame": 2,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "zen",
+                "score": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_016",
+      "title": "把模型送人",
+      "category": "normal",
+      "stage": "传奇",
+      "hoursRange": [
+        1125,
+        99999
+      ],
+      "weight": 38,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 250,
+      "tags": [
+        "回忆",
+        "消费"
+      ],
+      "condition": {
+        "minHours": 1125,
+        "maxHours": 99999,
+        "minAvatars": 3
+      },
+      "text": "你整理了模型列表，{N} 个。你挑出最旧的那只，找到当年给你做它的人——他的头像灰着，三年没上过线。",
+      "options": [
+        {
+          "id": "give_newbie",
+          "text": "送给一个新人",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "新人收到的时候反复确认了三遍，问是不是真的不要钱。你说，真的，穿旧了再给别人。",
+              "effects": {
+                "mood": 7,
+                "fame": 6,
+                "avatars": -1,
+                "friends": 1
+              },
+              "endingHint": {
+                "path": "creator",
+                "score": 4
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "半年后你在中文吧看见他穿着它。他把它改了，加了新的衣服。你觉得这样很好。",
+              "effects": {
+                "mood": 9,
+                "fame": 7,
+                "avatars": -1
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "export",
+          "text": "全部导出存进硬盘",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 85,
+              "tier": "normal",
+              "text": "导出花了两个小时。文件夹叫「旧东西」。你把它放在 D 盘，之后再也没打开过。",
+              "effects": {
+                "mood": -6,
+                "fame": 2,
+                "assets": -200
+              },
+              "endingHint": {
+                "path": "retire",
+                "score": 3
+              }
+            },
+            {
+              "weight": 15,
+              "tier": "rare",
+              "text": "导出到一半你停了下来，打开其中一个工程文件。里面还有你当年写给自己的一行备注：别忘了改袖子。",
+              "effects": {
+                "mood": 6,
+                "fame": 3,
+                "skills": {
+                  "modeling": 2
+                },
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "creator",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave_to_one",
+          "text": "全部留给一个人",
+          "condition": {
+            "minFriends": 10
+          },
+          "lockedHint": "需要好友 ≥ 10",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你选了一个还在玩的年轻人，把整个列表转了过去。他问你为什么，你说，放你这儿比放我这儿有用。",
+              "effects": {
+                "mood": 8,
+                "fame": 8,
+                "avatars": -6,
+                "friends": 1,
+                "flags": {
+                  "add": [
+                    "heir_named"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "leader",
+                "score": 4
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他给你留了最旧的那一只，说这个你自己拿着。你没有推辞。",
+              "effects": {
+                "mood": 11,
+                "fame": 6,
+                "avatars": -5
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 5
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_017",
+      "title": "账号留作纪念",
+      "category": "normal",
+      "stage": "传奇",
+      "hoursRange": [
+        1075,
+        99999
+      ],
+      "weight": 35,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "回忆",
+        "退坑"
+      ],
+      "condition": {
+        "minHours": 1075,
+        "maxHours": 99999
+      },
+      "text": "你在{世界}里站了很久，然后把个人资料的签名改成一行字：来过。你看着它，觉得它比一千小时更准确。",
+      "options": [
+        {
+          "id": "leave_it",
+          "text": "就这样留着",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 85,
+              "tier": "normal",
+              "text": "你把账号停在那里，不注销也不上线。它像一块墓碑，也像一盏没关的灯。",
+              "effects": {
+                "mood": 4,
+                "fame": 3,
+                "tags": {
+                  "add": [
+                    "佛系"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "zen",
+                "score": 4
+              }
+            },
+            {
+              "weight": 15,
+              "tier": "rare",
+              "text": "很久以后有人搜索到你，看到那两个字，在你的主页停留了一会儿，留下了一个赞。",
+              "effects": {
+                "mood": 5,
+                "fame": 4
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "write_more",
+          "text": "改成一句具体的话",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你写：谢谢你陪我走过最难的那两年。发出去之后你不知道这句话是写给谁的。",
+              "effects": {
+                "mood": 7,
+                "fame": 4
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 4
+              },
+              "schedule": [
+                {
+                  "eventId": "legend_002",
+                  "delayHours": [
+                    135,
+                    450
+                  ],
+                  "chance": 0.3,
+                  "requireFlags": [],
+                  "excludeIfFlags": [
+                    "saw_legend_video"
+                  ]
+                }
+              ]
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你写了很长一段，然后全删了，只留了一个日期。那是你第一次登录的日子。",
+              "effects": {
+                "mood": 5,
+                "fame": 3,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "zen",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "read_friends",
+          "text": "把好友列表从头看到尾",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "两百多个名字，你一个个看过去。亮着的不超过十个。你给其中三个发了消息，只有一个人回了。",
+              "effects": {
+                "mood": -16,
+                "fame": 2,
+                "friends": 1
+              },
+              "endingHint": {
+                "path": "lonely",
+                "score": 3
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "extreme",
+              "text": "你看到最下面那个名字，是你在最初十小时加的第一个人。你点开他的主页，最后一次在线是六年前。你把他留着。",
+              "effects": {
+                "mood": 6,
+                "fame": 4,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 4
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_018",
+      "title": "永远在线的人",
+      "category": "normal",
+      "stage": "传奇",
+      "hoursRange": [
+        1050,
+        99999
+      ],
+      "weight": 42,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 180,
+      "tags": [
+        "社交",
+        "日常"
+      ],
+      "condition": {
+        "minHours": 1050,
+        "maxHours": 99999,
+        "minFriends": 1
+      },
+      "text": "有个好友的头像永远是绿的。你问过他为什么不玩别的，他说：也没别的地方可去。今天他挂着机，状态已经挂了 {N} 天。",
+      "options": [
+        {
+          "id": "accompany",
+          "text": "陪他挂一会儿",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你们在同一个房间里挂了三个小时，中间只说了四句话。下线的时候他说：明天还来吗。",
+              "effects": {
+                "mood": 7,
+                "fame": 3,
+                "friends": 1,
+                "tags": {
+                  "add": [
+                    "挂机党"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "zen",
+                "score": 3
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "挂到后半夜他忽然开口，说了一句他从来没跟人说过的事。你听着，没有打断。",
+              "effects": {
+                "mood": 8,
+                "fame": 4,
+                "friends": 1
+              },
+              "endingHint": {
+                "path": "leader",
+                "score": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "advise",
+          "text": "劝他去现实里走走",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "他说谢谢，然后第二天还是在线。你也不再劝了。有些人是需要一个地方待着的。",
+              "effects": {
+                "mood": -8,
+                "fame": 3
+              },
+              "endingHint": {
+                "path": "lonely",
+                "score": 2
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "一个月后他消失了几天，回来的时候状态写着「去爬山了」。他给你发了张照片。你有点想哭。",
+              "effects": {
+                "mood": 9,
+                "fame": 4,
+                "friends": 1
+              },
+              "endingHint": {
+                "path": "leader",
+                "score": 4
+              },
+              "schedule": [
+                {
+                  "eventId": "legend_021",
+                  "delayHours": [
+                    225,
+                    675
+                  ],
+                  "chance": 0.2,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "nothing",
+          "text": "什么也不说",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你划过去了。第二天、第三天，他的头像一直亮着。你偶尔会点开看一眼，然后再关掉。",
+              "effects": {
+                "mood": -6,
+                "fame": 1
+              },
+              "endingHint": {
+                "path": "zen",
+                "score": 2
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_019",
+      "title": "每天十分钟",
+      "category": "normal",
+      "stage": "传奇",
+      "hoursRange": [
+        1125,
+        99999
+      ],
+      "weight": 45,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 200,
+      "tags": [
+        "日常",
+        "退坑"
+      ],
+      "condition": {
+        "minHours": 1125,
+        "maxHours": 99999
+      },
+      "text": "你现在每天只上线十分钟。进{中文吧}，看一圈，听两句，退出。像下班路过一家还开着的老店。",
+      "options": [
+        {
+          "id": "keep_ten",
+          "text": "保持这个节奏",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 85,
+              "tier": "normal",
+              "text": "十分钟足够你知道谁还在。有几次你听到熟悉的声音，站在门口听完了一首歌才走。",
+              "effects": {
+                "mood": 5,
+                "fame": 3,
+                "tags": {
+                  "add": [
+                    "佛系"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "zen",
+                "score": 4
+              }
+            },
+            {
+              "weight": 15,
+              "tier": "rare",
+              "text": "有一天你待到四十分钟。出来的时候你发现，不是十分钟够用，是你一直在给自己掐表。",
+              "effects": {
+                "mood": 7,
+                "fame": 4
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "chase_old",
+          "text": "试着找回当年的感觉",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你约了几个老人在跨年夜上线，想像以前那样闹一次。结果大家十一点就说困了，各自下线。",
+              "effects": {
+                "mood": -18,
+                "fame": 3,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "lonely",
+                "score": 3
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "那天只来了两个人，但你们聊到三点。走的时候其中一个说：其实这样也挺好。",
+              "effects": {
+                "mood": 8,
+                "fame": 5,
+                "friends": 1
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "cut_ten",
+          "text": "把十分钟也省了",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你连续两周没上线。第三周你发现自己已经不想了。有些习惯断掉的时候是无声的。",
+              "effects": {
+                "mood": -13,
+                "fame": 1,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "retire",
+                "score": 4
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_020",
+      "title": "节日才上线",
+      "category": "normal",
+      "stage": "传奇",
+      "hoursRange": [
+        1075,
+        99999
+      ],
+      "weight": 40,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 400,
+      "tags": [
+        "日常",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 1075,
+        "maxHours": 99999
+      },
+      "text": "跨年倒计时还有 {N} 分钟。你只在今天上线。房间里挤满了人，一半头像是灰的，那是别人替你记住的名字。",
+      "options": [
+        {
+          "id": "countdown",
+          "text": "等到倒计时",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "十、九、八……你跟着念。零点的时候满屋子的人在喊新年快乐，你也在喊，虽然没人听见你。",
+              "effects": {
+                "mood": 10,
+                "fame": 5,
+                "friends": 1
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 4
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "零点那一刻，你旁边站着的陌生人对你说新年快乐。你说你也是。你们再没见过，但你记得他的声音。",
+              "effects": {
+                "mood": 11,
+                "fame": 4,
+                "friends": 1
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave_early",
+          "text": "提前下线",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你在还有五分钟的时候退出了。躺下之后你听见窗外有人在放烟花。你想起房间里那帮人还在数数。",
+              "effects": {
+                "mood": -9,
+                "fame": 2,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "lonely",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "greet_gray",
+          "text": "给灰头像发一句新年好",
+          "condition": {
+            "minFriends": 5
+          },
+          "lockedHint": "需要好友 ≥ 5",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你群发给了二十个人。有两个人回了。其中一个说：我以为你早不玩了。",
+              "effects": {
+                "mood": 6,
+                "fame": 3,
+                "friends": 1
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 3
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "extreme",
+              "text": "有一个人秒回：新年好。你们聊了一整夜，第二天他重新下载了客户端。",
+              "effects": {
+                "mood": 12,
+                "fame": 6,
+                "friends": 2,
+                "flags": {
+                  "add": [
+                    "brought_back_friend"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "leader",
+                "score": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legend_021",
+      "title": "告别会",
+      "category": "chain",
+      "stage": "传奇",
+      "hoursRange": [
+        1075,
+        99999
+      ],
+      "weight": 30,
+      "rarity": "rare",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "回忆",
+        "退坑"
+      ],
+      "condition": {
+        "minHours": 1075,
+        "maxHours": 99999
+      },
+      "text": "你在{中文吧}和几个老群发了公告，时间定在周六晚上八点。你没想到会来这么多人——有些头像是灰的，有些人从别的世界赶来。",
+      "options": [
+        {
+          "id": "speak",
+          "text": "说点什么",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你说了三分钟，把该谢的都谢了。说到一半你停了一下，然后说：今天就到这儿吧。",
+              "effects": {
+                "mood": 12,
+                "fame": 12
+              },
+              "endingHint": {
+                "path": "leader",
+                "score": 5
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你没准备稿子，只是把手机里那张一千小时的截图投到了房间的墙上。所有人安静地看了一会儿。",
+              "effects": {
+                "mood": 14,
+                "fame": 10,
+                "counters": {
+                  "photosTaken": 1
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 5
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "你说完最后一句话，把身上的模型换回了最初那具默认模型。房间里没有人说话。然后有人说：这个我也穿过。",
+              "effects": {
+                "mood": 11,
+                "fame": 15,
+                "tags": {
+                  "add": [
+                    "传奇"
+                  ],
+                  "remove": [
+                    "退坑边缘"
+                  ]
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "silent_stand",
+          "text": "什么都不说，只是站着",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你站在人群中间，听着他们聊天。有人在讲你以前干过的蠢事，讲得比你自己记得的还清楚。",
+              "effects": {
+                "mood": 10,
+                "fame": 8
+              },
+              "endingHint": {
+                "path": "zen",
+                "score": 4
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你没说话，但每个人都过来跟你碰了一次拳。散场之后，房间空了很久，灯还亮着。",
+              "effects": {
+                "mood": 11,
+                "fame": 9,
+                "friends": 2
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "slip_out",
+          "text": "中途悄悄退出",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你趁他们合影的时候退出了。第二天有人问你昨晚去哪了，你说网断了。没有人拆穿你。",
+              "effects": {
+                "mood": -13,
+                "fame": 6
+              },
+              "endingHint": {
+                "path": "lonely",
+                "score": 4
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "extreme",
+              "text": "你退出之后在登录界面坐了很久。你意识到，你真正想告别的不是这个游戏，是那个还愿意为它熬夜的自己。",
+              "effects": {
+                "mood": 8,
+                "fame": 5,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "retire",
+                "score": 5
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

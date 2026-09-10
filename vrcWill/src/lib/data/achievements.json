@@ -1,0 +1,23 @@
+{
+  "$comment": "成就系统（P2）。触发时机由引擎事件驱动，见 docs/01-核心玩法详细设计.md §事件表。",
+  "achievements": [
+    { "id": "first_step", "title": "第一次登入", "desc": "完成教学关 1-1", "trigger": "level_clear:1-1", "hidden": false, "points": 5 },
+    { "id": "not_lost", "title": "被找到", "desc": "在 1-2 达成 good 结局「被找到」", "trigger": "ending:1_2_good", "hidden": false, "points": 10 },
+    { "id": "the_lamp", "title": "那盏灯", "desc": "在 1-3 达成隐藏结局「无言的三人」", "trigger": "ending:1_3_true", "hidden": true, "points": 20 },
+    { "id": "sugar", "title": "砂糖", "desc": "在 2-3 达成隐藏结局「砂糖」", "trigger": "ending:2_3_true", "hidden": true, "points": 20 },
+    { "id": "i_blue", "title": "澪蓝", "desc": "在 2-2 达成隐藏结局「同一套颜色」", "trigger": "ending:2_2_true", "hidden": true, "points": 20 },
+    { "id": "mirror", "title": "镜像", "desc": "在 3-1 达成隐藏结局「镜像」", "trigger": "ending:3_1_true", "hidden": true, "points": 20 },
+    { "id": "let_go", "title": "我也可以先走", "desc": "在 3-2 达成隐藏结局，理解「放手不是失败」", "trigger": "ending:3_2_true", "hidden": true, "points": 25 },
+    { "id": "double_gaze", "title": "双重视线", "desc": "在 3-3 同时触发两个蝴蝶效应并达成隐藏结局", "trigger": "ending:3_3_true", "hidden": true, "points": 25 },
+    { "id": "admit", "title": "承认", "desc": "在 4-1 承认那些碎片属于自己", "trigger": "ending:4_1_true", "hidden": true, "points": 25 },
+    { "id": "give_away", "title": "把世界交给你", "desc": "达成隐藏的放手结局", "trigger": "ending:global_give_away", "hidden": true, "points": 30 },
+    { "id": "welcome_back", "title": "欢迎回来", "desc": "达成真结局「欢迎回来」", "trigger": "ending:global_true", "hidden": true, "points": 50 },
+    { "id": "uncertain", "title": "因果未能稳定", "desc": "在任意关卡触发 10 次混沌结局", "trigger": "chaos_count:10", "hidden": false, "points": 5 },
+    { "id": "no_hint", "title": "不用提示的人", "desc": "不使用任何提示通关一个章节", "trigger": "chapter_clear_no_hint:1", "hidden": false, "points": 15 },
+    { "id": "hint_all", "title": "提示全收集", "desc": "使用过所有关卡的全部三级提示", "trigger": "hints_all", "hidden": false, "points": 5 },
+    { "id": "butterfly_hunter", "title": "蝴蝶收集者", "desc": "触发全部 8 个蝴蝶效应", "trigger": "butterflies_all", "hidden": false, "points": 30 },
+    { "id": "blue_reader", "title": "倾听者", "desc": "解锁全部 9 条蓝色独白碎片", "trigger": "blue_all", "hidden": false, "points": 25 },
+    { "id": "perfect_2_3", "title": "设计基准", "desc": "在 2-3 一次提交即达成 good 结局", "trigger": "first_try:2-3:good", "hidden": false, "points": 15 },
+    { "id": "all_endings", "title": "全部的可能性", "desc": "收集全部 45 个设计结局", "trigger": "endings_all", "hidden": true, "points": 100 }
+  ]
+}

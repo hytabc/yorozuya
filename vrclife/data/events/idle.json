@@ -1,0 +1,2499 @@
+{
+  "bucket": "idle",
+  "version": "1.0",
+  "events": [
+    {
+      "id": "idle_001",
+      "title": "什么也没发生",
+      "category": "pity",
+      "stage": "萌新探索",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 3,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 12,
+      "tags": [
+        "孤独",
+        "日常"
+      ],
+      "condition": {},
+      "text": "你独自逛了{N}个世界，什么也没发生。传送门一扇扇亮起，又一扇扇暗下。",
+      "options": [
+        {
+          "id": "keep_walking",
+          "text": "再逛一个",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你进了下一个世界，还是没人。你数了数房间里的{N}个人，一个都不认识。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "sit_in_lobby",
+          "text": "回大厅坐着",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你回到大厅，看着别人一对一对地传送走。",
+              "effects": {
+                "mood": 1,
+                "counters": {
+                  "idleLobby": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "find_something",
+          "text": "找点事做",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你随手拍了几张空房间的照片，没发给任何人。",
+              "effects": {
+                "mood": 1,
+                "skills": {
+                  "photo": 3
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你拍了一张空沙发的照片。回看的时候，觉得构图意外地好。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "photo": 3
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_002",
+      "title": "挂机一整晚",
+      "category": "pity",
+      "stage": "萌新探索",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 2,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 16,
+      "tags": [
+        "日常",
+        "孤独"
+      ],
+      "condition": {},
+      "text": "你挂机了一整晚。屏幕里的自己坐在{中文吧}的沙发上，一动不动。",
+      "options": [
+        {
+          "id": "keep_afk",
+          "text": "继续挂着",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "背景音乐循环了不知道多少遍，你已经分不清第几轮。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "look_around",
+          "text": "看看四周",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你摘掉头显看了眼时间，凌晨三点。你戴上，继续坐着。",
+              "effects": {
+                "mood": 1,
+                "tags": {
+                  "add": [
+                    "夜猫子"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "旁边沙发上另一个人也挂着。你们对视了一眼，谁都没说话。",
+              "effects": {
+                "mood": 2,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "shutdown",
+          "text": "关掉电脑",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你合上笔记本。房间安静得有点陌生。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_003",
+      "title": "全是灰色",
+      "category": "pity",
+      "stage": "社交起步",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 2,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 18,
+      "tags": [
+        "孤独",
+        "负面"
+      ],
+      "condition": {},
+      "text": "你打开好友列表。{N}个名字，全是灰色。",
+      "options": [
+        {
+          "id": "close_panel",
+          "text": "关掉列表",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你关掉面板，回到世界里继续站着。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave_message",
+          "text": "给一个人留言",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你打了几个字又删掉，最后发了一句「在吗」。没有回复。",
+              "effects": {
+                "mood": -3
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "半小时后他回了一句「刚下班，怎么了」。你盯着这四个字看了很久。",
+              "effects": {
+                "mood": 3,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "go_chinese_bar",
+          "text": "去中文吧",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "中文吧还是那么吵。你在角落找了个位置。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_004",
+      "title": "镜子前十分钟",
+      "category": "pity",
+      "stage": "社交起步",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 2,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 20,
+      "tags": [
+        "日常"
+      ],
+      "condition": {},
+      "text": "你在镜子前站了{N}分钟，调了七次表情，最后什么都没说。",
+      "options": [
+        {
+          "id": "keep_standing",
+          "text": "再站一会",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你盯着镜像里的自己，觉得那张脸有点陌生。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "change_face",
+          "text": "换张脸",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你换了一套新模型，在镜子前转了两圈。",
+              "effects": {
+                "mood": 2,
+                "counters": {
+                  "looksChanged": 1
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "旁边有人路过，停了一下，说「这个好看」，然后走了。",
+              "effects": {
+                "mood": 2,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "take_photo",
+          "text": "拍张照",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你架好相机，拍了一张镜像。回家再看，觉得还不错。",
+              "effects": {
+                "mood": 1,
+                "skills": {
+                  "photo": 3
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_005",
+      "title": "换了三次模型",
+      "category": "pity",
+      "stage": "深度社交",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 2,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 20,
+      "tags": [
+        "日常"
+      ],
+      "condition": {},
+      "text": "你在{世界}里换了三次模型，又换回最开始那个。没人发现。",
+      "options": [
+        {
+          "id": "let_it_be",
+          "text": "就这样吧",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你关掉模型列表，回到人群里。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "ask_someone",
+          "text": "问别人好不好看",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你拉住一个熟人问。他说「都行」。",
+              "effects": {
+                "mood": 1
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他说第三个更适合你，还顺手帮你调了两个参数。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "modeling": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "study_modeling",
+          "text": "自己研究改模",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你打开 Blender，把袖子改短了两厘米，然后关掉。",
+              "effects": {
+                "mood": 1,
+                "skills": {
+                  "modeling": 2
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_006",
+      "title": "世界的边界",
+      "category": "pity",
+      "stage": "深度社交",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 2,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 24,
+      "tags": [
+        "孤独",
+        "日常"
+      ],
+      "condition": {},
+      "text": "你一个人把{世界}走到了边界。那里没有贴图，只有灰色的虚空。",
+      "options": [
+        {
+          "id": "stand_and_watch",
+          "text": "站着看",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你在边界站了很久。背景音乐还在放，循环到了开头。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "photograph_void",
+          "text": "拍下来",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你拍了一张虚空的照片，意外的干净。",
+              "effects": {
+                "mood": 1,
+                "skills": {
+                  "photo": 3
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你把这张发出去。有人问是在哪个世界拍的，你说不知道。",
+              "effects": {
+                "fame": 1,
+                "skills": {
+                  "photo": 3
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "step_out",
+          "text": "往前走",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你走出去了两步，画面一闪，被弹回了大厅。",
+              "effects": {
+                "mood": 1,
+                "counters": {
+                  "glitched": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_007",
+      "title": "打开又关掉",
+      "category": "pity",
+      "stage": "老油条",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 2,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 24,
+      "tags": [
+        "日常",
+        "退坑"
+      ],
+      "condition": {},
+      "text": "你打开 VRChat，在登录界面停了{N}秒，又关掉了。",
+      "options": [
+        {
+          "id": "open_again",
+          "text": "再打开一次",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你重新登录，站在大厅里，不知道该去哪。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "go_sleep",
+          "text": "去睡觉",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你合上电脑。明天再说。",
+              "effects": {
+                "mood": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "old_place",
+          "text": "去老地方看看",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你传送到以前常去的那个世界。灯还亮着，一个人也没有。",
+              "effects": {
+                "mood": 1,
+                "counters": {
+                  "nostalgiaVisits": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_008",
+      "title": "人全换了",
+      "category": "pity",
+      "stage": "老油条",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 2,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 24,
+      "tags": [
+        "孤独",
+        "回忆"
+      ],
+      "condition": {},
+      "text": "你进了{世界}，一个以前常来的地方。布局一点没变，人全换了。",
+      "options": [
+        {
+          "id": "watch_quietly",
+          "text": "安静地看着",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你坐在老位置上，看新来的人在同样的地方打闹。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "try_talk",
+          "text": "试着搭话",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你说了句「这里以前有个秋千」。没人接话。",
+              "effects": {
+                "mood": -3
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "有个人回过头说「我知道，我也来过」。",
+              "effects": {
+                "mood": 3,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave_world",
+          "text": "退出去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你退出世界，回到了大厅的传送门前。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_009",
+      "title": "不认识的名字",
+      "category": "pity",
+      "stage": "传奇",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 2,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 28,
+      "tags": [
+        "日常",
+        "孤独"
+      ],
+      "condition": {},
+      "text": "首页推荐里全是不认识的名字。你刷了{N}分钟，一个都没点进去。",
+      "options": [
+        {
+          "id": "keep_scrolling",
+          "text": "继续刷",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你一直刷到底，然后从头再刷一遍。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "click_first",
+          "text": "点进第一个",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "是个新世界，人不多。你在门口站了一会。",
+              "effects": {
+                "mood": 1
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "房主认出了你的名字，说「居然在这碰到你」。",
+              "effects": {
+                "mood": 3,
+                "fame": 1,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "close_page",
+          "text": "关掉页面",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你关掉 VRChat。屏幕暗下来，映出你自己的脸。",
+              "effects": {
+                "mood": 1,
+                "counters": {
+                  "silentNights": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_010",
+      "title": "传送门",
+      "category": "pity",
+      "stage": "初入",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 3,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 12,
+      "tags": [
+        "孤独",
+        "日常"
+      ],
+      "condition": {},
+      "text": "大厅的传送门一扇扇暗下去。你站在原地，没决定去哪。",
+      "options": [
+        {
+          "id": "random_portal",
+          "text": "随便进一扇",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你随手点了一个世界。加载条走完，是片海，没有人。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "keep_waiting",
+          "text": "站着等",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你站着看别人来来去去，看了{N}分钟，还是没动。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "log_out",
+          "text": "下线",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你摘掉头显。房间很黑，你一时找不到灯的开关。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_011",
+      "title": "放了一晚上歌",
+      "category": "ambient",
+      "stage": "萌新探索",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 18,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 30,
+      "tags": [
+        "日常"
+      ],
+      "condition": {},
+      "text": "你在{世界}找了块没人的地方，把歌单从头放到尾。",
+      "options": [
+        {
+          "id": "repeat_one",
+          "text": "单曲循环",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "同一首歌循环到第七遍，你还是没切。",
+              "effects": {
+                "mood": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "hum_along",
+          "text": "跟着哼",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你跟着哼了两句，跑调跑得很彻底。反正没人听见。",
+              "effects": {
+                "mood": 1,
+                "skills": {
+                  "music": 4
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "share_playlist",
+          "text": "把歌单发出去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你随手把歌单发到了群里。有两个人在下面点了表情。",
+              "effects": {
+                "mood": 1
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "有人回了一首歌给你，说「这首更像你」。",
+              "effects": {
+                "mood": 2,
+                "friends": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_012",
+      "title": "山顶的云",
+      "category": "ambient",
+      "stage": "深度社交",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 20,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 30,
+      "tags": [
+        "日常"
+      ],
+      "condition": {},
+      "text": "你在{世界}的山顶坐下，看了一小时云。云是循环的，你也是。",
+      "options": [
+        {
+          "id": "keep_watching",
+          "text": "继续看",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你看到天色的贴图开始重复，还是没走。",
+              "effects": {
+                "mood": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "shoot_clouds",
+          "text": "拍一张",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你架好相机，等云走到合适的位置。它走得很慢。",
+              "effects": {
+                "skills": {
+                  "photo": 3
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "这张出奇地好。你把它设成了自己的封面。",
+              "effects": {
+                "skills": {
+                  "photo": 3
+                },
+                "fame": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "call_ta",
+          "text": "叫{ta}过来",
+          "condition": {
+            "hasRelation": true
+          },
+          "lockedHint": "需要一段正在继续的关系",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "{ta}传送过来，在你旁边坐下，什么都没问。",
+              "effects": {
+                "mood": 4
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "{ta}说这个地方他们以前来过，一个人来的。",
+              "effects": {
+                "mood": 5
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_013",
+      "title": "茶凉了",
+      "category": "ambient",
+      "stage": "社交起步",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 16,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 30,
+      "tags": [
+        "日常",
+        "孤独"
+      ],
+      "condition": {},
+      "text": "你端着杯子回到电脑前。人还挂在那里，{世界}里的歌已经换了一首。",
+      "options": [
+        {
+          "id": "drink_it",
+          "text": "喝完这杯",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "茶已经凉透了，你还是一口喝完。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "check_dj",
+          "text": "看看是谁在放歌",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "是个不认识的人，一首一首地放，从不说话。",
+              "effects": {
+                "mood": 1
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你私聊问了歌名。他发了一长串给你，都是同一种情绪。",
+              "effects": {
+                "mood": 2,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "switch_world",
+          "text": "换个世界",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你传送走了。杯子留在桌上，明天再洗。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_014",
+      "title": "角落看跳舞",
+      "category": "ambient",
+      "stage": "社交起步",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 18,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 26,
+      "tags": [
+        "日常",
+        "社交"
+      ],
+      "condition": {},
+      "text": "你在{中文吧|跳舞房}的角落坐下，看一群人在中间跳舞。",
+      "options": [
+        {
+          "id": "watch_till_end",
+          "text": "看到散场",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你一直看到人走光，房主把灯关了。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "learn_moves",
+          "text": "偷偷学两个动作",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你记下了两个八拍，回家对着镜子练。",
+              "effects": {
+                "skills": {
+                  "dance": 4
+                },
+                "mood": 1
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "有人注意到你在跟着比划，回头冲你打了个手势。",
+              "effects": {
+                "skills": {
+                  "dance": 4
+                },
+                "mood": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "join_dance",
+          "text": "上去跳一段",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你挤进队形，跟上了前半段，后半段全乱。",
+              "effects": {
+                "skills": {
+                  "dance": 4
+                },
+                "mood": 2
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你跳完，有人鼓了掌。你假装没听见，耳朵有点热。",
+              "effects": {
+                "skills": {
+                  "dance": 4
+                },
+                "mood": 3,
+                "fame": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_015",
+      "title": "中文吧角落",
+      "category": "ambient",
+      "stage": "社交起步",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 20,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 26,
+      "tags": [
+        "日常",
+        "孤独"
+      ],
+      "condition": {},
+      "text": "你在{中文吧}的角落坐着，听旁边几个人聊工作、房租和模型价格。",
+      "options": [
+        {
+          "id": "keep_listening",
+          "text": "继续听",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你听了两个小时，一句话也没说。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "cut_in",
+          "text": "插一句",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你说了一句「房租确实」，话题就转到你身上了。",
+              "effects": {
+                "mood": 2,
+                "friends": 1
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他们顺着你的话聊开了，还问你要不要一起去看世界。",
+              "effects": {
+                "mood": 3,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "change_room",
+          "text": "换个房间",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你换了个房间。另一拨人聊的也是这些。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_016",
+      "title": "只剩风声",
+      "category": "ambient",
+      "stage": "初入",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 15,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 30,
+      "tags": [
+        "日常",
+        "孤独"
+      ],
+      "condition": {},
+      "text": "深夜的{世界}只剩风声。你分不清那是环境音效，还是耳机的底噪。",
+      "options": [
+        {
+          "id": "listen_till_dawn",
+          "text": "听到天亮",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "窗外泛白的时候，游戏里还是深夜。",
+              "effects": {
+                "mood": 1,
+                "tags": {
+                  "add": [
+                    "夜猫子"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你在风声里睡着了。醒来时模型还站在原地，没人打扰过。",
+              "effects": {
+                "mood": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "mute_ambient",
+          "text": "把环境音关掉",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "世界一下子安静了。你反而有点不适应。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "record_ambient",
+          "text": "录一段",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你把风声录了下来，后来做成了自己世界的背景音。",
+              "effects": {
+                "skills": {
+                  "music": 4
+                },
+                "counters": {
+                  "soundsRecorded": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_017",
+      "title": "倒计时",
+      "category": "ambient",
+      "stage": "深度社交",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 12,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 60,
+      "tags": [
+        "日常",
+        "活动"
+      ],
+      "condition": {},
+      "text": "倒计时在{世界}里响起来，你身边站着{N}个认识或不认识的人。",
+      "options": [
+        {
+          "id": "count_along",
+          "text": "跟着倒数",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你跟着喊完最后十秒。有人放起了烟花，掉帧掉得厉害。",
+              "effects": {
+                "mood": 4
+              },
+              "schedule": [
+                {
+                  "eventId": "deep_020",
+                  "delayHours": [
+                    10,
+                    15
+                  ],
+                  "chance": 0.6,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "倒计时结束的时候，有人抱了你一下，然后就被挤散了。",
+              "effects": {
+                "mood": 5,
+                "friends": 1
+              },
+              "schedule": [
+                {
+                  "eventId": "deep_020",
+                  "delayHours": [
+                    10,
+                    15
+                  ],
+                  "chance": 0.6,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "shoot_fireworks",
+          "text": "拍照",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你拍到一张全是后脑勺的照片。你还是留着了。",
+              "effects": {
+                "skills": {
+                  "photo": 3
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "stay_back",
+          "text": "退到人群后面",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你站在最后面看别人热闹。烟花在你头顶炸开。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_018",
+      "title": "调参数",
+      "category": "ambient",
+      "stage": "深度社交",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 18,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 30,
+      "tags": [
+        "日常",
+        "技能"
+      ],
+      "condition": {},
+      "text": "你架好相机，对着{世界}的光影调了半小时参数。",
+      "options": [
+        {
+          "id": "shoot_set",
+          "text": "拍一组",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你拍了二十张，最后留下三张。",
+              "effects": {
+                "skills": {
+                  "photo": 3
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "其中一张被人转了出去，署名是你的昵称。",
+              "effects": {
+                "skills": {
+                  "photo": 3
+                },
+                "fame": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "move_camera",
+          "text": "换个机位",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你挪了两米，发现构图全变了，光也变了。",
+              "effects": {
+                "skills": {
+                  "photo": 3
+                },
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "wrap_up",
+          "text": "收工",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你把相机收起来，坐在原地发呆。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_019",
+      "title": "钢琴",
+      "category": "ambient",
+      "stage": "萌新探索",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 15,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 30,
+      "tags": [
+        "日常",
+        "技能"
+      ],
+      "condition": {},
+      "text": "有人在{世界}的钢琴前坐下，弹了一首你没听过的曲子。",
+      "options": [
+        {
+          "id": "listen_through",
+          "text": "站着听完",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "他弹错了一个音。你听见了，没说。",
+              "effects": {
+                "mood": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "record_it",
+          "text": "录下来",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你录了下来，之后单曲循环了很久。",
+              "effects": {
+                "skills": {
+                  "music": 4
+                },
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "request_song",
+          "text": "点一首",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你点了一首老歌。他说不会，然后弹了副歌。",
+              "effects": {
+                "mood": 2
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他说这首他练过，是弹给一个人听的。那个人今天没来。",
+              "effects": {
+                "mood": 3,
+                "friends": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_020",
+      "title": "挂机的蓝点",
+      "category": "ambient",
+      "stage": "老油条",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 14,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 30,
+      "tags": [
+        "日常"
+      ],
+      "condition": {},
+      "text": "好友列表里{N}个人正在挂机，状态清一色是蓝。",
+      "options": [
+        {
+          "id": "afk_too",
+          "text": "也去挂机",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你挑了个熟悉的世界挂在那里，什么也没做。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "visit_each",
+          "text": "挨个传送过去看看",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你传了四个人的世界，三个人不在电脑前。",
+              "effects": {
+                "mood": 1
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "第五个人在。他抬起头说「你怎么来了」。",
+              "effects": {
+                "mood": 3,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "close_list",
+          "text": "关掉列表",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你关掉面板，继续做手头的事。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_021",
+      "title": "没有头发",
+      "category": "ambient",
+      "stage": "传奇",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 12,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 40,
+      "tags": [
+        "日常",
+        "回忆"
+      ],
+      "condition": {},
+      "text": "你翻到一张很旧的截图。那时候你的模型还没有头发。",
+      "options": [
+        {
+          "id": "keep_it",
+          "text": "存进相册",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你把它拖进「旧」那个文件夹。里面已经有很多张了。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "send_old_friend",
+          "text": "发给老朋友",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你发了过去。对方回了个大笑的表情。",
+              "effects": {
+                "mood": 2
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他说他还留着同时期的一张，问你要不要。",
+              "effects": {
+                "mood": 3,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "delete_it",
+          "text": "删掉",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你按了删除。文件夹空了一点，也只是一点。",
+              "effects": {
+                "mood": 1,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_022",
+      "title": "下雨的世界",
+      "category": "ambient",
+      "stage": "传奇",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 16,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 30,
+      "tags": [
+        "日常"
+      ],
+      "condition": {},
+      "text": "你在{世界}里找到一场雨，把音量调大，然后去洗了个澡。",
+      "options": [
+        {
+          "id": "come_back",
+          "text": "回来继续听",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你回来的时候雨还在下。模型被淋得发亮。",
+              "effects": {
+                "mood": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "lie_down",
+          "text": "躺着听",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你摘了头显，躺在床上听现实里的声音。楼下有人在倒车。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "check_creator",
+          "text": "看看是谁做的这个世界",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "房主的名字你没见过，简介只写了两个字：「随便坐」。",
+              "effects": {
+                "mood": 1
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你给他留了言。几天后他回了一句谢谢，说这世界没人来过。",
+              "effects": {
+                "mood": 2,
+                "friends": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_023",
+      "title": "旧截图",
+      "category": "ambient",
+      "stage": "深度社交",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 30,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 40,
+      "tags": [
+        "回忆",
+        "负面"
+      ],
+      "condition": {
+        "maxMood": 40
+      },
+      "text": "你翻到一张旧截图。两个模型贴在一起，站在{世界}的雪地里。",
+      "options": [
+        {
+          "id": "browse_all",
+          "text": "一张张翻过去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你翻到凌晨，把每一张都看了一遍。",
+              "effects": {
+                "mood": -4,
+                "counters": {
+                  "oldShotsViewed": 1
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "最后一张是你们第一次见面。你关掉相册，去洗了把脸。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "delete_all",
+          "text": "全删掉",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你按下删除，又把回收站清空了。",
+              "effects": {
+                "mood": -3,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你删到一半停住了，留下一张。就一张。",
+              "effects": {
+                "mood": 2,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "send_to_him",
+          "text": "发给他",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 60,
+              "tier": "normal",
+              "text": "你发了过去。消息旁边出现一个红色的感叹号。",
+              "effects": {
+                "mood": -6
+              }
+            },
+            {
+              "weight": 40,
+              "tier": "rare",
+              "text": "你打完字又全删了，把手机扣在桌上。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_024",
+      "title": "出去走走",
+      "category": "ambient",
+      "stage": "初入",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 25,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 40,
+      "tags": [
+        "现实",
+        "正面"
+      ],
+      "condition": {
+        "requireAnyTags": [
+          "失恋",
+          "退坑边缘"
+        ]
+      },
+      "text": "朋友把耳机从你头上摘下来，说：别挂了，出去走走。",
+      "options": [
+        {
+          "id": "go_out",
+          "text": "跟他出去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你们在楼下走了两圈，聊的全是别的事。",
+              "effects": {
+                "mood": 4
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他在便利店买了两罐饮料，塞给你一罐。你握了很久。",
+              "effects": {
+                "mood": 5,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "shake_head",
+          "text": "摇头，继续戴着耳机",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你把音量又调大了一格。他站了一会，走了。",
+              "effects": {
+                "mood": -4
+              }
+            }
+          ]
+        },
+        {
+          "id": "join_strangers",
+          "text": "去一个不认识的聚会",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你被拉进一个陌生的世界，{N}个人在聊天。你站在门口。",
+              "effects": {
+                "mood": 1
+              }
+            },
+            {
+              "weight": 35,
+              "tier": "rare",
+              "text": "有人递给你一杯虚拟饮料，问你从哪来。你说了实话。",
+              "effects": {
+                "mood": 4,
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 8,
+                  "initTrust": 6,
+                  "initFreshness": 90,
+                  "initDependence": 0,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_a_020",
+                  "delayHours": [
+                    10,
+                    22
+                  ],
+                  "chance": 0.5,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_025",
+      "title": "半夜的中文吧",
+      "category": "ambient",
+      "stage": "老油条",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 35,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 40,
+      "tags": [
+        "孤独",
+        "社交"
+      ],
+      "condition": {
+        "maxMood": 40
+      },
+      "text": "凌晨三点的{中文吧}还剩四个人。你进去的时候，没人问你是谁。",
+      "options": [
+        {
+          "id": "sit_in_corner",
+          "text": "在角落坐下",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你坐下，谁也没说话。背景音乐一直在放。",
+              "effects": {
+                "mood": 2
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_020",
+                  "delayHours": [
+                    10,
+                    22
+                  ],
+                  "chance": 0.6,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "过了一会，有人往你这边挪了挪，递过来一个表情。",
+              "effects": {
+                "mood": 3,
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 10,
+                  "initTrust": 8,
+                  "initFreshness": 88,
+                  "initDependence": 0,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_020",
+                  "delayHours": [
+                    10,
+                    22
+                  ],
+                  "chance": 0.6,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "say_something",
+          "text": "开麦说一句",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你说「我也睡不着」。有人应了一声「嗯」。",
+              "effects": {
+                "mood": 2
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "有人接了话，你们聊到五点。天快亮了。",
+              "effects": {
+                "mood": 4,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave_world",
+          "text": "退出世界",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你退出去，回到空荡荡的大厅。传送门也暗着。",
+              "effects": {
+                "mood": -3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_026",
+      "title": "他的主页",
+      "category": "ambient",
+      "stage": "社交起步",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 30,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 40,
+      "tags": [
+        "回忆",
+        "负面"
+      ],
+      "condition": {
+        "requireAnyTags": [
+          "失恋",
+          "退坑边缘"
+        ]
+      },
+      "text": "你点开了他的主页。头像换了，签名也改了，最后上线是三天前。",
+      "options": [
+        {
+          "id": "close_it",
+          "text": "看完关掉",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你把页面关掉，又在历史记录里点开了一次。",
+              "effects": {
+                "mood": -5,
+                "counters": {
+                  "profileChecks": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "unfollow",
+          "text": "取消关注",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你取消了关注。列表短了一行，别的什么也没变。",
+              "effects": {
+                "mood": -1,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "取消之后你反而松了口气，去把签名改成了别的。",
+              "effects": {
+                "mood": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "go_dance",
+          "text": "去跳舞房",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你传送去跳舞房，跟着节奏站了半小时，没跳。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "dance": 4
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "有人把你拉进了队形里。你手忙脚乱地跟完了整首。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "dance": 4
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_027",
+      "title": "删了又下回来",
+      "category": "ambient",
+      "stage": "萌新探索",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 28,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 50,
+      "tags": [
+        "退坑",
+        "负面"
+      ],
+      "condition": {
+        "maxMood": 40
+      },
+      "text": "你把 VRChat 卸载了。第三天晚上，你又点了下载。",
+      "options": [
+        {
+          "id": "log_in_again",
+          "text": "重新登录",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "加载条走完，你站在熟悉的大厅里，什么感觉都没有。",
+              "effects": {
+                "mood": 1
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_020",
+                  "delayHours": [
+                    10,
+                    15
+                  ],
+                  "chance": 0.5,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你重新登录，发现有人给你留了言：「你还好吗」。",
+              "effects": {
+                "mood": 4,
+                "friends": 1
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_020",
+                  "delayHours": [
+                    10,
+                    15
+                  ],
+                  "chance": 0.6,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "drag_to_corner",
+          "text": "把图标拖到角落",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你把它拖到桌面最边上。眼不见为净。",
+              "effects": {
+                "mood": -3
+              }
+            }
+          ]
+        },
+        {
+          "id": "visit_bar",
+          "text": "去中文吧转转",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "中文吧还是老样子。有人在唱歌，跑调跑得很认真。",
+              "effects": {
+                "mood": 2
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_020",
+                  "delayHours": [
+                    10,
+                    15
+                  ],
+                  "chance": 0.5,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "唱歌的人回头冲你笑了一下。你认出他是两年前加的好友。",
+              "effects": {
+                "mood": 4,
+                "friends": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_028",
+      "title": "注销账号",
+      "category": "ambient",
+      "stage": "传奇",
+      "hoursRange": [
+        0,
+        99999
+      ],
+      "weight": 22,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 60,
+      "tags": [
+        "退坑",
+        "负面"
+      ],
+      "condition": {
+        "requireTags": [
+          "退坑边缘"
+        ]
+      },
+      "text": "你打开设置，找到「注销账号」。鼠标停在那里，很久没有动。",
+      "options": [
+        {
+          "id": "close_settings",
+          "text": "关掉设置",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你关掉窗口，回到世界里，继续发呆。",
+              "effects": {
+                "mood": 1
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你关掉窗口，把收藏夹里的世界一个一个重走了一遍。",
+              "effects": {
+                "mood": 3,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "confirm_delete",
+          "text": "点下去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "确认框弹出来。你盯着它看了两分钟，点了取消。",
+              "effects": {
+                "mood": -6
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "extreme",
+              "text": "账号注销了。登录界面空着，你把鼠标移开了。",
+              "effects": {
+                "mood": -10,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "find_someone",
+          "text": "找个人说说话",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你随便传送到了一个人的世界。他正在挂机。",
+              "effects": {
+                "mood": 1,
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 6,
+                  "initTrust": 5,
+                  "initFreshness": 85,
+                  "initDependence": 0,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              }
+            },
+            {
+              "weight": 35,
+              "tier": "rare",
+              "text": "你传送过去。他摘下耳机，问你：「怎么了？」",
+              "effects": {
+                "mood": 5,
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 14,
+                  "initTrust": 12,
+                  "initFreshness": 92,
+                  "initDependence": 0,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

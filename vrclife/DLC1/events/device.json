@@ -1,0 +1,1335 @@
+{
+  "bucket": "device",
+  "version": "1.0",
+  "events": [
+    {
+      "id": "device_k01",
+      "title": "开箱",
+      "category": "key",
+      "stage": "初入",
+      "hoursRange": [0, 40],
+      "weight": 100,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": ["设备", "关键"],
+      "condition": {
+        "minHours": 0,
+        "maxHours": 40,
+        "excludeFlags": ["has_device", "owns_hardware"]
+      },
+      "text": "盒子拆开了，泡沫里躺着你攒了很久才买下的东西。你插上电源，屏幕亮起，最后一步是：把设备绑到身上。",
+      "options": [
+        {
+          "id": "quest",
+          "text": "一台一体机就够了",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你放弃了在房间里拉线，选择了一体机。戴上它，客厅就能变成任何地方。画质差一点，但你的房间从此没有边界。",
+              "effects": {
+                "mood": 5,
+                "skills": { "coding": 2 },
+                "tags": { "add": ["Quest党", "设备党"], "remove": [] },
+                "flags": { "add": ["has_device"], "remove": [] }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你把一体机带去了每一次聚会。朋友说：你这台真方便。你有点小得意，决定暂时不羡慕别人手里的线材。",
+              "effects": {
+                "mood": 8,
+                "fame": 2,
+                "tags": { "add": ["Quest党", "设备党"], "remove": [] },
+                "flags": { "add": ["has_device"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "pico",
+          "text": "Pico 便宜，先上手",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你选了 Pico。国内玩家多，教程一搜一大把，但串流要自己折腾。第一次连上 PC 画面时，你像修好了什么。",
+              "effects": {
+                "mood": 4,
+                "assets": 100,
+                "skills": { "coding": 3 },
+                "tags": { "add": ["Pico党", "设备党"], "remove": [] },
+                "flags": { "add": ["has_device", "pico_player"], "remove": [] }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你在论坛翻到一篇 VD 教程，一步步调通了无线串流。延迟降下来的那一刻，你觉得这台机器是你的了。",
+              "effects": {
+                "mood": 7,
+                "assets": 100,
+                "skills": { "coding": 6 },
+                "tags": { "add": ["Pico党", "设备党"], "remove": [] },
+                "flags": { "add": ["has_device", "pico_player"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "pcvr",
+          "text": "攒到底，上 PCVR",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你把 PC 搬进了房间，装好基站，固定好头显线。画质确实不一样，代价是你再也离不开这张椅子。",
+              "effects": {
+                "mood": 6,
+                "assets": -200,
+                "skills": { "coding": 5 },
+                "tags": { "add": ["串流党", "设备党"], "remove": [] },
+                "flags": { "add": ["has_device"], "remove": [] }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "为了追求那几毫秒的延迟，你熬到凌晨三点调参数。第二天你成了群里唯一能把 Air Link 讲明白的人。",
+              "effects": {
+                "mood": 8,
+                "assets": -200,
+                "fame": 2,
+                "skills": { "coding": 10 },
+                "tags": { "add": ["串流党", "设备党"], "remove": [] },
+                "flags": { "add": ["has_device"], "remove": [] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "device_k02",
+      "title": "第一次全身追踪",
+      "category": "key",
+      "stage": "深度社交",
+      "hoursRange": [150, 400],
+      "weight": 100,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": ["设备", "关键", "成长"],
+      "condition": {
+        "minHours": 150,
+        "maxHours": 400,
+        "minFriends": 3,
+        "excludeFlags": ["owns_fbt"]
+      },
+      "text": "你在{世界}看人跳舞，忽然发现有什么不对——他们的脚在动。你的脚只是两根柱子。有人问你：要不要试试 FBT？",
+      "options": [
+        {
+          "id": "buy",
+          "text": "上追踪，脚不能白长",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你买了一整套 Tracker。第一次校准花了两小时，站起来的瞬间，你在镜子前走了很久——你终于有腿了。",
+              "effects": {
+                "mood": 10,
+                "assets": -500,
+                "skills": { "dance": 8, "coding": 5 },
+                "tags": { "add": ["全身追踪"], "remove": [] },
+                "circles": { "add": ["追踪圈"], "remove": [] },
+                "flags": { "add": ["owns_fbt"], "remove": [] },
+                "counters": { "gearBought": 1 }
+              },
+              "endingHint": { "path": "tracker", "score": 5 },
+              "schedule": [
+                { "eventId": "device_001", "delayHours": [20, 80], "chance": 0.8 }
+              ]
+            },
+            {
+              "weight": 35,
+              "tier": "rare",
+              "text": "你没买贵的，自己淘了 SlimeVR 的散件，焊了半天。第一次踩点时，鼓点从脚底传上来，你起了一身鸡皮疙瘩。",
+              "effects": {
+                "mood": 12,
+                "assets": -250,
+                "skills": { "dance": 10, "coding": 12 },
+                "tags": { "add": ["全身追踪", "技术宅"], "remove": [] },
+                "circles": { "add": ["追踪圈"], "remove": [] },
+                "flags": { "add": ["owns_fbt"], "remove": [] },
+                "counters": { "gearBought": 1 }
+              },
+              "endingHint": { "path": "tracker", "score": 6 },
+              "schedule": [
+                { "eventId": "device_001", "delayHours": [15, 60], "chance": 0.9 }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "try",
+          "text": "先用别人的试试",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你借来一套 HaritoraX，绑好腰和脚，跳了半首歌。摘下之后你站在原地，觉得腿有点陌生。",
+              "effects": {
+                "mood": 6,
+                "skills": { "dance": 5 },
+                "counters": { "triedFbt": 1 }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你试完就懂了：6 点追踪和 11 点追踪是两种东西。你开始认真研究腰追和脚追，回去做了一张对比表。",
+              "effects": {
+                "mood": 5,
+                "skills": { "dance": 4, "coding": 8 },
+                "counters": { "triedFbt": 1 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "skip",
+          "text": "手就够了，不折腾",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说算了，手柄也能跳。你确实跳得不错——只是站在那些有脚的人旁边时，会有一瞬间觉得自己是飘着的。",
+              "effects": {
+                "mood": 2,
+                "skills": { "dance": 6 },
+                "tags": { "add": ["手残"], "remove": [] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "device_001",
+      "title": "掉追了",
+      "category": "random",
+      "stage": "深度社交",
+      "hoursRange": [200, 500],
+      "weight": 15,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 180,
+      "tags": ["设备", "随机", "负面"],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500,
+        "requireAnyTags": ["全身追踪"]
+      },
+      "text": "你正踩到最关键的一段，脚突然飞了。追踪器掉线，你的角色在下腰。对面的人笑了：又掉了？",
+      "options": [
+        {
+          "id": "recalibrate",
+          "text": "退出去重新校准",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你摘下头显，跪在地上一个一个对齐追踪器。回来时音乐已经换了一首，但你这次没再掉。",
+              "effects": {
+                "mood": -2,
+                "skills": { "dance": 3, "coding": 3 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "laugh",
+          "text": "干脆把这当动作，接着跳",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你把飞天遁地的自己编进舞里，全场笑到拍地。有人截图说这是本月最佳整活。",
+              "effects": {
+                "mood": 6,
+                "fame": 2,
+                "skills": { "meme": 8 }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "这段“故障舞”被人剪了下来，成了小圈子里流传的梗。你从此多了个外号。",
+              "effects": {
+                "mood": 5,
+                "fame": 5,
+                "friends": 2,
+                "skills": { "meme": 12 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "stop",
+          "text": "不跳了，坐下看别人",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你退到角落坐下。掉追掉到第三次的时候，人是会累的。你看着别人的脚，第一次觉得有点烦。",
+              "effects": {
+                "mood": -6,
+                "tags": { "add": ["掉追"], "remove": [] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "device_002",
+      "title": "串流卡成幻灯片",
+      "category": "random",
+      "stage": "社交起步",
+      "hoursRange": [50, 200],
+      "weight": 17,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 150,
+      "tags": ["设备", "随机", "负面"],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200
+      },
+      "text": "无线串流今晚不知道怎么了，一动就糊，说话要等半秒。你对着空气喊了一句，画面里自己的嘴动得比声音慢。",
+      "options": [
+        {
+          "id": "tune",
+          "text": "坐下来一项项调",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你翻了半小时教程，把码率降下来，把 VD 的参数一个个试过去。终于顺了，你也学会了一整套。",
+              "effects": {
+                "mood": 3,
+                "skills": { "coding": 9 }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "调到最后你发现是路由器的问题。顺手给全屋换了网络，从此再没卡过。",
+              "effects": {
+                "mood": 6,
+                "assets": -150,
+                "skills": { "coding": 12 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "wired",
+          "text": "换回有线串流",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把线接上，延迟没了，但你也重新被拴在了电脑前。转身的时候，线勒了一下脖子。",
+              "effects": {
+                "mood": 2,
+                "skills": { "coding": 4 },
+                "tags": { "add": ["设备党"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "suffer",
+          "text": "忍着继续玩",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你顶着延迟陪大家聊了一晚上。别人说的梗你要慢半拍才笑，笑完发现话题已经过去了。",
+              "effects": {
+                "mood": -4
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "device_003",
+      "title": "戴上就晕",
+      "category": "random",
+      "stage": "初入",
+      "hoursRange": [0, 50],
+      "weight": 18,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 200,
+      "tags": ["设备", "随机", "负面"],
+      "condition": {
+        "minHours": 0,
+        "maxHours": 50
+      },
+      "text": "你才走了三步，胃里就开始翻。这是课本上说的晕动症——你以前以为“VR 晕”是别人娇气。",
+      "options": [
+        {
+          "id": "rest",
+          "text": "摘下来缓一会",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你摘下头显，世界还在轻轻晃。你盯着天花板坐了很久，才敢再戴上。",
+              "effects": {
+                "mood": -3,
+                "tags": { "add": ["晕动症"], "remove": [] }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你学会了：不舒服就摘，别硬扛。后来这也成了你劝每个新人的第一句话。",
+              "effects": {
+                "mood": 2,
+                "tags": { "add": ["晕动症"], "remove": [] },
+                "counters": { "warnedNewbie": 1 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "teleport",
+          "text": "改成瞬移移动",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你关掉了平滑移动，开始用瞬移。走位是笨了点，但世界终于不转了。",
+              "effects": {
+                "mood": 4,
+                "skills": { "coding": 3 }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "瞬移用久了，你反而发现一种奇怪的自由：眼睛到的地方，身体下一秒就能到。",
+              "effects": {
+                "mood": 6,
+                "skills": { "coding": 4 },
+                "tags": { "add": ["幻肢"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "push",
+          "text": "硬扛过去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你咬着牙又逛了半小时。最后是摘下头显那一刻，你扶着桌子站了很久，发誓明天要调整作息。",
+              "effects": {
+                "mood": -8,
+                "tags": { "add": ["晕动症"], "remove": [] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "device_004",
+      "title": "基站被撞了",
+      "category": "random",
+      "stage": "深度社交",
+      "hoursRange": [200, 500],
+      "weight": 13,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 250,
+      "tags": ["设备", "随机", "冲突"],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500,
+        "requireAnyTags": ["串流党"]
+      },
+      "text": "你跳得太投入，一脚踹在了三脚架上。基站歪了，眼前的世界跟着歪了——你的角色正以一个不可能的角度站着。",
+      "options": [
+        {
+          "id": "refix",
+          "text": "重新摆好基站",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你重新固定了基站，用胶带封死，又标记了角度。你决定以后跳舞前先清场。",
+              "effects": {
+                "mood": -1,
+                "skills": { "coding": 6 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "wireless",
+          "text": "干脆换一套无线方案",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你下单了无线追踪，从此不用再摆基站。房间清爽了，账单也清了。",
+              "effects": {
+                "mood": 4,
+                "assets": -300,
+                "skills": { "coding": 6 },
+                "tags": { "add": ["设备土豪"], "remove": [] }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "新方案到手发现校准更麻烦。你折腾了一周，最后在群里发了篇避坑指南，被顶上了精华。",
+              "effects": {
+                "mood": 3,
+                "assets": -300,
+                "fame": 5,
+                "skills": { "coding": 12 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ignore",
+          "text": "歪着也能玩",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你顶着歪掉的定位又玩了半小时，直到看见自己的头出现在脚下。你终于摘了。",
+              "effects": {
+                "mood": -5
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "device_005",
+      "title": "别人的画质",
+      "category": "random",
+      "stage": "萌新探索",
+      "hoursRange": [10, 50],
+      "weight": 16,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 200,
+      "tags": ["设备", "随机", "社交"],
+      "condition": {
+        "minHours": 10,
+        "maxHours": 50,
+        "requireAnyTags": ["Pico党", "Quest党", "设备党"]
+      },
+      "text": "同一片{世界}，别人截图里的光影细腻得像照片，你的却糊成一团。你问了一句，对方说：我这是 Air Link 连的 PC。",
+      "options": [
+        {
+          "id": "accept",
+          "text": "接受一体机，方便最重要",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你想了想，方便确实更重要。反正这里的风景，你戴上就能到。",
+              "effects": {
+                "mood": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "study",
+          "text": "研究一下串流方案",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你研究了一晚上无线串流，虽然没马上换设备，但你已经能听懂别人在聊什么了。",
+              "effects": {
+                "mood": 2,
+                "skills": { "coding": 7 }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你把自己的串流参数调到了极限，画质提升肉眼可见。有人开始反过来问你配置。",
+              "effects": {
+                "mood": 5,
+                "fame": 3,
+                "skills": { "coding": 10 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ask",
+          "text": "问问对方怎么弄的",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "对方耐心地给你讲了一遍。你们聊了一个小时设备，最后加了 Friendly。你多了个能一起研究硬件的人。",
+              "effects": {
+                "mood": 3,
+                "friends": 1,
+                "favor": 4,
+                "skills": { "coding": 3 }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "device_006",
+      "title": "该换设备了",
+      "category": "random",
+      "stage": "老油条",
+      "hoursRange": [500, 1000],
+      "weight": 11,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 500,
+      "tags": ["设备", "消费", "成长"],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000
+      },
+      "text": "你现在的设备陪了你很久，耳机海绵都掉了。新一轮的硬件在朋友圈刷屏，你算了算价格，又算了算自己还玩多久。",
+      "options": [
+        {
+          "id": "upgrade",
+          "text": "上 PCVR，一步到位",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你终于搬回了 PC 和基站。画质是真好，代价是每次上线前要先开机、接线、清出场地。",
+              "effects": {
+                "mood": 6,
+                "assets": -800,
+                "skills": { "coding": 10 },
+                "tags": { "add": ["串流党", "设备党"], "remove": [] },
+                "flags": { "add": ["gearhead"], "remove": [] }
+              },
+              "endingHint": { "path": "gearhead", "score": 4 }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "新设备让你重新对一个老世界产生了兴趣。你在里面待了一整晚，像第一次来。",
+              "effects": {
+                "mood": 10,
+                "assets": -800,
+                "fame": 3,
+                "skills": { "coding": 10, "photo": 6 },
+                "tags": { "add": ["串流党", "设备党"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "new_aio",
+          "text": "换台新一体机",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你换了最新的一体机。旧的放进盒子，你没舍得扔——它见过你最早的那个样子。",
+              "effects": {
+                "mood": 5,
+                "assets": -600,
+                "avatars": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "keep",
+          "text": "不换，它还能打",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你决定再战一年。设备会过时，但你跟这里的关系不会。",
+              "effects": {
+                "mood": 3,
+                "assets": 200,
+                "tags": { "add": ["怀旧"], "remove": [] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "device_007",
+      "title": "手柄漂移了",
+      "category": "random",
+      "stage": "社交起步",
+      "hoursRange": [50, 200],
+      "weight": 15,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 250,
+      "tags": ["设备", "技能", "随机"],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200
+      },
+      "text": "你的手柄开始漂移，人不动它自己往前走。你在{世界}里像个喝多了的人，一路蹭墙，蹭到了角落。",
+      "options": [
+        {
+          "id": "teardown",
+          "text": "拆开清一清",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你拆开手柄，用棉签掏出一小团黑色纤维。装回去，它活了过来。你顺手把另一个也清了。",
+              "effects": {
+                "mood": 3,
+                "assets": -30,
+                "skills": { "coding": 10 }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "清完之后漂移更严重了。你下单了新的，顺便学会了怎么判断摇杆的寿命。",
+              "effects": {
+                "mood": -6,
+                "assets": -300,
+                "skills": { "coding": 6 }
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "你拆坏了。三天后你收到零件，自己焊了一个模组换上，动手能力突飞猛进。",
+              "effects": {
+                "mood": -3,
+                "assets": -200,
+                "skills": { "coding": 18 },
+                "tags": { "add": ["折腾党"], "remove": [] },
+                "flags": { "add": ["gearhead"], "remove": [] }
+              },
+              "endingHint": { "path": "gearhead", "score": 5 }
+            }
+          ]
+        },
+        {
+          "id": "deadzone",
+          "text": "靠调死区撑一撑",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把死区调到最大，勉强能站着。走位是怪了点，但至少不会自己走到墙里去。",
+              "effects": {
+                "mood": 1,
+                "skills": { "coding": 4 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ask_fix",
+          "text": "问问群里谁会修",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "群里有人私聊你，发来一段拆解视频，还报了个价。你说我先自己试试，他说好，有问题随时问。",
+              "effects": {
+                "mood": 2,
+                "friends": 1,
+                "favor": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "device_008",
+      "title": "幻肢",
+      "category": "ambient",
+      "stage": "初入",
+      "hoursRange": [0, 99999],
+      "weight": 13,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 300,
+      "tags": ["设备", "日常"],
+      "condition": {},
+      "text": "摘下头显之后，你伸了一下手，觉得它还在刚才那个位置。你盯着自己的手看了几秒，才确定这是真的手。",
+      "options": [
+        {
+          "id": "shake",
+          "text": "甩甩手，笑笑",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你甩了甩手，把这种感觉记了下来。它有点像小时候玩太久游戏，闭上眼还在跳台阶。",
+              "effects": {
+                "mood": 2,
+                "tags": { "add": ["幻肢"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "record",
+          "text": "把这个感觉记下来",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你把它写进备忘录，后来成了你做世界时的一段开场白。",
+              "effects": {
+                "mood": 3,
+                "skills": { "meme": 4, "photo": 3 }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你把这个感觉讲给别人听，对方说：我也这样。你们因为这个聊了很久。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "favor": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "ignore",
+          "text": "不深究",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你活动了一下肩膀，去倒了杯水。感觉很快就没了。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "device_009",
+      "title": "掉帧",
+      "category": "random",
+      "stage": "深度社交",
+      "hoursRange": [0, 99999],
+      "weight": 14,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 200,
+      "tags": ["设备", "随机", "负面"],
+      "condition": {},
+      "text": "房间里有{N}个人同时开特效，画面开始掉帧。你的手在推人，画面还在上一秒。",
+      "options": [
+        {
+          "id": "optimize",
+          "text": "关掉特效和自己身上的粒子",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你关掉了大部分特效，顺手排查出自己模型上一堆没用的动画。帧率回来了。",
+              "effects": {
+                "mood": 3,
+                "skills": { "coding": 6, "modeling": 4 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "endure",
+          "text": "忍着，反正只是卡",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你顶着卡顿参加完了整场活动。结束后你的头有点疼。",
+              "effects": {
+                "mood": -4
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave",
+          "text": "换个少点的世界",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你退到一个人的世界，帧率立刻满了。安静得有点不习惯。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "device_010",
+      "title": "基站的灯",
+      "category": "ambient",
+      "stage": "深度社交",
+      "hoursRange": [200, 500],
+      "weight": 12,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 300,
+      "tags": ["设备", "日常", "孤独"],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500
+      },
+      "text": "你摘下头显，房间里只有两个基站在墙角，一明一灭地闪着。它们不知道刚才你去了哪里。",
+      "options": [
+        {
+          "id": "watch",
+          "text": "看着它发呆",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你看着那两点光，忽然意识到：这些设备比你更常在“这里”。",
+              "effects": {
+                "mood": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "off",
+          "text": "关掉，去睡觉",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你按灭基站，房间彻底黑了。你摸黑找到床，很快就睡着了。",
+              "effects": {
+                "mood": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "person",
+          "text": "想起那个总在这个点上线的人",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你想起一个人。你点开好友列表看了一眼，那个头像还是灰的。你关掉列表。",
+              "effects": {
+                "mood": -3,
+                "tags": { "add": ["怀旧"], "remove": [] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "device_011",
+      "title": "卖掉旧设备",
+      "category": "random",
+      "stage": "老油条",
+      "hoursRange": [500, 1000],
+      "weight": 11,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 400,
+      "tags": ["设备", "消费", "回忆"],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000
+      },
+      "text": "你拍了旧设备的照片挂上去。买家问：成色怎么样。你想了想，它确实陪了你很久，但你很少这么想过。",
+      "options": [
+        {
+          "id": "sell",
+          "text": "卖掉，向前看",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "东西寄出去了。空出来的那块地方，你放了新的设备。",
+              "effects": {
+                "assets": 400,
+                "mood": -2,
+                "tags": { "add": ["断舍离"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "keep",
+          "text": "下架，留着备用",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把链接删了，把它塞进柜子最里面。你告诉自己是为了备用，但你知道不全是。",
+              "effects": {
+                "mood": 3,
+                "tags": { "add": ["怀旧"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "gift",
+          "text": "送给刚入坑的新人",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "新人在群里发了很长一段感谢，说要请你吃饭（虽然见不到）。你回了句“玩得开心”。",
+              "effects": {
+                "mood": 6,
+                "friends": 1,
+                "favor": 6,
+                "fame": 2
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "对方收到后，把它当成了第一台设备。半年后 ta 也把这个圈子里的事做得很好。你什么都没说。",
+              "effects": {
+                "mood": 9,
+                "friends": 1,
+                "favor": 10,
+                "fame": 4,
+                "flags": { "add": ["pay_it_forward"], "remove": [] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "device_012",
+      "title": "试模狂魔",
+      "category": "random",
+      "stage": "社交起步",
+      "hoursRange": [10, 99999],
+      "weight": 13,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 250,
+      "tags": ["设备", "消费", "日常"],
+      "condition": {
+        "minHours": 10,
+        "maxHours": 99999
+      },
+      "text": "你今晚已经换了 {N} 个模型了，从 HaritoraX 的展示柜一路试到面捕的表情包。镜子里的人一直在变，只有你还在。",
+      "options": [
+        {
+          "id": "binge",
+          "text": "一口气试完一整页",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你在镜子前转了一晚上，试到眼睛都花了。最后换回了最开始那个。",
+              "effects": {
+                "mood": 3,
+                "avatars": 1,
+                "tags": { "add": ["试模狂魔"], "remove": [] }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "试到第八个，你发现了一个冷门模型，做工好得离谱。你把它设成了常用，还去给作者留了言。",
+              "effects": {
+                "mood": 5,
+                "avatars": 2,
+                "friends": 1,
+                "favor": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "pick",
+          "text": "认真挑一个存着",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你选了一个，改了名字，存进收藏。列表又长了一点。",
+              "effects": {
+                "mood": 2,
+                "avatars": 1,
+                "assets": -100
+              }
+            }
+          ]
+        },
+        {
+          "id": "look",
+          "text": "只看不试",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你翻完了所有的预览图，一个都没穿上。看别人穿也挺好。",
+              "effects": {
+                "mood": 1,
+                "tags": { "add": ["云玩家"], "remove": [] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "device_013",
+      "title": "新人问推荐",
+      "category": "random",
+      "stage": "老油条",
+      "hoursRange": [500, 1000],
+      "weight": 12,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 300,
+      "tags": ["设备", "社交", "正面"],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000,
+        "minFriends": 10
+      },
+      "text": "一个刚入坑的人在群里问你：第一台设备买哪个？他列了三个选项，全是你当年纠结过的。",
+      "options": [
+        {
+          "id": "serious",
+          "text": "认真讲一遍",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你从预算讲到生态，从串流讲到追踪，讲了很长一段。他回了个“谢谢大佬”，你有点想笑。",
+              "effects": {
+                "mood": 3,
+                "friends": 1,
+                "favor": 4,
+                "fame": 2,
+                "skills": { "coding": 3 }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你顺手把自己闲置的一件小配件寄了过去。他成了你后来最常一起玩的人之一。",
+              "effects": {
+                "mood": 7,
+                "friends": 1,
+                "favor": 10,
+                "fame": 3,
+                "assets": -100
+              }
+            }
+          ]
+        },
+        {
+          "id": "budget",
+          "text": "回一句“看你预算”",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你回得很短。他道了谢，去问了别人。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "take_him",
+          "text": "直接拉他去看自己的设备",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把他拉进自己的私人世界，一件件给他演示。他蹲在地上看你绑追踪器，看了很久。",
+              "effects": {
+                "mood": 5,
+                "friends": 2,
+                "favor": 8,
+                "skills": { "social": 3 }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "device_014",
+      "title": "设备展",
+      "category": "random",
+      "stage": "深度社交",
+      "hoursRange": [200, 500],
+      "weight": 10,
+      "rarity": "rare",
+      "once": false,
+      "cooldown": 500,
+      "tags": ["设备", "活动", "社交"],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500,
+        "probability": 0.5
+      },
+      "text": "社区办了一场设备体验会，摊位上摆着头显、全身动捕、面捕设备，嘴追和眼追也能试。有人招呼你：都来试试，不要钱。",
+      "options": [
+        {
+          "id": "all",
+          "text": "每个都试一遍",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你试了追踪、试了面捕，最后在镜子前看自己的表情同步了。嘴追有点飘，但你笑的时候，模型也在笑。",
+              "effects": {
+                "mood": 7,
+                "skills": { "coding": 5, "meme": 4 },
+                "circles": { "add": ["面捕圈"], "remove": [] },
+                "counters": { "gearTried": 1 }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你在动捕区试了一段，被做成了展示录屏。有人围着看，问你是哪个圈子的。你说：我还没想好。",
+              "effects": {
+                "mood": 9,
+                "fame": 4,
+                "friends": 2,
+                "skills": { "dance": 4, "coding": 5 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "tracker_only",
+          "text": "只在追踪区待着",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你在追踪区泡了一下午，跟人聊校准、聊掉追、聊脚追和腰追的区别。走的时候加了三个好友。",
+              "effects": {
+                "mood": 6,
+                "friends": 3,
+                "skills": { "dance": 5 },
+                "circles": { "add": ["追踪圈"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "watch",
+          "text": "看别人玩就好",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你站在边上看了一下午，记了几条笔记，什么也没买。回去路上你翻了翻笔记，觉得这趟没白来。",
+              "effects": {
+                "mood": 2,
+                "skills": { "coding": 3 }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

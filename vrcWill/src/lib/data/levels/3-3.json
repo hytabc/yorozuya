@@ -1,0 +1,274 @@
+{
+  "id": "3-3",
+  "title": "人群中的陌生人",
+  "chapter": 3,
+  "order": 3,
+  "epigraph": "",
+  "intro": "在一个有一百多人的公共 World 里，认识的人和陌生人的距离，只差一个转身。",
+  "hasButterfly": true,
+  "anchors": { "first": "frag_3_3_01", "last": "frag_3_3_09" },
+  "initialOrder": [
+    "frag_3_3_01",
+    "frag_3_3_07",
+    "frag_3_3_04",
+    "frag_3_3_02",
+    "frag_3_3_06",
+    "frag_3_3_03",
+    "frag_3_3_08",
+    "frag_3_3_05",
+    "frag_3_3_09"
+  ],
+  "fragments": [
+    {
+      "id": "frag_3_3_01",
+      "levelId": "3-3",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "三人在同一个公共 World 里，但站在不同的角落。",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定起点。三线并行。"
+    },
+    {
+      "id": "frag_3_3_02",
+      "levelId": "3-3",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪站在人群外，看着栞和悠笑成一团。",
+      "tags": ["outsider"],
+      "draggable": true,
+      "valence": -1,
+      "note": "澪的视角。"
+    },
+    {
+      "id": "frag_3_3_03",
+      "levelId": "3-3",
+      "type": "white",
+      "character": "Yu",
+      "text": "悠指着澪的方向问栞：「那个人也是朋友吗？」",
+      "tags": ["bridge_q"],
+      "draggable": true,
+      "valence": 1,
+      "note": "悠的视角。她是唯一一个把两条线连起来的人。"
+    },
+    {
+      "id": "frag_3_3_04",
+      "levelId": "3-3",
+      "type": "gold",
+      "character": "Narrator",
+      "text": "【关键】交换相邻两人的「视线」。",
+      "tags": ["swap", "key", "perspective"],
+      "draggable": true,
+      "valence": 0,
+      "note": "金色碎片。它不推进剧情，它改变叙述者——让玩家第一次看见对方视角里的同一件事。"
+    },
+    {
+      "id": "frag_3_3_05",
+      "levelId": "3-3",
+      "type": "white",
+      "character": "Shiori",
+      "text": "栞顺着悠指的方向看过去，愣了一下。",
+      "tags": ["recognition"],
+      "draggable": true,
+      "valence": 0,
+      "note": "栞的反应。"
+    },
+    {
+      "id": "frag_3_3_06",
+      "levelId": "3-3",
+      "type": "white",
+      "character": "Shiori",
+      "text": "栞说：「她是我很重要的朋友。」然后朝澪的方向走。",
+      "tags": ["declaration"],
+      "draggable": true,
+      "valence": 2,
+      "note": "本关的情感峰值。"
+    },
+    {
+      "id": "frag_3_3_07",
+      "levelId": "3-3",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪看见栞朝自己走过来，第一反应是想躲。",
+      "tags": ["retreat"],
+      "draggable": true,
+      "valence": -1,
+      "note": "澪的应激反应。"
+    },
+    {
+      "id": "frag_3_3_08",
+      "levelId": "3-3",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪没有躲开。",
+      "tags": ["stand_still"],
+      "draggable": true,
+      "valence": 1,
+      "note": "本关的分水岭。"
+    },
+    {
+      "id": "frag_3_3_09",
+      "levelId": "3-3",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "三个人终于站在了一起。",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": 1,
+      "note": "固定终点。中性——'站在一起'和'站在一起过'是不同的事。"
+    },
+    {
+      "id": "frag_3_3_10",
+      "levelId": "3-3",
+      "type": "blue",
+      "character": "Shiori",
+      "text": "【栞的独白】我怕她以为，我是那种会把人换掉的人。",
+      "tags": ["insight"],
+      "draggable": false,
+      "valence": 0,
+      "hidden": true,
+      "unlockedBy": "butterfly:3-3:A",
+      "note": "蝴蝶效应 A 奖励。"
+    },
+    {
+      "id": "frag_3_3_11",
+      "levelId": "3-3",
+      "type": "blue",
+      "character": "Mio",
+      "text": "【翻转的视线】在澪决定「想躲」的那几秒里，栞在人群那头，已经找了她的名字三次。",
+      "tags": ["insight", "perspective"],
+      "draggable": false,
+      "valence": 0,
+      "hidden": true,
+      "unlockedBy": "butterfly:3-3:B",
+      "note": "蝴蝶效应 B 奖励。为第四章'视角即因果'的主题做铺垫。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "3_3_good",
+      "levelId": "3-3",
+      "type": "good",
+      "title": "走过来的人",
+      "threshold": 70,
+      "valence": 1,
+      "constraints": [
+        { "kind": "before", "a": "frag_3_3_03", "b": "frag_3_3_05", "weight": 20 },
+        { "kind": "before", "a": "frag_3_3_05", "b": "frag_3_3_06", "weight": 25 },
+        { "kind": "before", "a": "frag_3_3_06", "b": "frag_3_3_08", "weight": 25 },
+        { "kind": "before", "a": "frag_3_3_07", "b": "frag_3_3_08", "weight": 30 }
+      ],
+      "anti": [
+        { "kind": "position", "frag": "frag_3_3_07", "index": 1, "weight": 40 },
+        { "kind": "adjacent", "a": "frag_3_3_04", "b": "frag_3_3_07", "weight": 40 }
+      ],
+      "text": "悠指着人群外问了一句「那个人也是朋友吗」。栞顺着看过去，愣了一下，然后说：「她是我很重要的朋友。」\n\n澪看见她走过来，第一反应是想躲——但她没有。\n\n——被划进「重要」这个词里的感觉，比任何一句解释都好。",
+      "excerpt": "「她是我很重要的朋友。」",
+      "bondEffect": { "Mio": 15, "Shiori": 12, "Yu": 8 }
+    },
+    {
+      "id": "3_3_bittersweet",
+      "levelId": "3-3",
+      "type": "bittersweet",
+      "title": "站在原地",
+      "threshold": 60,
+      "valence": 0,
+      "constraints": [
+        { "kind": "before", "a": "frag_3_3_06", "b": "frag_3_3_08", "weight": 30 },
+        { "kind": "before", "a": "frag_3_3_02", "b": "frag_3_3_06", "weight": 25 },
+        { "kind": "before", "a": "frag_3_3_03", "b": "frag_3_3_06", "weight": 25 },
+        { "kind": "position", "frag": "frag_3_3_07", "index": 7, "weight": 20 }
+      ],
+      "anti": [],
+      "text": "栞走了过来，说了那句话。澪看见了，第一反应是想躲，忍住了。\n\n两个人说了几句客套话，悠在旁边不知道该看谁。\n\n散场的时候，三个人往三个方向走——但至少，这一晚她们站在一起过。",
+      "excerpt": "这一晚她们站在一起过。",
+      "bondEffect": { "Mio": -2, "Shiori": 0, "Yu": -3 }
+    },
+    {
+      "id": "3_3_bad",
+      "levelId": "3-3",
+      "type": "bad",
+      "title": "转身",
+      "threshold": 55,
+      "valence": -2,
+      "constraints": [
+        { "kind": "position", "frag": "frag_3_3_07", "index": 1, "weight": 30 },
+        { "kind": "before", "a": "frag_3_3_07", "b": "frag_3_3_02", "weight": 25 },
+        { "kind": "before", "a": "frag_3_3_02", "b": "frag_3_3_05", "weight": 25 },
+        { "kind": "before", "a": "frag_3_3_02", "b": "frag_3_3_06", "weight": 20 }
+      ],
+      "anti": [],
+      "text": "澪在栞走近之前就传送走了。「想躲」这个念头排在了最前面，于是后面所有的事都发生在她的视线之外。\n\n她后来在别的地方看到那张三人合照，照片里她的位置空着。\n\n她一直不知道，那张照片是栞等她站回来，才按下快门的。",
+      "excerpt": "那张照片，是栞等她站回来才拍的。",
+      "bondEffect": { "Mio": -15, "Shiori": -10, "Yu": -5 }
+    },
+    {
+      "id": "3_3_true",
+      "levelId": "3-3",
+      "type": "true",
+      "title": "双重视线",
+      "threshold": 75,
+      "valence": 1,
+      "hidden": true,
+      "constraints": [
+        { "kind": "adjacent", "a": "frag_3_3_04", "b": "frag_3_3_07", "weight": 30 },
+        { "kind": "before", "a": "frag_3_3_03", "b": "frag_3_3_05", "weight": 20 },
+        { "kind": "before", "a": "frag_3_3_06", "b": "frag_3_3_08", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_3_3_08", "b": "frag_3_3_09", "weight": 25 }
+      ],
+      "anti": [],
+      "text": "金色碎片落在了「想躲」的旁边，视线被调转了。\n\n玩家第一次看见：在澪决定想躲的那几秒里，栞在人群那头，已经找了她的名字三次。\n\n原来这里的因果是双向的——「她没有走过来」和「她不敢站出去」，是同一件事的两个面。\n\n这一次，两个人同时迈了一步。",
+      "excerpt": "同一件事，两个视角，两个故事。",
+      "bondEffect": { "Mio": 18, "Shiori": 18, "Yu": 5 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "3_3_chaos",
+    "levelId": "3-3",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……三个人好像都在等别人先开口。\n\n这一关有两条隐藏的路：一条藏在「悠的提问」里，一条藏在金色碎片的位置上。",
+    "excerpt": "三个人都在等别人先开口。"
+  },
+  "butterflies": [
+    {
+      "id": "3-3:A",
+      "requires": [
+        { "kind": "adjacent", "a": "frag_3_3_02", "b": "frag_3_3_03", "weight": 1 },
+        { "kind": "before", "a": "frag_3_3_03", "b": "frag_3_3_05", "weight": 1 }
+      ],
+      "unlocks": ["frag_3_3_10"],
+      "revealText": "把「澪站在人群外」和「悠指着她问」放在一起，画面里多出了一条线——\n\n栞其实一直在人群里找那个方向。她不是忘了澪，她是不知道怎么在悠面前开口。"
+    },
+    {
+      "id": "3-3:B",
+      "requires": [
+        { "kind": "adjacent", "a": "frag_3_3_04", "b": "frag_3_3_07", "weight": 1 }
+      ],
+      "unlocks": ["frag_3_3_11"],
+      "revealText": "金色碎片翻转了视角。\n\n同一个公共 World，同一分钟。在澪决定「想躲」的那几秒里，栞在人群那头，已经把好友列表翻开了三次。\n\n她们都在等对方先迈步——而这，就是全部的问题。"
+    }
+  ],
+  "hints": [
+    {
+      "tier": 1,
+      "text": "这一关有三个人的视线。悠的提问是唯一能把两条线接上的东西。"
+    },
+    {
+      "tier": 2,
+      "text": "让「想躲」排到「没有躲开」之前，但要远离第一个位置——那是最坏的开局。",
+      "highlight": ["frag_3_3_07", "frag_3_3_08"]
+    },
+    {
+      "tier": 3,
+      "text": "推荐顺序：澪站在人群外 → 悠发问 → 金色碎片 → 栞看过去 → 栞的「重要的朋友」→ 想躲 → 没有躲开。",
+      "highlight": ["frag_3_3_02", "frag_3_3_03", "frag_3_3_04", "frag_3_3_05", "frag_3_3_06", "frag_3_3_07", "frag_3_3_08"]
+    }
+  ],
+  "behindTheScenes": "3-3 是本作结构最复杂的一关，也是蝴蝶效应的集大成者。金色碎片在这里第一次承担元叙事功能：它不推进剧情，它调转叙述者。\n\n这一关之后，玩家应该开始怀疑——观测者看到的「因果」，真的是全部吗？这个怀疑，就是第四章的钥匙。"
+}

@@ -1,0 +1,3471 @@
+{
+  "bucket": "veteran",
+  "version": "1.0",
+  "events": [
+    {
+      "id": "veteran_k01",
+      "title": "该退了吗",
+      "category": "key",
+      "stage": "老油条",
+      "hoursRange": [
+        500,
+        620
+      ],
+      "weight": 100,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "退坑",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 620
+      },
+      "text": "凌晨{N}点，你一个人挂在{中文吧|私人世界}的角落里。好友列表四十三个名字，亮着的只有你自己。没有想去的房间，也没有想找的人。那句话第一次浮上来：我是不是该退了。",
+      "options": [
+        {
+          "id": "say_it",
+          "text": "把这句话说出口",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你在输入框里敲下这行字，又一个一个删掉。念头被命名之后，就不再只是幻觉了。",
+              "effects": {
+                "mood": -8,
+                "counters": {
+                  "burnoutThoughts": 1
+                },
+                "flags": {
+                  "add": [
+                    "burnout_thought"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 22,
+              "tier": "rare",
+              "text": "你把它发给了{ta}。对方隔了很久回：我懂。你们聊到天亮，谁也没劝谁留下。",
+              "effects": {
+                "mood": 3,
+                "flags": {
+                  "add": [
+                    "burnout_thought"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 8,
+              "tier": "extreme",
+              "text": "你退出游戏，手指停在卸载键上三秒，按了下去。第二天你又装回来，登录记录里多了一行：在线 3 分钟。",
+              "effects": {
+                "mood": -18,
+                "flags": {
+                  "add": [
+                    "burnout_thought",
+                    "quit_once"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "bury_it",
+          "text": "带两个新人，把念头盖过去",
+          "condition": {
+            "minFame": 30
+          },
+          "lockedHint": "需要声望 ≥ 30",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你带两个新人逛了{世界}。听他们惊叹的时候，你想起自己第一次进来的样子，念头暂时退后了。",
+              "effects": {
+                "mood": 5,
+                "friends": 1,
+                "skills": {
+                  "social": 2
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "normal",
+              "text": "新人问你为什么还在玩。你答不上来，只说了句习惯了。",
+              "effects": {
+                "mood": -4,
+                "fame": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "log_off",
+          "text": "直接下线，明天再说",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你摘掉头显，房间很安静。第二天照常上线，像什么都没发生过。",
+              "effects": {
+                "mood": -3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_k02",
+      "title": "断舍离",
+      "category": "key",
+      "stage": "老油条",
+      "hoursRange": [
+        560,
+        700
+      ],
+      "weight": 100,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "退坑",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 560,
+        "maxHours": 700
+      },
+      "text": "硬盘只剩 {N}G。模型文件夹里堆着一百多个 Avatar：第一次买的、别人送的、熬夜改了三个月的。你点开最旧的那个，加载失败——作者已经删号了。",
+      "options": [
+        {
+          "id": "purge_half",
+          "text": "删掉一半",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你删了六十七个，留下的都还能想起来出处。硬盘空出一半，心里也空出一块。",
+              "effects": {
+                "mood": -5,
+                "avatars": -6,
+                "assets": -50,
+                "flags": {
+                  "add": [
+                    "purged_avatars"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "删到一半你停手了。有个模型是{ta}送的，你点了取消，把它移进一个叫“旧”的文件夹。",
+              "effects": {
+                "mood": -8,
+                "avatars": -3,
+                "flags": {
+                  "add": [
+                    "purged_avatars"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "你删空了整个文件夹，然后花了四十分钟从回收站捞回来三个。手比脑子诚实。",
+              "effects": {
+                "mood": -23,
+                "avatars": -10,
+                "flags": {
+                  "add": [
+                    "purged_avatars",
+                    "burnout_thought"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "keep_all",
+          "text": "全留着，只是不再打开",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你关掉文件夹。它们继续占着 40G，像一间没人住的旧房子。",
+              "effects": {
+                "mood": -4,
+                "flags": {
+                  "add": [
+                    "purged_avatars"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "give_away",
+          "text": "打包送给用得上的人",
+          "condition": {
+            "minFame": 25
+          },
+          "lockedHint": "需要声望 ≥ 25",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你把用不上的模型发给了三个新人。他们一口一个谢谢，你只回：别客气，好好用。",
+              "effects": {
+                "mood": 4,
+                "avatars": -5,
+                "fame": 2,
+                "flags": {
+                  "add": [
+                    "purged_avatars"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "有人问你为什么不自己留着。你说留着也是烂在硬盘里，不如让它再被人穿一次。",
+              "effects": {
+                "mood": 2,
+                "avatars": -6,
+                "fame": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_k03",
+      "title": "回归",
+      "category": "key",
+      "stage": "老油条",
+      "hoursRange": [
+        760,
+        1050
+      ],
+      "weight": 100,
+      "rarity": "rare",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "回归",
+        "回归",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 760,
+        "maxHours": 1050,
+        "excludeFlags": [
+          "retired"
+        ]
+      },
+      "text": "大半年后你重新登录。加载条走完，你站在上次下线的{世界}里，一个人也没有。好友列表四十三个名字，全是灰的。点开最上面那个，主页写着一行小字：已停止活动。",
+      "options": [
+        {
+          "id": "click_every_gray",
+          "text": "挨个点开灰掉的头像",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 60,
+              "tier": "normal",
+              "text": "你点开十七个灰色头像。有人最后登录是三百天前，有人主页只剩一句“去生活了”。你关掉列表。",
+              "effects": {
+                "mood": -16,
+                "flags": {
+                  "add": [
+                    "returned"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "点到一个你带过的新人，他的主页还挂着你送的模型。最后登录：昨天。",
+              "effects": {
+                "mood": 6,
+                "friends": 1,
+                "fame": 1,
+                "flags": {
+                  "add": [
+                    "returned"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 15,
+              "tier": "extreme",
+              "text": "你翻到三年前一起跨年的人，头像是黑的，简介换成了一行日期。你在留言板留了句好久不见，然后关掉页面。",
+              "effects": {
+                "mood": -26,
+                "flags": {
+                  "add": [
+                    "returned"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "go_to_chinese_bar",
+          "text": "去中文吧看看",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "中文吧还是那个中文吧，麦上全是没听过的名字。有人问：这谁啊，模型挺老的。",
+              "effects": {
+                "mood": -10,
+                "flags": {
+                  "add": [
+                    "returned"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "吧主换了人。新吧主不认识你，但看到你的名字愣了一下：你是不是以前做过那个教程？",
+              "effects": {
+                "mood": 5,
+                "fame": 2,
+                "flags": {
+                  "add": [
+                    "returned"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "say_i_am_back",
+          "text": "在群里发一句：我回来了",
+          "condition": {
+            "minFame": 20
+          },
+          "lockedHint": "需要声望 ≥ 20",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "群里安静了几秒，然后跳出一串：还活着啊、你终于上线了。有人立刻把你拉进了语音。",
+              "effects": {
+                "mood": 10,
+                "friends": 2,
+                "fame": 1,
+                "tags": {
+                  "add": [
+                    "回归者"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "returned"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "没人回。隔了半小时，一个人私聊你：你回来了？",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "flags": {
+                  "add": [
+                    "returned"
+                  ]
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 12,
+                  "initTrust": 10,
+                  "initFreshness": 80,
+                  "name": "auto"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "log_off_again",
+          "text": "看了十分钟，再次下线",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你退出游戏。第二天又登录了一次，这次待了二十分钟。",
+              "effects": {
+                "mood": -8,
+                "flags": {
+                  "add": [
+                    "returned"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_001",
+      "title": "无目的地",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        500,
+        1000
+      ],
+      "weight": 45,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 30,
+      "tags": [
+        "孤独",
+        "日常"
+      ],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000
+      },
+      "text": "你戴上头显，登录，然后在菜单界面停了很久。收藏夹里有六十个{世界}，没一个想进的。你上下滑了两遍，最后去接了杯水。",
+      "options": [
+        {
+          "id": "old_place",
+          "text": "随便进一个老地方",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你进了常去的那间房。四个人，三个在挂机。你找了个角落坐下，一句话没说。",
+              "effects": {
+                "mood": -5
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "角落里有人开口：哎，是你。你们隔着半个房间，谁也没走过去，就这么待了一小时。",
+              "effects": {
+                "mood": 4,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "random_jump",
+          "text": "去一个没去过的新世界",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你按随机传送跳了五次，停在一张没人的雪山图。风景很好，你拍了{N}张照片，一张也没发。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "photo": 7
+                },
+                "counters": {
+                  "photosTaken": 3
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你在新世界遇到一个同样在乱逛的人。你们看了半小时极光，加了好友，然后各自走了。",
+              "effects": {
+                "mood": 6,
+                "friends": 1,
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 8,
+                  "initTrust": 8,
+                  "initFreshness": 85,
+                  "name": "auto"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "sleep",
+          "text": "关掉游戏去睡觉",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你摘下头显。显示器还亮着登录界面，你按了关机键。",
+              "effects": {
+                "mood": -4
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_002",
+      "title": "灰名单",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        500,
+        1000
+      ],
+      "weight": 45,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 40,
+      "tags": [
+        "孤独",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000,
+        "minFame": 20
+      },
+      "text": "你打开好友列表。{N} 个名字，亮着的两个：一个是挂机的自己，一个是不认识的新人。往下翻，灰色的头像连成一片，像谁把灯一盏一盏关了。",
+      "options": [
+        {
+          "id": "open_each",
+          "text": "把灰掉的人一个个点开",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "大多数人的最后登录停在几个月前。有一个主页写着卖号私聊，你不认识他，但还记得他的声音。",
+              "effects": {
+                "mood": -10
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "normal",
+              "text": "你在一堆灰头像里发现一个人昨天登录过。你没打招呼，只是记住了那个时间。",
+              "effects": {
+                "mood": 2,
+                "counters": {
+                  "silentWatch": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "clean_list",
+          "text": "清理一遍列表",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你删了十一个再也不会亮的名字。列表短了一截，看着清爽，也有点空。",
+              "effects": {
+                "mood": -6,
+                "friends": -8
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "删到一半你停手了。有个人两年没上线，但你们一起跨过年。",
+              "effects": {
+                "mood": -3,
+                "friends": -2,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "pin_message",
+          "text": "发一条置顶：在的都在",
+          "condition": {
+            "minFame": 25
+          },
+          "lockedHint": "需要声望 ≥ 25",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "陆续有七八个人回了个表情。有人问：你还活着啊。",
+              "effects": {
+                "mood": 5,
+                "friends": 1,
+                "fame": 1
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "只有一个人回了：在。你就着这两个字，把列表关掉了。",
+              "effects": {
+                "mood": 6
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_003",
+      "title": "老房间",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        500,
+        1000
+      ],
+      "weight": 40,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 35,
+      "tags": [
+        "回忆",
+        "孤独"
+      ],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000
+      },
+      "text": "你按记忆里的路径找到那间{跳舞房|私人世界}。门牌号还是那个，房主换成了陌生人。你站在门口听了一会儿，音乐还是那首，跳的人全不认识了。",
+      "options": [
+        {
+          "id": "dance_once",
+          "text": "进去跳一支",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你下场跳了{N}分钟。有人夸你跳得好，你说了谢谢，没说自己在这里跳了三年。",
+              "effects": {
+                "mood": 3,
+                "skills": {
+                  "dance": 11
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "有人认出了你的动作：这个改法，你是不是跟一个老朋友学过？你愣了一下。",
+              "effects": {
+                "mood": -5,
+                "fame": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "stand_and_leave",
+          "text": "在门口站一会儿就走",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你看了十分钟，转身去了另一个世界。门牌号你记住了。",
+              "effects": {
+                "mood": -6
+              }
+            }
+          ]
+        },
+        {
+          "id": "ask_owner",
+          "text": "找房主聊聊这房间的来历",
+          "condition": {
+            "minSkills": {
+              "social": 20
+            }
+          },
+          "lockedHint": "需要社交 ≥ 20",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "房主说这图是从别人手里接的，原来的房主早不玩了。你告诉他，这里以前是什么样子。",
+              "effects": {
+                "mood": 1,
+                "fame": 1,
+                "skills": {
+                  "social": 1
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "房主把你说的记了下来，写进世界简介：此房间前史由老玩家 {我} 提供。",
+              "effects": {
+                "mood": 7,
+                "fame": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_004",
+      "title": "挂机到天亮",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        500,
+        1000
+      ],
+      "weight": 50,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 20,
+      "tags": [
+        "日常",
+        "孤独"
+      ],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000,
+        "maxMood": 55
+      },
+      "text": "你挂在一个没什么人的{世界}里，开着镜子看自己的模型。屏幕上的自己眨了眨眼。三个小时过去了，你没跟任何人说话，也没退出。",
+      "options": [
+        {
+          "id": "keep_idle",
+          "text": "继续挂着",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你挂到凌晨，直到头显压得脸疼。摘下来的时候，窗外已经亮了。",
+              "effects": {
+                "mood": -8,
+                "tags": {
+                  "add": [
+                    "挂机党"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "有人悄悄坐到你旁边，一起挂了一小时，走的时候说了句晚安。你回了个晚安。",
+              "effects": {
+                "mood": 5,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "crowded_room",
+          "text": "换个热闹的房间",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你挤进一个满员的整活房，被吵得头疼，但确实不那么空了。",
+              "effects": {
+                "mood": 2,
+                "friends": 1
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "normal",
+              "text": "房间太吵，你待了五分钟就退了。人多的时候更孤独，这件事你早就知道。",
+              "effects": {
+                "mood": -9
+              }
+            }
+          ]
+        },
+        {
+          "id": "make_something",
+          "text": "给自己找点事做",
+          "condition": {
+            "minSkills": {
+              "modeling": 30
+            }
+          },
+          "lockedHint": "需要建模 ≥ 30",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你打开 Blender，把模型的袖子改短了两厘米。凌晨三点，你对这两厘米很满意。",
+              "effects": {
+                "mood": 4,
+                "skills": {
+                  "modeling": 7
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "改到一半你发现，这套模型是你三年前做的。你把它传上去，重新穿上了。",
+              "effects": {
+                "mood": 8,
+                "avatars": 1,
+                "skills": {
+                  "modeling": 4
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_005",
+      "title": "没人接的梗",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        500,
+        1000
+      ],
+      "weight": 45,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 30,
+      "tags": [
+        "社交",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000,
+        "minFame": 15
+      },
+      "text": "你在{中文吧}的麦上讲了个老梗——三年前这里人人都会接下一句。麦上安静了两秒，一个新人问：这是什么意思？你笑了笑说没什么。",
+      "options": [
+        {
+          "id": "explain",
+          "text": "解释一遍来龙去脉",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你从头讲了一遍，讲了五分钟。听完有人说：原来还有过这种时候啊。",
+              "effects": {
+                "mood": 4,
+                "skills": {
+                  "social": 2
+                },
+                "fame": 1
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "normal",
+              "text": "讲到一半你自己先笑了，然后发现细节已经记不清了。",
+              "effects": {
+                "mood": -5,
+                "counters": {
+                  "oldJokesTold": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "swallow_it",
+          "text": "把梗咽回去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说没事，老东西了，然后换了话题。没人追问。",
+              "effects": {
+                "mood": -6,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "make_meme",
+          "text": "把它做成表情包发群里",
+          "condition": {
+            "minSkills": {
+              "meme": 25
+            }
+          },
+          "lockedHint": "需要整活 ≥ 25",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "表情包在群里传了一圈，配文全被改得面目全非。梗活了下来，只是换了意思。",
+              "effects": {
+                "mood": 6,
+                "fame": 2,
+                "skills": {
+                  "meme": 11
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "有人做了个二创视频，标题写着“来自上个版本”。播放量涨得比你想的快。",
+              "effects": {
+                "mood": 5,
+                "fame": 5
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_025",
+                  "delayHours": [
+                    90,
+                    225
+                  ],
+                  "chance": 0.4,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_006",
+      "title": "你还在玩啊",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        500,
+        1000
+      ],
+      "weight": 40,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 60,
+      "tags": [
+        "现实",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000
+      },
+      "text": "现实里的朋友看到你桌上的头显，随口问：你还在玩{那个|这个}啊？语气里没有恶意，只是确认。你说还在，然后发现不知道该怎么往下说。",
+      "options": [
+        {
+          "id": "explain_seriously",
+          "text": "认真解释一遍",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你讲了十几分钟，讲到改模，讲到一个你从没见过面的人。对方听完说：听起来像另一个世界。",
+              "effects": {
+                "mood": 5,
+                "skills": {
+                  "social": 1
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "normal",
+              "text": "你讲了半天，对方点点头说挺好的。你知道他没听懂，但也没指望。",
+              "effects": {
+                "mood": -3
+              }
+            }
+          ]
+        },
+        {
+          "id": "brush_it_off",
+          "text": "含糊过去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说就偶尔上去看看。这不算撒谎，只是省略了八百个小时。",
+              "effects": {
+                "mood": -4
+              }
+            }
+          ]
+        },
+        {
+          "id": "invite_him",
+          "text": "邀他上来看看",
+          "condition": {
+            "minAssets": 5
+          },
+          "lockedHint": "需要资产 ≥ 5",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "他真的注册了。你带他逛了最熟的三个世界，像带人参观自己长大的街区。",
+              "effects": {
+                "mood": 8,
+                "friends": 1,
+                "avatars": 1,
+                "skills": {
+                  "social": 2
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他晕得厉害，二十分钟就下去了。但这二十分钟里他一直在说哇。",
+              "effects": {
+                "mood": 5,
+                "friends": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_007",
+      "title": "你是谁来着",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        560,
+        1000
+      ],
+      "weight": 40,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 60,
+      "tags": [
+        "社交",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 560,
+        "maxHours": 1000,
+        "minFame": 30
+      },
+      "text": "你在{中文吧}开麦，一个常在的新人问别人：这个是谁？有人小声回：不知道，好像很久以前就在了。你听着，没接话。",
+      "options": [
+        {
+          "id": "introduce",
+          "text": "自我介绍一次",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你说自己是谁、做过什么。有人哦了一声，有人搜到你的主页，说原来那个教程是你做的。",
+              "effects": {
+                "mood": 4,
+                "fame": 2
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "normal",
+              "text": "你介绍完，气氛安静了几秒，然后话题继续往下走了。像投进湖里的一颗石子。",
+              "effects": {
+                "mood": -8
+              }
+            }
+          ]
+        },
+        {
+          "id": "say_nothing",
+          "text": "什么都不说",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你继续坐在麦上，听他们聊你不认识的人。这一晚你只说了一句晚安。",
+              "effects": {
+                "mood": -9,
+                "tags": {
+                  "add": [
+                    "独行侠"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "be_the_archive",
+          "text": "当一次活历史，讲讲这里的旧事",
+          "condition": {
+            "minSkills": {
+              "social": 40
+            }
+          },
+          "lockedHint": "需要社交 ≥ 40",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你讲了中文吧换过的三个地址、办过的两次跨年。有人掏出记事本记了下来。",
+              "effects": {
+                "mood": 7,
+                "fame": 3,
+                "skills": {
+                  "social": 2
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "有人把你说的整理成了一篇帖子，标题是《中文吧野史》。你在里面被写了三段。",
+              "effects": {
+                "mood": 5,
+                "fame": 5
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_008",
+      "title": "装回来",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        500,
+        1000
+      ],
+      "weight": 45,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 45,
+      "tags": [
+        "退坑",
+        "日常"
+      ],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000,
+        "maxMood": 45
+      },
+      "text": "上周你把它卸了。今晚你打开商店页，看着那个“下载”按钮，站了{N}分钟。你告诉自己只是看看更新日志。",
+      "options": [
+        {
+          "id": "click_download",
+          "text": "点下去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "下载条走完的那一刻你居然有点紧张。登上去，一切都在原处，连挂机的姿势都没变。",
+              "effects": {
+                "mood": 5
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "重装之后第一晚就被人拉去玩到凌晨。你忘了自己上周才删过它。",
+              "effects": {
+                "mood": 8,
+                "friends": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "close_store",
+          "text": "关掉商店页",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你关掉页面，去做了别的事。那一晚你十一点就睡了。",
+              "effects": {
+                "mood": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "check_friends_first",
+          "text": "先看看有谁在线",
+          "condition": {
+            "minFriends": 5
+          },
+          "lockedHint": "需要好友 ≥ 5",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你翻了一遍，亮着两个。你关掉商店页，也没点下载。",
+              "effects": {
+                "mood": -5
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "有个很久没上的人今天在线。你犹豫了十分钟，还是没登。",
+              "effects": {
+                "mood": -8,
+                "counters": {
+                  "almostReturned": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_009",
+      "title": "卖头显",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        500,
+        1000
+      ],
+      "weight": 25,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "退坑",
+        "消费"
+      ],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000,
+        "maxMood": 35
+      },
+      "text": "你在{二手平台|闲置群}上填好了价格。头显用了三年，边角磨白，镜片有一道细痕。买家问：这个玩 VRChat 卡不卡？你回：不卡，够用。",
+      "options": [
+        {
+          "id": "ship_it",
+          "text": "发货",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 60,
+              "tier": "normal",
+              "text": "快递取走那天你把桌面清空了。晚上你盯着那块空出来的地方，看了很久。",
+              "effects": {
+                "mood": -18,
+                "assets": 800,
+                "tags": {
+                  "add": [
+                    "退坑边缘"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "quit_once",
+                    "sold_headset"
+                  ]
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_013",
+                  "delayHours": [
+                    90,
+                    202
+                  ],
+                  "chance": 0.4,
+                  "requireFlags": [],
+                  "excludeIfFlags": [
+                    "retired"
+                  ]
+                }
+              ]
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "买家是个刚入坑的学生。你多送了他一根线，附了张纸条：好好玩。",
+              "effects": {
+                "mood": -8,
+                "assets": 900,
+                "fame": 1,
+                "flags": {
+                  "add": [
+                    "quit_once",
+                    "sold_headset"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 15,
+              "tier": "extreme",
+              "text": "发货之后，你连续两周每天刷他的主页，看那个头显有没有戴在别人头上。",
+              "effects": {
+                "mood": -39,
+                "assets": 800,
+                "flags": {
+                  "add": [
+                    "quit_once",
+                    "sold_headset"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "delist",
+          "text": "下架，不卖了",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你点了下架。头显还在桌上，落了点灰，你拿布擦了擦。",
+              "effects": {
+                "mood": 4,
+                "flags": {
+                  "add": [
+                    "kept_headset"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "price_high",
+          "text": "挂个高价，卖不掉就留着",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "定价高了三百，没人问。你有点庆幸。",
+              "effects": {
+                "mood": 2
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "normal",
+              "text": "有人真拍了。你盯着订单页，最后主动取消了交易，赔了一笔差价。",
+              "effects": {
+                "mood": -6,
+                "assets": -50
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_010",
+      "title": "最后一条动态",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        520,
+        1000
+      ],
+      "weight": 30,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "退坑",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 520,
+        "maxHours": 1000,
+        "maxMood": 50
+      },
+      "text": "你打开个人主页，光标在输入框里闪。上一次发动态是{N}个月前，内容是“今晚中文吧见”。你想写点什么，又觉得写什么都像在讨人关心。",
+      "options": [
+        {
+          "id": "farewell",
+          "text": "写一条正式的告别",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 60,
+              "tier": "normal",
+              "text": "你写了三百字，删到八十字。发出去半小时，二十三个赞，六条“别走”。你一条也没回。",
+              "effects": {
+                "mood": -10,
+                "fame": 2,
+                "flags": {
+                  "add": [
+                    "farewell_posted",
+                    "quit_once"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "有人把这条动态转到了三个群。你一夜之间收到了很多陌生人的祝福。",
+              "effects": {
+                "mood": 2,
+                "fame": 5,
+                "friends": 3,
+                "flags": {
+                  "add": [
+                    "farewell_posted",
+                    "quit_once"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "你发完就注销了账号。三天后用新号偷偷登录，看见有人在你的旧主页下面留言：还回来吗。",
+              "effects": {
+                "mood": -39,
+                "fame": 3,
+                "tags": {
+                  "add": [
+                    "退坑边缘"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "farewell_posted",
+                    "quit_once"
+                  ]
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_013",
+                  "delayHours": [
+                    68,
+                    180
+                  ],
+                  "chance": 0.5,
+                  "requireFlags": [],
+                  "excludeIfFlags": [
+                    "retired"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "memoir",
+          "text": "不告别，写成回忆帖",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你写了三千字，从第一次登录写到今年跨年。有人看完说：原来你经历过这些。",
+              "effects": {
+                "mood": 6,
+                "fame": 4,
+                "skills": {
+                  "social": 1
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "normal",
+              "text": "写到一半你卡住了，发现自己记不清很多人的名字。你把草稿存了，没发。",
+              "effects": {
+                "mood": -4,
+                "counters": {
+                  "draftsSaved": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "post_nothing",
+          "text": "关掉页面，不发",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你关掉主页，去泡了碗面。有些告别不用说出口，只是慢慢不来了。",
+              "effects": {
+                "mood": -3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_011",
+      "title": "最后一次下线",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        520,
+        1000
+      ],
+      "weight": 30,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "社交",
+        "回忆",
+        "退坑"
+      ],
+      "condition": {
+        "minHours": 520,
+        "maxHours": 1000,
+        "hasRelation": true
+      },
+      "text": "你和{ta}并排坐在{世界}的悬崖边，头显里是假的星空。ta说下个月要去实习了，可能很久不上。你说嗯。你们谁也没提“最后一次”这四个字。",
+      "options": [
+        {
+          "id": "say_goodbye",
+          "text": "认真道别",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 60,
+              "tier": "normal",
+              "text": "你们把常去的地方走了一遍：中文吧、跳舞房、第一次见面的那张图。走到天亮，ta下线了。",
+              "effects": {
+                "mood": -16,
+                "fame": 1,
+                "relationOp": {
+                  "type": "end"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_013",
+                  "delayHours": [
+                    54,
+                    135
+                  ],
+                  "chance": 0.6,
+                  "requireFlags": [],
+                  "excludeIfFlags": [
+                    "retired"
+                  ]
+                }
+              ]
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你们交换了现实里的联系方式。ta说：哪天你也退了，记得告诉我。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "relationOp": {
+                  "type": "end"
+                }
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "ta下线前把模型送给了你，说帮我保管。那之后你再没见过那个头像亮起来。",
+              "effects": {
+                "mood": -29,
+                "avatars": 1,
+                "flags": {
+                  "add": [
+                    "kept_avatar"
+                  ]
+                },
+                "relationOp": {
+                  "type": "end"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_021",
+                  "delayHours": [
+                    90,
+                    225
+                  ],
+                  "chance": 0.5,
+                  "requireFlags": [],
+                  "excludeIfFlags": [
+                    "retired"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "pretend_normal",
+          "text": "装作只是普通的一天",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说了句明天见，虽然你们都知道没有明天。ta笑了笑，下线了。你一个人坐到天亮。",
+              "effects": {
+                "mood": -18,
+                "relationOp": {
+                  "type": "end"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ask_stay",
+          "text": "劝ta留下",
+          "condition": {
+            "minIntimacy": 50
+          },
+          "lockedHint": "需要亲密度 ≥ 50",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "ta说不是不想留，是现实不允许。你没再说什么。",
+              "effects": {
+                "mood": -12,
+                "relationOp": {
+                  "type": "end"
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "ta答应每周还上来一次。前两周他真的来了，第三周没有。",
+              "effects": {
+                "mood": -5,
+                "friends": 1,
+                "relationOp": {
+                  "type": "end"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_012",
+      "title": "他说他不玩了",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        520,
+        1000
+      ],
+      "weight": 35,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 120,
+      "tags": [
+        "孤独",
+        "回忆",
+        "退坑"
+      ],
+      "condition": {
+        "minHours": 520,
+        "maxHours": 1000,
+        "maxMood": 45
+      },
+      "text": "消息是凌晨{N}点发来的：我把头显卖了，账号也注销了，谢谢你陪我这两年。你想回点什么，打了几行又删了。他的头像已经变灰了。",
+      "options": [
+        {
+          "id": "write_back",
+          "text": "认真回一段话",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你写了很长一段，讲你们第一次见面。发出去显示对方已注销。你不知道他能不能看到。",
+              "effects": {
+                "mood": -16,
+                "friends": -1,
+                "relationOp": {
+                  "type": "end"
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他换了个小号加你，只说了句我就看看，别声张。你们聊了半小时。",
+              "effects": {
+                "mood": 5,
+                "friends": 1,
+                "relationOp": {
+                  "type": "end"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "reply_nothing",
+          "text": "什么都不回",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你退出对话框。那之后你再没提过他的名字。",
+              "effects": {
+                "mood": -10,
+                "friends": -1,
+                "relationOp": {
+                  "type": "end"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "last_night",
+          "text": "把这事发到群里",
+          "condition": {
+            "minSkills": {
+              "social": 25
+            }
+          },
+          "lockedHint": "需要社交 ≥ 25",
+          "outcomes": [
+            {
+              "weight": 60,
+              "tier": "normal",
+              "text": "你在自己的笔记本里建了一页，写“退役名单”，第一个名字是他。",
+              "effects": {
+                "mood": -5,
+                "counters": {
+                  "memorialNotes": 1
+                }
+              }
+            },
+            {
+              "weight": 40,
+              "tier": "extreme",
+              "text": "消息发出去，一晚上炸出七个同样准备退坑的人。你们临时组了个最后一晚，玩到天亮。",
+              "effects": {
+                "mood": 11,
+                "friends": 5,
+                "fame": 2,
+                "flags": {
+                  "add": [
+                    "last_night_done"
+                  ]
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_013",
+                  "delayHours": [
+                    68,
+                    158
+                  ],
+                  "chance": 0.5,
+                  "requireFlags": [],
+                  "excludeIfFlags": [
+                    "retired"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_013",
+      "title": "你回来了？",
+      "category": "chain",
+      "stage": "老油条",
+      "hoursRange": [
+        600,
+        1050
+      ],
+      "weight": 40,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "回归",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 600,
+        "maxHours": 1050,
+        "excludeFlags": [
+          "retired"
+        ]
+      },
+      "text": "你刚上线，群里跳出一条：这不是{我}吗。你愣了几秒才想起来，自己确实有段时间没出现了。房间里有人把麦打开了。",
+      "options": [
+        {
+          "id": "answer_yes",
+          "text": "回一句：是我",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "立刻有三个人冒出来。有人问你这些月去哪了，有人说你那个模型我还留着。你一条条回。",
+              "effects": {
+                "mood": 10,
+                "friends": 2,
+                "fame": 1,
+                "tags": {
+                  "add": [
+                    "回归者"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "说话的人你其实不太熟。但他在群里发了张两年前的合影，照片里有你。",
+              "effects": {
+                "mood": 7,
+                "flags": {
+                  "add": [
+                    "returned"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "lurk_first",
+          "text": "没回，先自己逛逛",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你绕了一圈，发现能认出你的人比想象中多。有人主动来打招呼。",
+              "effects": {
+                "mood": 3,
+                "friends": 1,
+                "flags": {
+                  "add": [
+                    "returned"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "dm_him",
+          "text": "私聊那个叫你的人",
+          "condition": {
+            "minSkills": {
+              "social": 20
+            }
+          },
+          "lockedHint": "需要社交 ≥ 20",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你们从十一点聊到三点。他说他也退过半年，后来又回来了，回来那天比走的时候还紧张。",
+              "effects": {
+                "mood": 8,
+                "friends": 1,
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 20,
+                  "initTrust": 15,
+                  "initFreshness": 80,
+                  "name": "auto"
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他给你发了个模型，说欢迎回来。你打开一看，是三年前流行的那一款。",
+              "effects": {
+                "mood": 12,
+                "avatars": 1,
+                "friends": 1,
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 25,
+                  "initTrust": 20,
+                  "initFreshness": 85,
+                  "name": "auto"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_014",
+      "title": "图没了",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        520,
+        1000
+      ],
+      "weight": 40,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 90,
+      "tags": [
+        "回忆",
+        "孤独"
+      ],
+      "condition": {
+        "minHours": 520,
+        "maxHours": 1000
+      },
+      "text": "你点开收藏夹里那个用了三年的{世界}，弹出提示：该世界已被作者删除。你刷新了三次，页面还是空的。你记得那里面有一张长椅。",
+      "options": [
+        {
+          "id": "find_backup",
+          "text": "去别处找同一个图",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你找到了别人备份的版本。进去之后，长椅在，树在，光线不太一样。",
+              "effects": {
+                "mood": 3
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你找到的是个改过的版本，加了新东西。你转了十分钟，像走进一间被翻修过的老房子。",
+              "effects": {
+                "mood": -4,
+                "counters": {
+                  "worldBackups": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "accept_loss",
+          "text": "接受它没了",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你把收藏夹里的条目删了。列表短了一个，你没再补上。",
+              "effects": {
+                "mood": -12,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "半年后你在一个陌生人的收藏夹里又见到它。你进去坐了十分钟，谁也没告诉。",
+              "effects": {
+                "mood": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "rebuild",
+          "text": "自己动手把它复刻出来",
+          "condition": {
+            "minSkills": {
+              "coding": 40
+            }
+          },
+          "lockedHint": "需要编程 ≥ 40",
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你花了三个周末重做了那张图和那张长椅。上传那天，你在里面坐了半小时。",
+              "effects": {
+                "mood": 11,
+                "fame": 3,
+                "skills": {
+                  "coding": 24
+                }
+              }
+            },
+            {
+              "weight": 35,
+              "tier": "extreme",
+              "text": "你复刻的版本被人转发了。原作者看到后私信你：谢谢你还记得它。",
+              "effects": {
+                "mood": 15,
+                "fame": 6,
+                "friends": 2,
+                "skills": {
+                  "coding": 16
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_025",
+                  "delayHours": [
+                    45,
+                    135
+                  ],
+                  "chance": 0.3,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_015",
+      "title": "作者删号了",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        520,
+        1000
+      ],
+      "weight": 35,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 60,
+      "tags": [
+        "回忆",
+        "消费"
+      ],
+      "condition": {
+        "minHours": 520,
+        "maxHours": 1000,
+        "minAvatars": 5
+      },
+      "text": "你常穿的那套模型，作者把{主页|商店页}清空了。商店链接变成 404，说明文档没了，连更新记录都一起消失。你身上的衣服，突然成了孤本。",
+      "options": [
+        {
+          "id": "maintain_it",
+          "text": "备份下来，自己做维护",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你把工程文件整理好，顺手修了几个早就想修的穿模。以后它只属于你了。",
+              "effects": {
+                "mood": 4,
+                "skills": {
+                  "modeling": 8
+                },
+                "flags": {
+                  "add": [
+                    "orphan_avatar"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你在群里问了一句，发现还有四个人也在用这套模型。你们建了个小群，一起维护。",
+              "effects": {
+                "mood": 7,
+                "friends": 3,
+                "skills": {
+                  "modeling": 7
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "switch_new",
+          "text": "换一套新的",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你换上了别人推荐的模型。镜子里的自己有点陌生，但穿久了也就习惯了。",
+              "effects": {
+                "mood": -5,
+                "avatars": 1,
+                "assets": -200
+              }
+            }
+          ]
+        },
+        {
+          "id": "trace_author",
+          "text": "去找作者留下的痕迹",
+          "condition": {
+            "minFame": 20
+          },
+          "lockedHint": "需要声望 ≥ 20",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你翻到了他两年前发的教程帖，评论区最后一条是他自己的：先不做了，去上班了。",
+              "effects": {
+                "mood": -9,
+                "fame": 1
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "有人告诉你，他在别的平台还在做模型，只是不在 VRChat 了。你去看了，风格还是那个风格。",
+              "effects": {
+                "mood": 4,
+                "skills": {
+                  "modeling": 4
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_016",
+      "title": "换了吧主",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        560,
+        1000
+      ],
+      "weight": 35,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "社交",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 560,
+        "maxHours": 1000
+      },
+      "text": "公告挂了一周：{中文吧}交给新的人管了。老吧主留了句话——年纪到了，该让位了。新规矩改了三条，其中一条你不太同意。",
+      "options": [
+        {
+          "id": "raise_opinion",
+          "text": "在群里提意见",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你说了自己的看法，新吧主认真回了一条。有几个人附和，也有几个人说没必要较真。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "social": 2
+                },
+                "fame": 1
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "争论了两天，最后折中改了一条。你成了新吧主眼里的老前辈。",
+              "effects": {
+                "mood": -4,
+                "fame": 2,
+                "tags": {
+                  "add": [
+                    "社区名人"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "stop_caring",
+          "text": "不管了，反正我很少去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你关掉公告。后来你确实去得更少了。",
+              "effects": {
+                "mood": -6,
+                "circles": {
+                  "remove": [
+                    "中文吧"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "talk_old_owner",
+          "text": "私下找老吧主聊一次",
+          "condition": {
+            "minFame": 30
+          },
+          "lockedHint": "需要声望 ≥ 30",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "他说管了四年，累了，也想留点时间给自己。你问他后不后悔，他说不后悔，就是有点舍不得。",
+              "effects": {
+                "mood": 4,
+                "fame": 1
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他把一份旧的管理笔记发给了你，说你留着吧，万一哪天用得上。",
+              "effects": {
+                "mood": 6,
+                "flags": {
+                  "add": [
+                    "old_notes"
+                  ]
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_019",
+                  "delayHours": [
+                    90,
+                    180
+                  ],
+                  "chance": 0.4,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_017",
+      "title": "他们都去生活了",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        560,
+        1000
+      ],
+      "weight": 35,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 100,
+      "tags": [
+        "现实",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 560,
+        "maxHours": 1000
+      },
+      "text": "群里今天很热闹：有人发了结婚照，有人晒了工牌，有人说了句我当爸了。你一条条点赞。发照片的人，你记得他三年前在{中文吧}通宵跳舞的样子。",
+      "options": [
+        {
+          "id": "congratulate",
+          "text": "挨个恭喜",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你认真给每个人写了祝福。有人回你：你也抓紧啊。你回了个笑脸。",
+              "effects": {
+                "mood": 3,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "有人私聊你：谢谢你当年带我。你翻了半天才想起他是谁。",
+              "effects": {
+                "mood": 7,
+                "fame": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "say_nothing_life",
+          "text": "什么也不说",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把群消息翻到最后一条，然后退出了。热闹是他们的。",
+              "effects": {
+                "mood": -9,
+                "friends": -1,
+                "relationOp": {
+                  "type": "end"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "reunion",
+          "text": "主动约一次线上重聚",
+          "condition": {
+            "minFriends": 10
+          },
+          "lockedHint": "需要好友 ≥ 10",
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "来了六个人，其中两个是借了别人的设备上来的。你们拍了一张新的合影。",
+              "effects": {
+                "mood": 12,
+                "friends": 2,
+                "fame": 2,
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            },
+            {
+              "weight": 35,
+              "tier": "extreme",
+              "text": "一个已经卖掉设备的人，专门去网吧装了 VRChat 来赴约。他说：就这一晚。",
+              "effects": {
+                "mood": 13,
+                "friends": 3,
+                "fame": 3,
+                "counters": {
+                  "photosTaken": 1
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_019",
+                  "delayHours": [
+                    45,
+                    135
+                  ],
+                  "chance": 0.3,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_018",
+      "title": "交出去",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        600,
+        1000
+      ],
+      "weight": 30,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "成长",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 600,
+        "maxHours": 1000,
+        "minFame": 40
+      },
+      "text": "你手上有三样东西：一套改了{N}年的模型、一个自己写的小工具、一份没写完的新人指南。你发现自己已经很少用它们了。",
+      "options": [
+        {
+          "id": "pass_to_one",
+          "text": "找一个人整套传下去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你在群里说了句有谁想要，私聊立刻爆了。你挑了一个看起来会认真用的人。",
+              "effects": {
+                "mood": 7,
+                "avatars": -2,
+                "fame": 3,
+                "flags": {
+                  "add": [
+                    "torch_passed"
+                  ]
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 15,
+                  "initTrust": 25,
+                  "initFreshness": 75,
+                  "name": "auto"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_019",
+                  "delayHours": [
+                    27,
+                    90
+                  ],
+                  "chance": 0.7,
+                  "requireFlags": [
+                    "torch_passed"
+                  ],
+                  "excludeIfFlags": []
+                }
+              ]
+            },
+            {
+              "weight": 35,
+              "tier": "rare",
+              "text": "接手的人两周后就做出了自己的第一版改模。他发给你看，你说比我当年强。",
+              "effects": {
+                "mood": 10,
+                "fame": 4,
+                "skills": {
+                  "modeling": 2
+                },
+                "flags": {
+                  "add": [
+                    "torch_passed"
+                  ]
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_019",
+                  "delayHours": [
+                    18,
+                    68
+                  ],
+                  "chance": 0.6,
+                  "requireFlags": [
+                    "torch_passed"
+                  ],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "publish_all",
+          "text": "整理成公开文档，谁都能拿",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你把工具和指南传到了公共库。有人在下面留言：这条注释帮了我大忙。",
+              "effects": {
+                "mood": 6,
+                "fame": 5,
+                "skills": {
+                  "coding": 10
+                },
+                "flags": {
+                  "add": [
+                    "torch_passed"
+                  ]
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_025",
+                  "delayHours": [
+                    54,
+                    180
+                  ],
+                  "chance": 0.5,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            },
+            {
+              "weight": 30,
+              "tier": "normal",
+              "text": "上传之后没人下载。三个月后你收到一条私信：终于看懂了。",
+              "effects": {
+                "mood": 4,
+                "fame": 1,
+                "flags": {
+                  "add": [
+                    "torch_passed"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "hold_longer",
+          "text": "留着，再放放",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把它们塞回文件夹。也许明年，也许不会。",
+              "effects": {
+                "mood": -5
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_019",
+      "title": "以后就靠你们了",
+      "category": "chain",
+      "stage": "老油条",
+      "hoursRange": [
+        620,
+        1050
+      ],
+      "weight": 40,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "成长",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 620,
+        "maxHours": 1050,
+        "requireFlags": [
+          "torch_passed"
+        ]
+      },
+      "text": "接手你东西的人，今天在{世界}里独立做出了第一个成品。他在群里 @ 了你。后面跟着一串新人，都在问同一个问题。",
+      "options": [
+        {
+          "id": "answer_all",
+          "text": "认真答完所有问题",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你答到凌晨。有人问你怎么知道这么多，你说因为我在这里待了九百个小时。",
+              "effects": {
+                "mood": 8,
+                "fame": 4,
+                "friends": 3,
+                "skills": {
+                  "social": 4
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "有个新人把你说的全部记了下来，做成文档发回群里，标题写着“来自前辈”。",
+              "effects": {
+                "mood": 11,
+                "fame": 5,
+                "friends": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "let_them_try",
+          "text": "让位，让他们自己折腾",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说你们自己试，错了再问我。群里安静了两分钟，然后开始刷屏。",
+              "effects": {
+                "mood": 5,
+                "fame": 2,
+                "tags": {
+                  "add": [
+                    "佛系"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "time_to_go",
+          "text": "你意识到自己可以走了",
+          "condition": {
+            "maxMood": 40
+          },
+          "lockedHint": "需要心态 ≤ 40",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "交接完成的那一刻你松了一口气，接着是空。你在群里打了句以后就靠你们了，然后下线。",
+              "effects": {
+                "mood": -8,
+                "fame": 3,
+                "tags": {
+                  "add": [
+                    "退坑边缘"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "quit_once"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "extreme",
+              "text": "你退掉了所有群，只留了一个。第二天你发现自己一整天都没想起这件事。",
+              "effects": {
+                "mood": -21,
+                "fame": 4,
+                "flags": {
+                  "add": [
+                    "quit_once",
+                    "retired"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_020",
+      "title": "周三晚上八点",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        560,
+        1000
+      ],
+      "weight": 45,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 30,
+      "tags": [
+        "日常",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 560,
+        "maxHours": 1000
+      },
+      "text": "你现在只在周三晚上八点上线，去同一个{私人世界|跳舞房}，见同样四个人。没人组织，也没人迟到。今晚有人带了一壶茶进来。",
+      "options": [
+        {
+          "id": "keep_this",
+          "text": "就保持这样",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你们聊了一个多小时，中间有二十分钟谁都没说话，只是各自挂着自己的事。",
+              "effects": {
+                "mood": 7,
+                "fame": -1,
+                "tags": {
+                  "add": [
+                    "佛系"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "有人说了句要是能一直这样就好了。没人接话，但都听见了。",
+              "effects": {
+                "mood": 9,
+                "tags": {
+                  "add": [
+                    "佛系"
+                  ]
+                },
+                "relationOp": {
+                  "type": "renew"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "propose_change",
+          "text": "提议做点不一样的",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你提出换个地图。大家同意了，去了一个谁都没去过的地方，结果迷路了一小时。",
+              "effects": {
+                "mood": 6,
+                "friends": 1
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "normal",
+              "text": "没人响应。就这儿吧，挺好的。你也就没再提。",
+              "effects": {
+                "mood": -5
+              }
+            }
+          ]
+        },
+        {
+          "id": "bring_newbie",
+          "text": "开始往这个房间带新人",
+          "condition": {
+            "minFame": 35
+          },
+          "lockedHint": "需要声望 ≥ 35",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你带了个新人过来。四个老朋友围着他问东问西，房间久违地吵了起来。",
+              "effects": {
+                "mood": 8,
+                "friends": 2,
+                "fame": 2,
+                "skills": {
+                  "social": 2
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "新人第二周自己来了，还带了个人。房间变成六个人。",
+              "effects": {
+                "mood": 11,
+                "friends": 3,
+                "fame": 3,
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 12,
+                  "initTrust": 15,
+                  "initFreshness": 85,
+                  "name": "auto"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_021",
+      "title": "最后一句话",
+      "category": "chain",
+      "stage": "老油条",
+      "hoursRange": [
+        620,
+        1600
+      ],
+      "weight": 40,
+      "rarity": "rare",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "回忆",
+        "孤独",
+        "退坑"
+      ],
+      "condition": {
+        "minHours": 620,
+        "maxHours": 1600
+      },
+      "text": "半夜{N}点，你收到一条消息，来自那个已经很久没亮过的头像。只有一句：我刚把账号申诉回来了，就上来看看。",
+      "options": [
+        {
+          "id": "meet_now",
+          "text": "立刻上线见他",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 60,
+              "tier": "normal",
+              "text": "他在你们第一次见面的{世界}里，模型还是三年前那套。他说：我明天就把账号再注销了。",
+              "effects": {
+                "mood": -20,
+                "fame": 1,
+                "relationOp": {
+                  "type": "end"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_013",
+                  "delayHours": [
+                    90,
+                    225
+                  ],
+                  "chance": 0.4,
+                  "requireFlags": [],
+                  "excludeIfFlags": [
+                    "retired"
+                  ]
+                }
+              ]
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你们聊了四个小时。他说他其实一直在看群，只是不敢说话。",
+              "effects": {
+                "mood": 5,
+                "friends": 1,
+                "relationOp": {
+                  "type": "end"
+                }
+              }
+            },
+            {
+              "weight": 15,
+              "tier": "extreme",
+              "text": "他把账号留给了你，说你替我登着吧，别让它死。你成了两个账号的主人。",
+              "effects": {
+                "mood": -32,
+                "friends": 1,
+                "flags": {
+                  "add": [
+                    "inherited_account"
+                  ]
+                },
+                "relationOp": {
+                  "type": "end"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "short_reply",
+          "text": "回一句：好久不见",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "他回了个笑脸，然后头像又灰了。这次你没有太难过。",
+              "effects": {
+                "mood": -8,
+                "relationOp": {
+                  "type": "end"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ask_regret",
+          "text": "问他后不后悔",
+          "condition": {
+            "minTrust": 60
+          },
+          "lockedHint": "需要信任 ≥ 60",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "他说不后悔，就是有时候会梦见这里。你说我也是。",
+              "effects": {
+                "mood": -5,
+                "fame": 1,
+                "relationOp": {
+                  "type": "end"
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他隔了很久才回：后悔的是没多拍点照片。",
+              "effects": {
+                "mood": -13,
+                "counters": {
+                  "regretTalks": 1
+                },
+                "relationOp": {
+                  "type": "end"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_022",
+      "title": "这次的相处方式",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        600,
+        1000
+      ],
+      "weight": 35,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "社交",
+        "成长"
+      ],
+      "condition": {
+        "minHours": 600,
+        "maxHours": 1000,
+        "minBreakupCount": 1
+      },
+      "text": "你和{ta}认识三个月了。今晚ta问：我们要不要。话没说完。你发现自己不再像上一次那样，急着回答。",
+      "options": [
+        {
+          "id": "say_yes_with_terms",
+          "text": "答应，但先把话说清楚",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你说了自己的作息、自己的边界、自己不想再重复的部分。ta听完说好。你们比上次平静得多。",
+              "effects": {
+                "mood": 10,
+                "fame": 1,
+                "sugarCount": 1,
+                "tags": {
+                  "add": [
+                    "砂糖中"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "砂糖"
+                }
+              }
+            },
+            {
+              "weight": 35,
+              "tier": "rare",
+              "text": "你们约好不叫那个词，只按舒服的方式相处。半年后你发现，这样反而更久。",
+              "effects": {
+                "mood": 11,
+                "sugarCount": 1,
+                "tags": {
+                  "add": [
+                    "砂糖中"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "calm_sugar"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "砂糖"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "stay_friends",
+          "text": "拒绝，做朋友就好",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "ta愣了一下，说也行。后来你们确实一直是朋友，而且是很少见的那种长。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 2
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "朋友"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "wait",
+          "text": "先保持现状",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说再想想。ta说好。你们继续一起挂机、一起逛图，谁也没再提这件事。",
+              "effects": {
+                "mood": 2,
+                "relationOp": {
+                  "type": "setState",
+                  "state": "常一起玩"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_023",
+      "title": "现实里用上了",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        600,
+        1000
+      ],
+      "weight": 30,
+      "rarity": "rare",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "现实",
+        "技能"
+      ],
+      "condition": {
+        "minHours": 600,
+        "maxHours": 1000,
+        "minSkills": {
+          "modeling": 35
+        }
+      },
+      "text": "面试的时候，对方翻到你作品集最后一页，停住了：这个是你做的？那是{N}年前你在 VRChat 里改的一套模型，你顺手放进去了。",
+      "options": [
+        {
+          "id": "tell_truth",
+          "text": "如实说是游戏里的",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "对方笑了笑：能自学到这个程度，说明不少事。你拿到了这份工作。",
+              "effects": {
+                "mood": 12,
+                "assets": 2000,
+                "skills": {
+                  "modeling": 7
+                },
+                "flags": {
+                  "add": [
+                    "real_world_skill"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 35,
+              "tier": "normal",
+              "text": "对方哦了一声，翻过去了。但你自己知道那套模型是什么水平。",
+              "effects": {
+                "mood": 4,
+                "flags": {
+                  "add": [
+                    "real_world_skill"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "as_project",
+          "text": "把它当成一个项目来讲",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你讲了拓扑、讲了贴图压缩、讲了怎么在 Quest 上省面数。对方听了十分钟。",
+              "effects": {
+                "mood": 8,
+                "assets": 1500,
+                "fame": 2,
+                "skills": {
+                  "modeling": 4
+                },
+                "flags": {
+                  "add": [
+                    "real_world_skill"
+                  ]
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_025",
+                  "delayHours": [
+                    45,
+                    135
+                  ],
+                  "chance": 0.5,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "讲完之后对方说：我们正好缺一个做实时渲染的。",
+              "effects": {
+                "mood": 13,
+                "assets": 2500,
+                "flags": {
+                  "add": [
+                    "real_world_skill"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "hide_it",
+          "text": "不提 VRChat",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说这是自己练手的项目。这句话不算假，但你有点想说真的。",
+              "effects": {
+                "mood": -4
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_024",
+      "title": "有人记得",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [
+        600,
+        1000
+      ],
+      "weight": 35,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 200,
+      "tags": [
+        "正面",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 600,
+        "maxHours": 1000,
+        "minFame": 25
+      },
+      "text": "你上线的时候，房间里的人突然一起说了句生日快乐。你愣了两秒才想起来今天是几号。有人在{世界}里摆了一排小灯。",
+      "options": [
+        {
+          "id": "enjoy_it",
+          "text": "认真过完这个生日",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "他们做了个蛋糕模型，蜡烛吹不灭，试了七次。你笑到脸疼。",
+              "effects": {
+                "mood": 12,
+                "friends": 3,
+                "fame": 2
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "有人把过去几年今天拍的照片全翻了出来，做成幻灯片。第一张里，有三个人已经不在这个圈子了。",
+              "effects": {
+                "mood": 7,
+                "fame": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "say_thanks_leave",
+          "text": "说句谢谢就下线",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说最近有点忙，坐了一会儿就走了。走到门口你回头看了一眼那排灯。",
+              "effects": {
+                "mood": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "pass_it_on",
+          "text": "把这份心意传下去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你记下了在场所有人的生日，建了个提醒。第二年，你给他们挨个摆了灯。",
+              "effects": {
+                "mood": 8,
+                "friends": 2,
+                "skills": {
+                  "social": 2
+                },
+                "counters": {
+                  "birthdaysKept": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "veteran_025",
+      "title": "看你的教程入坑的",
+      "category": "chain",
+      "stage": "老油条",
+      "hoursRange": [
+        620,
+        1050
+      ],
+      "weight": 40,
+      "rarity": "rare",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "回忆",
+        "成长"
+      ],
+      "condition": {
+        "minHours": 620,
+        "maxHours": 1050
+      },
+      "text": "一个陌生人在{N}天前给你发了很长一段话：我是看你的教程入坑的。现在我自己也做模型了，第一个作品想给你看看。附件是一套改得很干净的模型，署名不是你。",
+      "options": [
+        {
+          "id": "review_carefully",
+          "text": "认真看完，给意见",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你指出了七处可以改的地方，又夸了三处。他第二天就发了修改版。",
+              "effects": {
+                "mood": 12,
+                "fame": 5,
+                "friends": 1,
+                "skills": {
+                  "modeling": 4
+                }
+              }
+            },
+            {
+              "weight": 35,
+              "tier": "extreme",
+              "text": "你看完发现，他这套模型里有你三年前的思路，又被他自己推翻重做了。你在他的作品里看到了你的下一年。",
+              "effects": {
+                "mood": 15,
+                "fame": 8,
+                "friends": 2,
+                "skills": {
+                  "modeling": 7
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "polite_reply",
+          "text": "客气地回一句",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你回了句做得不错，继续加油。他回了三个感叹号。",
+              "effects": {
+                "mood": 5,
+                "fame": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "give_sources",
+          "text": "把自己的旧文件一起给他",
+          "condition": {
+            "minSkills": {
+              "modeling": 50
+            }
+          },
+          "lockedHint": "需要建模 ≥ 50",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你把源文件、贴图、还有一堆失败版本全部打包发过去。他问这些都可以给吗，你说可以。",
+              "effects": {
+                "mood": 10,
+                "fame": 4,
+                "avatars": -2,
+                "assets": -100,
+                "flags": {
+                  "add": [
+                    "torch_passed"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "normal",
+              "text": "他不敢收。你说你就当是我给自己找个理由，把手清空。",
+              "effects": {
+                "mood": -8,
+                "fame": 3,
+                "flags": {
+                  "add": [
+                    "purged_avatars"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

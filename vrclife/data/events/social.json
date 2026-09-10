@@ -1,0 +1,5008 @@
+{
+  "bucket": "social",
+  "version": "1.0",
+  "events": [
+    {
+      "id": "social_k01",
+      "title": "常客的座位",
+      "category": "key",
+      "stage": "社交起步",
+      "hoursRange": [
+        50,
+        80
+      ],
+      "weight": 100,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "关键",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 80,
+        "minFriends": 3
+      },
+      "text": "连续{N}天，你上线第一件事就是传送去{中文吧|跳舞房|私人世界}。今天你刚进门，有人抬头说了句：来了啊。",
+      "options": [
+        {
+          "id": "settle",
+          "text": "把这里当成据点",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你开始记住每个人的名字和作息。有人进房间会先跟你打招呼，你成了这里默认的一部分。",
+              "effects": {
+                "mood": 6,
+                "friends": 2,
+                "fame": 2,
+                "skills": {
+                  "social": 4
+                },
+                "circles": {
+                  "add": [
+                    "中文吧"
+                  ],
+                  "remove": []
+                },
+                "tags": {
+                  "add": [
+                    "话痨"
+                  ],
+                  "remove": [
+                    "小透明"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "circle_regular"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你被推成了房间的“值班管理员”。每天有人问你今天开不开房，你第一次感到自己被需要。",
+              "effects": {
+                "mood": 7,
+                "friends": 4,
+                "fame": 5,
+                "skills": {
+                  "social": 4
+                },
+                "circles": {
+                  "add": [
+                    "中文吧"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "circle_regular"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "这个圈子在{世界}办了场小型活动，你被安排在最前面的位置。散场后有人问你，下次还来吗。",
+              "effects": {
+                "mood": 8,
+                "friends": 3,
+                "fame": 6,
+                "skills": {
+                  "social": 5
+                },
+                "circles": {
+                  "add": [
+                    "中文吧"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "circle_regular"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "deep_001",
+                  "delayHours": [
+                    10,
+                    32
+                  ],
+                  "chance": 0.7,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ],
+              "endingHint": {
+                "path": "community",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "oneday",
+          "text": "只当其中一站，不绑死",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你继续到处乱逛，但这个房间始终留在收藏夹第一格。随时能回，也随时能走。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 2
+                },
+                "flags": {
+                  "add": [
+                    "circle_regular"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "正因为你不常来，每次出现都有人问“最近去哪了”。你发现浅关系也有浅关系的好处。",
+              "effects": {
+                "mood": 5,
+                "friends": 2,
+                "fame": 3,
+                "skills": {
+                  "social": 4
+                },
+                "tags": {
+                  "add": [
+                    "佛系"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "other",
+          "text": "问问还有没有别的圈子",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你顺着别人的名片摸进了几个新群。{游戏圈|整活圈}的节奏更快，你一晚上笑了很多次。",
+              "effects": {
+                "mood": 5,
+                "friends": 2,
+                "skills": {
+                  "social": 2
+                },
+                "circles": {
+                  "add": [
+                    "游戏圈"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_k02",
+      "title": "技能过了 30",
+      "category": "key",
+      "stage": "社交起步",
+      "hoursRange": [
+        60,
+        130
+      ],
+      "weight": 100,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "关键",
+        "技能"
+      ],
+      "condition": {
+        "minHours": 60,
+        "maxHours": 130
+      },
+      "text": "你打开技能面板，{技能}那一栏的数字第一次跳过了 30。你盯着它看了很久，比升级还开心。",
+      "options": [
+        {
+          "id": "show",
+          "text": "截图发到群里",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "一群人回你“大佬”，也有人问能不能教教他。你一边谦虚一边把截图设成了头像。",
+              "effects": {
+                "mood": 6,
+                "friends": 2,
+                "fame": 3,
+                "skills": {
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "skill_proficient"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "有人私聊你，说想请你帮个小忙，并主动开出了报酬。你第一次意识到这算一门手艺。",
+              "effects": {
+                "mood": 7,
+                "friends": 3,
+                "fame": 4,
+                "assets": 200,
+                "flags": {
+                  "add": [
+                    "skill_proficient"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "silent",
+          "text": "默默继续练",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你关掉面板，又练了两个小时。没有人知道，但你自己知道那个数字不是白来的。",
+              "effects": {
+                "mood": 5,
+                "skills": {
+                  "social": 2
+                },
+                "tags": {
+                  "add": [
+                    "技术宅"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "skill_proficient"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "沉默练到半夜，你顺手摸清了几个别人不愿意讲的细节。这种积累以后会替你说话。",
+              "effects": {
+                "mood": 6,
+                "skills": {
+                  "coding": 16
+                },
+                "flags": {
+                  "add": [
+                    "skill_proficient"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "gocommercial",
+          "text": "把这股劲用在改模上，试着接单",
+          "condition": {
+            "minSkills": {
+              "modeling": 30
+            }
+          },
+          "lockedHint": "需要 建模 ≥ 30",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你接下了第一单，报价低得离谱，但对方收到成品后连发了三条语音道谢。",
+              "effects": {
+                "mood": 7,
+                "friends": 2,
+                "fame": 4,
+                "assets": 300,
+                "skills": {
+                  "modeling": 10
+                },
+                "flags": {
+                  "add": [
+                    "commissioned"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "单子排到了下个月。你开始记账、定工期，也第一次因为赶工熬到天亮。",
+              "effects": {
+                "mood": 6,
+                "friends": 3,
+                "fame": 6,
+                "assets": 500,
+                "skills": {
+                  "modeling": 13
+                },
+                "tags": {
+                  "add": [
+                    "夜猫子"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "commissioned"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "你的作品被一个大圈子转了出去，一夜之间加你的陌生人比过去半年还多。",
+              "effects": {
+                "mood": 8,
+                "friends": 5,
+                "fame": 6,
+                "skills": {
+                  "modeling": 13
+                },
+                "flags": {
+                  "add": [
+                    "commissioned",
+                    "model_known"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "deep_002",
+                  "delayHours": [
+                    14,
+                    40
+                  ],
+                  "chance": 0.6,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_k03",
+      "title": "有人先找你",
+      "category": "key",
+      "stage": "社交起步",
+      "hoursRange": [
+        55,
+        100
+      ],
+      "weight": 100,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "关键",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 55,
+        "maxHours": 100,
+        "minFriends": 2
+      },
+      "text": "你刚上线，好友列表弹出一条消息。是{N}天前只聊过几句的人：在吗？今天{世界}缺一个人，你来不来。",
+      "options": [
+        {
+          "id": "join",
+          "text": "立刻传送过去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你到的时候他们已经在等了。有人顺手把传送门留给了你，那个动作让你记了很久。",
+              "effects": {
+                "mood": 7,
+                "friends": 3,
+                "skills": {
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "remembered_by_someone"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 15,
+                  "initTrust": 15,
+                  "initFreshness": 90,
+                  "initDependence": 0,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你成了这个小队的固定候补。之后每个周末，都有人提前问你有没有空。",
+              "effects": {
+                "mood": 8,
+                "friends": 4,
+                "fame": 3,
+                "skills": {
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "remembered_by_someone"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "朋友",
+                  "initIntimacy": 22,
+                  "initTrust": 20,
+                  "initFreshness": 90,
+                  "initDependence": 0,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "那一晚之后，你们交换了现实里的作息习惯。你开始把上线时间往他们的时段挪。",
+              "effects": {
+                "mood": 9,
+                "friends": 5,
+                "fame": 4,
+                "skills": {
+                  "social": 5
+                },
+                "flags": {
+                  "add": [
+                    "remembered_by_someone"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_a_001",
+                  "delayHours": [
+                    11,
+                    36
+                  ],
+                  "chance": 0.6,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "askfirst",
+          "text": "先问清楚是什么局",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你问了人数、世界、大概几点散。对方一一答了，还说“你考虑得真细”。你到得比谁都准时。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "remembered_by_someone"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "decline",
+          "text": "今天不想社交，礼貌拒绝",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你说了抱歉，自己一个人去{世界}逛了两个小时。安静，但也没有更好过。",
+              "effects": {
+                "mood": -6,
+                "friends": 1,
+                "skills": {
+                  "social": 2
+                },
+                "tags": {
+                  "add": [
+                    "独行侠"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "对方回了个“好，下次约”。你松了口气，也第一次确认拒绝不会让人消失。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 4
+                },
+                "tags": {
+                  "add": [
+                    "独行侠"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_k04",
+      "title": "社交过载",
+      "category": "key",
+      "stage": "社交起步",
+      "hoursRange": [
+        80,
+        150
+      ],
+      "weight": 100,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "关键",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 80,
+        "maxHours": 150,
+        "minFriends": 5
+      },
+      "text": "三个群的未读都是 99+，四条私聊停在“在吗”。你站在{世界}的传送点，突然不知道该先回谁。",
+      "options": [
+        {
+          "id": "all",
+          "text": "一个个回，谁都不落下",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你回到凌晨三点，最后一条消息发出去时手指发酸。所有人都被照顾到了，除了你自己。",
+              "effects": {
+                "mood": -10,
+                "friends": 4,
+                "fame": 2,
+                "skills": {
+                  "social": 5
+                },
+                "tags": {
+                  "add": [
+                    "老好人",
+                    "疲惫"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "social_overload"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "有人察觉你回得太快，说了句“你别硬撑”。这句话让你差点没绷住。",
+              "effects": {
+                "mood": 3,
+                "friends": 5,
+                "skills": {
+                  "social": 5
+                },
+                "tags": {
+                  "add": [
+                    "老好人"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "social_overload"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "important",
+          "text": "只回最重要的那一个",
+          "condition": {
+            "hasRelation": true
+          },
+          "lockedHint": "需要有活跃关系",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你把其他窗口都关了，只留一个人的聊天框。那晚的对话很短，但每一句你都记得。",
+              "effects": {
+                "mood": 6,
+                "friends": 2,
+                "skills": {
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "social_overload"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "常一起玩"
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "被忽略的人后来没再找过你。你有点难过，但也清楚自己只能同时握住这么多。",
+              "effects": {
+                "mood": -6,
+                "friends": 1,
+                "skills": {
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "social_overload"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "readall",
+          "text": "全部已读不回，自己逛",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你一个人去了{世界}的尽头坐着。两个小时里没人打扰你，你也没有主动开口。",
+              "effects": {
+                "mood": 5,
+                "skills": {
+                  "social": 2
+                },
+                "tags": {
+                  "add": [
+                    "独行侠"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "social_overload"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "extreme",
+              "text": "第二天，你发现有三个群已经不再@你了。你反而觉得轻松，顺手退掉了两个。",
+              "effects": {
+                "mood": 7,
+                "friends": 1,
+                "skills": {
+                  "social": 4
+                },
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ],
+                  "remove": [
+                    "老好人"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "social_overload"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "deep_002",
+                  "delayHours": [
+                    18,
+                    54
+                  ],
+                  "chance": 0.6,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ],
+              "endingHint": {
+                "path": "solo",
+                "score": 2
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_001",
+      "title": "中文吧的常客",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        50,
+        140
+      ],
+      "weight": 40,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 60,
+      "tags": [
+        "社交",
+        "日常"
+      ],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 140
+      },
+      "text": "你已经能闭着眼走到{中文吧}二楼。今天刚进门，就有人招手：这边，给你留了位置。",
+      "options": [
+        {
+          "id": "sit",
+          "text": "坐过去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你插进他们的老话题，居然接上了梗。有人笑说“你总算不是新人了”。",
+              "effects": {
+                "mood": 5,
+                "friends": 2,
+                "skills": {
+                  "social": 4
+                },
+                "circles": {
+                  "add": [
+                    "中文吧"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "座位旁边的人加了你好友，说以后开房会叫你。你的好友列表第一次出现“常驻”这一栏。",
+              "effects": {
+                "mood": 7,
+                "friends": 3,
+                "fame": 3,
+                "skills": {
+                  "social": 4
+                },
+                "circles": {
+                  "add": [
+                    "中文吧"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "rail",
+          "text": "站在栏杆边看",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你靠着栏杆看楼下的人跳舞、打闹、吵架。看到一半，你顺手截了几张图，回去当壁纸。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "photo": 11
+                },
+                "tags": {
+                  "add": [
+                    "挂机党"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "move",
+          "text": "去别的房间转转",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你顺着门牌一路逛过去，撞进一个正在开黑的小房间，被塞了一只手柄。",
+              "effects": {
+                "mood": 5,
+                "friends": 2,
+                "skills": {
+                  "social": 2
+                },
+                "circles": {
+                  "add": [
+                    "游戏圈"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_002",
+      "title": "Blender 第一晚",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        55,
+        130
+      ],
+      "weight": 45,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 80,
+      "tags": [
+        "技能",
+        "成长"
+      ],
+      "condition": {
+        "minHours": 55,
+        "maxHours": 130
+      },
+      "text": "你跟着教程把{N}个顶点拖来拖去，凌晨三点终于给模型换上了新衣服。预览转起来的那一刻，你笑出声。",
+      "options": [
+        {
+          "id": "again",
+          "text": "再改一件",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "第二件快了很多。你把成品换上，在{世界}的镜子前转了整整十分钟。",
+              "effects": {
+                "mood": 6,
+                "skills": {
+                  "modeling": 13
+                },
+                "tags": {
+                  "add": [
+                    "技术宅"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "blender_first_model"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你开始整理自己的贴图文件夹和命名规则。这种秩序感让你觉得自己真的在学一门手艺。",
+              "effects": {
+                "mood": 7,
+                "skills": {
+                  "modeling": 13
+                },
+                "flags": {
+                  "add": [
+                    "blender_first_model"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "sleep",
+          "text": "先睡，明天继续",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你保存了工程文件，关掉电脑。第二天打开时，昨晚卡住的地方居然一眼就看懂了。",
+              "effects": {
+                "mood": 4,
+                "skills": {
+                  "modeling": 7
+                },
+                "flags": {
+                  "add": [
+                    "blender_first_model"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "commission",
+          "text": "接个小单试试水",
+          "condition": {
+            "minSkills": {
+              "modeling": 30
+            }
+          },
+          "lockedHint": "需要 建模 ≥ 30",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "第一笔收入不多，但对方在群里点名谢了你。你把那条消息截图收藏了。",
+              "effects": {
+                "mood": 7,
+                "friends": 2,
+                "fame": 4,
+                "assets": 250,
+                "skills": {
+                  "modeling": 10
+                },
+                "circles": {
+                  "add": [
+                    "模型圈"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "客户要求改了七版，你在崩溃边缘学会了怎么谈需求。技术之外，你还长了别的东西。",
+              "effects": {
+                "mood": 5,
+                "friends": 3,
+                "skills": {
+                  "modeling": 13,
+                  "social": 4
+                },
+                "assets": 400,
+                "circles": {
+                  "add": [
+                    "模型圈"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_003",
+      "title": "有人夸你的模型",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        55,
+        150
+      ],
+      "weight": 40,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 70,
+      "tags": [
+        "社交",
+        "正面"
+      ],
+      "condition": {
+        "minHours": 55,
+        "maxHours": 150
+      },
+      "text": "你换上自己改的猫娘，在{世界}照镜子。旁边有人绕着你转了两圈：这衣服是你自己做的？好看。",
+      "options": [
+        {
+          "id": "admit",
+          "text": "承认，并和他聊起来",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你讲了改模的坑，他讲了找贴图的路子。半小时后你们互相存了联系方式。",
+              "effects": {
+                "mood": 7,
+                "friends": 3,
+                "fame": 3,
+                "skills": {
+                  "modeling": 7
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "他把你拉进了一个改模交流群。群里的人说话很冲，但提的意见句句在点子上。",
+              "effects": {
+                "mood": 8,
+                "friends": 4,
+                "fame": 4,
+                "skills": {
+                  "modeling": 8
+                },
+                "circles": {
+                  "add": [
+                    "模型圈"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "humble",
+          "text": "说只是随便改改",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "他“哦”了一声就走了。你站在原地有点后悔，但也不知道该怎么把话接回来。",
+              "effects": {
+                "mood": -6,
+                "friends": 1,
+                "tags": {
+                  "add": [
+                    "被动"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "invite",
+          "text": "拉他进模型圈",
+          "condition": {
+            "requireCircles": [
+              "模型圈"
+            ]
+          },
+          "lockedHint": "需要已加入 模型圈",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "他进群第一天就解决了一个困扰你很久的问题。你成了别人眼里的“引路人”。",
+              "effects": {
+                "mood": 7,
+                "friends": 4,
+                "fame": 5,
+                "skills": {
+                  "modeling": 7,
+                  "social": 4
+                },
+                "circles": {
+                  "add": [
+                    "模型圈"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "他后来成了圈里的活跃分子，逢人就说“是{我}带我进来的”。你的名字开始被更多人记住。",
+              "effects": {
+                "mood": 8,
+                "friends": 5,
+                "fame": 6,
+                "skills": {
+                  "social": 4
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_004",
+      "title": "被请去当模特",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        60,
+        160
+      ],
+      "weight": 38,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 70,
+      "tags": [
+        "社交",
+        "正面"
+      ],
+      "condition": {
+        "minHours": 60,
+        "maxHours": 160
+      },
+      "text": "摄影圈的人在群里喊：今晚{世界}出片，缺个穿白裙子的。然后有人@了你。",
+      "options": [
+        {
+          "id": "yes",
+          "text": "答应，换好衣服过去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你按摄影师的要求站了四十分钟，脚都麻了。成片出来的那刻，你觉得站得值。",
+              "effects": {
+                "mood": 7,
+                "friends": 3,
+                "fame": 4,
+                "skills": {
+                  "photo": 11
+                },
+                "circles": {
+                  "add": [
+                    "摄影圈"
+                  ],
+                  "remove": []
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "照片被发到社区，有人来问“这个模型是谁”。你第一次因为“出现在别人的画面里”被认识。",
+              "effects": {
+                "mood": 8,
+                "friends": 4,
+                "fame": 6,
+                "skills": {
+                  "photo": 11
+                },
+                "circles": {
+                  "add": [
+                    "摄影圈"
+                  ],
+                  "remove": []
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "watch",
+          "text": "不拍，只去围观",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你在旁边看他们打光、换镜头、讨论构图。回去之后你自己买了套灯光预设。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "photo": 14
+                },
+                "circles": {
+                  "add": [
+                    "摄影圈"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "owncam",
+          "text": "自己带相机去，反过来拍他们",
+          "condition": {
+            "requireCircles": [
+              "摄影圈"
+            ],
+            "minSkills": {
+              "photo": 20
+            }
+          },
+          "lockedHint": "需要已加入 摄影圈 且 摄影 ≥ 20",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你拍的那组被公认为当晚最好的一张。有人开始管你叫“摄影师”，你嘴上说别别别。",
+              "effects": {
+                "mood": 8,
+                "friends": 3,
+                "fame": 6,
+                "skills": {
+                  "photo": 21
+                },
+                "circles": {
+                  "add": [
+                    "摄影圈"
+                  ],
+                  "remove": []
+                },
+                "tags": {
+                  "add": [
+                    "审美在线"
+                  ],
+                  "remove": []
+                },
+                "counters": {
+                  "photosTaken": 3
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "extreme",
+              "text": "你的器材清单被人扒出来讨论，一个摄影团体邀你一起办展。你在{世界}的走廊上挂了十二张图。",
+              "effects": {
+                "mood": 9,
+                "friends": 5,
+                "fame": 6,
+                "skills": {
+                  "photo": 21,
+                  "social": 4
+                },
+                "circles": {
+                  "add": [
+                    "摄影圈"
+                  ],
+                  "remove": []
+                },
+                "counters": {
+                  "photosTaken": 5
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "deep_003",
+                  "delayHours": [
+                    14,
+                    45
+                  ],
+                  "chance": 0.65,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ],
+              "endingHint": {
+                "path": "photographer",
+                "score": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_005",
+      "title": "被拉去当翻译",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        55,
+        150
+      ],
+      "weight": 35,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 60,
+      "tags": [
+        "社交",
+        "技能"
+      ],
+      "condition": {
+        "minHours": 55,
+        "maxHours": 150
+      },
+      "text": "语言交换圈今晚来了{N}个外国玩家，群里没人敢开麦。有人私聊你：你外语还行吧？救个场。",
+      "options": [
+        {
+          "id": "onmic",
+          "text": "硬着头皮开麦",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "前五分钟你在结巴，后五分钟你居然开始讲笑话。散场时有人专门来跟你说谢谢。",
+              "effects": {
+                "mood": 5,
+                "friends": 3,
+                "fame": 3,
+                "skills": {
+                  "language": 33
+                },
+                "flags": {
+                  "add": [
+                    "translator_called"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你的口音被夸“很好听”。这句话你记了很久，也让你决定继续练下去。",
+              "effects": {
+                "mood": 7,
+                "friends": 4,
+                "fame": 4,
+                "skills": {
+                  "language": 33
+                },
+                "tags": {
+                  "add": [
+                    "声音好听"
+                  ],
+                  "remove": [
+                    "开麦恐惧"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "translator_called"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "typing",
+          "text": "只打字翻译，不开麦",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你打字打得飞快，把两边的话都接上了。有人以为你是房间里唯一会双语的人，其实你只是不敢说话。",
+              "effects": {
+                "mood": 3,
+                "friends": 2,
+                "skills": {
+                  "language": 22
+                },
+                "tags": {
+                  "add": [
+                    "开麦恐惧"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "translator_called"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "organize",
+          "text": "顺便帮他们约下次活动",
+          "condition": {
+            "minSkills": {
+              "language": 30
+            }
+          },
+          "lockedHint": "需要 语言 ≥ 30",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你做了个双语公告，定了时间世界和主题。两边都在群里刷“靠谱”。",
+              "effects": {
+                "mood": 8,
+                "friends": 5,
+                "fame": 5,
+                "skills": {
+                  "language": 26,
+                  "social": 4
+                },
+                "circles": {
+                  "add": [
+                    "语言交换圈"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "这档活动后来做成了每周固定。你在社区里第一次有了“负责人”这个身份。",
+              "effects": {
+                "mood": 9,
+                "friends": 5,
+                "fame": 6,
+                "skills": {
+                  "language": 33,
+                  "social": 5
+                },
+                "circles": {
+                  "add": [
+                    "语言交换圈"
+                  ],
+                  "remove": []
+                },
+                "tags": {
+                  "add": [
+                    "跨语言"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_006",
+      "title": "群里吵起来了",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        70,
+        180
+      ],
+      "weight": 30,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 80,
+      "tags": [
+        "冲突",
+        "负面"
+      ],
+      "condition": {
+        "minHours": 70,
+        "maxHours": 180,
+        "requireCircles": [
+          "中文吧"
+        ]
+      },
+      "text": "{圈子}的群突然刷了几百条。两个人从模型争议吵到人身攻击，有人开始截图，有人开始退群。",
+      "options": [
+        {
+          "id": "mediate",
+          "text": "出来劝架",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你两边各劝了几句，火没灭但也没烧大。那晚有两个陌生人私聊你说“谢谢你站出来”。",
+              "effects": {
+                "mood": -8,
+                "friends": 3,
+                "fame": 3,
+                "skills": {
+                  "social": 5
+                },
+                "tags": {
+                  "add": [
+                    "老好人"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你把两边的诉求各总结成三句话，居然真把事说开了。之后群里吵架都爱找你。",
+              "effects": {
+                "mood": 5,
+                "friends": 4,
+                "fame": 5,
+                "skills": {
+                  "social": 7
+                },
+                "tags": {
+                  "add": [
+                    "老好人"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "lurk",
+          "text": "潜水看戏",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你一句话没说，安静地刷完了全程。事后回想，你只记得自己那天晚上很累。",
+              "effects": {
+                "mood": -6,
+                "skills": {
+                  "social": 2
+                },
+                "tags": {
+                  "add": [
+                    "小透明"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "join_in",
+          "text": "跟着站队说两句",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你站的那边赢了嘴仗，输的那边记住了你。之后有人在别的群里提过你的名字，带着刺。",
+              "effects": {
+                "mood": -13,
+                "fame": 3,
+                "skills": {
+                  "social": 2
+                },
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你的那句话被人截图转发，成了这场吵架的注脚。你第一次尝到被围观的滋味。",
+              "effects": {
+                "mood": -16,
+                "fame": 5,
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "吵架的余波没停，那两个人后来把矛盾带到了关系里。你听说有人因为这场闹剧散了。",
+              "effects": {
+                "mood": -16,
+                "fame": 3,
+                "skills": {
+                  "social": 4
+                },
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_001",
+                  "delayHours": [
+                    18,
+                    54
+                  ],
+                  "chance": 0.5,
+                  "requireFlags": [
+                    "has_fixed_duo"
+                  ],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_007",
+      "title": "小团体的门槛",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        60,
+        170
+      ],
+      "weight": 30,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 80,
+      "tags": [
+        "孤独",
+        "负面"
+      ],
+      "condition": {
+        "minHours": 60,
+        "maxHours": 170
+      },
+      "text": "你进{世界}的时候，几个人正聊得热闹。你说了句“晚上好”，话题停了两秒，然后继续。你在原地站了很久。",
+      "options": [
+        {
+          "id": "push",
+          "text": "主动找个话题插进去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你提了个关于改模的问题，其中一个人接了。话题慢慢转到了你这边。",
+              "effects": {
+                "mood": 4,
+                "friends": 2,
+                "skills": {
+                  "social": 4
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "他们其实只是没注意到你。你开口之后，有人主动把你拉进了小群。",
+              "effects": {
+                "mood": 6,
+                "friends": 3,
+                "skills": {
+                  "social": 4
+                },
+                "tags": {
+                  "add": [
+                    "社牛"
+                  ],
+                  "remove": [
+                    "社恐"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "corner",
+          "text": "安静地待在角落",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你找了个能看到所有人的角度坐着，看了两个小时。回去后你翻出截图，发现构图居然不错。",
+              "effects": {
+                "mood": -9,
+                "skills": {
+                  "photo": 11
+                },
+                "tags": {
+                  "add": [
+                    "自闭"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave",
+          "text": "换个房间",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你退出去，随便点了个热闹的世界。那边的人二话不说就开始拉你一起整活。",
+              "effects": {
+                "mood": 4,
+                "friends": 2,
+                "circles": {
+                  "add": [
+                    "整活圈"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_008",
+      "title": "你被拉黑了",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        70,
+        180
+      ],
+      "weight": 28,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 100,
+      "tags": [
+        "负面",
+        "孤独"
+      ],
+      "condition": {
+        "minHours": 70,
+        "maxHours": 180,
+        "minFriends": 4
+      },
+      "text": "你给{ta}发消息，跳出一个红色感叹号。你翻聊天记录，最后一条是三天前你问的那句“在吗”。",
+      "options": [
+        {
+          "id": "ruminate",
+          "text": "想不通，反复看记录",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你把三个月的聊天翻了两遍，找不出自己做错什么。那一夜你到天亮才下线。",
+              "effects": {
+                "mood": -16,
+                "skills": {
+                  "social": 2
+                },
+                "tags": {
+                  "add": [
+                    "emo",
+                    "夜猫子"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你翻到很早以前的一段对话，发现对方曾经很认真地谢过你。你终于把对话框删了。",
+              "effects": {
+                "mood": -6,
+                "skills": {
+                  "social": 4
+                },
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "moveon",
+          "text": "删掉对话，继续玩",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你长按删除，然后传送去{中文吧}。那天晚上你认识了两个新朋友，比想象中容易。",
+              "effects": {
+                "mood": -6,
+                "friends": 2,
+                "skills": {
+                  "social": 4
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "askaround",
+          "text": "去问共同好友怎么回事",
+          "condition": {
+            "minFriends": 6
+          },
+          "lockedHint": "需要好友数 ≥ 6",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "共同好友支支吾吾，最后说了句“可能有点误会”。你知道了答案，也知道了不该再问。",
+              "effects": {
+                "mood": -8,
+                "friends": 2,
+                "skills": {
+                  "social": 4
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "误会原来是有人在中间传了话。澄清之后，你和{ta}没和好，但你学会了别急着责怪自己。",
+              "effects": {
+                "mood": 5,
+                "friends": 3,
+                "skills": {
+                  "social": 5
+                },
+                "flags": {
+                  "add": [
+                    "learned_misunderstanding"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_009",
+      "title": "八卦传到你这",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        75,
+        180
+      ],
+      "weight": 28,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 90,
+      "tags": [
+        "负面",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 75,
+        "maxHours": 180
+      },
+      "text": "有人神秘兮兮地凑过来：你知道吗，{ta}好像同时跟{N}个人挂着关系。你其实并不想知道。",
+      "options": [
+        {
+          "id": "forget",
+          "text": "听完就忘",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你点了下头就换了个话题。后来这事传得整个圈子都知道，只有你没参与过。",
+              "effects": {
+                "mood": -6,
+                "skills": {
+                  "social": 4
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "spread",
+          "text": "转头告诉别人",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "消息跑得比你想的快。第二天{ta}在群里发了一条很长的动态，没有点名。",
+              "effects": {
+                "mood": -12,
+                "friends": 1,
+                "fame": 3,
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "原来你是被故意喂了假消息。传话的人想看谁会先开口，而你成了那个开口的人。",
+              "effects": {
+                "mood": -16,
+                "fame": 4,
+                "skills": {
+                  "social": 4
+                },
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ask_ta",
+          "text": "去问{ta}本人",
+          "condition": {
+            "hasRelation": true
+          },
+          "lockedHint": "需要有活跃关系",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "对方没有生气，只是很长时间没说话。最后说了句“你居然来问我”。你们之间的东西变了一点。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 5
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "常一起玩"
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "对方把事情原原本本讲了一遍，比八卦难听得多，也真实得多。你反而更信他了。",
+              "effects": {
+                "mood": 6,
+                "friends": 2,
+                "skills": {
+                  "social": 4
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "暧昧"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_010",
+      "title": "你成了工具人",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        80,
+        190
+      ],
+      "weight": 30,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 90,
+      "tags": [
+        "负面",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 80,
+        "maxHours": 190,
+        "minFriends": 5
+      },
+      "text": "帮我改个衣服、帮我录个视频、帮我挂一下号。{N}天里你答应了很多次，直到发现没有一条消息是问你今天怎么样的。",
+      "options": [
+        {
+          "id": "keep",
+          "text": "继续帮，反正也没别的事",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你成了群里最好用的人。消息永远有人回，但没有一条是找你的。",
+              "effects": {
+                "mood": -13,
+                "friends": 3,
+                "skills": {
+                  "modeling": 7
+                },
+                "tags": {
+                  "add": [
+                    "老好人"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "tool_person"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你帮过的人里，有一个真的记着。他在你最累的那天问了一句“你最近还好吗”。",
+              "effects": {
+                "mood": 5,
+                "friends": 4,
+                "skills": {
+                  "modeling": 7,
+                  "social": 2
+                },
+                "flags": {
+                  "add": [
+                    "tool_person"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "sayno",
+          "text": "学会说不",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "第一次拒绝的时候你手心冒汗。对方只回了个“好吧”，天没有塌。",
+              "effects": {
+                "mood": 6,
+                "friends": 1,
+                "skills": {
+                  "social": 5
+                },
+                "tags": {
+                  "add": [],
+                  "remove": [
+                    "老好人"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你开始给帮忙定价、定范围。有人走了，也有人留了下来，留下来的人更尊重你。",
+              "effects": {
+                "mood": 7,
+                "friends": 2,
+                "assets": 200,
+                "skills": {
+                  "social": 7
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "selective",
+          "text": "只帮真正熟的那个",
+          "condition": {
+            "hasRelation": true
+          },
+          "lockedHint": "需要有活跃关系",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把时间留给了一个人。做完的东西不多，但每一样都是认真做的。",
+              "effects": {
+                "mood": 5,
+                "friends": 1,
+                "skills": {
+                  "social": 4
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "常一起玩"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_011",
+      "title": "第一次开播",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        90,
+        200
+      ],
+      "weight": 32,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "成长",
+        "整活"
+      ],
+      "condition": {
+        "minHours": 90,
+        "maxHours": 200
+      },
+      "text": "你在{世界}挂机到无聊，鬼使神差地点开了直播。观众数从 0 跳到 3，有人打字：主播声音好听。你清了清嗓子，不知道说什么。",
+      "options": [
+        {
+          "id": "chat",
+          "text": "硬聊下去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你从模型聊到今天的天气，居然撑了两个小时。下播时观众数是 7，你截图了。",
+              "effects": {
+                "mood": 5,
+                "friends": 2,
+                "fame": 4,
+                "skills": {
+                  "meme": 22
+                },
+                "flags": {
+                  "add": [
+                    "first_stream"
+                  ],
+                  "remove": []
+                },
+                "counters": {
+                  "streamsCount": 1
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "有个观众从头待到尾，还帮你回答了新来的问题。下播后他成了你的房管。",
+              "effects": {
+                "mood": 7,
+                "friends": 4,
+                "fame": 5,
+                "skills": {
+                  "meme": 22,
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "first_stream"
+                  ],
+                  "remove": []
+                },
+                "counters": {
+                  "streamsCount": 1
+                }
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "有人在弹幕里认出了你常去的{世界}，当晚有十几个人跑来围观。你的房间第一次坐满。",
+              "effects": {
+                "mood": 8,
+                "friends": 5,
+                "fame": 6,
+                "skills": {
+                  "meme": 26,
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "first_stream",
+                    "known_streamer"
+                  ],
+                  "remove": []
+                },
+                "counters": {
+                  "streamsCount": 1
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "deep_004",
+                  "delayHours": [
+                    14,
+                    40
+                  ],
+                  "chance": 0.6,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ],
+              "endingHint": {
+                "path": "performer",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "meme",
+          "text": "干脆开个整活环节",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你戴上了一个夸张模型开始表演。弹幕第一次刷起了“哈哈哈哈哈”。",
+              "effects": {
+                "mood": 8,
+                "friends": 3,
+                "fame": 6,
+                "skills": {
+                  "meme": 33
+                },
+                "circles": {
+                  "add": [
+                    "整活圈"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "first_stream"
+                  ],
+                  "remove": []
+                },
+                "counters": {
+                  "streamsCount": 1
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你的片段被人剪出来单独发，播放量是你的十倍。你第一次尝到“节目效果”的甜。",
+              "effects": {
+                "mood": 9,
+                "friends": 4,
+                "fame": 6,
+                "skills": {
+                  "meme": 33,
+                  "photo": 7
+                },
+                "circles": {
+                  "add": [
+                    "整活圈"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "first_stream"
+                  ],
+                  "remove": []
+                },
+                "counters": {
+                  "streamsCount": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "shutdown",
+          "text": "关掉，太重了",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你关掉推流软件，房间重新安静下来。你松了口气，也说不清是失望还是庆幸。",
+              "effects": {
+                "mood": -8,
+                "skills": {
+                  "social": 2
+                },
+                "tags": {
+                  "add": [
+                    "被动"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_012",
+      "title": "投稿之后",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        90,
+        200
+      ],
+      "weight": 30,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "成长",
+        "正面"
+      ],
+      "condition": {
+        "minHours": 90,
+        "maxHours": 200
+      },
+      "text": "你把在{世界}录的三分钟剪好传了上去。第二天醒来，播放量{N}00，评论区第一条是“求模型链接”。",
+      "options": [
+        {
+          "id": "reply",
+          "text": "认真回复每条评论",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你回了两个小时，顺手建了个群。有人从观众变成了每晚都在线的朋友。",
+              "effects": {
+                "mood": 7,
+                "friends": 4,
+                "fame": 6,
+                "skills": {
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "bili_uploader"
+                  ],
+                  "remove": []
+                },
+                "counters": {
+                  "biliUploads": 1
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "有个做模型的私信你，说想合作一期。你们约在{世界}见面，聊了四个小时。",
+              "effects": {
+                "mood": 8,
+                "friends": 5,
+                "fame": 6,
+                "skills": {
+                  "social": 4,
+                  "modeling": 7
+                },
+                "flags": {
+                  "add": [
+                    "bili_uploader"
+                  ],
+                  "remove": []
+                },
+                "counters": {
+                  "biliUploads": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ignore",
+          "text": "不再看评论区",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你关掉页面，回去继续拍。数据这东西看多了会变形，你不想变成那样。",
+              "effects": {
+                "mood": 4,
+                "skills": {
+                  "photo": 11
+                },
+                "flags": {
+                  "add": [
+                    "bili_uploader"
+                  ],
+                  "remove": []
+                },
+                "counters": {
+                  "biliUploads": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "again_video",
+          "text": "趁热再剪一期",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你连着三个晚上泡在时间轴里。第二期的完成度高了一截，你自己看得出来。",
+              "effects": {
+                "mood": 5,
+                "fame": 4,
+                "skills": {
+                  "photo": 21
+                },
+                "tags": {
+                  "add": [
+                    "夜猫子"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "bili_uploader"
+                  ],
+                  "remove": []
+                },
+                "counters": {
+                  "biliUploads": 2
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "extreme",
+              "text": "第二期被推上了首页。你的私信第一次爆掉，也第一次有人在{世界}认出你的声音。",
+              "effects": {
+                "mood": 8,
+                "friends": 5,
+                "fame": 6,
+                "skills": {
+                  "photo": 21,
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "bili_uploader",
+                    "content_creator"
+                  ],
+                  "remove": []
+                },
+                "counters": {
+                  "biliUploads": 2
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "deep_002",
+                  "delayHours": [
+                    14,
+                    45
+                  ],
+                  "chance": 0.6,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_013",
+      "title": "剪辑到凌晨",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        70,
+        180
+      ],
+      "weight": 30,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 80,
+      "tags": [
+        "技能",
+        "日常"
+      ],
+      "condition": {
+        "minHours": 70,
+        "maxHours": 180
+      },
+      "text": "时间轴上的第{N}个版本，你终于把那段合唱和烟花卡在了同一个鼓点上。窗外已经有点泛白。",
+      "options": [
+        {
+          "id": "export",
+          "text": "导出，直接发出去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你按下发布就倒头睡了。醒来时收到 30 个赞，还有一条“这个卡点绝了”。",
+              "effects": {
+                "mood": 5,
+                "fame": 3,
+                "skills": {
+                  "photo": 17
+                },
+                "tags": {
+                  "add": [
+                    "夜猫子"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "有个做音乐的人来问你能不能帮他剪一支。你报了价，对方秒答应。",
+              "effects": {
+                "mood": 7,
+                "friends": 2,
+                "assets": 250,
+                "fame": 4,
+                "skills": {
+                  "photo": 17
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "draft",
+          "text": "存成草稿，先睡",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "第二天你重看了一遍，删掉了三分之一。舍得的那个瞬间，你觉得自己进步了。",
+              "effects": {
+                "mood": 4,
+                "skills": {
+                  "photo": 11
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "subtitle",
+          "text": "顺手把字幕也做了",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把中英字幕都压了上去。有外国观众留言说，这是第一次看懂中文世界的热闹。",
+              "effects": {
+                "mood": 5,
+                "friends": 1,
+                "fame": 3,
+                "skills": {
+                  "photo": 21,
+                  "language": 11
+                },
+                "tags": {
+                  "add": [
+                    "技术宅"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_014",
+      "title": "调音台前",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        70,
+        180
+      ],
+      "weight": 28,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 80,
+      "tags": [
+        "技能",
+        "整活"
+      ],
+      "condition": {
+        "minHours": 70,
+        "maxHours": 180
+      },
+      "text": "{音乐圈|整活圈}的人拉你进了一个空世界试音。你第一次知道，原来自己的声音可以被调成那样。",
+      "options": [
+        {
+          "id": "till_late",
+          "text": "玩到后半夜",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你把自己唱的那段存了下来。回放时你有点不好意思，但没有删。",
+              "effects": {
+                "mood": 7,
+                "friends": 2,
+                "skills": {
+                  "music": 33
+                },
+                "circles": {
+                  "add": [
+                    "音乐圈"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "有人提议下次搞个线上小演出，问你要不要上。你说考虑考虑，其实已经开始选歌了。",
+              "effects": {
+                "mood": 8,
+                "friends": 4,
+                "fame": 3,
+                "skills": {
+                  "music": 33,
+                  "social": 4
+                },
+                "circles": {
+                  "add": [
+                    "音乐圈"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "keep_clip",
+          "text": "录一段留着",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把那一段导出来放进收藏夹。后来每次心情不好，你都会点开听一遍。",
+              "effects": {
+                "mood": 5,
+                "fame": 2,
+                "skills": {
+                  "music": 22
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "params",
+          "text": "研究参数到底怎么调",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你翻了一晚上的教程，把压缩和混响的原理弄明白了大半。下次轮到你教别人。",
+              "effects": {
+                "mood": 5,
+                "skills": {
+                  "music": 26,
+                  "coding": 10
+                },
+                "tags": {
+                  "add": [
+                    "技术宅"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_015",
+      "title": "第一个 Udon",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        80,
+        190
+      ],
+      "weight": 30,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 90,
+      "tags": [
+        "技能",
+        "成长"
+      ],
+      "condition": {
+        "minHours": 80,
+        "maxHours": 190
+      },
+      "text": "你照着文档往世界里塞了一个能开门的按钮。按下它，门真的开了。你把这个只有一扇门的世界传给了{N}个人。",
+      "options": [
+        {
+          "id": "addmore",
+          "text": "继续加功能",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "门之后是灯，灯之后是音乐。你在里面待了一整晚，忘了上线本来是为了找人聊天。",
+              "effects": {
+                "mood": 7,
+                "skills": {
+                  "coding": 30
+                },
+                "flags": {
+                  "add": [
+                    "udon_first_world"
+                  ],
+                  "remove": []
+                },
+                "tags": {
+                  "add": [
+                    "技术宅"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你把踩到坑的地方写成了笔记发出去。有人照着做成功了，回来给你道谢。",
+              "effects": {
+                "mood": 8,
+                "friends": 3,
+                "fame": 4,
+                "skills": {
+                  "coding": 30
+                },
+                "flags": {
+                  "add": [
+                    "udon_first_world"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "share",
+          "text": "分享给别人玩",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你发到群里，大家进去按了一通门，然后在里面聊到半夜。你觉得有点骄傲。",
+              "effects": {
+                "mood": 5,
+                "friends": 3,
+                "fame": 4,
+                "skills": {
+                  "coding": 16
+                },
+                "flags": {
+                  "add": [
+                    "udon_first_world"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "minigame",
+          "text": "试着做个小游戏出来",
+          "condition": {
+            "minSkills": {
+              "coding": 30
+            }
+          },
+          "lockedHint": "需要 编程 ≥ 30",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你做出了一个四人的抢椅子游戏，规则简单但意外地耐玩。群里连开了三局。",
+              "effects": {
+                "mood": 8,
+                "friends": 4,
+                "fame": 6,
+                "skills": {
+                  "coding": 30,
+                  "social": 4
+                },
+                "circles": {
+                  "add": [
+                    "游戏圈"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "udon_first_world",
+                    "world_creator"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "extreme",
+              "text": "这个小游戏被人搬去了别的社区，挂上了你的名字。你收到一封邀请，让你去一个更大的活动做世界。",
+              "effects": {
+                "mood": 9,
+                "friends": 5,
+                "fame": 6,
+                "skills": {
+                  "coding": 30
+                },
+                "flags": {
+                  "add": [
+                    "udon_first_world",
+                    "world_creator"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "deep_001",
+                  "delayHours": [
+                    18,
+                    54
+                  ],
+                  "chance": 0.65,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ],
+              "endingHint": {
+                "path": "creator",
+                "score": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_016",
+      "title": "多了一个默认队友",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        60,
+        150
+      ],
+      "weight": 45,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "社交",
+        "正面"
+      ],
+      "condition": {
+        "minHours": 60,
+        "maxHours": 150,
+        "minFriends": 3
+      },
+      "text": "不知道从哪天起，你上线时{ta}总在线，下线前也会说一句明天见。今天你们在{世界}的沙发上挂了两个小时，一句话都没说。",
+      "options": [
+        {
+          "id": "silence",
+          "text": "习惯这种沉默",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你们开始有了默契：不打招呼也知道对方在，不用说话也不觉得尴尬。",
+              "effects": {
+                "mood": 7,
+                "friends": 3,
+                "skills": {
+                  "social": 4
+                },
+                "tags": {
+                  "add": [
+                    "挂机党"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "has_fixed_duo"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "常一起玩",
+                  "initIntimacy": 30,
+                  "initTrust": 25,
+                  "initFreshness": 90,
+                  "initDependence": 10,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你发现自己开始为了“他今天会不会上线”而调整下班时间。这个念头让你有点慌。",
+              "effects": {
+                "mood": 6,
+                "friends": 3,
+                "skills": {
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "has_fixed_duo"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "常一起玩",
+                  "initIntimacy": 35,
+                  "initTrust": 25,
+                  "initFreshness": 95,
+                  "initDependence": 20,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "那天之后你们几乎每晚都在同一个房间。有人开始把你们当成一对，你们都没有否认。",
+              "effects": {
+                "mood": 9,
+                "friends": 4,
+                "fame": 3,
+                "skills": {
+                  "social": 4
+                },
+                "tags": {
+                  "add": [
+                    "暧昧"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "has_fixed_duo"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "暧昧",
+                  "initIntimacy": 45,
+                  "initTrust": 35,
+                  "initFreshness": 95,
+                  "initDependence": 20,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_a_002",
+                  "delayHours": [
+                    11,
+                    36
+                  ],
+                  "chance": 0.65,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "dothings",
+          "text": "找点事一起做",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你们开始固定一起逛世界、一起拍照。共同话题从 VRChat 慢慢延伸到了别的。",
+              "effects": {
+                "mood": 6,
+                "friends": 2,
+                "skills": {
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "has_fixed_duo"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "朋友",
+                  "initIntimacy": 20,
+                  "initTrust": 18,
+                  "initFreshness": 90,
+                  "initDependence": 0,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "push",
+          "text": "把关系再往前推一点",
+          "condition": {
+            "hasRelation": true
+          },
+          "lockedHint": "需要有活跃关系",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你开始主动约时间、主动分享日常。对方接住了，也回赠了同样的东西。",
+              "effects": {
+                "mood": 7,
+                "friends": 2,
+                "skills": {
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "has_fixed_duo"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "常一起玩"
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你推得太快了一点，对方退半步。你们都没有提这件事，但气氛变了一点点。",
+              "effects": {
+                "mood": -6,
+                "friends": 1,
+                "skills": {
+                  "social": 4
+                },
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_017",
+      "title": "凌晨四点",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        80,
+        190
+      ],
+      "weight": 35,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 60,
+      "tags": [
+        "社交",
+        "日常"
+      ],
+      "condition": {
+        "minHours": 80,
+        "maxHours": 190,
+        "requireFlags": [
+          "has_fixed_duo"
+        ]
+      },
+      "text": "房间里只剩你们两个人。{ta}说再玩最后一局，结果是第{N}次最后一局。北京时间四点零七分，你们同时打了个哈欠。",
+      "options": [
+        {
+          "id": "stay",
+          "text": "陪到天亮",
+          "condition": {
+            "hasRelation": true
+          },
+          "lockedHint": "需要有活跃关系",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "天亮的时候你们互道了晚安——虽然外面已经是早安。你躺下时还在笑。",
+              "effects": {
+                "mood": 7,
+                "friends": 1,
+                "tags": {
+                  "add": [
+                    "夜猫子"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "暧昧"
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "凌晨的对话比白天诚实。你们聊到了各自现实里的难处，谁都没有给建议，只是听着。",
+              "effects": {
+                "mood": 8,
+                "friends": 1,
+                "skills": {
+                  "social": 4
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "暧昧"
+                }
+              }
+            },
+            {
+              "weight": 5,
+              "tier": "extreme",
+              "text": "你说了一句第二天一定会后悔的话。对方沉默了几秒，回了一句更让你睡不着的话。",
+              "effects": {
+                "mood": 9,
+                "friends": 2,
+                "tags": {
+                  "add": [
+                    "暧昧"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "said_too_much"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "暧昧"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_a_003",
+                  "delayHours": [
+                    10,
+                    27
+                  ],
+                  "chance": 0.6,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "offline",
+          "text": "先下线，明天还有事",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你摘下头显，房间很黑。手机亮着，{ta}发来一句“早点睡”。你盯着那三个字看了会儿。",
+              "effects": {
+                "mood": -6,
+                "skills": {
+                  "social": 2
+                },
+                "flags": {
+                  "add": [
+                    "real_life_warning"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "deeptalk",
+          "text": "主动开个话题聊点现实",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你们交换了城市、工作和作息。你第一次觉得屏幕那头是个具体的人。",
+              "effects": {
+                "mood": 5,
+                "friends": 2,
+                "skills": {
+                  "social": 4
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "聊到一半对方说他可能要去外地，之后上线会变少。这句话你记了很久。",
+              "effects": {
+                "mood": -8,
+                "friends": 1,
+                "skills": {
+                  "social": 4
+                },
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_018",
+      "title": "一起看日出",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        90,
+        200
+      ],
+      "weight": 32,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 80,
+      "tags": [
+        "社交",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 90,
+        "maxHours": 200,
+        "requireFlags": [
+          "has_fixed_duo"
+        ]
+      },
+      "text": "你说想看这个世界的日出。{ta}没问为什么，只是陪你在山顶站到天空变亮。",
+      "options": [
+        {
+          "id": "screenshot",
+          "text": "把这一刻截图存下来",
+          "condition": {
+            "hasRelation": true
+          },
+          "lockedHint": "需要有活跃关系",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你把图设成了桌面。之后每次开机，都会先看到那片天空和旁边的那个身影。",
+              "effects": {
+                "mood": 8,
+                "friends": 1,
+                "skills": {
+                  "photo": 7
+                },
+                "counters": {
+                  "photosTaken": 2
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "暧昧"
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "extreme",
+              "text": "你说“这张我要留着”。对方说“留着吧”，然后把他拍的角度也发给了你。两张图，同一次日出。",
+              "effects": {
+                "mood": 9,
+                "friends": 2,
+                "tags": {
+                  "add": [
+                    "暧昧"
+                  ],
+                  "remove": []
+                },
+                "counters": {
+                  "photosTaken": 3
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "暧昧"
+                }
+              },
+              "endingHint": {
+                "path": "sugar_loop",
+                "score": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "say",
+          "text": "说点什么",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说“谢谢你陪我”。对方说“这有什么好谢的”。你们又安静下来，但安静得不一样了。",
+              "effects": {
+                "mood": 7,
+                "friends": 1,
+                "skills": {
+                  "social": 4
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "silent",
+          "text": "什么也没说",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你们谁都没开口。后来你常常想起那个早上，也常常想如果当时说了会怎样。",
+              "effects": {
+                "mood": 4,
+                "tags": {
+                  "add": [
+                    "被动",
+                    "怀旧"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "unsaid_words"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_019",
+      "title": "练到舞房关门",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        60,
+        170
+      ],
+      "weight": 34,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 70,
+      "tags": [
+        "技能",
+        "成长"
+      ],
+      "condition": {
+        "minHours": 60,
+        "maxHours": 170
+      },
+      "text": "{跳舞圈|中文吧}的舞房只剩你一个人。镜子里的人动作还是慢半拍，但你已经能连着跳完一整套。",
+      "options": [
+        {
+          "id": "oncemore",
+          "text": "再来一遍",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "第{N}遍的时候，你的手终于跟上了拍子。你对着镜子里的自己点了点头。",
+              "effects": {
+                "mood": 7,
+                "skills": {
+                  "dance": 33
+                },
+                "tags": {
+                  "add": [
+                    "舞者"
+                  ],
+                  "remove": []
+                },
+                "circles": {
+                  "add": [
+                    "跳舞圈"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "有人在门口看了你一会儿，进来问你要不要一起合一支。你答应了。",
+              "effects": {
+                "mood": 8,
+                "friends": 3,
+                "skills": {
+                  "dance": 33
+                },
+                "circles": {
+                  "add": [
+                    "跳舞圈"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "record",
+          "text": "录下来对比",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "录下来的自己比想象中难看。你逐帧对比教程，找到了三个一直做错的地方。",
+              "effects": {
+                "mood": 4,
+                "skills": {
+                  "dance": 22,
+                  "photo": 7
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "perform",
+          "text": "报名下次舞房演出",
+          "condition": {
+            "minSkills": {
+              "dance": 30
+            }
+          },
+          "lockedHint": "需要 舞蹈 ≥ 30",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你在十几个人面前跳完了整支。中间忘了一拍，但你笑着接了下去。",
+              "effects": {
+                "mood": 8,
+                "friends": 3,
+                "fame": 6,
+                "skills": {
+                  "dance": 26,
+                  "social": 4
+                },
+                "circles": {
+                  "add": [
+                    "跳舞圈"
+                  ],
+                  "remove": []
+                },
+                "tags": {
+                  "add": [
+                    "元气"
+                  ],
+                  "remove": [
+                    "社恐"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "extreme",
+              "text": "你的那段被剪进了舞房的年度合集，还挂在了{世界}的屏幕上。有人专门来找你约舞。",
+              "effects": {
+                "mood": 9,
+                "friends": 5,
+                "fame": 6,
+                "skills": {
+                  "dance": 33
+                },
+                "circles": {
+                  "add": [
+                    "跳舞圈"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "deep_003",
+                  "delayHours": [
+                    18,
+                    54
+                  ],
+                  "chance": 0.6,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ],
+              "endingHint": {
+                "path": "dancer",
+                "score": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_020",
+      "title": "被表白了",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        90,
+        200
+      ],
+      "weight": 30,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "社交",
+        "sugar"
+      ],
+      "condition": {
+        "minHours": 90,
+        "maxHours": 200,
+        "minFriends": 4
+      },
+      "text": "{ta}在{世界}的角落里说：我好像……挺喜欢你的。你手心出汗，脑子里闪过{N}种回答，一个都没说出口。",
+      "options": [
+        {
+          "id": "decline",
+          "text": "婉拒，但想做朋友",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你说得很慢，怕伤到他。他笑了一下说“知道了”，然后你们又一起逛了一个小时。",
+              "effects": {
+                "mood": -10,
+                "friends": 2,
+                "skills": {
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "first_confession_declined"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "朋友",
+                  "initIntimacy": 20,
+                  "initTrust": 20,
+                  "initFreshness": 80,
+                  "initDependence": 0,
+                  "initRealPressure": 10,
+                  "name": "auto"
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "他后来真的只当朋友，还成了你最难的时候第一个出现的人。你庆幸自己没有敷衍他。",
+              "effects": {
+                "mood": 4,
+                "friends": 3,
+                "skills": {
+                  "social": 5
+                },
+                "flags": {
+                  "add": [
+                    "first_confession_declined"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "朋友",
+                  "initIntimacy": 25,
+                  "initTrust": 30,
+                  "initFreshness": 85,
+                  "initDependence": 0,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "pretend",
+          "text": "装没听懂",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你硬把话题拐到了模型上。他配合地接了下去，之后再也没有提过这件事。",
+              "effects": {
+                "mood": -8,
+                "friends": 1,
+                "skills": {
+                  "social": 2
+                },
+                "tags": {
+                  "add": [
+                    "被动"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "first_confession_declined"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "accept",
+          "text": "其实我也有点",
+          "condition": {
+            "hasRelation": true
+          },
+          "lockedHint": "需要有活跃关系",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你把话说完了。之后你们在{世界}坐了很久，谁都没有先提要不要更进一步。",
+              "effects": {
+                "mood": 9,
+                "friends": 2,
+                "skills": {
+                  "social": 4
+                },
+                "tags": {
+                  "add": [
+                    "暧昧"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "暧昧"
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "说出口之后你反而怕了。你开始计算现实的距离、时差、以及这段关系可能撑多久。",
+              "effects": {
+                "mood": 5,
+                "friends": 1,
+                "tags": {
+                  "add": [
+                    "暧昧",
+                    "隐患"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "overthinking"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "暧昧"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_021",
+      "title": "没说出口",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        100,
+        200
+      ],
+      "weight": 32,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 90,
+      "tags": [
+        "社交",
+        "sugar"
+      ],
+      "condition": {
+        "minHours": 100,
+        "maxHours": 200,
+        "requireFlags": [
+          "has_fixed_duo"
+        ]
+      },
+      "text": "你打了很长一段话，删了。又打了一段，又删了。{ta}的头像亮着，你盯着输入框，直到它变灰。",
+      "options": [
+        {
+          "id": "tomorrow",
+          "text": "明天再说",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把草稿又存了下来。草稿箱里已经有{N}条没发出去的话，每一条都写得很认真。",
+              "effects": {
+                "mood": -8,
+                "skills": {
+                  "social": 4
+                },
+                "tags": {
+                  "add": [
+                    "被动"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "secret_crush"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "hey",
+          "text": "把话改成“在吗”发出去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "对方秒回。你们聊了两个小时，全是废话。你觉得这样就很好，又觉得这样不够。",
+              "effects": {
+                "mood": 4,
+                "friends": 2,
+                "skills": {
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "secret_crush"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "朋友",
+                  "initIntimacy": 25,
+                  "initTrust": 20,
+                  "initFreshness": 90,
+                  "initDependence": 0,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "对方忽然说“你今天有点奇怪”。你心跳漏了一拍，然后打了个哈哈混过去。",
+              "effects": {
+                "mood": 5,
+                "friends": 1,
+                "skills": {
+                  "social": 4
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "longtext",
+          "text": "直接发那段长话",
+          "condition": {
+            "hasRelation": true
+          },
+          "lockedHint": "需要有活跃关系",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "对方读了很久，久到你以为自己搞砸了。然后他回了一段更长的。",
+              "effects": {
+                "mood": 7,
+                "friends": 2,
+                "skills": {
+                  "social": 4
+                },
+                "tags": {
+                  "add": [
+                    "暧昧"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "secret_crush"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "暧昧"
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "对方说“给我一点时间”。之后的三天你上线都会先看好友列表，又怕看见他在线。",
+              "effects": {
+                "mood": -6,
+                "friends": 1,
+                "skills": {
+                  "social": 4
+                },
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "发出去的第二天，你们在{世界}见面，谁都没有先开口。空气里的东西已经变了，回不去了。",
+              "effects": {
+                "mood": 8,
+                "friends": 2,
+                "fame": 2,
+                "tags": {
+                  "add": [
+                    "暧昧"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "secret_crush"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "暧昧"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_a_003",
+                  "delayHours": [
+                    10,
+                    32
+                  ],
+                  "chance": 0.65,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_022",
+      "title": "跨年倒计时",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        100,
+        210
+      ],
+      "weight": 30,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "活动",
+        "正面"
+      ],
+      "condition": {
+        "minHours": 100,
+        "maxHours": 210,
+        "minFriends": 5
+      },
+      "text": "{世界}里挤了{N}0个人，倒计时数字在头顶跳。有人喊新年快乐，有人开始放烟花，有人只是站在角落看着。",
+      "options": [
+        {
+          "id": "shout",
+          "text": "跟着一起喊",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "零点那一刻你喊到破音。身边的陌生人互相拥抱，你也被人抱了一下。",
+              "effects": {
+                "mood": 7,
+                "friends": 4,
+                "fame": 3,
+                "skills": {
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "new_year_countdown"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "bless",
+          "text": "给每个好友发一句祝福",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你打了四十多条，手指僵硬。有十几个人回你，还有三个约你年后一起玩。",
+              "effects": {
+                "mood": 7,
+                "friends": 5,
+                "skills": {
+                  "social": 5
+                },
+                "flags": {
+                  "add": [
+                    "new_year_countdown"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "有个很久没联系的人回你很长一段，说那段时间谢谢你。你愣在屏幕前很久。",
+              "effects": {
+                "mood": 8,
+                "friends": 3,
+                "skills": {
+                  "social": 4
+                },
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "new_year_countdown"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "alone",
+          "text": "和{ta}单独去别处",
+          "condition": {
+            "hasRelation": true
+          },
+          "lockedHint": "需要有活跃关系",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你们躲开人群，去了一个没人的世界。倒计时是手机上看的，烟花是别人放的录屏。",
+              "effects": {
+                "mood": 9,
+                "friends": 1,
+                "tags": {
+                  "add": [
+                    "暧昧"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "new_year_countdown"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "renew"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_023",
+      "title": "节日季",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        90,
+        200
+      ],
+      "weight": 30,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 120,
+      "tags": [
+        "活动",
+        "日常"
+      ],
+      "condition": {
+        "minHours": 90,
+        "maxHours": 200
+      },
+      "text": "{中秋|圣诞}那天，{圈子}的人在世界里摆了桌子。有人带了月饼，有人挂了袜子，你带了一堆没做完的模型。",
+      "options": [
+        {
+          "id": "gift",
+          "text": "把模型送给抽到的人",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "抽到的人是刚进圈不久的新人，开心得在原地转圈。你想起自己第一次收到模型的样子。",
+              "effects": {
+                "mood": 7,
+                "friends": 3,
+                "fame": 3,
+                "assets": -100,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "对方后来认真改了那套衣服，还发给你看，说这是“你的东西被我穿活了”。",
+              "effects": {
+                "mood": 8,
+                "friends": 4,
+                "fame": 4,
+                "assets": -100
+              }
+            }
+          ]
+        },
+        {
+          "id": "look",
+          "text": "只是来看看",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你吃了两块虚拟月饼，站在旁边看他们闹。走的时候有人喊“下次还来啊”。",
+              "effects": {
+                "mood": 4,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "organize_next",
+          "text": "帮忙组织下一次",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你接手了场地和流程，忙了三个晚上。活动顺利结束时，你在后台看了很久的合照。",
+              "effects": {
+                "mood": 7,
+                "friends": 4,
+                "fame": 5,
+                "skills": {
+                  "social": 5
+                },
+                "tags": {
+                  "add": [
+                    "活动咖"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你办的这场被人记住了，之后每逢节日都有人来问你今年还办不办。",
+              "effects": {
+                "mood": 8,
+                "friends": 5,
+                "fame": 6,
+                "skills": {
+                  "social": 5
+                },
+                "tags": {
+                  "add": [
+                    "活动咖"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "community",
+                "score": 2
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_024",
+      "title": "有人记得你生日",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        100,
+        200
+      ],
+      "weight": 28,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "活动",
+        "正面"
+      ],
+      "condition": {
+        "minHours": 100,
+        "maxHours": 200,
+        "minFriends": 5
+      },
+      "text": "你从没在 VRChat 提过生日。今晚进{世界}，灯突然全灭，再亮起来时，{ta}捧着蛋糕站在你面前。",
+      "options": [
+        {
+          "id": "freeze",
+          "text": "当场愣住",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你站在原地半天说不出话。有人开始起哄让你许愿，你许了一个不太好意思说出口的愿。",
+              "effects": {
+                "mood": 9,
+                "friends": 3,
+                "skills": {
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "birthday_party"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你后来才知道，是{ta}一个个去问别人你的生日的。你把这件事记了很久。",
+              "effects": {
+                "mood": 9,
+                "friends": 4,
+                "fame": 3,
+                "skills": {
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "birthday_party"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "朋友",
+                  "initIntimacy": 35,
+                  "initTrust": 30,
+                  "initFreshness": 95,
+                  "initDependence": 10,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "thanks",
+          "text": "笑着说谢谢大家",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你挨个道谢，还唱了半首歌。那天晚上房间里的笑声比平时多很多。",
+              "effects": {
+                "mood": 7,
+                "friends": 4,
+                "fame": 3,
+                "skills": {
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "birthday_party"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "whodid",
+          "text": "偷偷打听是谁组织的",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你旁敲侧击问了半天，所有人都笑而不语。这个答案你到现在也没得到。",
+              "effects": {
+                "mood": 6,
+                "friends": 2,
+                "skills": {
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "birthday_party"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_025",
+      "title": "第一次参加婚礼",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        110,
+        230
+      ],
+      "weight": 26,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "活动",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 110,
+        "maxHours": 230,
+        "minFriends": 6
+      },
+      "text": "{世界}被布置成了教堂，两个人在{圈子}所有人的见证下交换了戒指。音乐响起时，你发现自己在想别的事。",
+      "options": [
+        {
+          "id": "bless",
+          "text": "认真祝福他们",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你在公屏上打了一长串祝福，还跟着人群鼓了掌。散场时新郎专门来跟你说谢谢。",
+              "effects": {
+                "mood": 6,
+                "friends": 3,
+                "fame": 3,
+                "skills": {
+                  "social": 4
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "extreme",
+              "text": "婚礼结束后，有人来问你要不要一起做下一场的场务。你成了社区里“办活动一定会想到的人”。",
+              "effects": {
+                "mood": 8,
+                "friends": 5,
+                "fame": 6,
+                "skills": {
+                  "social": 5
+                },
+                "tags": {
+                  "add": [
+                    "活动咖"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "deep_001",
+                  "delayHours": [
+                    18,
+                    58
+                  ],
+                  "chance": 0.6,
+                  "requireFlags": [],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "observe",
+          "text": "偷偷观察台下的人",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你发现有人全程没说话，有人一直在擦眼泪。虚拟的婚礼，真实的反应。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 2
+                },
+                "tags": {
+                  "add": [
+                    "被动"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "walk",
+          "text": "散场后和{ta}走一走",
+          "condition": {
+            "hasRelation": true
+          },
+          "lockedHint": "需要有活跃关系",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你们绕着空掉的场地走了一圈。谁都没有提婚礼，但你们都在想同一件事。",
+              "effects": {
+                "mood": 8,
+                "friends": 1,
+                "skills": {
+                  "social": 4
+                },
+                "relationOp": {
+                  "type": "renew"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_026",
+      "title": "你成了老人",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        120,
+        230
+      ],
+      "weight": 30,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 100,
+      "tags": [
+        "成长",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 120,
+        "maxHours": 230,
+        "minFriends": 6
+      },
+      "text": "一个新人在{中文吧}门口转来转去，问你怎么换模型、怎么加好友。你回答到一半，发现这些问题你以前也问过。",
+      "options": [
+        {
+          "id": "guide",
+          "text": "带他逛一圈",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你带他看了五个世界，教了他改模型的第一步。他下线前说“今天是我玩得最开心的一天”。",
+              "effects": {
+                "mood": 7,
+                "friends": 3,
+                "fame": 3,
+                "skills": {
+                  "social": 5
+                },
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "helped_newbie"
+                  ],
+                  "remove": []
+                },
+                "counters": {
+                  "newbiesHelped": 1
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你把自己踩过的坑整理成一份文档发给他。后来这份文档在圈子里传开了。",
+              "effects": {
+                "mood": 8,
+                "friends": 4,
+                "fame": 6,
+                "skills": {
+                  "social": 5
+                },
+                "flags": {
+                  "add": [
+                    "helped_newbie"
+                  ],
+                  "remove": []
+                },
+                "counters": {
+                  "newbiesHelped": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "link",
+          "text": "只丢一个教程链接",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "他道了谢就走了。你有点内疚，但确实也没有多余的力气。",
+              "effects": {
+                "mood": 3,
+                "friends": 1,
+                "skills": {
+                  "social": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "recall",
+          "text": "想起自己刚来的时候",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你翻出了自己第一天的截图，那个默认模型站在中文吧门口。你把它设成了收藏夹封面。",
+              "effects": {
+                "mood": 5,
+                "skills": {
+                  "social": 4
+                },
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_027",
+      "title": "现实里的红灯",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        120,
+        220
+      ],
+      "weight": 28,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 100,
+      "tags": [
+        "现实",
+        "负面"
+      ],
+      "condition": {
+        "minHours": 120,
+        "maxHours": 220
+      },
+      "text": "成绩单和项目复盘摆在桌上，你算了一下，这周在 VRChat 里待了{N}0 个小时。手机还在震：{世界}缺人。",
+      "options": [
+        {
+          "id": "offline",
+          "text": "先下线，把事做完",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你关掉头显，把作业补到凌晨两点。第二天上线时，那几个人还在，位置也还留着。",
+              "effects": {
+                "mood": 5,
+                "friends": 1,
+                "skills": {
+                  "social": 2
+                },
+                "flags": {
+                  "add": [
+                    "real_life_warning"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你开始给自己定上线时间表。起初很难受，两周后你发现生活居然清爽了一点。",
+              "effects": {
+                "mood": 7,
+                "friends": 2,
+                "skills": {
+                  "social": 4
+                },
+                "flags": {
+                  "add": [
+                    "real_life_warning"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "keepgoing",
+          "text": "反正也来不及了，继续上线",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你在{世界}待到天亮，现实的事一件没做。躺下的时候你有点慌，但很快睡着了。",
+              "effects": {
+                "mood": -16,
+                "friends": 3,
+                "skills": {
+                  "social": 4
+                },
+                "tags": {
+                  "add": [
+                    "疲惫",
+                    "夜猫子"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "extreme",
+              "text": "现实的压力开始渗进虚拟关系里。你回消息越来越慢，有人问你最近是不是不想玩了。",
+              "effects": {
+                "mood": -16,
+                "friends": 2,
+                "skills": {
+                  "social": 2
+                },
+                "tags": {
+                  "add": [
+                    "疲惫",
+                    "隐患"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_002",
+                  "delayHours": [
+                    18,
+                    58
+                  ],
+                  "chance": 0.55,
+                  "requireFlags": [
+                    "has_fixed_duo"
+                  ],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "cut",
+          "text": "砍掉一部分社交，只留两三个人",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你退掉了三个群，只留下最常说话的那几个。世界安静了，但重要的人还在。",
+              "effects": {
+                "mood": 5,
+                "friends": 2,
+                "skills": {
+                  "social": 4
+                },
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "real_life_warning"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social_028",
+      "title": "朋友问你",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [
+        110,
+        220
+      ],
+      "weight": 26,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 120,
+      "tags": [
+        "现实",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 110,
+        "maxHours": 220
+      },
+      "text": "现实朋友盯着你的 VR 头显：你每天回去跟谁玩啊？网友？值得吗。你张了张嘴，发现自己不知道该怎么解释{ta}。",
+      "options": [
+        {
+          "id": "explain",
+          "text": "试着解释",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你讲了半个小时，从模型讲到跨年。他听完说“听起来还挺好”，你松了口气。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 4
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "他问能不能也去看看。你带他进了{中文吧}，他站在门口愣了很久，说了句“跟想象中不一样”。",
+              "effects": {
+                "mood": 7,
+                "friends": 2,
+                "skills": {
+                  "social": 5
+                },
+                "counters": {
+                  "realFriendsBrought": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "brushoff",
+          "text": "敷衍过去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说了句“就随便玩玩”，把话题岔开。之后你再也没跟他提过 VRChat 的事。",
+              "effects": {
+                "mood": -6,
+                "tags": {
+                  "add": [
+                    "自闭"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "invite",
+          "text": "邀请他一起玩",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你帮他装了游戏、挑了模型。他在新手教程里摔了三次，笑到停不下来。",
+              "effects": {
+                "mood": 7,
+                "friends": 2,
+                "skills": {
+                  "social": 5
+                },
+                "circles": {
+                  "add": [
+                    "游戏圈"
+                  ],
+                  "remove": []
+                },
+                "counters": {
+                  "realFriendsBrought": 1
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "他留了下来，成了少数既知道你现实样子、也知道你虚拟样子的人。这种关系很少见。",
+              "effects": {
+                "mood": 8,
+                "friends": 3,
+                "skills": {
+                  "social": 7
+                },
+                "tags": {
+                  "add": [
+                    "元气"
+                  ],
+                  "remove": [
+                    "自闭"
+                  ]
+                },
+                "counters": {
+                  "realFriendsBrought": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
