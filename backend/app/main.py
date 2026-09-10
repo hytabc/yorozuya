@@ -126,6 +126,7 @@ from .schemas import (
     VrMapReportResolveRequest,
 )
 from .security import create_access_token, hash_password, verify_password
+from .sugar_frost import router as sugar_frost_router
 from .virtual_life import router as virtual_life_router
 from .virtual_life_packs import router as virtual_life_packs_router, seed_virtual_life_packs
 
@@ -325,6 +326,7 @@ from .mascot import router as mascot_router  # noqa: E402
 app.include_router(mascot_router)
 app.include_router(virtual_life_router)
 app.include_router(virtual_life_packs_router)
+app.include_router(sugar_frost_router)
 
 
 def expire_due_tasks(db: Session) -> None:
@@ -352,6 +354,7 @@ PAGE_LABELS = {
     "mine": "我的委托",
     "profile": "个人设置",
     "login": "登录注册",
+    "frost": "糖霜世界",
 }
 
 
