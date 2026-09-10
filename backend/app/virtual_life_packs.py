@@ -6,6 +6,8 @@ active; save validation (virtual_life.py) and the game client both consume
 the active pack. The JSON file under app/life_packs/ is only a startup seed.
 """
 from datetime import datetime, timezone
+import base64
+import binascii
 import json
 import re
 from pathlib import Path
@@ -282,43 +284,43 @@ def validate_pack_content(content) -> dict:
             where = f"{npc_id}/第{day_index}天"
             nodes = script.get('nodes') if isinstance(script, dict) else None
             if not isinstance(nodes, dict) or not nodes:
-                _fail(f"{where} 的剧本没有节点")
+                _fail(f'{where} 的剧本没有节点')
             if script.get('start') not in nodes:
-                _fail(f"{where} 的剧本起点无效")
+                _fail(f'{where} 的剧本起点无效')
             for node_id, node in nodes.items():
                 lines = node.get('lines')
                 if not isinstance(lines, list) or not lines or \
                         any(not isinstance(l, str) or not l for l in lines):
-                    _fail(f"{where}/{node_id} 台词必须是非空句子数组")
+                    _fail(f'{where}/{node_id} 台词必须是非空句子数组')
                 image = node.get('image')
                 if image is not None and (not isinstance(image, str) or not image.startswith('/uploads/')):
-                    _fail(f"{where}/{node_id} 图片必须是 /uploads/ 站内路径")
+                    _fail(f'{where}/{node_id} 图片必须是 /uploads/ 站内路径')
                 choices = node.get('choices')
                 if not isinstance(choices, list) or not choices:
-                    _fail(f"{where}/{node_id} 缺少选项")
+                    _fail(f'{where}/{node_id} 缺少选项')
                 for choice in choices:
                     if not isinstance(choice.get('label'), str) or not choice['label']:
-                        _fail(f"{where}/{node_id} 存在无文案选项")
+                        _fail(f'{where}/{node_id} 存在无文案选项')
                     replies = choice.get('replies')
                     if not isinstance(replies, list) or not replies or \
                             any(not isinstance(r, str) or not r for r in replies):
-                        _fail(f"{where}/{node_id} 存在无回复选项")
+                        _fail(f'{where}/{node_id} 存在无回复选项')
                     reply_image = choice.get('replyImage')
                     if reply_image is not None and (not isinstance(reply_image, str) or not reply_image.startswith('/uploads/')):
-                        _fail(f"{where}/{node_id} 回复图片必须是 /uploads/ 站内路径")
+                        _fail(f'{where}/{node_id} 回复图片必须是 /uploads/ 站内路径')
                     if choice.get('next') is not None and choice.get('next') not in nodes:
-                        _fail(f"{where}/{node_id} 选项跳转到未知节点 {choice.get('next')}")
+                        _fail(f'{where}/{node_id} 选项跳转到未知节点 {choice.get("next")}')
                     effects = choice.get('effects') or {}
                     if not isinstance(effects, dict):
-                        _fail(f"{where}/{node_id} 选项 effects 必须是对象")
+                        _fail(f'{where}/{node_id} 选项 effects 必须是对象')
                     bond = effects.get('bond', 0)
                     if not isinstance(bond, int) or not 0 <= bond <= 100:
-                        _fail(f"{where}/{node_id} 选项好感变化无效")
+                        _fail(f'{where}/{node_id} 选项好感变化无效')
                     stats = effects.get('stats', {})
                     if not isinstance(stats, dict) or not set(stats).issubset(STAT_KEYS):
-                        _fail(f"{where}/{node_id} 选项包含未知属性")
+                        _fail(f'{where}/{node_id} 选项包含未知属性')
                     if any(not isinstance(v, int) or not -100 <= v <= 100 for v in stats.values()):
-                        _fail(f"{where}/{node_id} 选项属性变化无效")
+                        _fail(f'{where}/{node_id} 选项属性变化无效')
 
     initial = content.get('initialState')
     if not isinstance(initial, dict):
@@ -464,6 +466,10 @@ class PackUpdate(StrictModel):
 class PackDuplicate(StrictModel):
     id: str = Field(min_length=1, max_length=100)
     name: str = Field(min_length=1, max_length=200)
+
+
+class NpcImport(StrictModel):
+    bundle: dict
 
 
 router = APIRouter(prefix='/api/virtual-life', tags=['virtual-life-packs'])
@@ -620,3 +626,281 @@ async def upload_life_asset(file: UploadFile = File(...), user: User = Depends(g
     except OSError as error:
         raise HTTPException(500, '图片保存失败，请稍后重试') from error
     return {'url': f'/uploads/{file_path}'}
+
+
+# ==== NPC 级导入导出(阶段 13) ====
+# 只迁移单个 NPC 的切片:档案、立绘、位置、7 天剧本、初始对话。
+# 其他 NPC、世界、房间、事件、结局等键一律不触碰。
+
+
+def _cleanup_uploaded_files(paths: list[Path]) -> None:
+    """导入失败时清理已经落盘的图片,避免留下孤儿文件。"""
+    for path in paths:
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+        except OSError:
+            pass
+
+
+def _auto_backup_id(db: Session, pack_id: str) -> str:
+    stamp = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
+    suffix = f'-bak-{stamp}'
+    base = pack_id[:max(1, 100 - len(suffix))]
+    candidate = f'{base}{suffix}'
+    if db.get(VirtualLifePack, candidate) is not None:
+        suffix = f'{suffix}-{uuid4().hex[:6]}'
+        base = pack_id[:max(1, 100 - len(suffix))]
+        candidate = f'{base}{suffix}'
+    while db.get(VirtualLifePack, candidate) is not None:
+        suffix = f'-bak-{stamp}-{uuid4().hex[:6]}'
+        base = pack_id[:max(1, 100 - len(suffix))]
+        candidate = f'{base}{suffix}'
+    return candidate
+
+
+def _auto_backup_pack(db: Session, pack: VirtualLifePack) -> VirtualLifePack:
+    name = f'{pack.name} 自动备份'
+    if len(name) > 200:
+        name = name[:200]
+    backup = VirtualLifePack(
+        id=_auto_backup_id(db, pack.id),
+        name=name,
+        version=pack.version,
+        content_json=pack.content_json,
+        is_active=False,
+        updated_at=_utcnow(),
+    )
+    db.add(backup)
+    return backup
+
+
+def _validate_npc_bundle(bundle: dict) -> tuple[str, dict, dict]:
+    if not isinstance(bundle, dict):
+        raise HTTPException(422, 'NPC 导入文件必须是 JSON 对象')
+    if bundle.get('format') != 'wsw-life-npc':
+        raise HTTPException(422, 'NPC 导入文件格式不正确')
+    if bundle.get('formatVersion') != 1:
+        raise HTTPException(422, 'NPC 导入文件版本不受支持')
+    npc_id = bundle.get('npcId')
+    if not isinstance(npc_id, str) or not PACK_ID_PATTERN.match(npc_id):
+        raise HTTPException(422, 'NPC id 只能包含小写字母、数字和连字符')
+    data = bundle.get('data')
+    if not isinstance(data, dict):
+        raise HTTPException(422, 'NPC 导入文件缺少 data')
+    npc = data.get('npc')
+    if not isinstance(npc, dict) or npc.get('id') != npc_id:
+        raise HTTPException(422, 'NPC 导入文件中的 NPC id 不一致')
+    if not isinstance(data.get('presence'), dict):
+        raise HTTPException(422, 'NPC 导入文件中的 presence 必须是对象')
+    if not isinstance(data.get('dialogue'), list):
+        raise HTTPException(422, 'NPC 导入文件中的 dialogue 必须是数组')
+    if not isinstance(data.get('initialConversation'), list):
+        raise HTTPException(422, 'NPC 导入文件中的 initialConversation 必须是数组')
+    portrait = data.get('portrait', '')
+    if not isinstance(portrait, str):
+        raise HTTPException(422, 'NPC 导入文件中的 portrait 必须是字符串')
+    images = bundle.get('images', {})
+    if not isinstance(images, dict):
+        raise HTTPException(422, 'NPC 导入文件中的 images 必须是对象')
+    return npc_id, data, images
+
+
+def _write_imported_images(images: dict, created_files: list[Path]) -> dict[str, str]:
+    """把 base64 图片写入 uploads/life/,返回旧路径 -> 新路径映射。"""
+    mapping: dict[str, str] = {}
+    for old_path, encoded in images.items():
+        if not isinstance(old_path, str) or not isinstance(encoded, str):
+            raise HTTPException(422, 'NPC 导入文件中的图片映射无效')
+        try:
+            content = base64.b64decode(encoded, validate=True)
+        except (binascii.Error, ValueError):
+            raise HTTPException(422, f'图片 {old_path} 的 base64 内容无效')
+        if not content:
+            raise HTTPException(422, f'图片 {old_path} 为空')
+        if len(content) > MAX_LIFE_IMAGE_BYTES:
+            raise HTTPException(422, f'图片 {old_path} 超过 5 MiB')
+        extension = _life_image_extension(content)
+        if extension is None:
+            raise HTTPException(422, f'图片 {old_path} 不是支持的图片格式')
+        relative = f'life/{uuid4().hex}{extension}'
+        destination = settings.sugar_upload_path / relative
+        try:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(content)
+        except OSError as error:
+            raise HTTPException(500, '图片保存失败，请稍后重试') from error
+        created_files.append(destination)
+        mapping[old_path] = f'/uploads/{relative}'
+    return mapping
+
+
+def _rewrite_npc_images(data: dict, mapping: dict[str, str]) -> None:
+    """按旧路径 -> 新路径映射改写 NPC 切片中的站内图片路径;外链原样保留。"""
+    portrait = data.get('portrait')
+    if isinstance(portrait, str):
+        data['portrait'] = mapping.get(portrait, portrait)
+    for day in data.get('dialogue', []):
+        if not isinstance(day, dict):
+            continue
+        nodes = day.get('nodes')
+        if not isinstance(nodes, dict):
+            continue
+        for node in nodes.values():
+            if not isinstance(node, dict):
+                continue
+            image = node.get('image')
+            if isinstance(image, str):
+                node['image'] = mapping.get(image, image)
+            for choice in node.get('choices') or []:
+                if not isinstance(choice, dict):
+                    continue
+                reply_image = choice.get('replyImage')
+                if isinstance(reply_image, str):
+                    choice['replyImage'] = mapping.get(reply_image, reply_image)
+
+
+def _merge_npc_slice(content: dict, npc_id: str, data: dict) -> None:
+    """把导入切片合并进包内容;只动 npcIds/npcs/portraits/presence/dialogue/初始对话。"""
+    npc = data['npc']
+    content.setdefault('npcIds', [])
+    content.setdefault('npcs', [])
+    content.setdefault('portraits', {})
+    content.setdefault('presence', {})
+    content.setdefault('dialogue', {})
+    content.setdefault('initialState', {})
+    content['initialState'].setdefault('conversations', {})
+
+    if npc_id not in content['npcIds']:
+        content['npcIds'].append(npc_id)
+
+    replaced = False
+    for index, item in enumerate(content['npcs']):
+        if isinstance(item, dict) and item.get('id') == npc_id:
+            content['npcs'][index] = npc
+            replaced = True
+            break
+    if not replaced:
+        content['npcs'].append(npc)
+
+    content['portraits'][npc_id] = data.get('portrait', '')
+    content['presence'][npc_id] = data['presence']
+    content['dialogue'][npc_id] = data['dialogue']
+    content['initialState']['conversations'][npc_id] = data['initialConversation']
+
+
+@router.get('/packs/{pack_id}/npcs/{npc_id}/export')
+def export_npc(pack_id: str, npc_id: str, user: User = Depends(get_role_manager), db: Session = Depends(get_db)):
+    pack = _get_pack_or_404(db, pack_id)
+    content = json.loads(pack.content_json)
+    npc_ids = content.get('npcIds', [])
+    if npc_id not in npc_ids:
+        raise HTTPException(404, 'NPC 不存在')
+    npc = next((item for item in content.get('npcs', [])
+                if isinstance(item, dict) and item.get('id') == npc_id), None)
+    if npc is None:
+        raise HTTPException(404, 'NPC 不存在')
+
+    portrait = content.get('portraits', {}).get(npc_id, '')
+    presence = content.get('presence', {}).get(npc_id, {})
+    dialogue = content.get('dialogue', {}).get(npc_id, [])
+    initial_conversation = content.get('initialState', {}).get('conversations', {}).get(npc_id, [])
+
+    # 收集需要内嵌的站内 life 图片:立绘、节点图、选项回复图。
+    image_paths: list[object] = [portrait]
+    if isinstance(dialogue, list):
+        for day in dialogue:
+            if not isinstance(day, dict):
+                continue
+            nodes = day.get('nodes')
+            if not isinstance(nodes, dict):
+                continue
+            for node in nodes.values():
+                if not isinstance(node, dict):
+                    continue
+                image_paths.append(node.get('image'))
+                choices = node.get('choices')
+                if isinstance(choices, list):
+                    for choice in choices:
+                        if isinstance(choice, dict):
+                            image_paths.append(choice.get('replyImage'))
+
+    images: dict[str, str] = {}
+    missing_images: list[str] = []
+    for path in image_paths:
+        if not isinstance(path, str) or not path.startswith('/uploads/life/'):
+            continue
+        if path in images or path in missing_images:
+            continue
+        relative = path.removeprefix('/uploads/')
+        file_path = settings.sugar_upload_path / relative
+        try:
+            binary = file_path.read_bytes()
+        except OSError:
+            missing_images.append(path)
+            continue
+        images[path] = base64.b64encode(binary).decode('ascii')
+
+    return {
+        'format': 'wsw-life-npc',
+        'formatVersion': 1,
+        'npcId': npc_id,
+        'exportedAt': _utcnow(),
+        'packId': pack.id,
+        'packVersion': pack.version,
+        'data': {
+            'npc': npc,
+            'portrait': portrait if isinstance(portrait, str) else '',
+            'presence': presence,
+            'dialogue': dialogue,
+            'initialConversation': initial_conversation,
+        },
+        'images': images,
+        'missingImages': missing_images,
+    }
+
+
+@router.post('/packs/{pack_id}/npcs/import')
+def import_npc(pack_id: str, payload: NpcImport, user: User = Depends(get_role_manager), db: Session = Depends(get_db)):
+    pack = _get_pack_or_404(db, pack_id)
+    created_files: list[Path] = []
+    try:
+        npc_id, data, images = _validate_npc_bundle(payload.bundle)
+        content = json.loads(pack.content_json)
+        mode = 'overwritten' if npc_id in content.get('npcIds', []) else 'created'
+
+        backup = _auto_backup_pack(db, pack)
+        mapping = _write_imported_images(images, created_files)
+        _rewrite_npc_images(data, mapping)
+        _merge_npc_slice(content, npc_id, data)
+
+        try:
+            validate_pack_content(content)
+        except PackContentError as exc:
+            raise HTTPException(422, f'内容包校验失败：{exc}')
+
+        pack.content_json = json.dumps(content, ensure_ascii=False)
+        pack.version += 1
+        pack.updated_at = _utcnow()
+        db.commit()
+        return _detail(pack) | {
+            'npcImport': {
+                'npcId': npc_id,
+                'mode': mode,
+                'images': len(mapping),
+                'backupId': backup.id,
+            }
+        }
+    except HTTPException:
+        db.rollback()
+        _cleanup_uploaded_files(created_files)
+        raise
+    except PackContentError as exc:
+        db.rollback()
+        _cleanup_uploaded_files(created_files)
+        raise HTTPException(422, f'内容包校验失败：{exc}')
+    except OSError as exc:
+        db.rollback()
+        _cleanup_uploaded_files(created_files)
+        raise HTTPException(500, '图片保存失败，请稍后重试') from exc

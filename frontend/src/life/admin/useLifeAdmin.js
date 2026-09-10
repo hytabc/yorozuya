@@ -37,6 +37,17 @@ function errText(e) {
   return (typeof detail === 'string' ? detail : null) || e.message
 }
 
+async function errTextAsync(e) {
+  const data = e.response?.data
+  if (data instanceof Blob) {
+    try {
+      const payload = JSON.parse(await data.text())
+      if (typeof payload?.detail === 'string') return payload.detail
+    } catch {}
+  }
+  return errText(e)
+}
+
 export async function loadPacks({ keepSelection = true } = {}) {
   adminState.loading = true
   adminState.error = ''
@@ -168,6 +179,84 @@ export async function deletePack(id) {
     showAdminToast('内容包已删除')
   } catch (e) {
     adminState.error = '删除失败：' + errText(e)
+  }
+}
+
+// ==== NPC 级导入导出(阶段 13) ====
+
+// 导出单个 NPC:后端返回 blob,这里触发浏览器下载。
+export async function exportNpc(id) {
+  const packId = adminState.detail?.id
+  if (!packId) {
+    showAdminToast('请先选择内容包')
+    return false
+  }
+  adminState.error = ''
+  try {
+    const { data } = await api.get(`/virtual-life/packs/${packId}/npcs/${id}/export`, { responseType: 'blob' })
+    const url = URL.createObjectURL(data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${packId}.${id}.npc.json`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+    showAdminToast(`已导出 NPC ${id}`)
+    return true
+  } catch (e) {
+    const message = await errTextAsync(e)
+    adminState.error = '导出失败：' + message
+    showAdminToast('导出失败：' + message)
+    return false
+  }
+}
+
+// 读取本地 NPC JSON 文件并生成确认摘要;格式不对抛中文 Error。
+export async function readNpcBundle(file) {
+  let bundle
+  try {
+    bundle = JSON.parse(await file.text())
+  } catch {
+    throw new Error('NPC 导入文件不是合法的 JSON')
+  }
+  if (!bundle || bundle.format !== 'wsw-life-npc') {
+    throw new Error('NPC 导入文件格式不正确（需要 wsw-life-npc）')
+  }
+  const npc = bundle.data?.npc || {}
+  const dialogue = Array.isArray(bundle.data?.dialogue) ? bundle.data.dialogue : []
+  const nodes = dialogue.reduce((sum, day) => sum + Object.keys(day?.nodes || {}).length, 0)
+  const images = Object.keys(bundle.images || {}).length
+  return {
+    bundle,
+    summary: {
+      npcId: bundle.npcId || '',
+      name: npc.name || bundle.npcId || '',
+      days: dialogue.length,
+      nodes,
+      images,
+    },
+  }
+}
+
+// 导入单个 NPC:后端只合并该 NPC 切片,并自动生成备份行。
+export async function importNpc(bundle) {
+  if (!adminState.detail) {
+    adminState.error = '请先选择内容包'
+    return false
+  }
+  adminState.error = ''
+  try {
+    const packId = adminState.detail.id
+    const { data } = await api.post(`/virtual-life/packs/${packId}/npcs/import`, { bundle })
+    await selectPack(packId)
+    const info = data?.npcImport || {}
+    const modeText = info.mode === 'created' ? '新增' : '覆盖'
+    showAdminToast(`已导入 NPC ${info.npcId || bundle.npcId} · ${modeText} · 图片 ${info.images ?? 0} 张 · 备份 ${info.backupId || '无'}`)
+    return true
+  } catch (e) {
+    adminState.error = '导入失败：' + errText(e)
+    return false
   }
 }
 
