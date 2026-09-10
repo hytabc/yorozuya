@@ -2,7 +2,10 @@
 // 虚拟人生内容管理（/life-admin，阶段 4d）。
 // 站长在此组装全站活动内容包:人物/世界与房间/动作/剧本/初始状态,
 // 以及包列表(复制/激活/删除)。保存经后端全量校验,活动包即时生效。
-import { onMounted } from 'vue'
+// 阶段 13b:未保存修改防丢 —— 关闭/刷新走 beforeunload 原生拦截,
+// 站内跳走走路由守卫确认,保存按钮在 dirty 时加角标与高亮。
+import { onMounted, onUnmounted, watch } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import {
   adminState, loadPacks, selectPack, savePack, activatePack, duplicatePack, deletePack,
 } from '../life/admin/useLifeAdmin'
@@ -23,6 +26,30 @@ const sections = [
   { id: 'initial', label: '初始状态' },
   { id: 'endings', label: '结局' },
 ]
+
+// 刷新/关闭标签页时,若存在未保存修改,触发浏览器原生离开确认。
+function handleBeforeUnload(event) {
+  event.preventDefault()
+  // 现代浏览器忽略文案,但仍需赋值以兼容旧规范。
+  event.returnValue = ''
+}
+
+// dirty 变化时增删 beforeunload 监听;不 dirty 时完全不拦截。
+watch(() => adminState.dirty, (dirty) => {
+  if (dirty) window.addEventListener('beforeunload', handleBeforeUnload)
+  else window.removeEventListener('beforeunload', handleBeforeUnload)
+}, { immediate: true })
+
+// 组件卸载(路由已放行后)移除监听,避免残留。
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
+
+// 站内路由跳走:dirty 时先确认;保存成功后 dirty 已复位,不再拦。
+onBeforeRouteLeave(() => {
+  if (!adminState.dirty) return true
+  return window.confirm('有未保存的修改，确定离开吗？修改尚未保存。')
+})
 
 onMounted(() => loadPacks())
 </script>
@@ -66,9 +93,10 @@ onMounted(() => loadPacks())
                   @click="adminState.section = s.id">{{ s.label }}</button>
         </nav>
         <span class="la-save-box">
-          <small v-if="adminState.dirty" class="la-dirty">有未保存修改</small>
+          <small v-if="adminState.dirty" class="la-dirty">● 有未保存修改</small>
           <small v-else>已保存 · v{{ adminState.detail.version }}</small>
-          <button class="la-save" :disabled="!adminState.dirty || adminState.saving" @click="savePack">
+          <button class="la-save" :class="{ 'la-save-dirty': adminState.dirty }"
+                  :disabled="!adminState.dirty || adminState.saving" @click="savePack">
             {{ adminState.saving ? '保存中…' : '保存修改' }}
           </button>
         </span>
@@ -120,8 +148,15 @@ onMounted(() => loadPacks())
 .la-save-box { display: flex; align-items: center; gap: 10px; }
 .la-save-box small { color: #69736e; font-size: 11px; }
 .la-dirty { color: #b77427 !important; }
-.la-save { padding: 8px 18px; border: 0; border-radius: 8px; background: #237a57; color: #fff; font-size: 13px; cursor: pointer; }
+.la-save { position: relative; padding: 8px 18px; border: 0; border-radius: 8px; background: #237a57; color: #fff; font-size: 13px; cursor: pointer; }
 .la-save:disabled { background: #dce2dc; color: #788576; cursor: not-allowed; }
+/* dirty 高亮:克制描边 + 微光呼吸,右上角橙色角标小圆点 */
+.la-save.la-save-dirty { box-shadow: 0 0 0 2px rgba(183,116,39,.28); animation: la-save-pulse 1.8s ease-in-out infinite; }
+.la-save.la-save-dirty::after { content: ''; position: absolute; top: -3px; right: -3px; width: 8px; height: 8px; border-radius: 50%; background: #b77427; box-shadow: 0 0 0 2px #fff; }
+@keyframes la-save-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(183,116,39,.24); }
+  50% { box-shadow: 0 0 0 4px rgba(183,116,39,.34); }
+}
 
 .la-error { padding: 10px 14px; border: 1px solid #e3b7b7; border-radius: 8px; background: #fdf2f2; color: #b84949; font-size: 12px; }
 .la-hint { color: #788576; font-size: 12px; }
@@ -173,3 +208,4 @@ onMounted(() => loadPacks())
 .la-fade-enter-from, .la-fade-leave-to { opacity: 0; }
 .la-page button:focus-visible, .la-page input:focus-visible, .la-page select:focus-visible, .la-page textarea:focus-visible { outline: 2px solid #237a57; outline-offset: 1px; }
 </style>
+

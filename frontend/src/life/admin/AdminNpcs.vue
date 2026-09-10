@@ -1,7 +1,10 @@
 <script setup>
-// 人物区块：NPC 基本资料、立绘、在场状态与默认回复；新增/删除人物。
+// 人物区块：NPC 基本资料、立绘、在场状态与默认回复；新增/删除/导入/导出人物。
 import { computed, nextTick, reactive, ref, watch } from 'vue'
-import { adminState, npcById, addNpc, removeNpc } from './useLifeAdmin'
+import {
+  adminState, npcById, addNpc, removeNpc,
+  exportNpc, readNpcBundle, importNpc,
+} from './useLifeAdmin'
 import AdminImageField from './AdminImageField.vue'
 
 const content = computed(() => adminState.content)
@@ -15,6 +18,8 @@ const statuses = [
 
 const selectedId = ref('')
 const editorRef = ref(null)
+const importInput = ref(null)
+const importing = ref(false)
 const selected = computed(() => content.value?.npcIds.includes(selectedId.value) ? npcById(selectedId.value) : null)
 // 换包或删除人物时清空选择，避免编辑器仍指向旧人物。
 watch(content, () => { selectedId.value = '' }, { flush: 'sync' })
@@ -57,11 +62,54 @@ function submitRemove(id) {
   const error = removeNpc(id)
   if (!error && selectedId.value === id) selectedId.value = ''
 }
+
+function triggerImport() {
+  if (importing.value) return
+  importInput.value?.click()
+}
+
+async function onImportFile(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  try {
+    const { bundle, summary } = await readNpcBundle(file)
+    const exists = content.value?.npcIds.includes(summary.npcId)
+    const action = exists ? '覆盖' : '新增'
+    const ok = window.confirm(
+      `导入 NPC「${summary.name}」（${summary.npcId}）？\n\n` +
+      `模式：${action}\n` +
+      `剧本：${summary.days} 天 · 节点：${summary.nodes} 个 · 图片：${summary.images} 张\n\n` +
+      `只会覆盖该人物的人物切片，其余人物、世界、房间、事件、结局不受影响；导入前会自动备份当前内容包。`
+    )
+    if (!ok) return
+    importing.value = true
+    await importNpc(bundle)
+  } catch (e) {
+    adminState.error = e.message || '读取 NPC 导入文件失败'
+  } finally {
+    importing.value = false
+  }
+}
 </script>
 
 <template>
   <section v-if="content" class="la-section la-npcs">
-    <h2>人物</h2>
+    <div class="la-section-head">
+      <h2>人物</h2>
+      <div class="la-head-actions">
+        <button class="la-mini" type="button" :disabled="importing" @click="triggerImport">
+          {{ importing ? '导入中…' : '导入 NPC' }}
+        </button>
+        <input
+          ref="importInput"
+          class="la-hidden-file"
+          type="file"
+          accept=".json,application/json"
+          @change="onImportFile"
+        />
+      </div>
+    </div>
     <p>玩家在世界中遇到的 NPC。立绘、在场状态决定场景展示；删除人物会同步清理其剧本与初始对话。</p>
     <table class="la-table">
       <thead>
@@ -97,6 +145,7 @@ function submitRemove(id) {
           <td><input v-model="content.presence[id].intro" type="text" style="width:140px" /></td>
           <td>
             <div class="la-npc-actions">
+              <button class="la-mini" :disabled="importing" @click="exportNpc(id)">导出</button>
               <button class="la-mini" :aria-pressed="selectedId === id" @click="selectNpc(id)">默认回复</button>
               <button class="la-mini la-danger" :disabled="content.npcIds.length <= 1" @click="submitRemove(id)">删</button>
             </div>
@@ -130,6 +179,9 @@ function submitRemove(id) {
 
 <style scoped>
 .la-npcs .la-hint { color: #69736e; }
+.la-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.la-head-actions { display: flex; align-items: center; gap: 8px; }
+.la-hidden-file { display: none; }
 .la-table tr.selected { background: #f4f9f5; }
 .la-table tr.selected > td:first-child { box-shadow: inset 4px 0 0 #237a57; }
 .la-npc-avatar { display: flex; flex-direction: column; align-items: center; gap: 6px; }
