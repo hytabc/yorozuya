@@ -19,6 +19,7 @@
 - 个人介绍页最多上传 3 张图片（单张不超过 5 MiB）；文件保存在服务端，数据库仅记录相对路径
 - 成员名录和委托详情支持查看用户图片；管理员及超级管理员可在后台屏蔽或恢复不适合展示的图片
 - 砂糖社：登记带照片的公开档案，查看卡片后通过仅对查看双方开放的 QQ 线下交流；双方确认后成为砂糖，任一方可结束关系，展示维持最久的前三对（含已结束记录）
+- 交友厅：登记个人介绍与最多 5 张经审核照片，发起好友申请并查看好友数量排行榜
 - 管理员统计、委托隐藏与恢复；隐藏原因对相关用户可见
 - 看板娘「小白」：PC 端左上角常驻的站内 AI 助手，可聊天、答疑，自带倾听与心理支持模式（可配置，见下文）
 - Docker Compose 一键部署与 FRP TCP 内网穿透
@@ -186,8 +187,9 @@ start.bat test
   数据库文件即宿主机上的 `backend/data/wsw.db`。因此：
   - 每次 `docker compose up -d --build`（更新部署）后数据依然保留，不会丢失；
   - 随时可用任意 SQLite 工具（如 DB Browser for SQLite、`sqlite3`）直接打开该外部路径查看。
-- **图片位置**：用户资料图片位于 `backend/data/uploads/users/<用户ID>/`，砂糖社图片位于
-  `backend/data/uploads/sugar/`。数据库只保存相对路径和用户图片的展示状态；整个 `backend/data/`
+- **图片位置**：用户资料图片位于 `backend/data/uploads/users/<用户ID>/`，交友厅图片位于
+  `backend/data/uploads/friends/<用户ID>/`，砂糖社图片位于 `backend/data/uploads/sugar/`。
+  数据库只保存相对路径和用户图片的展示状态；整个 `backend/data/`
   已绑定到容器 `/data`，重建容器不会丢失图片。
 - **自动快照**：每次有内容写入并成功提交后，后端会自动把数据库快照为带时间戳的副本，
   存到同目录 `backend/data/backups/wsw-YYYYMMDD-HHMMSS.db`，并只保留最近

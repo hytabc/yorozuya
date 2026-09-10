@@ -18,9 +18,11 @@ const applications = ref([])
 const betaApplications = ref([])
 const photoUsers = ref([])
 const sugarPhotos = ref([])
+const friendPhotos = ref([])
 const vrMapReports = ref([])
 const vrMapPhotos = ref([])
 const moderatingSugarId = ref(null)
+const moderatingFriendId = ref(null)
 const moderatingVrPhotoId = ref(null)
 const resolvingVrReportId = ref(null)
 const reports = ref([])
@@ -59,6 +61,8 @@ const statItems = computed(() => [
 async function load() {
   loading.value = true
   try {
+    const friendPhotoRes = await api.get('/admin/friends/photos')
+    friendPhotos.value = friendPhotoRes.data
     if (auth.isDisciplinarian) {
       const [photoRes, reportRes, sugarPhotoRes, vrReportRes, vrPhotoRes] = await Promise.all([
         api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/sugar/photos'),
@@ -293,6 +297,20 @@ async function moderateSugarPhoto(photo, isVisible) {
     sugarPhotos.value[sugarPhotos.value.findIndex((item) => item.id === photo.id)] = data
     toast.success(isVisible ? '照片已恢复展示' : '照片已屏蔽')
   } catch (error) { toast.error(errorMessage(error)) } finally { moderatingSugarId.value = null }
+}
+async function moderateFriendPhoto(photo, isVisible) {
+  let note = null
+  if (!isVisible) {
+    note = window.prompt('请输入屏蔽理由（将展示给照片主人）', photo.admin_note || '')
+    if (note === null) return
+    if (!note.trim()) return toast.error('屏蔽照片时必须填写理由')
+  }
+  moderatingFriendId.value = photo.id
+  try {
+    const { data } = await api.patch(`/admin/friends/photos/${photo.id}`, { is_visible: isVisible, admin_note: isVisible ? null : note.trim() })
+    friendPhotos.value[friendPhotos.value.findIndex((item) => item.id === photo.id)] = data
+    toast.success(isVisible ? '照片已通过审核' : '照片已屏蔽')
+  } catch (error) { toast.error(errorMessage(error)) } finally { moderatingFriendId.value = null }
 }
 async function resolveVrMapReport(report, action) {
   let adminNote = null
@@ -555,6 +573,21 @@ onMounted(load)
           </figure>
         </div>
         <div v-else class="feedback-admin-empty"><ImageIcon :size="28" />暂无砂糖社照片</div>
+
+        <div class="admin-toolbar sugar-photos-toolbar"><div><h2>交友厅照片</h2><span>新上传照片需审核后才会公开展示</span></div></div>
+        <div v-if="friendPhotos.length" class="moderation-photo-grid sugar-photos">
+          <figure v-for="photo in friendPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
+            <img :src="photo.image_url" :alt="`${photo.user.nickname} 的交友厅照片`" />
+            <span v-if="!photo.moderated" class="photo-blocked sugar-blocked"><Clock3 :size="14" />审核中</span>
+            <span v-else-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.admin_note }}</span>
+            <div class="sugar-photo-actions">
+              <button v-if="!photo.is_visible" class="button secondary small" type="button" :disabled="moderatingFriendId === photo.id" @click="moderateFriendPhoto(photo, true)"><Check :size="15" />通过</button>
+              <button v-else class="button secondary small" type="button" :disabled="moderatingFriendId === photo.id" @click="moderateFriendPhoto(photo, false)"><EyeOff :size="15" />屏蔽</button>
+            </div>
+            <figcaption class="muted">{{ photo.user.nickname }}</figcaption>
+          </figure>
+        </div>
+        <div v-else class="feedback-admin-empty"><ImageIcon :size="28" />暂无交友厅照片</div>
       </template>
     </section>
 

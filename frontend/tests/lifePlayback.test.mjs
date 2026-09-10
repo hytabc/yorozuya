@@ -32,11 +32,12 @@ test('reduced motion displays whole lines but preserves turn order', () => {
   assert.equal(f.state.text, 'first'); assert.equal(f.state.typing, false)
   f.step(); assert.equal(f.state.text, 'second'); assert.equal(f.state.playing, false)
 })
-test('carries each queue item image into the published state', () => {
+test('carries each queue item image and bg into the published state', () => {
   const f = fixture(true)
-  f.player.play([{ from: 'npc', text: '一', image: null }, { from: 'npc', text: '二', image: '/uploads/life/x.png' }])
+  f.player.play([{ from: 'npc', text: '一', image: null, bg: null }, { from: 'npc', text: '二', image: '/uploads/life/x.png', bg: '/uploads/life/x.png' }])
   assert.equal(f.state.image, null)
+  assert.equal(f.state.bg, null)
   f.step()
-  assert.equal(f.state.text, '二'); assert.equal(f.state.image, '/uploads/life/x.png'); assert.equal(f.state.playing, false)
-  f.player.stop(); assert.equal(f.state.image, null)
+  assert.equal(f.state.text, '二'); assert.equal(f.state.image, '/uploads/life/x.png'); assert.equal(f.state.bg, '/uploads/life/x.png'); assert.equal(f.state.playing, false)
+  f.player.stop(); assert.equal(f.state.image, null); assert.equal(f.state.bg, null)
 })

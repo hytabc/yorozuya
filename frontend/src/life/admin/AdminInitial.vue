@@ -12,10 +12,11 @@ const tagsText = computed({
 })
 
 // 输入时立即截断、钳制并回写输入框，不依赖原生 min/max 校验。
+// 七日制起点最多第 6 天：从第 7 天开局等于直接结局。
 function setDay(event) {
   const raw = event.target.value
   initial.value.day = raw.trim() === '' || !Number.isFinite(Number(raw))
-    ? 1 : Math.max(1, Math.trunc(Number(raw)))
+    ? 1 : Math.max(1, Math.min(6, Math.trunc(Number(raw))))
   event.target.value = initial.value.day
 }
 function setStat(key, event) {
@@ -45,8 +46,8 @@ function removeDiary(index) {
     <p>新玩家（无存档）进入游戏时的起始数据。已有存档的玩家不受影响。</p>
     <div class="la-grid2 la-form">
       <label>起始天数（第几天开始）
-        <input :value="initial.day" @input="setDay($event)" type="number" min="1" step="1" />
-        <small class="la-hint">整数且 ≥1，空值或非法值回填 1。</small>
+        <input :value="initial.day" @input="setDay($event)" type="number" min="1" max="6" step="1" />
+        <small class="la-hint">整数 1~6（七日制，第 7 天开局会直接结局）；空值或非法值回填 1。</small>
       </label>
       <label>当前世界显示名
         <input v-model="initial.currentWorld" type="text" />

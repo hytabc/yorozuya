@@ -133,7 +133,7 @@ watch(() => props.script, () => {
             </div>
             <div class="message-content">
               <div class="message-name">{{ group.name }}</div>
-              <div v-for="(line, index) in group.lines" :key="index" class="message-bubble">
+              <div v-for="(line, index) in group.lines" :key="index" class="message-bubble" :style="{ animationDelay: (index * 90) + 'ms' }">
                 <span>{{ line }}</span>
                 <button v-if="group.image && index === group.lines.length - 1" class="message-image" type="button"
                         aria-label="查看事件图片" @click.stop="lightboxSrc = group.image">
@@ -146,7 +146,7 @@ watch(() => props.script, () => {
 
         <footer class="event-footer">
           <div v-if="activeChoice" class="event-options">
-            <button v-for="(option, index) in activeChoice.options" :key="index" class="option-button" type="button" @click="choose(option)">
+            <button v-for="(option, index) in activeChoice.options" :key="index" class="option-button" type="button" :style="{ animationDelay: (index * 80) + 'ms' }" @click="choose(option)">
               <span class="option-number">{{ index + 1 }}.</span> {{ option.label }}
             </button>
           </div>
@@ -168,12 +168,14 @@ watch(() => props.script, () => {
   display: flex; align-items: center; justify-content: center;
   padding: 16px; box-sizing: border-box;
   background: rgba(0, 0, 0, .45);
+  animation: overlay-in .18s ease;
 }
 .event-panel {
   display: flex; flex-direction: column;
   width: 100%; max-width: 560px; height: 80vh;
   overflow: hidden; background: #fff; border-radius: 12px;
   box-shadow: 0 12px 40px rgba(25, 38, 32, .2); color: #333;
+  animation: panel-in .28s cubic-bezier(.2,.8,.35,1.18);
 }
 .event-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -206,19 +208,34 @@ watch(() => props.script, () => {
   border: 1px solid #d9dedb; border-radius: 12px; background: #f5f6f4;
   font-size: 14px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere;
   box-shadow: 0 2px 8px rgba(25, 38, 32, .08);
+  animation: bubble-in .26s cubic-bezier(.2,.8,.35,1.18) backwards;
 }
 .player .message-bubble { background: #237a57; border-color: #237a57; color: #fff; }
 .message-image { display: block; max-width: 100%; padding: 0; margin-top: 6px; border: 0; background: transparent; cursor: zoom-in; }
 .message-image img { display: block; width: 200px; max-width: 100%; max-height: 180px; object-fit: contain; border-radius: 8px; }
 .event-footer { flex-shrink: 0; padding: 12px 20px 16px; border-top: 1px solid #d9dedb; text-align: center; max-height: 35%; overflow-y: auto; }
 .event-options { display: flex; flex-direction: column; gap: 8px; }
-.option-button, .primary-button, .continue-button { font: inherit; font-size: 14px; border-radius: 8px; padding: 10px 16px; cursor: pointer; }
-.option-button { border: 1px solid #d9dedb; background: #f5f6f4; color: #237a57; text-align: left; overflow-wrap: anywhere; }
+.option-button, .primary-button, .continue-button { font: inherit; font-size: 14px; border-radius: 8px; padding: 10px 16px; cursor: pointer; transition: transform .12s ease, background .18s, border-color .18s; }
+.option-button { border: 1px solid #d9dedb; background: #f5f6f4; color: #237a57; text-align: left; overflow-wrap: anywhere; animation: option-in .3s cubic-bezier(.2,.8,.35,1.18) backwards; }
 .option-button:hover { border-color: #237a57; }
+.option-button:active { transform: scale(.98); }
 .option-number { font-weight: 600; }
 .primary-button { border: 1px solid #237a57; background: #237a57; color: #fff; min-width: 100px; }
+.primary-button:active { transform: scale(.97); }
 .continue-button { border: 0; background: transparent; color: #69736e; width: 100%; }
+.continue-button:hover { color: #237a57; }
+.continue-button:active { transform: scale(.98); }
+.event-close { transition: transform .12s ease, background .18s; }
+.event-close:active { transform: scale(.9); }
 .event-ending { margin: 0 0 10px; color: #69736e; font-size: 13px; }
 button:focus-visible { outline: 2px solid #237a57; outline-offset: 2px; }
 @keyframes message-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes bubble-in { from { opacity: 0; transform: translateY(10px) scale(.95); } 60% { opacity: 1; transform: translateY(-2px) scale(1.015); } to { opacity: 1; transform: none; } }
+@keyframes option-in { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes overlay-in { from { opacity: 0; } }
+@keyframes panel-in { from { opacity: 0; transform: translateY(16px) scale(.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .message-group, .message-bubble, .option-button, .event-overlay, .event-panel { animation: none; }
+  .option-button, .primary-button, .continue-button, .event-close { transition: none; }
+}
 </style>

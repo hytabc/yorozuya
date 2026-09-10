@@ -12,6 +12,7 @@ import AdminActions from '../life/admin/AdminActions.vue'
 import AdminDialogue from '../life/admin/AdminDialogue.vue'
 import AdminEvents from '../life/admin/AdminEvents.vue'
 import AdminInitial from '../life/admin/AdminInitial.vue'
+import AdminEndings from '../life/admin/AdminEndings.vue'
 
 const sections = [
   { id: 'npcs', label: '人物' },
@@ -20,6 +21,7 @@ const sections = [
   { id: 'dialogue', label: '剧本' },
   { id: 'events', label: '事件' },
   { id: 'initial', label: '初始状态' },
+  { id: 'endings', label: '结局' },
 ]
 
 onMounted(() => loadPacks())
@@ -79,6 +81,7 @@ onMounted(() => loadPacks())
       <AdminDialogue v-else-if="adminState.section === 'dialogue'" />
       <AdminEvents v-else-if="adminState.section === 'events'" />
       <AdminInitial v-else-if="adminState.section === 'initial'" />
+      <AdminEndings v-else-if="adminState.section === 'endings'" />
     </template>
     <p v-else-if="adminState.loading" class="la-hint">载入中…</p>
     <p v-if="adminState.error && !adminState.content" class="la-error" role="alert">{{ adminState.error }}</p>

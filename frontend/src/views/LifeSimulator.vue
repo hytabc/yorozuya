@@ -13,12 +13,13 @@ import LifeFeatureDrawer from '../life/components/LifeFeatureDrawer.vue'
 import LifeEndingModal from '../life/components/LifeEndingModal.vue'
 
 const endingOpen = ref(false)
+const nextDayOpen = ref(false)
 
 const tutorial = ref(null)
 const auth = useAuthStore()
 const game = useLifeGame()
 const {
-  day, stats, npcs, toast, showHistory, panel,
+  day, stats, npcs, toast, showHistory, panel, ending,
   saveReady, saveBusy, saveDirty, saveError, saveConflict, savedAt,
   save, nextDay, resetToday, restartJourney, reloadConfirmed, prepareTutorial, closeTutorial,
 } = game
@@ -34,6 +35,16 @@ function restartConfirmed() {
     endingOpen.value = false
     restartJourney()
   }
+}
+
+function openNextDayConfirm() {
+  if (!saveReady.value || saveConflict.value || day.value >= 7) return
+  nextDayOpen.value = true
+}
+
+function confirmNextDay() {
+  nextDayOpen.value = false
+  nextDay()
 }
 </script>
 
@@ -55,10 +66,8 @@ function restartConfirmed() {
         <span>⚡ 精力 {{ stats.energy }}</span>
       </div>
       <div class="header-actions">
-        <button v-if="day < 7" :disabled="!saveReady || saveConflict" @click="nextDay">下一天 ▶</button>
-        <button v-else :disabled="!saveReady || saveConflict" @click="endingOpen = true">🌅 查看结局</button>
-        <button :disabled="!saveReady || saveConflict" @click="tutorial?.start()">新手指引</button>
-        <button v-if="auth.canManageRoles" title="内容管理" @click="$router.push('/life-admin')">内容管理</button>
+        <button class="btn-ghost" :disabled="!saveReady || saveConflict" @click="tutorial?.start()">新手指引</button>
+        <button v-if="auth.canManageRoles" class="btn-ghost" title="内容管理" @click="$router.push('/life-admin')">内容管理</button>
         <button class="icon-btn" title="设置">⚙</button>
         <button class="icon-btn" title="返回" @click="$router.back()">↩</button>
       </div>
@@ -72,8 +81,8 @@ function restartConfirmed() {
     </div>
     <!-- 主内容三栏 -->
     <div class="life-layout" :inert="!saveReady || saveConflict">
-      <!-- 左侧角色 -->
-      <LifeCharPanel :game="game" />
+      <!-- 左侧角色(含存档/重置/下一天操作) -->
+      <LifeCharPanel :game="game" @reset-today="resetTodayConfirmed" @show-ending="endingOpen = true" @next-day="openNextDayConfirm" />
 
       <!-- 中央场景(大空间,UI 浮在上面) -->
       <LifeScene :game="game" />
@@ -81,15 +90,6 @@ function restartConfirmed() {
       <!-- 右侧功能入口 -->
       <LifeMenuPanel :game="game" />
     </div>
-
-    <!-- 底部操作 -->
-    <footer class="life-footer">
-      <button @click="save" :disabled="!saveReady || saveConflict || saveBusy">存档</button>
-      <button @click="resetTodayConfirmed" :disabled="!saveReady || saveConflict"
-              title="清空今天的对话、事件与动作进度（测试用）">↺ 重置当天</button>
-      <button @click="day >= 7 ? endingOpen = true : nextDay()" :disabled="!saveReady || saveConflict">下一天</button>
-      <small>对话将写入今天的手记</small>
-    </footer>
 
     <!-- 对话历史抽屉 -->
     <transition name="slide">
@@ -112,7 +112,24 @@ function restartConfirmed() {
     </transition>
 
     <LifeTutorial ref="tutorial" :ready="saveReady && !saveConflict" :user-id="auth.user?.id" @prepare="prepareTutorial" @close="closeTutorial" />
-    <LifeEndingModal v-if="endingOpen" :stats="stats" :npcs="npcs" @close="endingOpen = false" @restart="restartConfirmed" />
+    <!-- 下一天二次确认:预告属性变化 -->
+    <Teleport to="body">
+      <div v-if="nextDayOpen" class="confirm-overlay" @click.self="nextDayOpen = false">
+        <section class="confirm-panel" role="dialog" aria-modal="true" aria-labelledby="next-day-title">
+          <h2 id="next-day-title">🌙 进入第 {{ day + 1 }} 天？</h2>
+          <p class="confirm-desc">今天的对话与事件进度将翻篇，好感与手记会保留。</p>
+          <div class="confirm-stats">
+            <span class="confirm-stat">⚡ 精力 {{ stats.energy }} → {{ Math.min(100, stats.energy + 10) }}<em>+10</em></span>
+            <span class="confirm-stat muted">♥ 心情 {{ stats.mood }} 不变</span>
+          </div>
+          <footer class="confirm-footer">
+            <button type="button" class="cf-ghost" @click="nextDayOpen = false">再待一会儿</button>
+            <button type="button" class="cf-primary" @click="confirmNextDay">进入新的一天</button>
+          </footer>
+        </section>
+      </div>
+    </Teleport>
+    <LifeEndingModal v-if="endingOpen" :stats="stats" :npcs="npcs" :ending="ending" @close="endingOpen = false" @restart="restartConfirmed" />
     <!-- Toast 提示 -->
     <transition name="fade">
       <div v-if="toast" class="toast">{{ toast }}</div>
@@ -123,68 +140,92 @@ function restartConfirmed() {
 <style scoped>
 .life-page {
   min-height: calc(100vh - 72px);
-  background: #f5f6f4;
+  background: linear-gradient(180deg, #eef4ef 0%, #f5f6f4 34%, #f7f4ee 100%);
   color: #18201d;
   padding: 24px 32px 40px;
   font-family: Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
-/* ========== 顶部信息栏 ========== */
+/* ========== 顶部信息栏(柔和悬浮卡片) ========== */
 .life-header {
   display: flex; align-items: center; gap: 24px;
-  margin-bottom: 28px; padding-bottom: 20px;
-  border-bottom: 1px solid #d9dedb;
+  margin-bottom: 28px; padding: 14px 20px;
+  background: rgba(255, 255, 255, .78);
+  backdrop-filter: blur(8px);
+  border: 1px solid #e4e9e4; border-radius: 16px;
+  box-shadow: 0 4px 18px rgba(25, 38, 32, .06);
 }
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand-mark {
   display: grid; place-items: center;
-  width: 44px; height: 44px;
-  background: #18201d; color: white;
+  width: 44px; height: 44px; border-radius: 13px;
+  background: linear-gradient(145deg, #2e8b64, #1d6446); color: white;
   font-family: Georgia, serif; font-size: 22px; font-weight: 700;
   transform: rotate(-3deg);
+  box-shadow: 0 3px 10px rgba(35, 122, 87, .3);
 }
 .brand-text strong { display: block; font-size: 18px; }
 .brand-text small { display: block; margin-top: 2px; color: #69736e; font-size: 11px; }
-.status-pills { display: flex; gap: 16px; margin-left: auto; }
+.status-pills { display: flex; gap: 10px; margin-left: auto; }
 .status-pills span {
   padding: 6px 12px; border-radius: 999px;
-  background: #fff; border: 1px solid #d9dedb;
+  background: #fff; border: 1px solid #e4e9e4;
+  box-shadow: 0 1px 4px rgba(25, 38, 32, .05);
   font-size: 12px; color: #69736e;
 }
-.header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.header-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .header-actions button { white-space: nowrap; }
+
+/* 三级按钮体系:实心主按钮 / 描边次按钮 / 圆形图标按钮 */
+.btn-primary {
+  padding: 8px 18px; border: 0; border-radius: 999px;
+  background: #237a57; color: #fff; font-size: 13px; cursor: pointer;
+  box-shadow: 0 3px 10px rgba(35, 122, 87, .28);
+  transition: all 0.2s;
+}
+.btn-primary:hover:not(:disabled) { background: #1e6b4c; transform: translateY(-1px); box-shadow: 0 5px 14px rgba(35, 122, 87, .34); }
+.btn-ghost {
+  padding: 8px 16px; border: 1px solid #cfe0d4; border-radius: 999px;
+  background: #fff; color: #237a57; font-size: 13px; cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-ghost:hover:not(:disabled) { background: #e5f3eb; border-color: #237a57; }
+.btn-warm {
+  padding: 8px 16px; border: 1px solid #eadfc2; border-radius: 999px;
+  background: #fdf7ea; color: #a67c2e; font-size: 13px; cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-warm:hover:not(:disabled) { background: #f8edd6; border-color: #d9b96a; }
+.btn-primary:disabled, .btn-ghost:disabled, .btn-warm:disabled { opacity: .5; cursor: not-allowed; }
 .icon-btn {
   width: 36px; height: 36px;
-  border: 1px solid #d9dedb; border-radius: 6px;
-  background: #fff; color: #69736e;
-  cursor: pointer;
+  border: 1px solid #e4e9e4; border-radius: 50%;
+  background: #f3f6f3; color: #69736e;
+  cursor: pointer; transition: all 0.2s;
 }
+.icon-btn:hover { background: #e5f3eb; color: #237a57; border-color: #cfe0d4; }
 
-/* ========== 三栏布局 ========== */
-.life-layout {
+/* ========== 存档状态条 ========== */
+.save-status {
+  display: flex; align-items: center; gap: 10px;
+  width: fit-content; margin: -14px auto 20px;
+  padding: 6px 16px; border-radius: 999px;
+  background: rgba(255, 255, 255, .66);
+  border: 1px solid #e4e9e4;
+  font-size: 11px; color: #8a938c;
+}
+.save-status button {
+  padding: 3px 12px; border: 1px solid #cfe0d4; border-radius: 999px;
+  background: #fff; color: #237a57; font-size: 11px; cursor: pointer;
+}
+.save-status button:hover:not(:disabled) { background: #e5f3eb; }
+.save-status button:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ========== 三栏布局 ========== */.life-layout {
   display: grid;
   grid-template-columns: 280px 1fr 280px;
   gap: 24px;
   margin-bottom: 28px;
-}
-
-/* ========== 底部操作 ========== */
-.life-footer {
-  display: flex; align-items: center; gap: 24px;
-  padding-top: 20px;
-  border-top: 1px solid #d9dedb;
-}
-.life-footer button {
-  padding: 8px 16px;
-  background: transparent; border: 1px solid #d9dedb;
-  border-radius: 6px; color: #69736e;
-  font-size: 12px; cursor: pointer;
-  transition: all 0.2s;
-}
-.life-footer button:hover { border-color: #237a57; color: #237a57; }
-.life-footer small {
-  margin-left: auto;
-  color: #9a9fa0; font-size: 11px;
 }
 
 /* ========== 抽屉 ========== */
@@ -216,6 +257,40 @@ function restartConfirmed() {
 .slide-enter-from, .slide-leave-to { opacity: 0; }
 .slide-enter-active .drawer-content { transition: transform 0.3s; }
 .slide-enter-from .drawer-content { transform: translateX(100%); }
+
+/* ========== 下一天确认弹窗 ========== */
+.confirm-overlay {
+  position: fixed; inset: 0; z-index: 9000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px; box-sizing: border-box; background: rgba(0, 0, 0, .4);
+}
+.confirm-panel {
+  width: 100%; max-width: 380px;
+  background: #fff; border-radius: 16px; padding: 22px;
+  box-shadow: 0 12px 40px rgba(25, 38, 32, .2);
+}
+.confirm-panel h2 { margin: 0 0 8px; font-size: 17px; color: #237a57; }
+.confirm-desc { margin: 0 0 14px; font-size: 13px; color: #69736e; line-height: 1.7; }
+.confirm-stats { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.confirm-stat {
+  padding: 10px 14px; border-radius: 10px;
+  background: #f0f8f2; border: 1px solid #dcebe1;
+  font-size: 13px; color: #237a57;
+}
+.confirm-stat em { margin-left: 6px; font-style: normal; font-weight: 700; }
+.confirm-stat.muted { background: #f5f6f4; border-color: #e6eae6; color: #8a938c; }
+.confirm-footer { display: flex; gap: 10px; justify-content: flex-end; }
+.cf-ghost {
+  padding: 9px 16px; border: 1px solid #e4e9e4; border-radius: 999px;
+  background: #f3f6f3; color: #69736e; font-size: 13px; cursor: pointer;
+}
+.cf-ghost:hover { background: #e9ede9; }
+.cf-primary {
+  padding: 9px 18px; border: 0; border-radius: 999px;
+  background: #237a57; color: #fff; font-size: 13px; cursor: pointer;
+  box-shadow: 0 3px 10px rgba(35, 122, 87, .28);
+}
+.cf-primary:hover { background: #1e6b4c; }
 
 /* ========== Toast ========== */
 .toast {

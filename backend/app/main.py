@@ -29,6 +29,10 @@ from .models import (
     BetaApplication,
     Feedback,
     FeedbackStatus,
+    FriendPhoto,
+    FriendProfile,
+    FriendRequest,
+    FriendRequestStatus,
     PageView,
     ReportStatus,
     SugarPair,
@@ -64,6 +68,13 @@ from .schemas import (
     FeedbackCreate,
     FeedbackOut,
     FeedbackUpdate,
+    FriendLeaderboardOut,
+    FriendPhotoAdminOut,
+    FriendPhotoModerateUpdate,
+    FriendPhotoOut,
+    FriendProfileCardOut,
+    FriendProfileDetailOut,
+    FriendRequestOut,
     LoginRequest,
     PasswordUpdate,
     PageMetric,
@@ -334,6 +345,7 @@ PAGE_LABELS = {
     "staff": "成员名录",
     "board": "留言板",
     "maps": "地图推荐",
+    "friends": "交友厅",
     "versions": "版本更新",
     "sugar": "砂糖社",
     "announcements": "公告中心",
@@ -663,6 +675,8 @@ MAX_VR_MAP_UPLOAD_TOTAL_BYTES = 50 * 1024 * 1024
 MAX_VR_MAP_PHOTOS = 5
 MAP_CATEGORIES = ("游戏", "休闲", "恐怖", "风景", "解谜", "社交", "其他")
 
+MAX_FRIEND_PHOTOS = 5
+
 
 def sugar_profile_query():
     return select(SugarProfile).options(joinedload(SugarProfile.user), joinedload(SugarProfile.photos))
@@ -814,6 +828,342 @@ def store_sugar_images(profile: SugarProfile, images: list[tuple[str, bytes]]) -
         raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
     records = [SugarPhoto(profile=profile, file_path=file_path) for file_path, _ in stored]
     return records
+
+
+def friend_profile_query():
+    return select(FriendProfile).options(joinedload(FriendProfile.user), joinedload(FriendProfile.photos))
+
+
+def friend_request_query():
+    return select(FriendRequest).options(
+        joinedload(FriendRequest.user_a),
+        joinedload(FriendRequest.user_b),
+        joinedload(FriendRequest.requester),
+    )
+
+
+def friend_photo_url(photo: FriendPhoto) -> str:
+    return f"/uploads/{photo.file_path}"
+
+
+def present_friend_photos(profile: FriendProfile, viewer: User | None) -> list[FriendPhotoOut]:
+    can_manage = viewer is not None and (viewer.id == profile.user_id or can_review_content(viewer))
+    return [
+        FriendPhotoOut(id=photo.id, image_url=friend_photo_url(photo), is_visible=photo.is_visible, admin_note=photo.admin_note)
+        for photo in profile.photos
+        if photo.is_visible or can_manage
+    ]
+
+
+def friend_count(db: Session, user_id: int) -> int:
+    return db.scalar(
+        select(func.count())
+        .select_from(FriendRequest)
+        .where(
+            FriendRequest.status == FriendRequestStatus.ACCEPTED,
+            or_(FriendRequest.user_a_id == user_id, FriendRequest.user_b_id == user_id),
+        )
+    ) or 0
+
+
+def friend_relation_between(db: Session, first_user_id: int, second_user_id: int) -> FriendRequest | None:
+    user_a_id, user_b_id = sorted((first_user_id, second_user_id))
+    return db.scalar(
+        friend_request_query().where(
+            FriendRequest.user_a_id == user_a_id,
+            FriendRequest.user_b_id == user_b_id,
+        )
+    )
+
+
+def present_friend_request(item: FriendRequest) -> FriendRequestOut:
+    target = item.user_b if item.user_a_id == item.requester_id else item.user_a
+    return FriendRequestOut(
+        id=item.id,
+        requester_id=item.requester_id,
+        status=item.status,
+        created_at=item.created_at,
+        responded_at=item.responded_at,
+        requester=present_user_public(item.requester),
+        target=present_user_public(target),
+    )
+
+
+def present_friend_profile(
+    profile: FriendProfile,
+    *,
+    db: Session,
+    viewer: User | None = None,
+    relationship: FriendRequest | None = None,
+    detailed: bool = False,
+) -> FriendProfileCardOut | FriendProfileDetailOut:
+    data = {
+        "id": profile.id,
+        "user": present_user_public(profile.user),
+        "about": profile.about,
+        "photos": present_friend_photos(profile, viewer),
+        "friend_count": friend_count(db, profile.user_id),
+        "created_at": profile.created_at,
+        "updated_at": profile.updated_at,
+    }
+    if detailed:
+        can_see_qq = viewer is not None and (
+            viewer.id == profile.user_id
+            or (relationship is not None and relationship.status == FriendRequestStatus.ACCEPTED)
+        )
+        return FriendProfileDetailOut(
+            **data,
+            qq=profile.user.qq if can_see_qq else None,
+            relationship=present_friend_request(relationship) if relationship else None,
+        )
+    return FriendProfileCardOut(**data)
+
+
+def get_friend_profile_or_404(db: Session, user_id: int) -> FriendProfile:
+    profile = db.scalars(friend_profile_query().where(FriendProfile.user_id == user_id)).unique().one_or_none()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="该用户尚未登记交友厅资料")
+    return profile
+
+
+def store_friend_images(profile: FriendProfile, images: list[tuple[str, bytes]]) -> list[FriendPhoto]:
+    settings.ensure_storage_directory()
+    stored: list[tuple[str, Path]] = []
+    try:
+        for extension, content in images:
+            file_path = f"friends/{profile.user_id}/{uuid4().hex}{extension}"
+            destination = settings.sugar_upload_path / file_path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(content)
+            stored.append((file_path, destination))
+    except OSError as error:
+        for _, destination in stored:
+            destination.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
+    return [FriendPhoto(profile=profile, file_path=file_path) for file_path, _ in stored]
+
+
+@app.get("/api/friends/profiles", response_model=list[FriendProfileCardOut])
+def list_friend_profiles(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    profiles = db.scalars(
+        friend_profile_query()
+        .join(FriendProfile.user)
+        .where(User.is_active.is_(True), User.is_admin.is_(False))
+        .order_by(FriendProfile.updated_at.desc())
+        .limit(200)
+    ).unique().all()
+    return [present_friend_profile(profile, db=db, viewer=user) for profile in profiles]
+
+
+@app.get("/api/friends/profiles/{user_id}", response_model=FriendProfileDetailOut)
+def friend_profile_detail(
+    user_id: int,
+    viewer: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    target = db.get(User, user_id)
+    if target is None or not target.is_active or target.is_admin:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    profile = get_friend_profile_or_404(db, user_id)
+    relationship = friend_relation_between(db, viewer.id, target.id) if viewer.id != target.id else None
+    return present_friend_profile(profile, db=db, viewer=viewer, relationship=relationship, detailed=True)
+
+
+@app.get("/api/friends/top", response_model=list[FriendLeaderboardOut])
+def top_friend_users(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    profiles = db.scalars(
+        friend_profile_query()
+        .join(FriendProfile.user)
+        .where(User.is_active.is_(True), User.is_admin.is_(False))
+        .limit(200)
+    ).unique().all()
+    ranked = sorted(
+        ((profile, friend_count(db, profile.user_id)) for profile in profiles),
+        key=lambda item: (-item[1], item[0].updated_at, item[0].user_id),
+    )[:3]
+    output = []
+    for profile, count in ranked:
+        visible = [photo for photo in profile.photos if photo.is_visible]
+        photo = visible[0] if visible else None
+        output.append(
+            FriendLeaderboardOut(
+                user=present_user_public(profile.user),
+                photo=FriendPhotoOut(id=photo.id, image_url=friend_photo_url(photo)) if photo else None,
+                friend_count=count,
+            )
+        )
+    return output
+
+
+@app.post("/api/friends/profile", response_model=FriendProfileDetailOut)
+async def save_friend_profile(
+    response: Response,
+    about: Annotated[str, Form(...)],
+    photos: list[UploadFile] = File(default=[]),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if user.is_admin:
+        raise HTTPException(status_code=403, detail="管理员账号不能登记交友厅资料")
+    about = about.strip()
+    if not 1 <= len(about) <= 1000:
+        raise HTTPException(status_code=422, detail="交友厅介绍需要 1 至 1000 个字符")
+    if len(photos) > MAX_FRIEND_PHOTOS:
+        raise HTTPException(status_code=422, detail=f"最多上传 {MAX_FRIEND_PHOTOS} 张照片")
+    images = await read_sugar_images(photos)
+    profile = db.scalars(friend_profile_query().where(FriendProfile.user_id == user.id)).unique().one_or_none()
+    is_new = profile is None
+    if profile is None:
+        if not images:
+            raise HTTPException(status_code=422, detail="首次登记请至少上传一张照片")
+        profile = FriendProfile(user_id=user.id, about=about)
+        db.add(profile)
+        db.flush()
+    else:
+        if len(profile.photos) + len(images) > MAX_FRIEND_PHOTOS:
+            raise HTTPException(status_code=422, detail=f"每个档案最多保存 {MAX_FRIEND_PHOTOS} 张照片")
+        profile.about = about
+        profile.updated_at = datetime.utcnow()
+    records = store_friend_images(profile, images)
+    db.add_all(records)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        for record in records:
+            (settings.sugar_upload_path / record.file_path).unlink(missing_ok=True)
+        raise
+    saved = get_friend_profile_or_404(db, user.id)
+    response.status_code = status.HTTP_201_CREATED if is_new else status.HTTP_200_OK
+    return present_friend_profile(saved, db=db, viewer=user, detailed=True)
+
+
+@app.delete("/api/friends/photos/{photo_id}", response_model=FriendProfileDetailOut)
+def delete_friend_photo(photo_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    photo = db.get(FriendPhoto, photo_id)
+    if photo is None:
+        raise HTTPException(status_code=404, detail="照片不存在")
+    profile = get_friend_profile_or_404(db, user.id)
+    if photo.profile_id != profile.id:
+        raise HTTPException(status_code=403, detail="只能删除自己的照片")
+    if len(profile.photos) <= 1:
+        raise HTTPException(status_code=409, detail="档案至少需要保留一张照片")
+    file_path = photo.file_path
+    db.delete(photo)
+    db.commit()
+    root = settings.sugar_upload_path.resolve()
+    destination = (root / file_path).resolve()
+    if destination.is_relative_to(root):
+        destination.unlink(missing_ok=True)
+    return present_friend_profile(get_friend_profile_or_404(db, user.id), db=db, viewer=user, detailed=True)
+
+
+@app.delete("/api/friends/profile", status_code=status.HTTP_204_NO_CONTENT)
+def delete_friend_profile(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    profile = db.scalars(friend_profile_query().where(FriendProfile.user_id == user.id)).unique().one_or_none()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="交友厅资料不存在")
+    photo_paths = [photo.file_path for photo in profile.photos]
+    db.delete(profile)
+    db.commit()
+    root = settings.sugar_upload_path.resolve()
+    for file_path in photo_paths:
+        destination = (root / file_path).resolve()
+        if destination.is_relative_to(root):
+            destination.unlink(missing_ok=True)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.get("/api/friends/requests/mine", response_model=list[FriendRequestOut])
+def my_friend_requests(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    requests = db.scalars(
+        friend_request_query()
+        .where(
+            FriendRequest.status == FriendRequestStatus.PENDING,
+            or_(FriendRequest.user_a_id == user.id, FriendRequest.user_b_id == user.id),
+        )
+        .order_by(FriendRequest.created_at.desc())
+    ).all()
+    return [present_friend_request(item) for item in requests]
+
+
+@app.post("/api/friends/requests/{target_user_id}", response_model=FriendRequestOut, status_code=status.HTTP_201_CREATED)
+def create_friend_request(target_user_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.is_admin:
+        raise HTTPException(status_code=403, detail="管理员账号不能申请添加好友")
+    if target_user_id == user.id:
+        raise HTTPException(status_code=400, detail="不能申请添加自己为好友")
+    target = db.get(User, target_user_id)
+    if target is None or not target.is_active or target.is_admin:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    get_friend_profile_or_404(db, user.id)
+    get_friend_profile_or_404(db, target_user_id)
+    existing = friend_relation_between(db, user.id, target_user_id)
+    now = datetime.utcnow()
+    if existing is not None:
+        if existing.status == FriendRequestStatus.ACCEPTED:
+            raise HTTPException(status_code=409, detail="你们已经是好友")
+        if existing.status == FriendRequestStatus.PENDING:
+            if existing.requester_id == user.id:
+                raise HTTPException(status_code=409, detail="好友申请已发送，请等待对方处理")
+            raise HTTPException(status_code=409, detail="对方已向你发送好友申请，请直接处理")
+        existing.status = FriendRequestStatus.PENDING
+        existing.requester_id = user.id
+        existing.created_at = now
+        existing.responded_at = None
+    else:
+        user_a_id, user_b_id = sorted((user.id, target_user_id))
+        existing = FriendRequest(
+            user_a_id=user_a_id,
+            user_b_id=user_b_id,
+            requester_id=user.id,
+            status=FriendRequestStatus.PENDING,
+            created_at=now,
+        )
+        db.add(existing)
+    db.commit()
+    saved = db.scalar(friend_request_query().where(FriendRequest.id == existing.id))
+    return present_friend_request(saved)
+
+
+def resolve_friend_request(request_id: int, user: User, db: Session, status_value: FriendRequestStatus) -> FriendRequest:
+    item = db.scalar(friend_request_query().where(FriendRequest.id == request_id))
+    if item is None:
+        raise HTTPException(status_code=404, detail="好友申请不存在")
+    if item.status != FriendRequestStatus.PENDING:
+        raise HTTPException(status_code=409, detail="该好友申请已处理")
+    if item.requester_id == user.id:
+        raise HTTPException(status_code=403, detail="申请人不能处理自己的好友申请")
+    if user.id not in (item.user_a_id, item.user_b_id):
+        raise HTTPException(status_code=403, detail="无权处理该好友申请")
+    item.status = status_value
+    item.responded_at = datetime.utcnow()
+    db.commit()
+    return db.scalar(friend_request_query().where(FriendRequest.id == item.id))
+
+
+@app.post("/api/friends/requests/{request_id}/accept", response_model=FriendRequestOut)
+def accept_friend_request(request_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return present_friend_request(resolve_friend_request(request_id, user, db, FriendRequestStatus.ACCEPTED))
+
+
+@app.post("/api/friends/requests/{request_id}/reject", response_model=FriendRequestOut)
+def reject_friend_request(request_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return present_friend_request(resolve_friend_request(request_id, user, db, FriendRequestStatus.REJECTED))
+
+
+@app.delete("/api/friends/requests/{request_id}", status_code=status.HTTP_204_NO_CONTENT)
+def cancel_friend_request(request_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    item = db.get(FriendRequest, request_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="好友申请不存在")
+    if item.requester_id != user.id:
+        raise HTTPException(status_code=403, detail="只有申请人可以取消申请")
+    if item.status != FriendRequestStatus.PENDING:
+        raise HTTPException(status_code=409, detail="该好友申请已处理")
+    db.delete(item)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 ACTIVE_TAKEN_STATUSES = (TaskStatus.PUBLISHED, TaskStatus.ACCEPTED, TaskStatus.AWAITING, TaskStatus.CANCELLING)
@@ -2929,6 +3279,55 @@ def moderate_sugar_photo(
     db.commit()
     db.refresh(photo)
     return present_sugar_photo_admin(photo)
+
+
+def present_friend_photo_admin(photo: FriendPhoto) -> FriendPhotoAdminOut:
+    return FriendPhotoAdminOut(
+        id=photo.id,
+        image_url=friend_photo_url(photo),
+        is_visible=photo.is_visible,
+        admin_note=photo.admin_note,
+        moderated=photo.moderated_at is not None,
+        created_at=photo.created_at,
+        user=present_user_public(photo.profile.user),
+    )
+
+
+@app.get("/api/admin/friends/photos", response_model=list[FriendPhotoAdminOut])
+def admin_friend_photos(_: User = Depends(get_content_moderator), db: Session = Depends(get_db)):
+    photos = db.scalars(
+        select(FriendPhoto)
+        .options(joinedload(FriendPhoto.profile).joinedload(FriendProfile.user))
+        .order_by(FriendPhoto.created_at.desc())
+        .limit(500)
+    ).unique().all()
+    return [present_friend_photo_admin(photo) for photo in photos]
+
+
+@app.patch("/api/admin/friends/photos/{photo_id}", response_model=FriendPhotoAdminOut)
+def moderate_friend_photo(
+    photo_id: int,
+    payload: FriendPhotoModerateUpdate,
+    manager: User = Depends(get_content_moderator),
+    db: Session = Depends(get_db),
+):
+    photo = db.get(FriendPhoto, photo_id)
+    if photo is None:
+        raise HTTPException(status_code=404, detail="照片不存在")
+    if not payload.is_visible and not (payload.admin_note or "").strip():
+        raise HTTPException(status_code=422, detail="屏蔽照片时必须填写理由")
+    photo.is_visible = payload.is_visible
+    photo.admin_note = payload.admin_note.strip() if payload.admin_note and payload.admin_note.strip() else None
+    photo.moderated_by_id = manager.id
+    photo.moderated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(photo)
+    photo = db.scalar(
+        select(FriendPhoto)
+        .options(joinedload(FriendPhoto.profile).joinedload(FriendProfile.user))
+        .where(FriendPhoto.id == photo.id)
+    )
+    return present_friend_photo_admin(photo)
 
 
 @app.patch("/api/admin/users/{user_id}/task-limit", response_model=AdminUserOut)

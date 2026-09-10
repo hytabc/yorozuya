@@ -6,7 +6,7 @@
 // 选项的 next 非空则当天推进到下一节点,next 为空(或指向失效节点)则当天对话完成;
 // nextDay 重置回当天的 start。
 // 消息组(8a):节点台词 lines 与选项回复 replies 都是多句数组,逐句连播;
-// 图片挂在该组最后一句的消息条目上(说完才展示图)。
+// `bg` 是整组持续的对话背景,挂在每一条消息上;`image` 仍只挂在最后一句(供历史抽屉缩略图记录)。
 
 // 当天对话耗尽后,只从好感够得着的最高档随机取一句;不修改配置或产生效果。
 export function pickFallbackReply(replies, bond, rng = Math.random) {
@@ -28,11 +28,13 @@ export function nodeFor(script, nodeId) {
   return (nodeId && script.nodes[nodeId]) ? script.nodes[nodeId] : script.nodes[script.start]
 }
 
-// 消息组展开:多句台词逐条成消息,图片挂在最后一句(说完才展示图)。
+// 消息组展开:多句台词逐条成消息;`bg` 是整组持续的对话背景,挂在每一条上;
+// `image` 仍只挂在最后一句(供历史抽屉缩略图记录)。
 export function groupMessages(texts, image, day, from = 'npc') {
   return texts.map((text, i) => ({
     from, text, day, time: '18:20',
     image: i === texts.length - 1 ? (image || null) : null,
+    bg: image || null,
   }))
 }
 
