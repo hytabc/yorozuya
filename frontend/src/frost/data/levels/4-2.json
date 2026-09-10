@@ -1,0 +1,241 @@
+{
+  "id": "4-2",
+  "title": "融化的糖霜",
+  "chapter": 4,
+  "order": 2,
+  "epigraph": "",
+  "intro": "凛说：「我造这个世界，是想让它替我说话。可它到现在，一个人也没留住。」",
+  "hasButterfly": true,
+  "anchors": { "first": "frag_4_2_01", "last": "frag_4_2_08" },
+  "initialOrder": [
+    "frag_4_2_01",
+    "frag_4_2_02",
+    "frag_4_2_05",
+    "frag_4_2_03",
+    "frag_4_2_07",
+    "frag_4_2_06",
+    "frag_4_2_04",
+    "frag_4_2_08"
+  ],
+  "fragments": [
+    {
+      "id": "frag_4_2_01",
+      "levelId": "4-2",
+      "type": "gray",
+      "character": "Rin",
+      "text": "凛花了三个月，把糖霜世界搭好，只发了链接给一个人。",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定起点。"
+    },
+    {
+      "id": "frag_4_2_02",
+      "levelId": "4-2",
+      "type": "white",
+      "character": "Rin",
+      "text": "那个人没有来。好友列表里的名字，一直是灰的。",
+      "tags": ["waiting"],
+      "draggable": true,
+      "valence": -2,
+      "note": "凛的核心伤口。它排得越后，凛'转身'的可能性越大。"
+    },
+    {
+      "id": "frag_4_2_03",
+      "levelId": "4-2",
+      "type": "white",
+      "character": "Rin",
+      "text": "凛没有删掉这个世界，只是把灯调得暗了一点。",
+      "tags": ["keep"],
+      "draggable": true,
+      "valence": -1,
+      "note": "保留但不抱希望。"
+    },
+    {
+      "id": "frag_4_2_04",
+      "levelId": "4-2",
+      "type": "white",
+      "character": "Rin",
+      "text": "后来她把链接发给了一群陌生人。有人来过，又走了。",
+      "tags": ["strangers"],
+      "draggable": true,
+      "valence": 0,
+      "note": "把世界交出去的第一步。"
+    },
+    {
+      "id": "frag_4_2_05",
+      "levelId": "4-2",
+      "type": "white",
+      "character": "Rin",
+      "text": "只有澪，在雪原上站了很久，问了一句：「这是你做的吗？」",
+      "tags": ["echo_1_3", "seen"],
+      "draggable": true,
+      "valence": 2,
+      "note": "回声自 1-3。这是全作最重要的一次呼应。"
+    },
+    {
+      "id": "frag_4_2_06",
+      "levelId": "4-2",
+      "type": "white",
+      "character": "Rin",
+      "text": "凛说：「嗯。」那是她在这个世界里说过的最长的一句话。",
+      "tags": ["longest_word"],
+      "draggable": true,
+      "valence": 1,
+      "note": "与 1-3 的「嗯」同构。"
+    },
+    {
+      "id": "frag_4_2_07",
+      "levelId": "4-2",
+      "type": "gold",
+      "character": "Rin",
+      "text": "【关键】交换「等待」与「被看见」的顺序。",
+      "tags": ["swap", "key"],
+      "draggable": true,
+      "valence": 0,
+      "note": "金色碎片。它决定凛是继续等待，还是终于转身。"
+    },
+    {
+      "id": "frag_4_2_08",
+      "levelId": "4-2",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "糖霜世界的那盏灯，在这一晚亮到了最后。",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": 2,
+      "note": "固定终点。中性偏暖——灯亮着，但为谁亮着，由玩家决定。"
+    },
+    {
+      "id": "frag_4_2_09",
+      "levelId": "4-2",
+      "type": "blue",
+      "character": "Rin",
+      "text": "【凛的独白】我不是在等他。我是在等一个能把这盏灯接过去的人。",
+      "tags": ["insight"],
+      "draggable": false,
+      "valence": 0,
+      "hidden": true,
+      "unlockedBy": "butterfly:4-2:A",
+      "note": "蝴蝶效应奖励。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "4_2_good",
+      "levelId": "4-2",
+      "type": "good",
+      "title": "把世界交出去",
+      "threshold": 70,
+      "valence": 1,
+      "constraints": [
+        { "kind": "before", "a": "frag_4_2_04", "b": "frag_4_2_07", "weight": 25 },
+        { "kind": "before", "a": "frag_4_2_07", "b": "frag_4_2_05", "weight": 20 },
+        { "kind": "before", "a": "frag_4_2_05", "b": "frag_4_2_06", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_4_2_06", "b": "frag_4_2_08", "weight": 30 }
+      ],
+      "anti": [
+        { "kind": "adjacent", "a": "frag_4_2_07", "b": "frag_4_2_05", "weight": 40 }
+      ],
+      "text": "凛先做了一件事：把链接发给了一群陌生人。有人来过，又走了。\n\n然后澪在雪原上站了很久，问了一句：「这是你做的吗？」\n\n凛说：「嗯。」\n\n那之后，她把世界的钥匙交了出去。「反正它闲着。」她说完就走开了——但那一晚，雪原上的灯第一次没有调暗。",
+      "excerpt": "「反正它闲着。」",
+      "bondEffect": { "Rin": 18, "Mio": 10 }
+    },
+    {
+      "id": "4_2_bittersweet",
+      "levelId": "4-2",
+      "type": "bittersweet",
+      "title": "留灯的人",
+      "threshold": 60,
+      "valence": -1,
+      "constraints": [
+        { "kind": "before", "a": "frag_4_2_02", "b": "frag_4_2_07", "weight": 25 },
+        { "kind": "before", "a": "frag_4_2_03", "b": "frag_4_2_07", "weight": 20 },
+        { "kind": "before", "a": "frag_4_2_07", "b": "frag_4_2_05", "weight": 20 },
+        { "kind": "adjacent", "a": "frag_4_2_06", "b": "frag_4_2_08", "weight": 35 }
+      ],
+      "anti": [
+        { "kind": "group", "frags": ["frag_4_2_05", "frag_4_2_06", "frag_4_2_07"], "weight": 50 }
+      ],
+      "text": "凛还在等那个人。名字一直是灰的，她也没有把它从列表里删掉。\n\n她允许澪进来坐坐，给她看了雪原，但从没带她去最里面那个房间。\n\n那盏灯一直亮着。\n\n为的不是谁——为的是「万一」。",
+      "excerpt": "那盏灯为「万一」而亮。",
+      "bondEffect": { "Rin": -3, "Mio": -2 }
+    },
+    {
+      "id": "4_2_bad",
+      "levelId": "4-2",
+      "type": "bad",
+      "title": "一片雪原",
+      "threshold": 55,
+      "valence": -2,
+      "constraints": [
+        { "kind": "before", "a": "frag_4_2_02", "b": "frag_4_2_03", "weight": 30 },
+        { "kind": "before", "a": "frag_4_2_03", "b": "frag_4_2_07", "weight": 25 },
+        { "kind": "before", "a": "frag_4_2_07", "b": "frag_4_2_04", "weight": 25 },
+        { "kind": "position", "frag": "frag_4_2_04", "index": 6, "weight": 20 }
+      ],
+      "anti": [],
+      "text": "凛越想越冷。她把「没有人来」排在最前面，反复地看，反复地确认。\n\n最后，她把世界设成了「仅自己可见」。\n\n后来澪想再进去的时候，只看到一行字：「此 World 已关闭。」",
+      "excerpt": "「此 World 已关闭。」",
+      "bondEffect": { "Rin": -20, "Mio": -8 }
+    },
+    {
+      "id": "4_2_true",
+      "levelId": "4-2",
+      "type": "true",
+      "title": "两个人的雪",
+      "threshold": 75,
+      "valence": 1,
+      "hidden": true,
+      "constraints": [
+        { "kind": "adjacent", "a": "frag_4_2_07", "b": "frag_4_2_05", "weight": 30 },
+        { "kind": "group", "frags": ["frag_4_2_05", "frag_4_2_06", "frag_4_2_07"], "weight": 25 },
+        { "kind": "before", "a": "frag_4_2_05", "b": "frag_4_2_06", "weight": 20 },
+        { "kind": "before", "a": "frag_4_2_03", "b": "frag_4_2_07", "weight": 25 }
+      ],
+      "anti": [],
+      "text": "金色碎片落在了「这是你做的吗」旁边，因果被翻了个面——\n\n不是澪闯进了凛的世界。是凛的世界，终于等来了一个愿意问这句话的人。\n\n两个人坐在雪原上，谁也没说话。\n\n和 2-1 的那三晚，是同一件事。这一次，凛没有说「嗯」，她说的是：「要留下吗？」",
+      "excerpt": "「要留下吗？」",
+      "bondEffect": { "Rin": 25, "Mio": 15 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "4_2_chaos",
+    "levelId": "4-2",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……凛还在等，还是已经转身，这一关里没有答案。\n\n金色碎片放在哪里，决定的是「等待」和「被看见」哪个先发生。",
+    "excerpt": "等待与被看见，哪个先发生。"
+  },
+  "butterflies": [
+    {
+      "id": "4-2:A",
+      "requires": [
+        { "kind": "adjacent", "a": "frag_4_2_05", "b": "frag_4_2_02", "weight": 1 }
+      ],
+      "unlocks": ["frag_4_2_09"],
+      "revealText": "把「那个没来的名字」和「这是你做的吗」放在一起，凛的心里第一次出现了两个并排的句子：\n\n「他不会来了。」\n「但是有人问了。」\n\n她没有意识到自己想说的是后半句。"
+    }
+  ],
+  "hints": [
+    {
+      "tier": 1,
+      "text": "金色碎片决定的是顺序：先「被看见」，还是先「继续等」。"
+    },
+    {
+      "tier": 2,
+      "text": "让「这是你做的吗」和「嗯」紧挨着收尾，但不要让金色碎片贴在它们旁边——那会走向另一个结局。",
+      "highlight": ["frag_4_2_05", "frag_4_2_06", "frag_4_2_07"]
+    },
+    {
+      "tier": 3,
+      "text": "推荐顺序：把链接发给陌生人 → 金色碎片 → 澪问「这是你做的吗」→ 凛的「嗯」→ 接终点。",
+      "highlight": ["frag_4_2_04", "frag_4_2_07", "frag_4_2_05", "frag_4_2_06"]
+    }
+  ],
+  "behindTheScenes": "4-2 处理的是凛这条支线，也是全作对「建造」这个行为的反思：凛造了一个世界，以为它能替自己说话，结果它一个人也没留住。\n\ngood 结局是「把世界交出去」——她放弃了'世界=留给某个人'的执念；true 结局则更进一步：世界不是用来留住人的，是用来让人相遇的。\n\n注意 05（这是你做的吗）是对 1-3 那盏灯的回声：凛第一次被这样问，是在 1-3。"
+}

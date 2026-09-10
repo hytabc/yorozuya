@@ -2363,3 +2363,87 @@ def test_report_daily_limit_configurable():
 
         # 非法值被拒绝
         assert client.patch("/api/admin/settings/report-limit", headers=staff, json={"daily_limit": 0}).status_code == 422
+
+
+def frost_state(**overrides):
+    state = {
+        "cleared": [],
+        "endingsSeen": [],
+        "butterfliesSeen": [],
+        "bond": {"Mio": 0, "Shiori": 0, "Rin": 0, "Yu": 0},
+        "hintsUsed": {},
+        "fails": {},
+        "attempts": {},
+        "chaosCount": 0,
+        "lastLevel": None,
+        "settings": {"reduceMotion": False, "colorBlind": False, "highContrast": False, "fontScale": "medium"},
+    }
+    state.update(overrides)
+    return state
+
+
+def test_sugar_frost_save_requires_login():
+    with TestClient(app) as client:
+        assert client.get("/api/sugar-frost/save").status_code == 401
+        assert client.put("/api/sugar-frost/save", json={"revision": 0, "state": frost_state()}).status_code == 401
+
+
+def test_sugar_frost_save_create_load_and_conflict():
+    with TestClient(app) as client:
+        headers = auth(client, "frost_player")
+
+        empty = client.get("/api/sugar-frost/save", headers=headers)
+        assert empty.status_code == 200
+        assert empty.json() == {"revision": 0, "state": None, "updatedAt": None}
+
+        created = client.put("/api/sugar-frost/save", headers=headers, json={
+            "revision": 0,
+            "state": frost_state(
+                cleared=["1-1"],
+                endingsSeen=["1_1_good"],
+                bond={"Mio": 10, "Shiori": 5, "Rin": 0, "Yu": 0},
+                chaosCount=2,
+            ),
+        })
+        assert created.status_code == 200, created.text
+        assert created.json()["revision"] == 1
+
+        loaded = client.get("/api/sugar-frost/save", headers=headers).json()
+        assert loaded["revision"] == 1
+        assert loaded["state"]["cleared"] == ["1-1"]
+        assert loaded["state"]["bond"]["Mio"] == 10
+        assert loaded["updatedAt"]
+
+        updated = client.put("/api/sugar-frost/save", headers=headers, json={
+            "revision": 1, "state": frost_state(cleared=["1-1", "1-2"]),
+        })
+        assert updated.status_code == 200
+        assert updated.json()["revision"] == 2
+
+        stale = client.put("/api/sugar-frost/save", headers=headers, json={
+            "revision": 1, "state": frost_state(),
+        })
+        assert stale.status_code == 409
+
+        # 存档按用户隔离：另一个用户看到的是空档
+        other = auth(client, "frost_other")
+        assert client.get("/api/sugar-frost/save", headers=other).json()["state"] is None
+
+
+def test_sugar_frost_save_rejects_invalid_state():
+    with TestClient(app) as client:
+        headers = auth(client, "frost_bad")
+        duplicate = client.put("/api/sugar-frost/save", headers=headers, json={
+            "revision": 0, "state": frost_state(cleared=["1-1", "1-1"]),
+        })
+        assert duplicate.status_code == 422
+
+        bad_bond = client.put("/api/sugar-frost/save", headers=headers, json={
+            "revision": 0, "state": frost_state(bond={"Mio": 999}),
+        })
+        assert bad_bond.status_code == 422
+
+        unknown_field = client.put("/api/sugar-frost/save", headers=headers, json={
+            "revision": 0, "state": {**frost_state(), "unknown": 1},
+        })
+        assert unknown_field.status_code == 422

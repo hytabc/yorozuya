@@ -32,6 +32,8 @@ backend/app/
   config.py      # pydantic-settings，读根目录 .env；含数据库备份、砂糖上传目录、看板娘配置
   database.py    # engine/SessionLocal；AppSession 挂自动快照（backup.py，每次写库后备份）
   backup.py      # 数据库自动快照，保留最近 db_backup_keep 份
+  virtual_life*.py # 虚拟人生（/life）存档与内容包
+  sugar_frost.py # 糖霜世界（/frost）存档：GET/PUT /api/sugar-frost/save，per-user 乐观锁
 frontend/src/
   api.js         # axios 实例：自动带 token、401 时清缓存并派发 auth-expired
   constants.js   # 角色显示名 ROLE_LABELS / ROLE_HINTS / roleLabel()（⚠️ 改角色文案先看这里）
@@ -40,6 +42,11 @@ frontend/src/
   views/         # TaskHall(大厅) AdminView(后台) OperationsView(运营台) AnnouncementsView(公告) 等
   components/    # TaskDialog(委托详情+接取) CreateTaskDialog ReportDialog FeedbackDialog
                  # UserProfileCard StatusBadge KanbanNiang(AI看板娘) AppHeader ToastHost TaskCard
+  frost/         # 糖霜世界(/frost) 因果解谜游戏：engine/(纯函数判定引擎，移植自 vrcWill)
+                 # data/(12 关 JSON) + useFrostGame.js + frostSave.js + components/
+  life/          # 虚拟人生(/life) 游戏内容与组件
+backend/tests/   # pytest：test_api.py + test_virtual_life*.py
+frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node frontend/scripts/verify-frost.mjs）
 ```
 
 ## 领域模型速查（models.py）
@@ -81,6 +88,7 @@ frontend/src/
 11. **看板娘**：站内 AI 助手，走 Moonshot API（`mascot_*` 配置，未配 key 优雅降级）。
 12. **首页公告弹窗**：游客每次进入首页都需确认当前公告；登录用户按账号在浏览器记录各公告的 `updated_at`，仅首次看到或公告更新后再次确认。
 13. **地图实拍**：推荐地图时可附 3 张图片；此后每位用户可为同一地图上传最多 5 张实拍，单张最大 10 MB，审核通过后公开展示。
+14. **糖霜世界**（`/frost`，任意登录用户可玩）：纯前端因果解谜游戏，12 关 / 45 设计结局 + 5 全局结局；进度按用户存于 `sugar_frost_saves`（`GET/PUT /api/sugar-frost/save`，revision CAS，409 表示其他页面已更新）。关卡数据/文案在 `frontend/src/frost/data/`，判定逻辑在 `frontend/src/frost/engine/`；改数据后跑 `node frontend/scripts/verify-frost.mjs` 校验可达性。
 
 ## 启动行为（main.py 顶部）
 

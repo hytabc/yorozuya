@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(powershell -NoProfile -Command \"Get-ChildItem -Recurse 'F:\\Code\\yorozuya\\vrcWill\\src\\lib\\data' -File | Select-Object FullName,Length | Format-Table -AutoSize\")",
+      "Shell(powershell -NoProfile -Command \"New-Item -ItemType Directory -Force -Path 'F:\\Code\\yorozuya\\frontend\\src\\frost\\data\\levels' | Out-Null; Copy-Item 'F:\\Code\\yorozuya\\vrcWill\\src\\lib\\data\\characters.json','F:\\Code\\yorozuya\\vrcWill\\src\\lib\\data\\achievements.json','F:\\Code\\yorozuya\\vrcWill\\src\\lib\\data\\global-endings.json' -Destination 'F:\\Code\\yorozuya\\frontend\\src\\frost\\data\\' -Force; Copy-Item 'F:\\Code\\yorozuya\\vrcWill\\src\\lib\\data\\levels\\*.json' -Destination 'F:\\Code\\yorozuya\\frontend\\src\\frost\\data\\levels\\' -Force; Get-ChildItem -Recurse 'F:\\Code\\yorozuya\\frontend\\src\\frost\\data' -File | Select-Object Name,Length | Format-Table -AutoSize\")",
+      "Shell(node scripts/verify-frost.mjs)",
+      "Shell(python -m pytest tests -q)",
+      "Shell(python -c \"import fastapi, starlette, sys; print(sys.version); print('fastapi', fastapi.__version__); print('starlette', starlette.__version__)\")",
+      "Shell(powershell -NoProfile -Command \"Get-ChildItem 'F:\\Code\\yorozuya' -Force -Directory | Select-Object Name; Write-Output '---'; Test-Path 'F:\\Code\\yorozuya\\backend\\.venv'; Test-Path 'F:\\Code\\yorozuya\\.venv'\")",
+      "Shell(..venvScriptspython.exe:*)",
+      "Shell(powershell -NoProfile -Command \"Get-ChildItem 'F:\\Code\\yorozuya\\backend' -Force | Select-Object Name; Write-Output '--- venv scripts ---'; Get-ChildItem 'F:\\Code\\yorozuya\\backend\\.venv\\Scripts' -ErrorAction SilentlyContinue | Select-Object Name; Write-Output '--- pip list (global) ---'; python -m pip list 2>$null | Select-String -Pattern 'starlette|fastapi|sqlalchemy|pydantic|pytest|httpx'\")",
+      "Shell(npm:*)",
+      "Shell(node scripts/_frost-smoke.mjs)",
+      "Shell(Remove-Item:*)",
+      "Shell(Test-Path:*)",
+      "Shell(powershell -NoProfile -Command \"Remove-Item 'F:\\Code\\yorozuya\\frontend\\scripts\\_frost-smoke.mjs' -Force; Test-Path 'F:\\Code\\yorozuya\\frontend\\scripts\\_frost-smoke.mjs'\")",
+      "Shell(Select-Object:*)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
+}

@@ -1,0 +1,242 @@
+{
+  "id": "3-1",
+  "title": "第三人",
+  "chapter": 3,
+  "order": 1,
+  "epigraph": "最伤人的不是争吵，是有一天你发现，你们之间的对话变成了「在忙」。",
+  "intro": "栞带回来一个新人。她笑起来的样子，像极了三个月前的澪。",
+  "hasButterfly": true,
+  "anchors": { "first": "frag_3_1_01", "last": "frag_3_1_08" },
+  "initialOrder": [
+    "frag_3_1_01",
+    "frag_3_1_04",
+    "frag_3_1_06",
+    "frag_3_1_02",
+    "frag_3_1_07",
+    "frag_3_1_03",
+    "frag_3_1_05",
+    "frag_3_1_08"
+  ],
+  "fragments": [
+    {
+      "id": "frag_3_1_01",
+      "levelId": "3-1",
+      "type": "gray",
+      "character": "Shiori",
+      "text": "栞带着一个叫「悠」的新人进了房间。",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定起点。"
+    },
+    {
+      "id": "frag_3_1_02",
+      "levelId": "3-1",
+      "type": "white",
+      "character": "Yu",
+      "text": "悠很紧张，一直躲在栞身后。",
+      "tags": ["newcomer"],
+      "draggable": true,
+      "valence": 0,
+      "note": "悠的处境，与 1-1 的澪完全同构。"
+    },
+    {
+      "id": "frag_3_1_03",
+      "levelId": "3-1",
+      "type": "white",
+      "character": "Shiori",
+      "text": "栞笑着把悠介绍给所有人，包括澪。",
+      "tags": ["inclusion"],
+      "draggable": true,
+      "valence": 1,
+      "note": "栞的行为是中性的：她只是在做她一直做的事。"
+    },
+    {
+      "id": "frag_3_1_04",
+      "levelId": "3-1",
+      "type": "red",
+      "character": "Mio",
+      "text": "澪在角落里想：她是不是要取代我了。",
+      "tags": ["spiral", "jealousy", "negative"],
+      "draggable": true,
+      "valence": -2,
+      "note": "红色碎片。它是本关的负面引擎——放在越靠前的位置，破坏力越大；被善意的碎片隔开则会淡化。"
+    },
+    {
+      "id": "frag_3_1_05",
+      "levelId": "3-1",
+      "type": "white",
+      "character": "Yu",
+      "text": "悠主动问澪：「你的 Avatar 好可爱，在哪买的？」",
+      "tags": ["innocent", "bridge"],
+      "draggable": true,
+      "valence": 2,
+      "note": "解药。它是 1-1 里那句「新手？跟着我」的镜像。"
+    },
+    {
+      "id": "frag_3_1_06",
+      "levelId": "3-1",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪勉强回了一句「好久以前了」，就没再接话。",
+      "tags": ["cold"],
+      "draggable": true,
+      "valence": -1,
+      "note": "澪的关门动作。"
+    },
+    {
+      "id": "frag_3_1_07",
+      "levelId": "3-1",
+      "type": "white",
+      "character": "Shiori",
+      "text": "栞察觉到澪不太说话，想找她单独聊，但被悠叫住了。",
+      "tags": ["pulled"],
+      "draggable": true,
+      "valence": 0,
+      "note": "栞被两头拉扯。"
+    },
+    {
+      "id": "frag_3_1_08",
+      "levelId": "3-1",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "那晚的合照里，澪站在最边上。",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": -1,
+      "note": "固定终点。位置上'最边上'是客观事实，但'是自己走过去的'还是'被挤过去的'，由玩家决定。"
+    },
+    {
+      "id": "frag_3_1_09",
+      "levelId": "3-1",
+      "type": "blue",
+      "character": "Yu",
+      "text": "【悠的独白】那个姐姐好像不太开心……是不是我不该来？",
+      "tags": ["insight", "mirror"],
+      "draggable": false,
+      "valence": 0,
+      "hidden": true,
+      "unlockedBy": "butterfly:3-1:A",
+      "note": "蝴蝶效应奖励。让玩家看见'第三者'其实也在害怕。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "3_1_good",
+      "levelId": "3-1",
+      "type": "good",
+      "title": "三个人的房间",
+      "threshold": 70,
+      "valence": 1,
+      "constraints": [
+        { "kind": "before", "a": "frag_3_1_05", "b": "frag_3_1_04", "weight": 30 },
+        { "kind": "before", "a": "frag_3_1_04", "b": "frag_3_1_06", "weight": 25 },
+        { "kind": "before", "a": "frag_3_1_03", "b": "frag_3_1_05", "weight": 20 },
+        { "kind": "before", "a": "frag_3_1_06", "b": "frag_3_1_07", "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_3_1_04", "b": "frag_3_1_05", "weight": 50 }
+      ],
+      "text": "悠的那句「你的 Avatar 好可爱」其实是真的。栞把她介绍给所有人，然后悠问起了澪。\n\n澪心里的那个念头还是冒出来了——但这一次，它被一句无心的善意打断了。\n\n她忽然意识到，这个新人和三个月前的自己，一模一样。\n\n那晚合照的时候，她们站得很近。",
+      "excerpt": "那个新人，和三个月前的她一模一样。",
+      "bondEffect": { "Mio": 12, "Shiori": 8, "Yu": 10 }
+    },
+    {
+      "id": "3_1_bittersweet",
+      "levelId": "3-1",
+      "type": "bittersweet",
+      "title": "退到边上",
+      "threshold": 60,
+      "valence": -1,
+      "constraints": [
+        { "kind": "before", "a": "frag_3_1_04", "b": "frag_3_1_05", "weight": 30 },
+        { "kind": "before", "a": "frag_3_1_03", "b": "frag_3_1_04", "weight": 25 },
+        { "kind": "before", "a": "frag_3_1_06", "b": "frag_3_1_07", "weight": 25 },
+        { "kind": "position", "frag": "frag_3_1_05", "index": 6, "weight": 20 }
+      ],
+      "anti": [],
+      "text": "那个念头比悠的善意早了一步。澪的「好久以前了」堵住了所有可能。\n\n栞察觉到她不太说话，想找她单独聊，却被悠叫走了。\n\n合照里澪站在最边上——那不是别人推的，是她自己走过去的。",
+      "excerpt": "没有人推她，是她自己走过去的。",
+      "bondEffect": { "Mio": -5, "Shiori": -3, "Yu": -3 }
+    },
+    {
+      "id": "3_1_bad",
+      "levelId": "3-1",
+      "type": "bad",
+      "title": "我才是被需要的",
+      "threshold": 55,
+      "valence": -2,
+      "constraints": [
+        { "kind": "position", "frag": "frag_3_1_04", "index": 1, "weight": 25 },
+        { "kind": "before", "a": "frag_3_1_04", "b": "frag_3_1_02", "weight": 20 },
+        { "kind": "before", "a": "frag_3_1_06", "b": "frag_3_1_05", "weight": 30 },
+        { "kind": "before", "a": "frag_3_1_06", "b": "frag_3_1_03", "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_3_1_05", "b": "frag_3_1_04", "weight": 50 }
+      ],
+      "text": "那个念头排在了最前面，于是接下来发生的每一件事，都被它重新解释了一遍。\n\n那晚之后，澪开始频繁地单独找栞，问一些「我们是不是最好的朋友」之类的问题。\n\n栞很累，悠很困惑，澪很不安。\n\n三个人都在自己的房间里，觉得自己才是受害者。",
+      "excerpt": "三个人都觉得自己是受害者。",
+      "bondEffect": { "Mio": -15, "Shiori": -10, "Yu": -10 }
+    },
+    {
+      "id": "3_1_true",
+      "levelId": "3-1",
+      "type": "true",
+      "title": "镜像",
+      "threshold": 75,
+      "valence": 1,
+      "hidden": true,
+      "constraints": [
+        { "kind": "adjacent", "a": "frag_3_1_04", "b": "frag_3_1_05", "weight": 30 },
+        { "kind": "before", "a": "frag_3_1_02", "b": "frag_3_1_04", "weight": 25 },
+        { "kind": "before", "a": "frag_3_1_05", "b": "frag_3_1_06", "weight": 25 },
+        { "kind": "before", "a": "frag_3_1_06", "b": "frag_3_1_07", "weight": 20 }
+      ],
+      "anti": [],
+      "text": "红色碎片的戾气，正好撞上一句无心的善意——两句话紧挨在一起的时候，因果抖了一下。\n\n澪在悠身上看见了三个月前的自己：那个站在陌生广场上、等着有人先开口的人。\n\n她第一次没有想「我是不是要被取代了」，而是想「希望她不要经历我经历过的」。\n\n于是她走过去，说了句：「那个 Avatar 是在旧世界买的，我带你去。」",
+      "excerpt": "她第一次希望别人不要走她的老路。",
+      "bondEffect": { "Mio": 18, "Shiori": 6, "Yu": 15 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "3_1_chaos",
+    "levelId": "3-1",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……那个红色碎片还没有找到它该待的位置。\n\n它需要的不是被删掉，而是被一句话打断。想想是哪一句。",
+    "excerpt": "红色碎片还没被那句话打断。"
+  },
+  "butterflies": [
+    {
+      "id": "3-1:A",
+      "requires": [
+        { "kind": "adjacent", "a": "frag_3_1_05", "b": "frag_3_1_04", "weight": 1 },
+        { "kind": "before", "a": "frag_3_1_04", "b": "frag_3_1_06", "weight": 1 }
+      ],
+      "unlocks": ["frag_3_1_09"],
+      "revealText": "视线从澪身上移开，转到悠那边。\n\n悠其实什么都感觉到了。她一直在看澪的表情，越看越确定：那个姐姐不喜欢自己。\n\n她躲在栞身后，小声想：是不是我不该来？"
+    }
+  ],
+  "hints": [
+    {
+      "tier": 1,
+      "text": "红色碎片不能被消灭，只能被一句话打断。那句话比它先出现，伤害就小得多。"
+    },
+    {
+      "tier": 2,
+      "text": "让悠的提问紧贴在澪的螺旋之后——两句话挨在一起，因果就会抖一下。",
+      "highlight": ["frag_3_1_04", "frag_3_1_05"]
+    },
+    {
+      "tier": 3,
+      "text": "推荐顺序：悠躲在栞身后 → 栞把悠介绍给所有人 → 悠问澪 → 澪的螺旋 → 澪的「好久以前了」→ 栞想单独聊。",
+      "highlight": ["frag_3_1_02", "frag_3_1_03", "frag_3_1_05", "frag_3_1_04", "frag_3_1_06", "frag_3_1_07"]
+    }
+  ],
+  "behindTheScenes": "3-1 的关键设计是红色碎片：它不能像白色碎片一样被'排到后面'解决，因为它在故事里是真实存在的念头。玩家能做的只有两件事——让善意比它先到，或者让它落在善意旁边。\n\n这两种解都是好的（good 与 true），但 true 更接近本作想说的话：真正的解药不是'我不该这么想'，而是'我在别人身上看见了我自己'。"
+}

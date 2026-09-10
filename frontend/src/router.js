@@ -33,6 +33,7 @@ const router = createRouter({
     { path: '/announcements', component: AnnouncementsView, meta: { analyticsKey: 'announcements' } },
     { path: '/versions', component: VersionsView, meta: { analyticsKey: 'versions' } },
     { path: '/operations', component: OperationsView, meta: { operations: true } },
+    { path: '/frost', component: () => import('./views/SugarFrost.vue'), meta: { auth: true, analyticsKey: 'frost' } },
     { path: '/life', component: () => import('./views/LifeSimulator.vue'), meta: { lifeOnly: true } },
     { path: '/life-admin', component: () => import('./views/LifeAdmin.vue'), meta: { lifeManager: true } },
     { path: '/admin', component: AdminView, meta: { moderator: true } },

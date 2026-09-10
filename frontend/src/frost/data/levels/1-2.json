@@ -1,0 +1,209 @@
+{
+  "id": "1-2",
+  "title": "走失",
+  "chapter": 1,
+  "order": 2,
+  "epigraph": "",
+  "intro": "凛造的 World 很大。大到两个人一起进去，也可能再也走不到一起。",
+  "hasButterfly": true,
+  "anchors": { "first": "frag_1_2_01", "last": "frag_1_2_07" },
+  "initialOrder": [
+    "frag_1_2_01",
+    "frag_1_2_03",
+    "frag_1_2_05",
+    "frag_1_2_02",
+    "frag_1_2_06",
+    "frag_1_2_04",
+    "frag_1_2_07"
+  ],
+  "fragments": [
+    {
+      "id": "frag_1_2_01",
+      "levelId": "1-2",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "两人一起进入了凛制作的 World「星屑广场」。",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定起点。"
+    },
+    {
+      "id": "frag_1_2_02",
+      "levelId": "1-2",
+      "type": "white",
+      "character": "Narrator",
+      "text": "人群把两人冲散，澪的名字从好友列表的视线里消失了。",
+      "tags": ["separation"],
+      "draggable": true,
+      "valence": -1,
+      "note": "走散的起点事件。"
+    },
+    {
+      "id": "frag_1_2_03",
+      "levelId": "1-2",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪在一个无人的角落坐下，不敢出声。",
+      "tags": ["withdraw"],
+      "draggable": true,
+      "valence": -1,
+      "note": "被动退缩。放在栞寻找之前 = 栞先动；之后 = 澪自己扛。"
+    },
+    {
+      "id": "frag_1_2_04",
+      "levelId": "1-2",
+      "type": "white",
+      "character": "Shiori",
+      "text": "栞在广场里一圈圈地找，喊到嗓子哑。",
+      "tags": ["search", "effort"],
+      "draggable": true,
+      "valence": 1,
+      "note": "主动寻找。本关的核心因果轴。"
+    },
+    {
+      "id": "frag_1_2_05",
+      "levelId": "1-2",
+      "type": "white",
+      "character": "Shiori",
+      "text": "栞发来私聊：「你在哪？告诉我一个特征。」",
+      "tags": ["reach_out"],
+      "draggable": true,
+      "valence": 1,
+      "note": "寻找的升级。"
+    },
+    {
+      "id": "frag_1_2_06",
+      "levelId": "1-2",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪小声回复：「……最矮的那个。」然后看见栞从人群里挤过来。",
+      "tags": ["honesty", "found"],
+      "draggable": true,
+      "valence": 2,
+      "note": "坦诚 + 相遇。必须紧邻终点才成立。"
+    },
+    {
+      "id": "frag_1_2_07",
+      "levelId": "1-2",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "好友列表上，两个名字在同一个 World 里亮了一整夜。",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定终点。中性——同一晚，可以是相遇，也可以是错过。"
+    },
+    {
+      "id": "frag_1_2_09",
+      "levelId": "1-2",
+      "type": "blue",
+      "character": "Mio",
+      "text": "【澪的独白】我知道她在找我。但我害怕被找到之后，发现自己其实没那么重要。",
+      "tags": ["insight", "fear"],
+      "draggable": false,
+      "valence": 0,
+      "hidden": true,
+      "unlockedBy": "butterfly:1-2:A",
+      "note": "蝴蝶效应奖励碎片，不入因果链。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "1_2_good",
+      "levelId": "1-2",
+      "type": "good",
+      "title": "被找到",
+      "threshold": 70,
+      "valence": 1,
+      "constraints": [
+        { "kind": "before", "a": "frag_1_2_02", "b": "frag_1_2_04", "weight": 20 },
+        { "kind": "before", "a": "frag_1_2_04", "b": "frag_1_2_05", "weight": 20 },
+        { "kind": "before", "a": "frag_1_2_05", "b": "frag_1_2_06", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_1_2_06", "b": "frag_1_2_07", "weight": 35 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_1_2_05", "b": "frag_1_2_04", "weight": 25 }
+      ],
+      "text": "栞先动了起来。她一圈圈地找，喊到嗓子哑，然后发了消息问「你在哪」。\n\n澪看着屏幕上那行字，小声说：「……最矮的那个。」下一秒，有人从人群里挤了过来。\n\n——被找到这件事，本身就是一种回答。",
+      "excerpt": "她先动了起来，然后找到了你。",
+      "bondEffect": { "Mio": 8, "Shiori": 10 }
+    },
+    {
+      "id": "1_2_bittersweet",
+      "levelId": "1-2",
+      "type": "bittersweet",
+      "title": "独自归队",
+      "threshold": 60,
+      "valence": 0,
+      "constraints": [
+        { "kind": "before", "a": "frag_1_2_02", "b": "frag_1_2_03", "weight": 30 },
+        { "kind": "before", "a": "frag_1_2_03", "b": "frag_1_2_04", "weight": 25 },
+        { "kind": "before", "a": "frag_1_2_06", "b": "frag_1_2_05", "weight": 25 },
+        { "kind": "position", "frag": "frag_1_2_04", "index": 5, "weight": 20 }
+      ],
+      "anti": [],
+      "text": "澪自己看着小地图摸回了广场中央。栞看到她的那一刻松了一口气，却没能说出「我刚才找你找得很急」「我怕你不见了」。\n\n两个人都在心里觉得对方知道。",
+      "excerpt": "都以为对方知道。",
+      "bondEffect": { "Mio": 2, "Shiori": 2 }
+    },
+    {
+      "id": "1_2_bad",
+      "levelId": "1-2",
+      "type": "bad",
+      "title": "隐身",
+      "threshold": 55,
+      "valence": -1,
+      "constraints": [
+        { "kind": "adjacent", "a": "frag_1_2_03", "b": "frag_1_2_07", "weight": 30 },
+        { "kind": "before", "a": "frag_1_2_02", "b": "frag_1_2_03", "weight": 25 },
+        { "kind": "before", "a": "frag_1_2_06", "b": "frag_1_2_03", "weight": 25 },
+        { "kind": "position", "frag": "frag_1_2_05", "index": 2, "weight": 20 }
+      ],
+      "anti": [],
+      "text": "澪把显示状态调成了隐身，随便找了个角落坐下，看广场上的灯一盏盏亮起来。\n\n栞在好友列表里喊了几次，没有回应。她以为澪先下线了。\n\n那一晚，两个人都在同一个 World 里，却没有见面。",
+      "excerpt": "同在一个世界，却没见上面。",
+      "bondEffect": { "Mio": -10, "Shiori": -5 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "1_2_chaos",
+    "levelId": "1-2",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……她们似乎在同一个地方，却走在不同的时间线上。\n\n试着想清楚：是谁先开始找的？",
+    "excerpt": "她们走在不同的时间线上。"
+  },
+  "butterflies": [
+    {
+      "id": "1-2:A",
+      "requires": [
+        { "kind": "before", "a": "frag_1_2_03", "b": "frag_1_2_04", "weight": 1 },
+        { "kind": "group", "frags": ["frag_1_2_02", "frag_1_2_03"], "weight": 1 }
+      ],
+      "unlocks": ["frag_1_2_09"],
+      "revealText": "在栞开始寻找之前的那几秒里，澪其实一直在想同一件事：如果没有人来找，是不是就说明自己不重要？\n\n——她不知道，栞是从一开始就在找的。"
+    }
+  ],
+  "hints": [
+    {
+      "tier": 1,
+      "text": "关键在「栞开始找」和「澪躲起来」哪个在前。谁先动了？"
+    },
+    {
+      "tier": 2,
+      "text": "让栞先找、再私聊问、最后澪回答——回答之后必须紧挨着结尾。",
+      "highlight": ["frag_1_2_04", "frag_1_2_05", "frag_1_2_06"]
+    },
+    {
+      "tier": 3,
+      "text": "推荐顺序：走散 → 栞寻找 → 栞私聊 → 澪躲在角落 → 澪回答并看见她挤过来。",
+      "highlight": ["frag_1_2_02", "frag_1_2_04", "frag_1_2_05", "frag_1_2_03", "frag_1_2_06"]
+    }
+  ],
+  "behindTheScenes": "1-2 讨论的是「求助」这件事的难度。澪不是不想被找到，她是怕被找到之后发现自己没那么重要——所以她的退缩（03）如果排在栞的寻找（04）之前，就等于把主动权交了出去。本关最好的解不是「澪很勇敢」，而是「澪允许自己被找到」。"
+}

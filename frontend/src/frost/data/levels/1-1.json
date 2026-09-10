@@ -1,0 +1,177 @@
+{
+  "id": "1-1",
+  "title": "第一次登入",
+  "chapter": 1,
+  "order": 1,
+  "epigraph": "在现实里，认识一个人需要理由。在这里，只需要一句「要不要一起逛逛」。",
+  "intro": "澪在现实里失去了一个位置。她听说，在另一个地方，位置是可以自己找的。",
+  "hasButterfly": false,
+  "anchors": { "first": "frag_1_1_01", "last": "frag_1_1_06" },
+  "initialOrder": [
+    "frag_1_1_01",
+    "frag_1_1_04",
+    "frag_1_1_02",
+    "frag_1_1_05",
+    "frag_1_1_03",
+    "frag_1_1_06"
+  ],
+  "fragments": [
+    {
+      "id": "frag_1_1_01",
+      "levelId": "1-1",
+      "type": "gray",
+      "character": "Mio",
+      "text": "澪把现实同学群的聚会邀请静音，关掉了房间的灯。",
+      "tags": ["anchor", "reality", "withdraw"],
+      "draggable": false,
+      "valence": -1,
+      "note": "固定起点。现实中的落单，是澪登入的动因。"
+    },
+    {
+      "id": "frag_1_1_02",
+      "levelId": "1-1",
+      "type": "white",
+      "character": "Mio",
+      "text": "她戴上头显，指尖在「进入」上停了很久。",
+      "tags": ["hesitation"],
+      "draggable": true,
+      "valence": 0,
+      "note": "犹豫。放在最前 = 先鼓起勇气；放在中间 = 被推着进去。"
+    },
+    {
+      "id": "frag_1_1_03",
+      "levelId": "1-1",
+      "type": "white",
+      "character": "Narrator",
+      "text": "湛蓝的虚拟天空在眼前铺开，身后是陌生人的笑声。",
+      "tags": ["world", "overwhelm"],
+      "draggable": true,
+      "valence": 0,
+      "note": "世界展开。它本身中性——是'先看见'还是'被邀请之后再看见'，决定了它的意义。"
+    },
+    {
+      "id": "frag_1_1_04",
+      "levelId": "1-1",
+      "type": "white",
+      "character": "Shiori",
+      "text": "一个橙色头像的女孩伸出手：「新手？跟着我，别走丢啦。」",
+      "tags": ["invitation", "reach_out"],
+      "draggable": true,
+      "valence": 1,
+      "note": "邀请。本关的关键因果轴：它出现在'看见世界'之前还是之后。"
+    },
+    {
+      "id": "frag_1_1_05",
+      "levelId": "1-1",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪犹豫了三秒，握住了那只手。",
+      "tags": ["choice", "accept"],
+      "draggable": true,
+      "valence": 2,
+      "note": "接受。必须紧邻邀请才能成立。"
+    },
+    {
+      "id": "frag_1_1_06",
+      "levelId": "1-1",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "系统提示：「Shiori 成为了你的第一位好友。」",
+      "tags": ["anchor", "bond"],
+      "draggable": false,
+      "valence": 1,
+      "note": "固定终点。无论中间怎么排，结果都是'成为好友'——差别在于这个结果的分量。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "1_1_good",
+      "levelId": "1-1",
+      "type": "good",
+      "title": "第一次握手",
+      "threshold": 70,
+      "valence": 1,
+      "constraints": [
+        { "kind": "position", "frag": "frag_1_1_02", "index": 1, "weight": 25 },
+        { "kind": "before", "a": "frag_1_1_02", "b": "frag_1_1_03", "weight": 15 },
+        { "kind": "before", "a": "frag_1_1_03", "b": "frag_1_1_04", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_1_1_04", "b": "frag_1_1_05", "weight": 35 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_1_1_03", "b": "frag_1_1_02", "weight": 30 }
+      ],
+      "text": "她戴上头显，指尖在「进入」上停了很久，然后按了下去。湛蓝的天空铺开的时候，一只手先伸了过来。澪犹豫了三秒，握住了它。\n\n——原来位置，真的是可以自己找的。",
+      "excerpt": "先鼓起勇气，再被接住。",
+      "bondEffect": { "Mio": 10, "Shiori": 5 }
+    },
+    {
+      "id": "1_1_bittersweet",
+      "levelId": "1-1",
+      "type": "bittersweet",
+      "title": "平行线",
+      "threshold": 60,
+      "valence": 0,
+      "constraints": [
+        { "kind": "position", "frag": "frag_1_1_04", "index": 1, "weight": 30 },
+        { "kind": "before", "a": "frag_1_1_04", "b": "frag_1_1_03", "weight": 25 },
+        { "kind": "before", "a": "frag_1_1_03", "b": "frag_1_1_02", "weight": 25 },
+        { "kind": "position", "frag": "frag_1_1_05", "index": 4, "weight": 20 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_1_1_03", "b": "frag_1_1_04", "weight": 30 }
+      ],
+      "text": "女孩先伸出了手，澪才看清这个世界长什么样。她们成了好友，一起逛了很多地方——可澪总觉得自己是跟着走的那个。\n\n她记得那份善意，却想不起当时的天空是什么颜色。",
+      "excerpt": "被拉进来的人，记不住风景。",
+      "bondEffect": { "Mio": 0, "Shiori": 3 }
+    },
+    {
+      "id": "1_1_bad",
+      "levelId": "1-1",
+      "type": "bad",
+      "title": "离线",
+      "threshold": 55,
+      "valence": -1,
+      "constraints": [
+        { "kind": "position", "frag": "frag_1_1_02", "index": 1, "weight": 25 },
+        { "kind": "before", "a": "frag_1_1_05", "b": "frag_1_1_03", "weight": 25 },
+        { "kind": "before", "a": "frag_1_1_05", "b": "frag_1_1_04", "weight": 25 },
+        { "kind": "position", "frag": "frag_1_1_03", "index": 3, "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "adjacent", "a": "frag_1_1_04", "b": "frag_1_1_05", "weight": 20 }
+      ],
+      "text": "澪先伸出了手，可那里什么都没有。她在一个陌生的广场中央站了很久，看着别人的名字一对对亮起来。\n\n回房间的路上，她把头显摘得很快。",
+      "excerpt": "伸手的时候，对面还没有人。",
+      "bondEffect": { "Mio": -10 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "1_1_chaos",
+    "levelId": "1-1",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……这段记忆还缺少一个开始。\n\n把碎片再排一次吧——重点不是「发生了什么」，而是「先发生了什么」。",
+    "excerpt": "因果链还缺少一个开始。"
+  },
+  "hints": [
+    {
+      "tier": 1,
+      "text": "注意「握住了那只手」——它只在一句话之后才成立。想想是哪一句。"
+    },
+    {
+      "tier": 2,
+      "text": "先让澪自己按下「进入」，再让世界展开，最后才被邀请。",
+      "highlight": ["frag_1_1_02", "frag_1_1_04"]
+    },
+    {
+      "tier": 3,
+      "text": "推荐顺序：她戴上头显 → 天空铺开 → 女孩伸手 → 握住那只手。",
+      "highlight": ["frag_1_1_02", "frag_1_1_03", "frag_1_1_04", "frag_1_1_05"]
+    }
+  ],
+  "behindTheScenes": "1-1 想表达的是：VRChat 里的第一次接触，往往不是「认识了谁」，而是「终于有人先开口」。所以最优解的权重压在「先伸手」上——但更重要的是，玩家要先让澪自己鼓起勇气。「被邀请」和「被接住」是两件事。"
+}
