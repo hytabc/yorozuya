@@ -1,0 +1,238 @@
+{
+  "id": "2-2",
+  "title": "新 Avatar",
+  "chapter": 2,
+  "order": 2,
+  "epigraph": "",
+  "intro": "栞换了 Avatar。澪盯着屏幕看了很久，才点开她的资料卡。",
+  "hasButterfly": true,
+  "anchors": { "first": "frag_2_2_01", "last": "frag_2_2_08" },
+  "initialOrder": [
+    "frag_2_2_01",
+    "frag_2_2_05",
+    "frag_2_2_07",
+    "frag_2_2_03",
+    "frag_2_2_04",
+    "frag_2_2_06",
+    "frag_2_2_02",
+    "frag_2_2_08"
+  ],
+  "fragments": [
+    {
+      "id": "frag_2_2_01",
+      "levelId": "2-2",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "栞顶着全新的 Avatar 出现在约定好的房间。",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定起点。"
+    },
+    {
+      "id": "frag_2_2_02",
+      "levelId": "2-2",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪愣了一下，说：「新形象很好看。」",
+      "tags": ["polite"],
+      "draggable": true,
+      "valence": 1,
+      "note": "礼貌的夸奖。它是不是'第一反应'，决定了它是不是真心。"
+    },
+    {
+      "id": "frag_2_2_03",
+      "levelId": "2-2",
+      "type": "white",
+      "character": "Shiori",
+      "text": "栞笑得很开心：「是吧？我挑了一整个下午。」",
+      "tags": ["delight"],
+      "draggable": true,
+      "valence": 1,
+      "note": "栞的高兴。与金色碎片相邻时语义改变。"
+    },
+    {
+      "id": "frag_2_2_04",
+      "levelId": "2-2",
+      "type": "gold",
+      "character": "Narrator",
+      "text": "【关键】栞悄悄把 Avatar 的配色，调成了澪上次说过喜欢的颜色。",
+      "tags": ["swap", "reveal", "key"],
+      "draggable": true,
+      "valence": 0,
+      "note": "金色碎片。落位时会与相邻白色碎片发生语义交换：玩家由此看见'挑了一下午'的真正含义。"
+    },
+    {
+      "id": "frag_2_2_05",
+      "levelId": "2-2",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪想问「这是给谁看的」，话到嘴边变成了「哦」。",
+      "tags": ["jealousy"],
+      "draggable": true,
+      "valence": -1,
+      "note": "没说出口的疑虑。"
+    },
+    {
+      "id": "frag_2_2_06",
+      "levelId": "2-2",
+      "type": "white",
+      "character": "Shiori",
+      "text": "栞说：「其实……我在等一个人看到它。」",
+      "tags": ["hint"],
+      "draggable": true,
+      "valence": 1,
+      "note": "暗示。必须在澪的疑虑之前被听见。"
+    },
+    {
+      "id": "frag_2_2_07",
+      "levelId": "2-2",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪低头看了看自己用了三个月的旧 Avatar。",
+      "tags": ["insecurity"],
+      "draggable": true,
+      "valence": -1,
+      "note": "自我怀疑。"
+    },
+    {
+      "id": "frag_2_2_08",
+      "levelId": "2-2",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "那一晚，两人还是玩到了很晚。",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": 1,
+      "note": "固定终点。中性——玩得开心，和玩得累，是两回事。"
+    },
+    {
+      "id": "frag_2_2_09",
+      "levelId": "2-2",
+      "type": "blue",
+      "character": "Rin",
+      "text": "【凛的旁白】那天晚上，凛在另一个 World 里，看着好友列表上并排亮着的两个名字，调暗了自己房间的灯。",
+      "tags": ["insight", "foreshadow"],
+      "draggable": false,
+      "valence": 0,
+      "hidden": true,
+      "unlockedBy": "butterfly:2-2:A",
+      "note": "蝴蝶效应奖励。为第四章凛的支线埋下第一根线。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "2_2_good",
+      "levelId": "2-2",
+      "type": "good",
+      "title": "被看见的颜色",
+      "threshold": 70,
+      "valence": 1,
+      "constraints": [
+        { "kind": "adjacent", "a": "frag_2_2_04", "b": "frag_2_2_03", "weight": 25 },
+        { "kind": "before", "a": "frag_2_2_06", "b": "frag_2_2_05", "weight": 25 },
+        { "kind": "before", "a": "frag_2_2_02", "b": "frag_2_2_03", "weight": 20 },
+        { "kind": "before", "a": "frag_2_2_05", "b": "frag_2_2_07", "weight": 30 }
+      ],
+      "anti": [],
+      "text": "澪先说了「新形象很好看」，然后栞笑着说起自己挑了一整个下午——就在这时，那行小字浮了出来：那套配色的名字，叫「澪蓝」。\n\n栞说：「其实……我在等一个人看到它。」\n\n澪后来才低头看自己那件用了三个月的旧 Avatar。她想，也许明天可以换一件新的。",
+      "excerpt": "那套配色，叫「澪蓝」。",
+      "bondEffect": { "Mio": 10, "Shiori": 12 }
+    },
+    {
+      "id": "2_2_bittersweet",
+      "levelId": "2-2",
+      "type": "bittersweet",
+      "title": "错过的信号",
+      "threshold": 60,
+      "valence": 0,
+      "constraints": [
+        { "kind": "before", "a": "frag_2_2_02", "b": "frag_2_2_05", "weight": 25 },
+        { "kind": "before", "a": "frag_2_2_05", "b": "frag_2_2_07", "weight": 25 },
+        { "kind": "before", "a": "frag_2_2_03", "b": "frag_2_2_06", "weight": 25 },
+        { "kind": "position", "frag": "frag_2_2_04", "index": 6, "weight": 25 }
+      ],
+      "anti": [],
+      "text": "澪夸得很礼貌，栞笑得很用力。那句「我在等一个人看到它」说得太轻，被「哦」盖了过去。\n\n金色碎片落在了最后——那句没被接住的暗示，停在两个人都看不见的地方。\n\n那套配色一直没被叫出名字。",
+      "excerpt": "暗示说出口了，但没人接住。",
+      "bondEffect": { "Mio": -3, "Shiori": -3 }
+    },
+    {
+      "id": "2_2_bad",
+      "levelId": "2-2",
+      "type": "bad",
+      "title": "旧 Avatar",
+      "threshold": 55,
+      "valence": -1,
+      "constraints": [
+        { "kind": "position", "frag": "frag_2_2_05", "index": 1, "weight": 25 },
+        { "kind": "before", "a": "frag_2_2_05", "b": "frag_2_2_02", "weight": 25 },
+        { "kind": "before", "a": "frag_2_2_07", "b": "frag_2_2_02", "weight": 25 },
+        { "kind": "before", "a": "frag_2_2_04", "b": "frag_2_2_06", "weight": 25 }
+      ],
+      "anti": [],
+      "text": "澪在夸她之前先低下了头。她开始频繁地换 Avatar，像是在追赶什么。\n\n栞后来察觉到了，说了一句：「你不用变成谁的样子。」\n\n可那时候，澪已经听不进去了——她只记得自己那件用了三个月的旧衣服，和栞身上那套说不出来历的颜色。",
+      "excerpt": "她开始追赶一个说不清的东西。",
+      "bondEffect": { "Mio": -12, "Shiori": -5 }
+    },
+    {
+      "id": "2_2_true",
+      "levelId": "2-2",
+      "type": "true",
+      "title": "同一套颜色",
+      "threshold": 75,
+      "valence": 1,
+      "hidden": true,
+      "constraints": [
+        { "kind": "adjacent", "a": "frag_2_2_04", "b": "frag_2_2_02", "weight": 25 },
+        { "kind": "group", "frags": ["frag_2_2_04", "frag_2_2_02"], "weight": 25 },
+        { "kind": "before", "a": "frag_2_2_03", "b": "frag_2_2_06", "weight": 25 },
+        { "kind": "before", "a": "frag_2_2_06", "b": "frag_2_2_07", "weight": 25 }
+      ],
+      "anti": [],
+      "text": "金色碎片落在「新形象很好看」旁边的时候，因果翻了个面——原来澪在说出那句夸奖之前，就已经认出了那套配色。\n\n她没有说破。她只是第二天默默把自己 Avatar 的挂饰，也换成了同色。\n\n再见面时，两个人谁都没提。但颜色是对的。",
+      "excerpt": "她认出来了，只是没说破。",
+      "bondEffect": { "Mio": 15, "Shiori": 8 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "2_2_chaos",
+    "levelId": "2-2",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……「我挑了一整个下午」这句话，还没找到它真正指的答案。\n\n想想看：那句关于配色的小字，应该落在哪里？",
+    "excerpt": "那句话还没找到答案。"
+  },
+  "butterflies": [
+    {
+      "id": "2-2:A",
+      "requires": [
+        { "kind": "adjacent", "a": "frag_2_2_07", "b": "frag_2_2_03", "weight": 1 },
+        { "kind": "before", "a": "frag_2_2_05", "b": "frag_2_2_07", "weight": 1 }
+      ],
+      "unlocks": ["frag_2_2_09"],
+      "revealText": "在澪低头看自己那件旧 Avatar 的同时，画面切到了另一个世界。\n\n凛坐在她自己做的房间里，看着好友列表上并排亮着的两个名字，把灯调暗了一点。她也换过 Avatar，也等过人看见。只是没有人问过她。"
+    }
+  ],
+  "hints": [
+    {
+      "tier": 1,
+      "text": "金色碎片要落在「我挑了一整个下午」旁边——它会让那句话换个意思。"
+    },
+    {
+      "tier": 2,
+      "text": "先夸，再听见解释，最后才轮到自己的不安。顺序反了，夸奖就变成客套。",
+      "highlight": ["frag_2_2_02", "frag_2_2_06", "frag_2_2_05"]
+    },
+    {
+      "tier": 3,
+      "text": "推荐顺序：澪夸奖 → 栞开心 → 金色碎片 → 栞的暗示 → 澪的「哦」→ 澪低头看旧 Avatar。",
+      "highlight": ["frag_2_2_02", "frag_2_2_03", "frag_2_2_04", "frag_2_2_06", "frag_2_2_05", "frag_2_2_07"]
+    }
+  ],
+  "behindTheScenes": "2-2 是金色碎片机制的第一次正式教学。金色碎片不是'更强的白色碎片'，而是'改变邻居含义的碎片'——它落在「我挑了一整个下午」旁边时，那句话从'炫耀'变成'等待被认出'。\n\n设计上我刻意让 true 结局的钥匙是「认出而不说破」：这是砂糖关系里最典型的温柔。"
+}

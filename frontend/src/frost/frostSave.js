@@ -1,0 +1,107 @@
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
+import axios from 'axios'
+
+// Serial saves + optimistic revision; never retry a conflict by overwriting it.
+// Mirrors composables/lifeSave.js, but for the single Sugar Frost save.
+export function useFrostSave(snapshot, hydrate, { autoLoad = true } = {}) {
+  const ownerToken = localStorage.getItem('wsw_token')
+  const api = axios.create({ baseURL: '/api', timeout: 15000,
+    headers: { Authorization: `Bearer ${ownerToken}` } })
+  function ownerValid() {
+    if (ownerToken && localStorage.getItem('wsw_token') === ownerToken) return true
+    ready.value = false
+    error.value = '登录身份已变更，请重新进入游戏。未向其他账号写入进度。'
+    return false
+  }
+  const ready = ref(false)
+  const saving = ref(false)
+  const dirty = ref(false)
+  const error = ref('')
+  const conflict = ref(false)
+  const savedAt = ref('')
+  let revision = 0, generation = 0, timer, active, disposed = false
+
+  async function load() {
+    if (saving.value || !ownerValid()) return
+    ready.value = false
+    error.value = ''
+    try {
+      const { data } = await api.get('/sugar-frost/save')
+      if (disposed || !ownerValid()) return
+      if (data.state) hydrate(data.state)
+      revision = data.revision
+      savedAt.value = data.updatedAt || ''
+      dirty.value = false
+      conflict.value = false
+      ready.value = true
+    } catch (e) {
+      error.value = '读取存档失败，未启用游戏操作：' + (e.response?.data?.detail || e.message)
+    }
+  }
+
+  function changed() {
+    if (!ownerValid() || !ready.value || conflict.value) return
+    generation++
+    dirty.value = true
+    clearTimeout(timer)
+    timer = setTimeout(() => { flush() }, 700)
+  }
+
+  async function flush() {
+    clearTimeout(timer)
+    if (active) return active
+    if (!ownerValid() || !ready.value || conflict.value) return false
+    if (!dirty.value) return true
+    active = (async () => {
+      saving.value = true
+      error.value = ''
+      try {
+        while (dirty.value) {
+          if (!ownerValid()) return false
+          const version = generation
+          const state = snapshot()
+          const { data } = await api.put('/sugar-frost/save', { revision, state })
+          revision = data.revision
+          savedAt.value = data.updatedAt
+          dirty.value = version !== generation
+        }
+        return !dirty.value
+      } catch (e) {
+        conflict.value = e.response?.status === 409
+        error.value = conflict.value ? '另一页面已更新此存档。请重新载入，当前修改尚未保存。' :
+          '保存失败，当前修改尚未落库：' + (typeof e.response?.data?.detail === 'string' ? e.response.data.detail : e.message)
+        return false
+      } finally {
+        saving.value = false
+        active = null
+      }
+    })()
+    return active
+  }
+
+  function beforeUnload(event) {
+    if (!dirty.value) return
+    event.preventDefault()
+    event.returnValue = ''
+  }
+  const storageChanged = () => { ownerValid() }
+  onMounted(() => {
+    if (autoLoad) load()
+    window.addEventListener('beforeunload', beforeUnload)
+    window.addEventListener('storage', storageChanged)
+  })
+  onBeforeRouteLeave(async () => {
+    if (!dirty.value) return true
+    if (await flush()) return true
+    return window.confirm('修改尚未保存，离开将丢失本次修改。仍要离开吗？')
+  })
+  onBeforeUnmount(() => {
+    if (dirty.value && ownerValid()) flush()
+    disposed = true
+    clearTimeout(timer)
+    window.removeEventListener('storage', storageChanged)
+    window.removeEventListener('beforeunload', beforeUnload)
+  })
+  return { ready, saving, dirty, error, conflict, savedAt, changed, flush, load }
+}

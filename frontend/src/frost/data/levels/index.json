@@ -1,0 +1,31 @@
+{
+  "$comment": "关卡索引清单。构建时用于生成关卡选择界面与加载顺序；运行时按 file 字段动态加载。",
+  "chapters": [
+    { "id": 1, "title": "初识", "theme": "新鲜感与期待", "epigraph": "在现实里，认识一个人需要理由。在这里，只需要一句「要不要一起逛逛」。" },
+    { "id": 2, "title": "砂糖", "theme": "暧昧与依赖", "epigraph": "比朋友更近，比恋人更远。这段距离只有半步，却没有人知道该怎么迈过去。" },
+    { "id": 3, "title": "裂痕", "theme": "疏离与失落", "epigraph": "最伤人的不是争吵，是有一天你发现，你们之间的对话变成了「在忙」。" },
+    { "id": 4, "title": "重逢", "theme": "释怀与回归", "epigraph": "世界会记住每一个登入过的人。哪怕他们自己都忘了。" }
+  ],
+  "levels": [
+    { "id": "1-1", "title": "第一次登入", "chapter": 1, "order": 1, "file": "1-1.json", "chainLength": 6, "fragmentCount": 6, "endingCount": 3, "hasButterfly": false, "isTutorial": true, "unlockAfter": null },
+    { "id": "1-2", "title": "走失", "chapter": 1, "order": 2, "file": "1-2.json", "chainLength": 7, "fragmentCount": 8, "endingCount": 3, "hasButterfly": true, "isTutorial": false, "unlockAfter": "1-1" },
+    { "id": "1-3", "title": "沉默的邀请", "chapter": 1, "order": 3, "file": "1-3.json", "chainLength": 7, "fragmentCount": 8, "endingCount": 4, "hasButterfly": false, "isTutorial": false, "unlockAfter": "1-2" },
+    { "id": "2-1", "title": "连续三晚", "chapter": 2, "order": 1, "file": "2-1.json", "chainLength": 7, "fragmentCount": 8, "endingCount": 3, "hasButterfly": false, "isTutorial": false, "unlockAfter": "1-3" },
+    { "id": "2-2", "title": "新 Avatar", "chapter": 2, "order": 2, "file": "2-2.json", "chainLength": 8, "fragmentCount": 9, "endingCount": 4, "hasButterfly": true, "isTutorial": false, "unlockAfter": "2-1" },
+    { "id": "2-3", "title": "砂糖的诞生", "chapter": 2, "order": 3, "file": "2-3.json", "chainLength": 7, "fragmentCount": 8, "endingCount": 4, "hasButterfly": true, "isTutorial": false, "unlockAfter": "2-2", "isBenchmark": true },
+    { "id": "3-1", "title": "第三人", "chapter": 3, "order": 1, "file": "3-1.json", "chainLength": 8, "fragmentCount": 9, "endingCount": 4, "hasButterfly": true, "isTutorial": false, "unlockAfter": "2-3" },
+    { "id": "3-2", "title": "已读不回", "chapter": 3, "order": 2, "file": "3-2.json", "chainLength": 7, "fragmentCount": 7, "endingCount": 4, "hasButterfly": false, "isTutorial": false, "unlockAfter": "3-1" },
+    { "id": "3-3", "title": "人群中的陌生人", "chapter": 3, "order": 3, "file": "3-3.json", "chainLength": 9, "fragmentCount": 11, "endingCount": 4, "hasButterfly": true, "isTutorial": false, "unlockAfter": "3-2" },
+    { "id": "4-1", "title": "观测者", "chapter": 4, "order": 1, "file": "4-1.json", "chainLength": 8, "fragmentCount": 8, "endingCount": 4, "hasButterfly": false, "isTutorial": false, "unlockAfter": "3-3" },
+    { "id": "4-2", "title": "融化的糖霜", "chapter": 4, "order": 2, "file": "4-2.json", "chainLength": 8, "fragmentCount": 9, "endingCount": 4, "hasButterfly": true, "isTutorial": false, "unlockAfter": "4-1" },
+    { "id": "4-3", "title": "今晚我依然登入", "chapter": 4, "order": 3, "file": "4-3.json", "chainLength": 9, "fragmentCount": 10, "endingCount": 4, "hasButterfly": true, "isTutorial": false, "unlockAfter": "4-2", "isFinale": true }
+  ],
+  "totals": {
+    "levels": 12,
+    "fragments": 101,
+    "designEndings": 45,
+    "chaosEndings": 12,
+    "globalEndings": 5,
+    "totalEndingEntries": 62
+  }
+}

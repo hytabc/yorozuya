@@ -1,0 +1,228 @@
+{
+  "id": "2-3",
+  "title": "砂糖的诞生",
+  "chapter": 2,
+  "order": 3,
+  "epigraph": "",
+  "intro": "有些关系的名字，是在别人嘴里第一次被叫出来的。",
+  "hasButterfly": true,
+  "anchors": { "first": "frag_2_3_01", "last": "frag_2_3_07" },
+  "initialOrder": [
+    "frag_2_3_01",
+    "frag_2_3_05",
+    "frag_2_3_02",
+    "frag_2_3_06",
+    "frag_2_3_04",
+    "frag_2_3_03",
+    "frag_2_3_07"
+  ],
+  "fragments": [
+    {
+      "id": "frag_2_3_01",
+      "levelId": "2-3",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "A 和 B 连续三晚在空城聊天到天亮。",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定起点。承接 2-1 的'三晚'。"
+    },
+    {
+      "id": "frag_2_3_02",
+      "levelId": "2-3",
+      "type": "white",
+      "character": "Shiori",
+      "text": "B 换了一个新 Avatar。",
+      "tags": ["change"],
+      "draggable": true,
+      "valence": 0,
+      "note": "变化本身是中性的。它是'分享'还是'隐瞒'，取决于它排在 A 的询问之前还是之后。"
+    },
+    {
+      "id": "frag_2_3_03",
+      "levelId": "2-3",
+      "type": "white",
+      "character": "Mio",
+      "text": "A 问 B：「怎么突然换了？」",
+      "tags": ["question"],
+      "draggable": true,
+      "valence": 0,
+      "note": "本关的支点。它排在最前面 = 先关心；排在变化之后 = 质问。"
+    },
+    {
+      "id": "frag_2_3_04",
+      "levelId": "2-3",
+      "type": "gold",
+      "character": "Shiori",
+      "text": "【关键】B 说：「这是特别的人送的。」",
+      "tags": ["reveal", "key"],
+      "draggable": true,
+      "valence": 1,
+      "note": "金色碎片。与 A 的询问相邻时，会补全句子的主语——'这个特别的人，是每次都听我说话的那个'。"
+    },
+    {
+      "id": "frag_2_3_05",
+      "levelId": "2-3",
+      "type": "white",
+      "character": "Mio",
+      "text": "A 在 B 的好友列表中发现了一个陌生 ID。",
+      "tags": ["discovery", "jealousy"],
+      "draggable": true,
+      "valence": -1,
+      "note": "误会的种子。它越早出现，A 后面的'恭喜'越假。"
+    },
+    {
+      "id": "frag_2_3_06",
+      "levelId": "2-3",
+      "type": "white",
+      "character": "Mio",
+      "text": "A 说「恭喜」。",
+      "tags": ["mask", "acceptance"],
+      "draggable": true,
+      "valence": 0,
+      "note": "同一句「恭喜」，可以是释然，也可以是戴上的面具。"
+    },
+    {
+      "id": "frag_2_3_07",
+      "levelId": "2-3",
+      "type": "gray",
+      "character": "Mio",
+      "text": "A 独自坐在 Just B Club 的澡堂，翻看好友名单。",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": -1,
+      "note": "固定终点。中性偏冷——结局的温度由前面的顺序决定。"
+    },
+    {
+      "id": "frag_2_3_09",
+      "levelId": "2-3",
+      "type": "blue",
+      "character": "Mio",
+      "text": "【A 的独白】我不是不想恭喜她。我只是想成为那个'特别的人'。",
+      "tags": ["insight", "jealousy"],
+      "draggable": false,
+      "valence": 0,
+      "hidden": true,
+      "unlockedBy": "endingType:bittersweet",
+      "note": "首次达成任意 bittersweet 结局后解锁。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "2_3_good",
+      "levelId": "2-3",
+      "type": "good",
+      "title": "先问再说",
+      "threshold": 70,
+      "valence": 1,
+      "constraints": [
+        { "kind": "before", "a": "frag_2_3_03", "b": "frag_2_3_02", "weight": 25 },
+        { "kind": "before", "a": "frag_2_3_02", "b": "frag_2_3_04", "weight": 20 },
+        { "kind": "before", "a": "frag_2_3_05", "b": "frag_2_3_06", "weight": 20 },
+        { "kind": "adjacent", "a": "frag_2_3_06", "b": "frag_2_3_07", "weight": 35 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_2_3_04", "b": "frag_2_3_03", "weight": 40 }
+      ],
+      "text": "A 先问了一句「怎么突然换了」，B 才说起那个新 Avatar，说起送它的人。\n\n等到 A 在好友列表里翻到那个陌生 ID 的时候，她已经能真心地说出「恭喜」了。\n\n——不是不在意。是先把对方的心情放在了前面。",
+      "excerpt": "先关心，再看见。",
+      "bondEffect": { "Mio": 10, "Shiori": 12 }
+    },
+    {
+      "id": "2_3_bittersweet",
+      "levelId": "2-3",
+      "type": "bittersweet",
+      "title": "迟到的恭喜",
+      "threshold": 60,
+      "valence": 0,
+      "constraints": [
+        { "kind": "before", "a": "frag_2_3_05", "b": "frag_2_3_06", "weight": 30 },
+        { "kind": "before", "a": "frag_2_3_05", "b": "frag_2_3_02", "weight": 25 },
+        { "kind": "before", "a": "frag_2_3_02", "b": "frag_2_3_03", "weight": 25 },
+        { "kind": "position", "frag": "frag_2_3_06", "index": 5, "weight": 20 }
+      ],
+      "anti": [],
+      "text": "A 先看见了那个陌生 ID，然后才听见 B 的解释。\n\n「恭喜」说得很轻。两个人都听见了，但谁也没有点破。\n\n——砂糖尝起来是甜的，咽下去的时候，是涩的。",
+      "excerpt": "先看见了 ID，才听见解释。",
+      "bondEffect": { "Mio": -3, "Shiori": 2 }
+    },
+    {
+      "id": "2_3_bad",
+      "levelId": "2-3",
+      "type": "bad",
+      "title": "质问",
+      "threshold": 55,
+      "valence": -1,
+      "constraints": [
+        { "kind": "before", "a": "frag_2_3_05", "b": "frag_2_3_03", "weight": 25 },
+        { "kind": "before", "a": "frag_2_3_05", "b": "frag_2_3_06", "weight": 25 },
+        { "kind": "before", "a": "frag_2_3_06", "b": "frag_2_3_02", "weight": 25 },
+        { "kind": "position", "frag": "frag_2_3_04", "index": 5, "weight": 25 }
+      ],
+      "anti": [],
+      "text": "A 的「怎么突然换了」里，带着一根她自己也听不出的刺。\n\nB 想说的那句话被淹没在一连串的追问里，最后没有说出口。\n\n那晚之后，B 再没有换过 Avatar。",
+      "excerpt": "那根刺，她自己也没听出来。",
+      "bondEffect": { "Mio": -12, "Shiori": -12 }
+    },
+    {
+      "id": "2_3_true",
+      "levelId": "2-3",
+      "type": "true",
+      "title": "砂糖",
+      "threshold": 75,
+      "valence": 1,
+      "hidden": true,
+      "constraints": [
+        { "kind": "adjacent", "a": "frag_2_3_03", "b": "frag_2_3_04", "weight": 30 },
+        { "kind": "group", "frags": ["frag_2_3_02", "frag_2_3_03", "frag_2_3_04"], "weight": 25 },
+        { "kind": "before", "a": "frag_2_3_04", "b": "frag_2_3_05", "weight": 25 },
+        { "kind": "before", "a": "frag_2_3_05", "b": "frag_2_3_06", "weight": 20 }
+      ],
+      "anti": [],
+      "text": "金色碎片紧挨着 A 的那句询问落下时，句子被补全了——\n\n「这个特别的人……是每次都听我说话的那个。」\n\n那句话没有明确的主语。但 A 的手在鼠标上停住了。\n\n有些关系的名字，是在别人嘴里第一次被叫出来的。她那天晚上翻着好友名单，先是愣了很久，然后笑了一下。",
+      "excerpt": "「特别的人」是谁，她心里有答案。",
+      "bondEffect": { "Mio": 15, "Shiori": 15 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "2_3_chaos",
+    "levelId": "2-3",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……这五句话里，有一句的先后顺序决定了它是关心还是质问。\n\n想想看：「怎么突然换了」——它应该排在「换了新 Avatar」之前，还是之后？",
+    "excerpt": "同一句话，可以是关心，也可以是质问。"
+  },
+  "butterflies": [
+    {
+      "id": "2-3:A",
+      "requires": [
+        { "kind": "adjacent", "a": "frag_2_3_03", "b": "frag_2_3_04", "weight": 1 },
+        { "kind": "before", "a": "frag_2_3_02", "b": "frag_2_3_03", "weight": 1 }
+      ],
+      "unlocks": ["frag_2_3_09"],
+      "revealText": "在 A 停住鼠标的那几秒里，另一个念头浮了上来：\n\n她不是不想恭喜。她只是想成为那个「特别的人」。\n\n这两个念头同时存在于她心里，谁也不肯先让开。"
+    }
+  ],
+  "hints": [
+    {
+      "tier": 1,
+      "text": "「怎么突然换了」这句话，如果排在换 Avatar 之后，就从关心变成了质问。"
+    },
+    {
+      "tier": 2,
+      "text": "把金色碎片紧挨着 A 的询问放下，再把「发现陌生 ID」排到它后面。",
+      "highlight": ["frag_2_3_03", "frag_2_3_04", "frag_2_3_05"]
+    },
+    {
+      "tier": 3,
+      "text": "推荐顺序：A 询问 → B 换 Avatar → 金色碎片（特别的人）→ 发现陌生 ID → A 说恭喜。",
+      "highlight": ["frag_2_3_03", "frag_2_3_02", "frag_2_3_04", "frag_2_3_05", "frag_2_3_06"]
+    }
+  ],
+  "behindTheScenes": "2-3 是全作「因果重组」概念最纯粹的一关，也是所有关卡的设计基准（其余关卡的碎片密度、结局区分度、阈值设定均参照本关）。\n\n它证明了：改变事件的顺序，等于改变人物的动机。玩家没有改一个字，只是把「看见」挪到了「关心」之后，一段关系就完全不同了。\n\n阈值设定上，本关 good 需要 70 分，恰好由「询问在前(25) + 解释在后(20) + 恭喜收尾(20) + 紧接终点(35)」四项中的三项半构成——留出的是给玩家的容错空间。"
+}
