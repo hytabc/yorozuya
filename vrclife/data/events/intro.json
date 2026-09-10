@@ -1,0 +1,3826 @@
+{
+  "bucket": "intro",
+  "version": "1.0",
+  "events": [
+    {
+      "id": "intro_k01",
+      "title": "第一次登录",
+      "category": "key",
+      "stage": "初入",
+      "hoursRange": [
+        0,
+        1
+      ],
+      "weight": 100,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "关键",
+        "成长"
+      ],
+      "condition": {
+        "minHours": 0,
+        "maxHours": 1
+      },
+      "text": "客户端下了 {N} 个 G，你戴上头显，在 {世界} 里睁开眼。默认机器人模型的手悬在眼前，你连转身都要试三次。",
+      "options": [
+        {
+          "id": "mirror",
+          "text": "先对着镜子捏模型",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 72,
+              "tier": "normal",
+              "text": "你从头到脚把默认模型改了一遍颜色。虽然只是换了件灰T恤，但从这一刻起，它算是你的了。",
+              "effects": {
+                "mood": 4,
+                "avatars": 1,
+                "skills": {
+                  "modeling": 2
+                },
+                "flags": {
+                  "add": [
+                    "made_own_avatar"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 28,
+              "tier": "rare",
+              "text": "你捏了整整两小时，越捏越觉得像自己。有个路人路过说“这个改得不错”，你耳朵一下烧起来。",
+              "effects": {
+                "mood": 5,
+                "fame": 1,
+                "avatars": 1,
+                "skills": {
+                  "modeling": 4
+                },
+                "flags": {
+                  "add": [
+                    "made_own_avatar"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "buttons",
+          "text": "乱按手柄试试",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你误触了手势轮盘，模型突然对着空气比了个手势，旁边两个人笑出声。你恨不得当场把头显摘了。",
+              "effects": {
+                "mood": -4,
+                "skills": {
+                  "social": 1
+                },
+                "tags": {
+                  "add": [
+                    "手残"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你按着按着摸出了表情菜单，对着空气挥了十分钟手，觉得自己像个傻子，又莫名有点开心。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "meme": 4
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "freeze",
+          "text": "站在原地不敢动",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你像根柱子一样杵在出生点，看别人飞来飞去。十分钟后你确认了一件事：没有人会来管你。",
+              "effects": {
+                "mood": -3,
+                "tags": {
+                  "add": [
+                    "社恐"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "normal",
+              "text": "你慢慢挪到角落，安静地看着这个世界运转。意外地，这种站在外面看的感觉让你有点安心。",
+              "effects": {
+                "mood": 1,
+                "tags": {
+                  "add": [
+                    "社恐",
+                    "被动"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_k02",
+      "title": "萌新？",
+      "category": "key",
+      "stage": "初入",
+      "hoursRange": [
+        1,
+        3
+      ],
+      "weight": 100,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "关键",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 1,
+        "maxHours": 3
+      },
+      "text": "一个叫「阿澈」的模型凑到你面前，头顶冒出一行气泡：“萌新？”你盯着那两个字看了 {N} 秒，心跳快得不像话。",
+      "options": [
+        {
+          "id": "type",
+          "text": "打字回一个“嗯”",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 74,
+              "tier": "normal",
+              "text": "你花了很久才打出两个字，手心全是汗。对方说“跟着我”，然后真的站在原地等了你半天。",
+              "effects": {
+                "mood": 3,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                },
+                "flags": {
+                  "add": [
+                    "met_first_friend"
+                  ]
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 8,
+                  "initTrust": 5,
+                  "initFreshness": 90,
+                  "initDependence": 0,
+                  "initRealPressure": 0,
+                  "name": "阿澈"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "newbie_004",
+                  "delayHours": [
+                    10,
+                    15
+                  ],
+                  "chance": 0.6,
+                  "requireFlags": [
+                    "met_first_friend"
+                  ],
+                  "excludeIfFlags": []
+                }
+              ]
+            },
+            {
+              "weight": 26,
+              "tier": "rare",
+              "text": "你打字太慢，对方干脆蹲下来等你。他说：“不急，我当年打一句话要三分钟。”你笑出了声。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                },
+                "flags": {
+                  "add": [
+                    "met_first_friend"
+                  ]
+                },
+                "tags": {
+                  "add": [
+                    "元气"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 10,
+                  "initTrust": 8,
+                  "initFreshness": 92,
+                  "initDependence": 0,
+                  "initRealPressure": 0,
+                  "name": "阿澈"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "nod",
+          "text": "只敢点头",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你把头点得像捣蒜，对方愣了一下，也学着点了点头。两个不会说话的人，就这么对着点了半分钟。",
+              "effects": {
+                "mood": 2,
+                "friends": 1,
+                "tags": {
+                  "add": [
+                    "社恐"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "normal",
+              "text": "对方以为你听不见，走开了。你盯着他的背影，第一次恨自己为什么连一个字都发不出去。",
+              "effects": {
+                "mood": -5,
+                "tags": {
+                  "add": [
+                    "社恐",
+                    "开麦恐惧"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "voice",
+          "text": "开麦回他一句",
+          "condition": {
+            "excludeTags": [
+              "开麦恐惧"
+            ]
+          },
+          "lockedHint": "你还没克服开麦恐惧",
+          "outcomes": [
+            {
+              "weight": 78,
+              "tier": "normal",
+              "text": "你说“是，今天刚下”，声音在抖。对方说“没事，我当初也这样”，然后带你去看了一圈世界。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 2
+                },
+                "flags": {
+                  "add": [
+                    "met_first_friend",
+                    "first_spoke"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 22,
+              "tier": "rare",
+              "text": "你开口的瞬间，周围两三个人同时回头说“声音好听”。你结巴了一下，把脸埋进了模型领子里。",
+              "effects": {
+                "mood": 5,
+                "friends": 2,
+                "fame": 1,
+                "skills": {
+                  "social": 2
+                },
+                "tags": {
+                  "add": [
+                    "声音好听"
+                  ],
+                  "remove": [
+                    "开麦恐惧"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ignore",
+          "text": "装没看见，走开",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你转身就往人多的地方走，走出去十几步又偷偷回头。那个模型已经不见了，你忽然有点后悔。",
+              "effects": {
+                "mood": -4,
+                "tags": {
+                  "add": [
+                    "被动"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_k03",
+      "title": "学会走路",
+      "category": "key",
+      "stage": "初入",
+      "hoursRange": [
+        1,
+        4
+      ],
+      "weight": 100,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "关键",
+        "技能"
+      ],
+      "condition": {
+        "minHours": 1,
+        "maxHours": 4
+      },
+      "text": "你在 {世界} 的台阶前卡了三分钟。一个路人按下你的菜单，手把手教你摇杆走路、瞬移和跳。原来按住 {N} 键就能飞。",
+      "options": [
+        {
+          "id": "practice",
+          "text": "自己练到会",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你在空地上来回飞了半小时，撞墙、卡树、摔进水池。等你终于能稳稳落地时，天已经黑了。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "social": 1
+                },
+                "flags": {
+                  "add": [
+                    "learned_move"
+                  ]
+                },
+                "counters": {
+                  "worldsVisited": 1
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你练着练着学会了蹬墙跳和空中转体，虽然没什么用，但你对着镜子试了二十遍，越试越上瘾。",
+              "effects": {
+                "mood": 4,
+                "skills": {
+                  "social": 1,
+                  "meme": 4
+                },
+                "flags": {
+                  "add": [
+                    "learned_move"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "follow",
+          "text": "跟着他一步步学",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 76,
+              "tier": "normal",
+              "text": "他讲得很慢，每按一个键都等你跟上。半小时后你终于能自己走路，还顺手加了个好友。",
+              "effects": {
+                "mood": 3,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                },
+                "flags": {
+                  "add": [
+                    "learned_move"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 24,
+              "tier": "rare",
+              "text": "他不光教了走路，还教你怎么改视角、怎么存世界。临走前他说：“以后看到新人，你也这么教。”",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 2
+                },
+                "flags": {
+                  "add": [
+                    "learned_move",
+                    "met_veteran"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "walk",
+          "text": "算了，用走的也挺好",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你谢过他，继续一步一步挪。走得慢，但你记住了每一级台阶的样子。",
+              "effects": {
+                "mood": 1,
+                "tags": {
+                  "add": [
+                    "手残"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_k04",
+      "title": "第一个好友",
+      "category": "key",
+      "stage": "初入",
+      "hoursRange": [
+        2,
+        6
+      ],
+      "weight": 100,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "关键",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 2,
+        "maxHours": 6
+      },
+      "text": "一起逛了 {N} 个世界之后，你终于点开对方的名牌。好友请求发出去的那几秒，你盯着屏幕，连眨眼都忘了。",
+      "options": [
+        {
+          "id": "send",
+          "text": "发送请求",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 72,
+              "tier": "normal",
+              "text": "“叮”的一声，通过了。你的好友列表从 0 变成 1，你盯着那个数字看了很久。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "flags": {
+                  "add": [
+                    "first_friend_added"
+                  ]
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 6,
+                  "initTrust": 4,
+                  "initFreshness": 88,
+                  "initDependence": 0,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "newbie_009",
+                  "delayHours": [
+                    10,
+                    15
+                  ],
+                  "chance": 0.7,
+                  "requireFlags": [
+                    "first_friend_added"
+                  ],
+                  "excludeIfFlags": []
+                }
+              ]
+            },
+            {
+              "weight": 28,
+              "tier": "rare",
+              "text": "对方秒通过，还顺手把你拉到他朋友那边：“来了个新人，带一下。”你被 {N} 个人同时打招呼，脑子一片空白。",
+              "effects": {
+                "mood": 5,
+                "friends": 2,
+                "fame": 1,
+                "skills": {
+                  "social": 1
+                },
+                "flags": {
+                  "add": [
+                    "first_friend_added"
+                  ]
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "朋友",
+                  "initIntimacy": 14,
+                  "initTrust": 10,
+                  "initFreshness": 92,
+                  "initDependence": 0,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ask",
+          "text": "先打字问一句可以吗",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你打了删、删了打，最后发出去一句“可以加个好友吗”。对方回了个笑脸，你的好友列表变成 1。",
+              "effects": {
+                "mood": 2,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                },
+                "flags": {
+                  "add": [
+                    "first_friend_added"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "normal",
+              "text": "你打字太慢，对方等了一会就飞走了。你看着没发出去的那行字，把它一个字一个字删掉了。",
+              "effects": {
+                "mood": -5,
+                "tags": {
+                  "add": [
+                    "小透明"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "withdraw",
+          "text": "缩回手，算了",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你关掉名牌，假装刚才什么都没发生。那天晚上你又一个人逛了五个世界，一个都没记住。",
+              "effects": {
+                "mood": -4,
+                "tags": {
+                  "add": [
+                    "独行侠"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你没加他，却在下一个世界又碰到了他。他先认出你：“又是你啊。”这次是他先发的请求。",
+              "effects": {
+                "mood": 3,
+                "friends": 1,
+                "flags": {
+                  "add": [
+                    "first_friend_added"
+                  ]
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 10,
+                  "initTrust": 6,
+                  "initFreshness": 90,
+                  "initDependence": 0,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_k05",
+      "title": "别人送的模型",
+      "category": "key",
+      "stage": "初入",
+      "hoursRange": [
+        3,
+        8
+      ],
+      "weight": 100,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "关键",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 3,
+        "maxHours": 8
+      },
+      "text": "“这个给你，我改好的。”对方甩来一个模型链接。你手忙脚乱点了 {N} 次才换上——原来在这里，礼物可以是一整只别人替你捏好的自己。",
+      "options": [
+        {
+          "id": "accept",
+          "text": "收下",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 68,
+              "tier": "normal",
+              "text": "你笨手笨脚地点了换上，模型加载了半分钟才出来。你对着镜子转了一圈，第一次觉得这游戏值得。",
+              "effects": {
+                "mood": 4,
+                "avatars": 1,
+                "flags": {
+                  "add": [
+                    "got_gift_avatar"
+                  ]
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "朋友",
+                  "initIntimacy": 20,
+                  "initTrust": 15,
+                  "initFreshness": 90,
+                  "initDependence": 5,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "newbie_015",
+                  "delayHours": [
+                    10,
+                    15
+                  ],
+                  "chance": 0.5,
+                  "requireFlags": [
+                    "got_gift_avatar"
+                  ],
+                  "excludeIfFlags": []
+                }
+              ]
+            },
+            {
+              "weight": 24,
+              "tier": "rare",
+              "text": "换上的瞬间，周围几个人同时“哇”了一声。有人问你作者是谁，你只能说：是一个刚认识的人送的。",
+              "effects": {
+                "mood": 5,
+                "avatars": 1,
+                "fame": 1,
+                "friends": 1,
+                "flags": {
+                  "add": [
+                    "got_gift_avatar"
+                  ]
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "朋友",
+                  "initIntimacy": 26,
+                  "initTrust": 18,
+                  "initFreshness": 94,
+                  "initDependence": 6,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              }
+            },
+            {
+              "weight": 8,
+              "tier": "extreme",
+              "text": "链接点开是一套早就绝版的限定模型，对方只说了句“放着也是放着”。你换上它，从此再也没有换下来过。",
+              "effects": {
+                "mood": 6,
+                "avatars": 1,
+                "fame": 2,
+                "friends": 1,
+                "skills": {
+                  "modeling": 4
+                },
+                "tags": {
+                  "add": [
+                    "收藏家"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "got_gift_avatar",
+                    "owns_rare_avatar"
+                  ]
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "朋友",
+                  "initIntimacy": 35,
+                  "initTrust": 26,
+                  "initFreshness": 96,
+                  "initDependence": 8,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_a_001",
+                  "delayHours": [
+                    14,
+                    40
+                  ],
+                  "chance": 0.35,
+                  "requireFlags": [
+                    "got_gift_avatar"
+                  ],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "refuse",
+          "text": "推辞一下",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你说“不用不用”，对方说“拿着吧，我模型多得是”。你收下了，心里记下一笔要还的账。",
+              "effects": {
+                "mood": 2,
+                "avatars": 1,
+                "flags": {
+                  "add": [
+                    "got_gift_avatar"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "normal",
+              "text": "你推了三次，对方收回了链接，气氛僵了几秒。后来你才知道，在这里推辞太久会让人觉得你不想交朋友。",
+              "effects": {
+                "mood": -4,
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "price",
+          "text": "先问一句多少钱",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "对方愣了两秒，说“不要钱，这里是 VRChat”。你尴尬地笑了笑，收下模型，也收下了这份不好意思。",
+              "effects": {
+                "mood": 1,
+                "avatars": 1,
+                "flags": {
+                  "add": [
+                    "got_gift_avatar"
+                  ]
+                },
+                "tags": {
+                  "add": [
+                    "白嫖"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_k06",
+      "title": "开不了口",
+      "category": "key",
+      "stage": "初入",
+      "hoursRange": [
+        3,
+        9
+      ],
+      "weight": 100,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "关键",
+        "成长"
+      ],
+      "condition": {
+        "minHours": 3,
+        "maxHours": 9
+      },
+      "text": "耳机里全是别人的笑声。你按住麦克风键，喉咙里像塞了一团棉花，{N} 秒过去，一个音节也没挤出来。",
+      "options": [
+        {
+          "id": "speak",
+          "text": "硬着头皮说一句",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 74,
+              "tier": "normal",
+              "text": "你说“大家好”，声音抖得不像自己的。有人回了一句“你好呀”，你捂着嘴笑了半天。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                },
+                "tags": {
+                  "add": [],
+                  "remove": [
+                    "开麦恐惧"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "first_spoke"
+                  ]
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "newbie_021",
+                  "delayHours": [
+                    10,
+                    15
+                  ],
+                  "chance": 0.5,
+                  "requireFlags": [
+                    "first_spoke"
+                  ],
+                  "excludeIfFlags": []
+                }
+              ]
+            },
+            {
+              "weight": 26,
+              "tier": "rare",
+              "text": "你一句话说到一半卡住了，全场安静了两秒。你手忙脚乱关掉麦克风，那两秒在你脑子里循环了一整晚。",
+              "effects": {
+                "mood": -8,
+                "tags": {
+                  "add": [
+                    "开麦恐惧",
+                    "emo"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "typing",
+          "text": "松开按键，继续打字",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 78,
+              "tier": "normal",
+              "text": "你把想说的话一个字一个字敲出来，敲完的时候话题已经过去了。没关系，至少没人发现你刚才想说话。",
+              "effects": {
+                "mood": -3,
+                "tags": {
+                  "add": [
+                    "开麦恐惧"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 22,
+              "tier": "normal",
+              "text": "有人注意到你的打字，特意放慢语速等你。你说完那句憋了很久的话，忽然觉得打字也没那么难。",
+              "effects": {
+                "mood": 2,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "mute",
+          "text": "把麦克风音量调到零",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把麦克风调到零，世界一下安静得只剩音乐。你在心里把想说的话说了一遍，说给自己听。",
+              "effects": {
+                "mood": -4,
+                "tags": {
+                  "add": [
+                    "自闭",
+                    "开麦恐惧"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "sing",
+          "text": "干脆开麦唱两句",
+          "condition": {
+            "minMood": 60
+          },
+          "lockedHint": "心态 ≥ 60 才敢这么干",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你跟着音箱唱了两句，跑调跑得离谱。有人跟着一起唱，把整间屋子带成了合唱。",
+              "effects": {
+                "mood": 5,
+                "friends": 2,
+                "skills": {
+                  "music": 4,
+                  "social": 1
+                },
+                "tags": {
+                  "add": [
+                    "元气"
+                  ],
+                  "remove": [
+                    "开麦恐惧"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "first_spoke"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你唱到一半发现所有人都在听，包括那个你一直不敢搭话的人。他鼓了掌，你把头埋进了膝盖里。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "fame": 1,
+                "skills": {
+                  "music": 11
+                },
+                "tags": {
+                  "add": [
+                    "声音好听"
+                  ],
+                  "remove": [
+                    "开麦恐惧"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_k07",
+      "title": "中文吧2号房",
+      "category": "key",
+      "stage": "初入",
+      "hoursRange": [
+        4,
+        10
+      ],
+      "weight": 100,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "关键",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 4,
+        "maxHours": 10
+      },
+      "text": "你搜到「中文吧 2 号房」，深吸一口气点了进去。满屏中文 ID 在跳舞、贴贴、挂机，你在门口站了 {N} 分钟，还是没敢往里走。",
+      "options": [
+        {
+          "id": "crowd",
+          "text": "挤进人群里",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 72,
+              "tier": "normal",
+              "text": "你挤到中间，被 {N} 个人撞来撞去，最后跟着节奏乱晃。没有人问你是谁，但也没有人赶你走。",
+              "effects": {
+                "mood": 3,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                },
+                "circles": {
+                  "add": [
+                    "中文吧"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "visited_chinese_bar"
+                  ]
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "newbie_008",
+                  "delayHours": [
+                    10,
+                    15
+                  ],
+                  "chance": 0.8,
+                  "requireFlags": [
+                    "visited_chinese_bar"
+                  ],
+                  "excludeIfFlags": []
+                }
+              ]
+            },
+            {
+              "weight": 28,
+              "tier": "rare",
+              "text": "有人把你拉进了一个圆圈，说“新来的站中间”。你被围着转了两圈，笑到忘了紧张。",
+              "effects": {
+                "mood": 5,
+                "friends": 2,
+                "fame": 1,
+                "skills": {
+                  "social": 2
+                },
+                "circles": {
+                  "add": [
+                    "中文吧"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "visited_chinese_bar"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "corner",
+          "text": "找个角落站着看",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 76,
+              "tier": "normal",
+              "text": "你贴墙站了四十分钟，看别人换了一批又一批。走的时候你记住了几首歌，和一个人的模型。",
+              "effects": {
+                "mood": 1,
+                "circles": {
+                  "add": [
+                    "中文吧"
+                  ],
+                  "remove": []
+                },
+                "tags": {
+                  "add": [
+                    "小透明"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "visited_chinese_bar"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 24,
+              "tier": "normal",
+              "text": "角落里不止你一个。两个同样贴墙的人跟你对视了一眼，你们谁都没说话，但都笑了一下。",
+              "effects": {
+                "mood": 2,
+                "friends": 1,
+                "circles": {
+                  "add": [
+                    "中文吧"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "visited_chinese_bar"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave",
+          "text": "转身换一个世界",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "门都没进你就退了。回到主菜单，你盯着那个房间看了很久，还是没敢点第二次。",
+              "effects": {
+                "mood": -4,
+                "tags": {
+                  "add": [
+                    "社恐"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_k08",
+      "title": "没有人回头",
+      "category": "key",
+      "stage": "初入",
+      "hoursRange": [
+        6,
+        10
+      ],
+      "weight": 100,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "关键",
+        "负面"
+      ],
+      "condition": {
+        "minHours": 6,
+        "maxHours": 10
+      },
+      "text": "你站在 {N} 个人中间讲了三句话，没有一个人回头。头像从你身上一个个掠过。你点开菜单，找到了「退出游戏」。",
+      "options": [
+        {
+          "id": "quit",
+          "text": "点下去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你摘了头显，房间里安静得耳鸣。你在床上躺了很久，想着明天大概不会再登了。",
+              "effects": {
+                "mood": -10,
+                "tags": {
+                  "add": [
+                    "退坑边缘",
+                    "emo"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "felt_ignored"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 22,
+              "tier": "rare",
+              "text": "鼠标停在退出键上，你忽然想起刚加的那个好友还没下线。你退出去，给他发了句“今天先到这”。",
+              "effects": {
+                "mood": -5,
+                "friends": 1,
+                "flags": {
+                  "add": [
+                    "felt_ignored"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 8,
+              "tier": "extreme",
+              "text": "退出前你随手改了个签名：“新人，找人一起玩。”三分钟后，好友申请弹了出来。你盯着它，手抖了一下。",
+              "effects": {
+                "mood": -13,
+                "friends": 1,
+                "tags": {
+                  "add": [
+                    "退坑边缘",
+                    "emo"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "felt_ignored"
+                  ]
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 12,
+                  "initTrust": 8,
+                  "initFreshness": 95,
+                  "initDependence": 0,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "newbie_009",
+                  "delayHours": [
+                    10,
+                    15
+                  ],
+                  "chance": 0.9,
+                  "requireFlags": [
+                    "felt_ignored"
+                  ],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "stay",
+          "text": "再站十分钟",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 72,
+              "tier": "normal",
+              "text": "你站着没动，看别人跳完了整首曲子。散场时有人对你说“刚才不好意思啊，音乐太吵”。",
+              "effects": {
+                "mood": -4,
+                "friends": 1,
+                "tags": {
+                  "add": [
+                    "小透明"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 28,
+              "tier": "rare",
+              "text": "一个刚上线的人也站在你旁边发呆。你们谁都没说话，就那样并排站了二十分钟，然后互相加了好友。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 10,
+                  "initTrust": 8,
+                  "initFreshness": 92,
+                  "initDependence": 0,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "switch",
+          "text": "换个世界重开",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 78,
+              "tier": "normal",
+              "text": "你退到主菜单，随手点进一个只有三四个人的小世界。人少了，反而有人问你：“第一次来？”",
+              "effects": {
+                "mood": 1,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                }
+              }
+            },
+            {
+              "weight": 22,
+              "tier": "normal",
+              "text": "你换了 {N} 个世界，每个都待不到五分钟。最后你关掉游戏，发现已经凌晨四点了。",
+              "effects": {
+                "mood": -6,
+                "tags": {
+                  "add": [
+                    "夜猫子"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "message",
+          "text": "给刚加的好友发消息",
+          "condition": {
+            "minFriends": 1
+          },
+          "lockedHint": "你还没有可以发消息的人",
+          "outcomes": [
+            {
+              "weight": 74,
+              "tier": "normal",
+              "text": "你给 {ta} 发了句“在吗”，对方秒回“在，怎么了”。你打了一大段，最后只发出去“没事，就是有点无聊”。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                },
+                "flags": {
+                  "add": [
+                    "felt_ignored"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "朋友"
+                }
+              }
+            },
+            {
+              "weight": 26,
+              "tier": "rare",
+              "text": "对方把你拉到他正在的房间，{N} 个人同时喊了你的名字。你愣在门口，第一次觉得自己的名字这么好听。",
+              "effects": {
+                "mood": 5,
+                "friends": 2,
+                "fame": 1,
+                "skills": {
+                  "social": 1
+                },
+                "flags": {
+                  "add": [
+                    "felt_ignored"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_001",
+      "title": "幻灯片帧数",
+      "category": "ambient",
+      "stage": "初入",
+      "hoursRange": [
+        0,
+        4
+      ],
+      "weight": 22,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 4,
+      "tags": [
+        "日常",
+        "负面"
+      ],
+      "condition": {
+        "minHours": 0,
+        "maxHours": 4
+      },
+      "text": "在 {世界} 里，你的帧数在 {N} 和 12 之间反复横跳。每次转头都像翻一页幻灯片，你却还是舍不得摘头显。",
+      "options": [
+        {
+          "id": "low",
+          "text": "把画质拉到最低",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把画质全拉到最低，世界变成一片糊掉的色块，但至少能走路了。你安慰自己：能玩就行。",
+              "effects": {
+                "mood": -3,
+                "skills": {
+                  "coding": 4
+                },
+                "flags": {
+                  "add": [
+                    "low_graphic"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "endure",
+          "text": "硬扛着继续逛",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 74,
+              "tier": "normal",
+              "text": "你顶着个位数的帧数逛完了三个世界。虽然每走一步都在卡，但那些风景你还是记住了。",
+              "effects": {
+                "mood": 2,
+                "tags": {
+                  "add": [
+                    "设备党"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 26,
+              "tier": "rare",
+              "text": "卡着卡着，你居然练出了预判瞬移的本事。有人看你飘来飘去，问你是不是老玩家。",
+              "effects": {
+                "mood": 3,
+                "fame": 1,
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "rest",
+          "text": "摘下来让眼睛歇会",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你摘下头显，眼前的真实世界有点晃。喝了口水，你盯着天花板发了会呆，又默默戴了回去。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_002",
+      "title": "Quest的画质",
+      "category": "random",
+      "stage": "初入",
+      "hoursRange": [
+        1,
+        5
+      ],
+      "weight": 25,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "消费",
+        "负面"
+      ],
+      "condition": {
+        "minHours": 1,
+        "maxHours": 5
+      },
+      "text": "你在 {世界} 里抬起手，别人模型上的头发在你眼里是一坨白塑料。朋友说 PC 端不是这样，你看着自己糊成一片的手，没说话。",
+      "options": [
+        {
+          "id": "stream",
+          "text": "研究一下串流",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 76,
+              "tier": "normal",
+              "text": "你翻了半夜教程，网线、路由器、路由器后面的那堵墙，全都研究了一遍。最后帧数还是那样。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "coding": 4
+                },
+                "flags": {
+                  "add": [
+                    "want_pc"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 24,
+              "tier": "rare",
+              "text": "串流居然成了。你第一次看清别人模型上的睫毛，站在原地看了整整五分钟，像个刚复明的人。",
+              "effects": {
+                "mood": 4,
+                "skills": {
+                  "coding": 10
+                },
+                "flags": {
+                  "add": [
+                    "want_pc"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "save",
+          "text": "攒钱配台 PC",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你打开购物网站，把显卡加进收藏夹又删掉，反复了三次。最后你设了个存款计划，写在了便签上。",
+              "effects": {
+                "mood": 1,
+                "flags": {
+                  "add": [
+                    "want_pc"
+                  ]
+                },
+                "counters": {
+                  "savedForPC": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "mod",
+          "text": "去装个优化插件",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 82,
+              "tier": "normal",
+              "text": "插件装上后帧数真的稳了，画面也亮了一圈。你把安装包转发给了群里的另外两个 Quest 玩家。",
+              "effects": {
+                "mood": 2,
+                "friends": 1,
+                "skills": {
+                  "coding": 4
+                },
+                "flags": {
+                  "add": [
+                    "installed_mod"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 18,
+              "tier": "extreme",
+              "text": "一周后你收到邮件：检测到第三方客户端修改，账号封禁三天。你反复申诉，只收到自动回复。",
+              "effects": {
+                "mood": -13,
+                "tags": {
+                  "add": [
+                    "退坑边缘",
+                    "emo"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "wrongly_banned"
+                  ]
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "newbie_021",
+                  "delayHours": [
+                    10,
+                    22
+                  ],
+                  "chance": 0.9,
+                  "requireFlags": [
+                    "wrongly_banned"
+                  ],
+                  "excludeIfFlags": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_003",
+      "title": "怎么坐下",
+      "category": "normal",
+      "stage": "初入",
+      "hoursRange": [
+        0,
+        4
+      ],
+      "weight": 30,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "日常",
+        "成长"
+      ],
+      "condition": {
+        "minHours": 0,
+        "maxHours": 4
+      },
+      "text": "你看见一圈人坐在地上聊天，也想坐下。你按遍了 {N} 个键，最后把自己卡进了地板，只剩一个头露在外面。",
+      "options": [
+        {
+          "id": "ask",
+          "text": "问旁边的人",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 78,
+              "tier": "normal",
+              "text": "有人教你按住摇杆往下压。你坐下的一瞬间，视线低了下去，世界忽然变得亲切了。",
+              "effects": {
+                "mood": 2,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                }
+              }
+            },
+            {
+              "weight": 22,
+              "tier": "rare",
+              "text": "他不光教了你坐下，还顺手教你躺下和趴下。你在草地上滚了两圈，笑到模型都在抖。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 1,
+                  "meme": 4
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "try",
+          "text": "自己继续试",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 72,
+              "tier": "normal",
+              "text": "你把每个键都按了一遍，最后用一个诡异的姿势把自己塞进了墙缝。你决定就这样待着。",
+              "effects": {
+                "mood": -3,
+                "skills": {
+                  "coding": 4
+                }
+              }
+            },
+            {
+              "weight": 28,
+              "tier": "rare",
+              "text": "你误打误撞摸出了全身追踪的姿势菜单，虽然你根本没有追踪器，但躺着看天的感觉很值。",
+              "effects": {
+                "mood": 3,
+                "skills": {
+                  "coding": 10
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "stand",
+          "text": "干脆站着",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你站在那圈人旁边，比他们高出半个身子。他们聊了半小时，你听了半小时，脚有点酸。",
+              "effects": {
+                "mood": -1,
+                "tags": {
+                  "add": [
+                    "被动"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_004",
+      "title": "误触手势",
+      "category": "random",
+      "stage": "初入",
+      "hoursRange": [
+        0,
+        5
+      ],
+      "weight": 28,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 5,
+      "tags": [
+        "随机",
+        "整活"
+      ],
+      "condition": {
+        "minHours": 0,
+        "maxHours": 5
+      },
+      "text": "你想挥手打招呼，手柄却识别成了别的动作。你的模型在 {N} 个人面前原地转了一圈，还蹲了下去。",
+      "options": [
+        {
+          "id": "roll",
+          "text": "将错就错接着跳",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 74,
+              "tier": "normal",
+              "text": "你干脆把错就错，围着一根柱子转了三圈。有人停下看你，你越转越起劲，最后自己先笑场了。",
+              "effects": {
+                "mood": 3,
+                "skills": {
+                  "meme": 4
+                }
+              }
+            },
+            {
+              "weight": 26,
+              "tier": "rare",
+              "text": "有人跟着你一起转，两个人越转越偏，最后撞在一起。你们躺在地上笑了很久，顺手加了好友。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "meme": 4,
+                  "social": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "stop",
+          "text": "赶紧停下",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你手忙脚乱地按回正常姿势，假装刚才只是在调整设备。没有人看你，你松了口气又有点失落。",
+              "effects": {
+                "mood": -3,
+                "tags": {
+                  "add": [
+                    "手残"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "offline",
+          "text": "假装掉线",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你僵在原地一动不动，装作网络卡了。三十秒后你真的卡了，这下不用装了。",
+              "effects": {
+                "mood": 1,
+                "skills": {
+                  "meme": 4
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_005",
+      "title": "穿模",
+      "category": "ambient",
+      "stage": "初入",
+      "hoursRange": [
+        1,
+        5
+      ],
+      "weight": 20,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 5,
+      "tags": [
+        "日常",
+        "整活"
+      ],
+      "condition": {
+        "minHours": 1,
+        "maxHours": 5
+      },
+      "text": "你走过去想跟人击掌，手直接穿过了对方的脑袋。对方毫无反应，你的手在他头发里卡了 {N} 秒才拔出来。",
+      "options": [
+        {
+          "id": "sorry",
+          "text": "道歉式地挥挥手",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你一边抽手一边疯狂挥手，对方以为你在跳舞，也跟着晃了两下。你们就这样莫名其妙地认识了。",
+              "effects": {
+                "mood": 2,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "walkaway",
+          "text": "装没事走开",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你若无其事地转身，手还插在人家头发里，直到走出三步才抽出来。这个画面只有你自己知道。",
+              "effects": {
+                "mood": -1,
+                "tags": {
+                  "add": [
+                    "手残"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "photo",
+          "text": "截图留念",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 76,
+              "tier": "normal",
+              "text": "你按下快门，照片里你的手正好穿在对方脑袋中间。这张图后来在你相册里躺了很久。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "photo": 3
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            },
+            {
+              "weight": 24,
+              "tier": "rare",
+              "text": "你拍的时候对方正好转头，画面歪打正着地好看。你第一次发现，穿模也能拍出好照片。",
+              "effects": {
+                "mood": 4,
+                "skills": {
+                  "photo": 7
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_006",
+      "title": "灰色的机器人",
+      "category": "random",
+      "stage": "初入",
+      "hoursRange": [
+        1,
+        6
+      ],
+      "weight": 24,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 6,
+      "tags": [
+        "随机"
+      ],
+      "condition": {
+        "minHours": 1,
+        "maxHours": 6
+      },
+      "text": "今晚 {世界} 里一半的人都是灰色机器人。有人喊「加载不出来」，有人喊「我的裙子呢」，满场都是没有脸的铁皮人。",
+      "options": [
+        {
+          "id": "nameplate",
+          "text": "挨个点开看名牌",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你挨个点开那些机器人，发现有人写了很长的签名档。你第一次知道，原来简介也可以写得像日记。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "wait",
+          "text": "站在原地等加载",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你等了十分钟，一个模型慢慢长出了头发和脸。你居然有种看着别人醒过来的错觉。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "become",
+          "text": "干脆当机器人玩",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 74,
+              "tier": "normal",
+              "text": "你顶着灰色机器人到处走，学别人卡顿的样子一抖一抖。有人笑出声，问你练了多久。",
+              "effects": {
+                "mood": 3,
+                "friends": 1,
+                "skills": {
+                  "meme": 4
+                }
+              }
+            },
+            {
+              "weight": 26,
+              "tier": "rare",
+              "text": "另一个同样卡成机器人的人走过来跟你面对面站了很久。加载完成后你们对视一眼，同时笑出了声。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 8,
+                  "initTrust": 5,
+                  "initFreshness": 90,
+                  "initDependence": 0,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_007",
+      "title": "教程世界",
+      "category": "normal",
+      "stage": "初入",
+      "hoursRange": [
+        0,
+        5
+      ],
+      "weight": 34,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "技能",
+        "成长"
+      ],
+      "condition": {
+        "minHours": 0,
+        "maxHours": 5
+      },
+      "text": "你被传送到一个教程世界，蓝色箭头让你走进圈里、按下按钮、举起方块。做完 {N} 关之后，你终于知道这游戏该怎么玩了。",
+      "options": [
+        {
+          "id": "finish",
+          "text": "老老实实做完",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 78,
+              "tier": "normal",
+              "text": "你把每一关都做完了，连最后的总结面板都读完。走出教程世界时，你觉得自己像个刚毕业的人。",
+              "effects": {
+                "mood": 3,
+                "skills": {
+                  "social": 1,
+                  "coding": 4
+                },
+                "flags": {
+                  "add": [
+                    "did_tutorial"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 22,
+              "tier": "rare",
+              "text": "你做完教程还顺手把地图里的隐藏按钮全找了出来。作者在角落里留了一行字：「你居然真找到了」。",
+              "effects": {
+                "mood": 4,
+                "skills": {
+                  "coding": 10
+                },
+                "flags": {
+                  "add": [
+                    "did_tutorial"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "skip",
+          "text": "直接跳到最后一关",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你跳过所有关卡直接通关，拿了块牌子。牌子很好看，但你完全不知道前面讲了什么。",
+              "effects": {
+                "mood": 1,
+                "skills": {
+                  "coding": 4
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "quit",
+          "text": "太无聊，退出",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你退出了教程，回到主菜单。之后每次卡在某个操作上，你都会想起那个没做完的教程。",
+              "effects": {
+                "mood": -3,
+                "tags": {
+                  "add": [
+                    "手残"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_008",
+      "title": "镜子里的自己",
+      "category": "ambient",
+      "stage": "初入",
+      "hoursRange": [
+        1,
+        6
+      ],
+      "weight": 20,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 5,
+      "tags": [
+        "日常",
+        "孤独"
+      ],
+      "condition": {
+        "minHours": 1,
+        "maxHours": 6
+      },
+      "text": "你在 {世界} 的镜子前站了很久。镜子里那个模型也在看你，你们谁也不认识谁，但你就是挪不开眼睛。",
+      "options": [
+        {
+          "id": "angle",
+          "text": "换个角度继续看",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你转着圈检查模型的每一处接缝，像在验收一件别人的作品。转到第八圈，你才想起自己是一个人来的。",
+              "effects": {
+                "mood": 1,
+                "skills": {
+                  "modeling": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "shoot",
+          "text": "给自己拍一张",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 76,
+              "tier": "normal",
+              "text": "你摆了半天姿势，拍出一张自己都不好意思看的照片。你把它设成了头像。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "photo": 3
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            },
+            {
+              "weight": 24,
+              "tier": "rare",
+              "text": "照片拍得出奇地好，你顺手发到了群里。有人回「这是谁啊，挺好看」，你盯着那条消息看了很久。",
+              "effects": {
+                "mood": 4,
+                "fame": 1,
+                "skills": {
+                  "photo": 7
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave",
+          "text": "走开去找人",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你转身往人多的地方走，走了两步又回头看了眼镜子。镜子里的你也转身走了。",
+              "effects": {
+                "mood": -1,
+                "tags": {
+                  "add": [
+                    "独行侠"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_009",
+      "title": "改颜色",
+      "category": "normal",
+      "stage": "初入",
+      "hoursRange": [
+        1,
+        6
+      ],
+      "weight": 32,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "技能"
+      ],
+      "condition": {
+        "minHours": 1,
+        "maxHours": 6
+      },
+      "text": "你发现模型可以改颜色。于是你花了一整个晚上，只为了把头发从灰色调成没那么灰的灰色——中间你试了 {N} 种灰。",
+      "options": [
+        {
+          "id": "tune",
+          "text": "继续调到满意",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 78,
+              "tier": "normal",
+              "text": "你调了三个小时，最后发现和最开始几乎一模一样。但你确信，现在的灰是对的灰。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "modeling": 4
+                },
+                "flags": {
+                  "add": [
+                    "made_own_avatar"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 22,
+              "tier": "rare",
+              "text": "调着调着你摸进了材质面板，意外搞出了会随光变色的头发。你决定明天就去跟人炫耀。",
+              "effects": {
+                "mood": 4,
+                "skills": {
+                  "modeling": 4
+                },
+                "flags": {
+                  "add": [
+                    "made_own_avatar"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ask",
+          "text": "去问别人怎么改",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "有人丢给你一个改模教程链接，还顺手帮你调了一下。你看着自己的头发变好看，说了三遍谢谢。",
+              "effects": {
+                "mood": 3,
+                "friends": 1,
+                "skills": {
+                  "modeling": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "giveup",
+          "text": "算了，就这样吧",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把颜色改回原样，关掉了菜单。有些人天生适合灰色，你这样安慰自己。",
+              "effects": {
+                "mood": -1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_010",
+      "title": "看不懂的贴贴",
+      "category": "normal",
+      "stage": "初入",
+      "hoursRange": [
+        2,
+        7
+      ],
+      "weight": 30,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "社交"
+      ],
+      "condition": {
+        "minHours": 2,
+        "maxHours": 7
+      },
+      "text": "你第一次在{中文吧|跳舞房|私人世界}看见两个人抱着不动，一抱就是二十分钟。你绕着他们走了 {N} 圈，还是没搞懂这算不算在谈恋爱。",
+      "options": [
+        {
+          "id": "ask",
+          "text": "直接问",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 74,
+              "tier": "normal",
+              "text": "你问「你们是在一起了吗」，对方笑着说「贴贴而已」。你点头表示懂了，其实一点也没懂。",
+              "effects": {
+                "mood": 2,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                }
+              }
+            },
+            {
+              "weight": 26,
+              "tier": "rare",
+              "text": "对方不但解释了，还顺便给你科普了一堆黑话：贴贴、砂糖、磨合、散伙。你像在听一门新语言。",
+              "effects": {
+                "mood": 3,
+                "friends": 1,
+                "skills": {
+                  "social": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "watch",
+          "text": "默默观察",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你在三米外站了很久，看他们一动不动。你忽然意识到，这里的时间流速好像和现实不太一样。",
+              "effects": {
+                "mood": 1,
+                "tags": {
+                  "add": [
+                    "小透明"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "copy",
+          "text": "找个人复刻一下",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你问旁边的人能不能抱一下试试，对方后退了半步说「不太熟吧」。你尴尬地说了声抱歉。",
+              "effects": {
+                "mood": -5,
+                "tags": {
+                  "add": [
+                    "社恐"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "有个同样新来的人答应了。你们僵硬地抱了十秒，然后同时松开，笑得停不下来。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_011",
+      "title": "有人搭讪",
+      "category": "normal",
+      "stage": "初入",
+      "hoursRange": [
+        3,
+        8
+      ],
+      "weight": 32,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "社交",
+        "正面"
+      ],
+      "condition": {
+        "minHours": 3,
+        "maxHours": 8
+      },
+      "text": "在{中文吧|跳舞房|私人世界}，一个陌生模型突然凑到你耳边问：「一个人？」你手心全是汗，{N} 秒没说出话。",
+      "options": [
+        {
+          "id": "honest",
+          "text": "说是，刚玩没几天",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 76,
+              "tier": "normal",
+              "text": "对方说「看出来了」，然后带着你逛了三个世界。临走时你们互相加了好友。",
+              "effects": {
+                "mood": 3,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 8,
+                  "initTrust": 5,
+                  "initFreshness": 90,
+                  "initDependence": 0,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              }
+            },
+            {
+              "weight": 24,
+              "tier": "rare",
+              "text": "对方说他也是一个人，问要不要一起挂机。你们谁都没怎么说话，却一起待到了凌晨。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                },
+                "tags": {
+                  "add": [
+                    "被动"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 12,
+                  "initTrust": 10,
+                  "initFreshness": 94,
+                  "initDependence": 4,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "voice",
+          "text": "开麦回他",
+          "condition": {
+            "excludeTags": [
+              "开麦恐惧"
+            ]
+          },
+          "lockedHint": "先克服开麦恐惧吧",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你开口回了一句，对方说「声音挺清楚的」。你们聊了不到十分钟，但那是你今晚说得最多的一次。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "afk",
+          "text": "假装挂机",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你一动不动，对方等了一会就走了。你看着他的背影，脑子里把刚才想说的话又演了一遍。",
+              "effects": {
+                "mood": -4,
+                "tags": {
+                  "add": [
+                    "社恐",
+                    "被动"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_012",
+      "title": "被教操作",
+      "category": "normal",
+      "stage": "初入",
+      "hoursRange": [
+        2,
+        7
+      ],
+      "weight": 30,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "社交",
+        "成长"
+      ],
+      "condition": {
+        "minHours": 2,
+        "maxHours": 7
+      },
+      "text": "在{中文吧|跳舞房|私人世界}，一个老玩家看你原地打转，过来教你开菜单、换模型、存世界。他 {N} 分钟讲完一整套，你只记住了最后一句：「加个好友吧。」",
+      "options": [
+        {
+          "id": "add",
+          "text": "加好友并道谢",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 78,
+              "tier": "normal",
+              "text": "你手忙脚乱地点了通过，说了三遍谢谢。他挥挥手飞走了，留下一句「有事喊我」。",
+              "effects": {
+                "mood": 3,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                },
+                "flags": {
+                  "add": [
+                    "met_veteran",
+                    "first_friend_added"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 22,
+              "tier": "rare",
+              "text": "他不光加了你好友，还把你拉进了他的收藏世界列表。你一下多了 {N} 个可以逛的地方。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 2
+                },
+                "flags": {
+                  "add": [
+                    "met_veteran",
+                    "first_friend_added"
+                  ]
+                },
+                "counters": {
+                  "worldsVisited": 3
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "remember",
+          "text": "记下名字，先不加",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把他的名字在心里念了两遍，想着下次碰到再加。后来你再也没碰到过他。",
+              "effects": {
+                "mood": -3,
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "run",
+          "text": "点点头跑掉",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你点头点得飞快，然后一溜烟飞走了。飞出去才发现，他刚才教的瞬移你其实没学会。",
+              "effects": {
+                "mood": -1,
+                "tags": {
+                  "add": [
+                    "手残"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_013",
+      "title": "被拉进群",
+      "category": "normal",
+      "stage": "初入",
+      "hoursRange": [
+        4,
+        9
+      ],
+      "weight": 28,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "社交"
+      ],
+      "condition": {
+        "minHours": 4,
+        "maxHours": 9
+      },
+      "text": "有人甩给你一个群号：「都是中文吧常驻，进来玩。」你点进去，{N} 条未读消息刷得飞快，没有一个名字你认识。",
+      "options": [
+        {
+          "id": "intro",
+          "text": "发个自我介绍",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 74,
+              "tier": "normal",
+              "text": "你打了一段自我介绍发出去，配了个表情包。有三个人回了你，其中一个说你头像好看。",
+              "effects": {
+                "mood": 2,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                },
+                "flags": {
+                  "add": [
+                    "joined_group"
+                  ]
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "newbie_018",
+                  "delayHours": [
+                    10,
+                    15
+                  ],
+                  "chance": 0.5,
+                  "requireFlags": [
+                    "joined_group"
+                  ],
+                  "excludeIfFlags": []
+                }
+              ]
+            },
+            {
+              "weight": 26,
+              "tier": "rare",
+              "text": "你刚发完，群里刷了一屏「欢迎新人」。你被 {N} 个人同时 @，手机在手里震个不停，耳朵一直红着。",
+              "effects": {
+                "mood": 4,
+                "friends": 2,
+                "fame": 1,
+                "skills": {
+                  "social": 2
+                },
+                "flags": {
+                  "add": [
+                    "joined_group"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "lurk",
+          "text": "先潜水看看",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把群设成免打扰，翻了半个小时的聊天记录。原来他们的梗你一个都看不懂。",
+              "effects": {
+                "mood": -1,
+                "flags": {
+                  "add": [
+                    "joined_group"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "mute",
+          "text": "加入后立刻静音",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你点了加入，然后立刻静音，像把一件礼物塞进了抽屉。群还在那里，只是你假装它不在。",
+              "effects": {
+                "mood": -3,
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_014",
+      "title": "群里没人理",
+      "category": "normal",
+      "stage": "初入",
+      "hoursRange": [
+        5,
+        10
+      ],
+      "weight": 28,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "孤独",
+        "负面"
+      ],
+      "condition": {
+        "minHours": 5,
+        "maxHours": 10
+      },
+      "text": "你在群里发了句「有人现在在玩吗」，消息两秒就被 {N} 张表情包淹没了。你盯着屏幕，把输入框里的字一个个删掉。",
+      "options": [
+        {
+          "id": "again",
+          "text": "再发一次",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 72,
+              "tier": "normal",
+              "text": "你又发了一遍，这次连表情包都没有了。你把手机扣在桌上，去倒了杯水。",
+              "effects": {
+                "mood": -5,
+                "tags": {
+                  "add": [
+                    "小透明"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 28,
+              "tier": "rare",
+              "text": "终于有人回了一句「我在，来我房间」。你几乎是立刻点了传送，连鞋都没穿好。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "close",
+          "text": "关掉群聊",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你退出群聊界面，回到游戏里一个人挂了半小时机。列表里 {N} 个好友，头像全是灰的。",
+              "effects": {
+                "mood": -4,
+                "tags": {
+                  "add": [
+                    "emo"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "dm",
+          "text": "私聊那个看起来好说话的人",
+          "condition": {
+            "requireFlags": [
+              "joined_group"
+            ]
+          },
+          "lockedHint": "你还没加入任何群",
+          "outcomes": [
+            {
+              "weight": 76,
+              "tier": "normal",
+              "text": "你私聊了那个发猫图的人，他很快回了你，还问你「要不要一起来挂机」。你回了句好。",
+              "effects": {
+                "mood": 3,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                }
+              }
+            },
+            {
+              "weight": 24,
+              "tier": "rare",
+              "text": "他不但回了你，还把你介绍给了他固定一起玩的那几个人。你一下从零变成了一个小圈子的边缘成员。",
+              "effects": {
+                "mood": 5,
+                "friends": 2,
+                "fame": 1,
+                "skills": {
+                  "social": 2
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 12,
+                  "initTrust": 10,
+                  "initFreshness": 92,
+                  "initDependence": 3,
+                  "initRealPressure": 0,
+                  "name": "auto"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_015",
+      "title": "楼上的角落",
+      "category": "ambient",
+      "stage": "初入",
+      "hoursRange": [
+        2,
+        8
+      ],
+      "weight": 24,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 6,
+      "tags": [
+        "孤独",
+        "日常"
+      ],
+      "condition": {
+        "minHours": 2,
+        "maxHours": 8
+      },
+      "text": "整晚你都待在 {世界} 的二楼角落，看着楼下的人换了一批又一批。有人上来过一次，你紧张得直接按了静音。",
+      "options": [
+        {
+          "id": "hide",
+          "text": "继续躲着",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把自己缩进墙角，模型几乎和墙融为一体。这样很好，没有人会看你，也没有人会问你话。",
+              "effects": {
+                "mood": -3,
+                "tags": {
+                  "add": [
+                    "小透明",
+                    "社恐"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "downstairs",
+          "text": "下楼走一圈",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 74,
+              "tier": "normal",
+              "text": "你走下楼，在人群边上站了十分钟。有人递给你一瓶虚拟饮料，你接过来，握着不知道该喝不该喝。",
+              "effects": {
+                "mood": 2,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                }
+              }
+            },
+            {
+              "weight": 26,
+              "tier": "rare",
+              "text": "你下楼的时候撞到了一个人，道歉的话还没打完，对方已经笑着说「没事，我也刚来」。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "typing",
+          "text": "换成打字跟人打招呼",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你对着楼下的人打了一句「你好」，字太小，没人看见。你又打了一遍，这次删掉了。",
+              "effects": {
+                "mood": -1,
+                "tags": {
+                  "add": [
+                    "开麦恐惧"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_016",
+      "title": "第一次听歌",
+      "category": "normal",
+      "stage": "初入",
+      "hoursRange": [
+        3,
+        9
+      ],
+      "weight": 30,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "正面",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 3,
+        "maxHours": 9
+      },
+      "text": "在{中文吧|跳舞房|私人世界}，音箱里放起一首你没听过的歌。你站在原地听完了整整 {N} 分钟，忘了自己是来干嘛的。",
+      "options": [
+        {
+          "id": "askname",
+          "text": "去问歌名",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 78,
+              "tier": "normal",
+              "text": "放歌的人把歌名发给了你，还顺手推了整张歌单。你当晚把那张歌单从头听到了尾。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "music": 4
+                }
+              }
+            },
+            {
+              "weight": 22,
+              "tier": "rare",
+              "text": "他不但给了歌名，还邀你下次一起来放歌。你说你什么都不懂，他说「听就够了」。",
+              "effects": {
+                "mood": 5,
+                "friends": 1,
+                "skills": {
+                  "music": 4,
+                  "social": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "listen",
+          "text": "站着听完",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你闭着眼听完了整首歌，周围的人在跳舞、在聊天，只有你一动不动。那一刻你觉得来对地方了。",
+              "effects": {
+                "mood": 4,
+                "skills": {
+                  "music": 4
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "extreme",
+              "text": "副歌响起来的那一刻，你忽然鼻子一酸。你站在人群中间哭了半分钟，然后摘下头显，在现实里坐了很久。",
+              "effects": {
+                "mood": 6,
+                "skills": {
+                  "music": 11
+                },
+                "tags": {
+                  "add": [
+                    "元气"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "found_favorite_song"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "sway",
+          "text": "跟着节奏晃两下",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你跟着节奏晃了晃，动作僵硬得像在打拍子。没有人看你，但你自己的心情好了一整晚。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "dance": 4,
+                  "music": 4
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_017",
+      "title": "好看的模型",
+      "category": "ambient",
+      "stage": "初入",
+      "hoursRange": [
+        2,
+        8
+      ],
+      "weight": 22,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 5,
+      "tags": [
+        "日常"
+      ],
+      "condition": {
+        "minHours": 2,
+        "maxHours": 8
+      },
+      "text": "在{中文吧|跳舞房|私人世界}，一个人从你面前走过，模型做得像从画里走出来的。你偷偷点开他的名牌，把作者的名字看了 {N} 遍。",
+      "options": [
+        {
+          "id": "praise",
+          "text": "上去夸一句",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 76,
+              "tier": "normal",
+              "text": "你打字说「你这个模型好好看」，对方回了个谢谢，还转了半圈给你看。你心满意足地走了。",
+              "effects": {
+                "mood": 3,
+                "friends": 1,
+                "skills": {
+                  "modeling": 2
+                }
+              }
+            },
+            {
+              "weight": 24,
+              "tier": "rare",
+              "text": "对方说模型是他自己改的，还给你看了改之前的版本。你第一次知道，原来普通人也能做这个。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "modeling": 4
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "shot",
+          "text": "偷偷截一张",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你假装拍风景，把他也拍了进去。照片里他正好回头，你心虚得把相册关了三遍。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "photo": 3
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "search",
+          "text": "记下模型名去搜",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你搜了半个晚上，发现那个模型是限定的，早就下架了。你把页面存进收藏夹，想着以后一定要会改模。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "modeling": 4
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_018",
+      "title": "屋顶的烟花",
+      "category": "normal",
+      "stage": "初入",
+      "hoursRange": [
+        4,
+        10
+      ],
+      "weight": 26,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "正面",
+        "成长"
+      ],
+      "condition": {
+        "minHours": 4,
+        "maxHours": 10
+      },
+      "text": "凌晨，你坐在 {世界} 的屋顶上看别人放烟花。没有人跟你说话，但你第一次觉得，来这里好像是对的。",
+      "options": [
+        {
+          "id": "remember",
+          "text": "把这一晚记下来",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 78,
+              "tier": "normal",
+              "text": "你截了张图，配了一句「第 {N} 天」。发出去之后你才发现，那是你这几天最平静的一刻。",
+              "effects": {
+                "mood": 4,
+                "flags": {
+                  "add": [
+                    "first_good_night"
+                  ]
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            },
+            {
+              "weight": 22,
+              "tier": "rare",
+              "text": "烟花放到一半，旁边有人递给你一支虚拟烟花。你点着的那一瞬间，屋顶上所有人都抬头看了。",
+              "effects": {
+                "mood": 5,
+                "fame": 1,
+                "friends": 1,
+                "flags": {
+                  "add": [
+                    "first_good_night"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "share",
+          "text": "找个人分享",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把好友列表翻了一遍，最后点开 {ta} 的头像：「你在吗，这里烟花很好看。」那边回了个「来了」。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "sleep",
+          "text": "关掉游戏去睡觉",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你摘下头显，屏幕上的烟花还留在视网膜上。躺在床上，你想的却是明天要不要早点上线。",
+              "effects": {
+                "mood": 2,
+                "tags": {
+                  "add": [
+                    "夜猫子"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_019",
+      "title": "你多大",
+      "category": "normal",
+      "stage": "初入",
+      "hoursRange": [
+        4,
+        9
+      ],
+      "weight": 28,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "社交",
+        "现实"
+      ],
+      "condition": {
+        "minHours": 4,
+        "maxHours": 9
+      },
+      "text": "聊得正开心，对方突然问：「你多大？男的女的？」你盯着输入框，{N} 秒没想好怎么答。",
+      "options": [
+        {
+          "id": "honest",
+          "text": "照实说",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 72,
+              "tier": "normal",
+              "text": "你照实说了，对方回了个「哦」，话题换了。你松了口气，又有点说不上来的失落。",
+              "effects": {
+                "mood": 1,
+                "friends": 1
+              }
+            },
+            {
+              "weight": 28,
+              "tier": "rare",
+              "text": "你照实说了，对方说「居然一样」。你们从年龄聊到工作，聊到窗外发白，那是你第一次在游戏里说这么多现实的事。",
+              "effects": {
+                "mood": 5,
+                "friends": 2,
+                "skills": {
+                  "social": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "vague",
+          "text": "含糊带过",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你打了个「不大不小」，对方没有再问。之后每次聊到现实的话题，你都用同一个说法挡回去。",
+              "effects": {
+                "mood": -1,
+                "tags": {
+                  "add": [
+                    "被动"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "back",
+          "text": "反问他",
+          "condition": {
+            "minFriends": 1
+          },
+          "lockedHint": "还不太熟，问不出口",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把问题原样丢了回去，对方笑着说「保密」。你们谁都没说，但气氛反而轻快了起来。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_020",
+      "title": "遇到小学生",
+      "category": "random",
+      "stage": "初入",
+      "hoursRange": [
+        5,
+        10
+      ],
+      "weight": 20,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "随机",
+        "整活"
+      ],
+      "condition": {
+        "minHours": 5,
+        "maxHours": 10
+      },
+      "text": "一个声音尖细的玩家追着你喊「哥哥带我玩」，他的模型比你高两头。你被拉着跑了 {N} 个世界，一句拒绝都没说出口。",
+      "options": [
+        {
+          "id": "play",
+          "text": "陪他玩一会",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 76,
+              "tier": "normal",
+              "text": "你陪他玩了半小时躲猫猫，输了六把。他笑得停不下来，临走还问「明天你还来吗」。",
+              "effects": {
+                "mood": 2,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                }
+              }
+            },
+            {
+              "weight": 24,
+              "tier": "rare",
+              "text": "他把你拉进他的小圈子，里面全是差不多年纪的人。你在里面居然成了最懂操作的那个。",
+              "effects": {
+                "mood": 4,
+                "friends": 2,
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "escape",
+          "text": "找个借口溜走",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说「我去吃饭了」，然后立刻下线。第二天上线你特意换了模型，怕他认出你。",
+              "effects": {
+                "mood": -3
+              }
+            }
+          ]
+        },
+        {
+          "id": "teach",
+          "text": "教他点基础操作",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把昨天别人教你的东西原样教了一遍。讲完之后你才发现，原来自己已经记住这么多了。",
+              "effects": {
+                "mood": 3,
+                "skills": {
+                  "social": 2
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_021",
+      "title": "八百小时的人",
+      "category": "normal",
+      "stage": "初入",
+      "hoursRange": [
+        4,
+        10
+      ],
+      "weight": 26,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "社交",
+        "正面"
+      ],
+      "condition": {
+        "minHours": 4,
+        "maxHours": 10
+      },
+      "text": "一个 800 小时的玩家把收藏的世界一个个丢给你：「这个 {世界} 拍照好看，那个能听歌。」他说，他当年也是被人这么带过来的。",
+      "options": [
+        {
+          "id": "takeall",
+          "text": "全部收下并道谢",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 74,
+              "tier": "normal",
+              "text": "你一口气收了 {N} 个世界，当晚逛到凌晨。第二天你给他发消息说「都很好看」，他很高兴。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                },
+                "flags": {
+                  "add": [
+                    "met_veteran"
+                  ]
+                },
+                "counters": {
+                  "worldsVisited": 4
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "newbie_022",
+                  "delayHours": [
+                    10,
+                    15
+                  ],
+                  "chance": 0.6,
+                  "requireFlags": [
+                    "met_veteran"
+                  ],
+                  "excludeIfFlags": []
+                }
+              ]
+            },
+            {
+              "weight": 26,
+              "tier": "rare",
+              "text": "他不光给了世界，还把自己改废的一套模型塞给你，说「拿去练手，改坏了也不心疼」。",
+              "effects": {
+                "mood": 5,
+                "friends": 1,
+                "avatars": 1,
+                "skills": {
+                  "modeling": 4
+                },
+                "flags": {
+                  "add": [
+                    "met_veteran"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "pickone",
+          "text": "只挑一个",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你挑了那个能听歌的世界，说「先逛这个就好」。他笑了笑说「慢慢来，不着急」。",
+              "effects": {
+                "mood": 2,
+                "friends": 1,
+                "flags": {
+                  "add": [
+                    "met_veteran"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "why",
+          "text": "问他为什么要帮新人",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "他停了几秒，说「因为我刚玩的时候，也有人这么对我」。你把这句话记了很久。",
+              "effects": {
+                "mood": 4,
+                "skills": {
+                  "social": 2
+                },
+                "flags": {
+                  "add": [
+                    "met_veteran"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intro_022",
+      "title": "天亮了",
+      "category": "normal",
+      "stage": "初入",
+      "hoursRange": [
+        6,
+        10
+      ],
+      "weight": 26,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "现实",
+        "日常"
+      ],
+      "condition": {
+        "minHours": 6,
+        "maxHours": 10
+      },
+      "text": "你摘下头显，窗帘缝里已经有光了。饭桌上家里人问：「昨晚又在那个游戏里跟人聊天？」你扒了 {N} 口饭，没敢说其实谁也没理你。",
+      "options": [
+        {
+          "id": "admit",
+          "text": "承认，说挺好玩",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说挺好玩的，家里人撇撇嘴没再说什么。你低头扒饭，心里盘算着今晚几点上线。",
+              "effects": {
+                "mood": 2,
+                "tags": {
+                  "add": [
+                    "夜猫子"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "vague",
+          "text": "含糊过去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说「就随便玩玩」，然后把碗里的饭吃完。你忽然发现，自己已经习惯了对现实里的人也含糊。",
+              "effects": {
+                "mood": -4
+              }
+            }
+          ]
+        },
+        {
+          "id": "defend",
+          "text": "顶一句：那是我朋友",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 74,
+              "tier": "normal",
+              "text": "你说「那是我朋友」，说完自己先愣住。家里人没接话，你却把这四个字在心里过了一整天。",
+              "effects": {
+                "mood": 3,
+                "friends": 1,
+                "tags": {
+                  "add": [
+                    "夜猫子"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 26,
+              "tier": "rare",
+              "text": "你顶完那一句，家里人沉默了一会，说「那就好好处」。你端着碗，眼睛有点发涩。",
+              "effects": {
+                "mood": 4,
+                "tags": {
+                  "add": [
+                    "夜猫子"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

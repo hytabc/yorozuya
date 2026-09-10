@@ -1,0 +1,4359 @@
+{
+  "bucket": "wild",
+  "version": "1.0",
+  "events": [
+    {
+      "id": "wild_001",
+      "title": "卡在 99%",
+      "category": "random",
+      "stage": "初入",
+      "hoursRange": [
+        0,
+        10
+      ],
+      "weight": 18,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 150,
+      "tags": [
+        "随机",
+        "负面"
+      ],
+      "condition": {
+        "minHours": 0,
+        "maxHours": 10
+      },
+      "text": "你戴上头显，第 {N} 次盯着加载条停在 99%。风扇在耳边叹气，设备烫得像刚出锅的地瓜。",
+      "options": [
+        {
+          "id": "wait",
+          "text": "再等五分钟",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 72,
+              "tier": "normal",
+              "text": "门终于开了。房间里只剩下几个人，你赶上了最后半首歌的尾巴。",
+              "effects": {
+                "mood": 2
+              }
+            },
+            {
+              "weight": 28,
+              "tier": "rare",
+              "text": "你进去时房间已经散了。你在空荡荡的{世界}里站了十分钟，才想起自己可以退出。",
+              "effects": {
+                "mood": -8,
+                "tags": {
+                  "add": [
+                    "独行侠"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "restart",
+          "text": "暴力重启",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "重启之后一切正常。你在这个过程中学会了闭着眼睛插拔线材。",
+              "effects": {
+                "mood": 1,
+                "skills": {
+                  "coding": 4
+                },
+                "counters": {
+                  "questCrash": 1
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "第三次重启时你发现是自己改的模型炸了。你换回默认模型，房间里的笑声还在原地等你。",
+              "effects": {
+                "mood": -4,
+                "flags": {
+                  "add": [
+                    "survived_crash"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "sleep",
+          "text": "摘下头显去睡",
+          "condition": {
+            "maxMood": 70
+          },
+          "lockedHint": "需要心态 ≤ 70",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把头显挂在椅背上，它像一只熄了灯的眼睛。那天晚上你梦见加载条走到了 100%。",
+              "effects": {
+                "mood": 4,
+                "hoursBonus": 2
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_002",
+      "title": "手柄漂移",
+      "category": "random",
+      "stage": "萌新探索",
+      "hoursRange": [
+        10,
+        50
+      ],
+      "weight": 20,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 180,
+      "tags": [
+        "随机",
+        "技能"
+      ],
+      "condition": {
+        "minHours": 10,
+        "maxHours": 50
+      },
+      "text": "你的右手柄开始自己往左飘。在{中文吧|跳舞房|私人世界}里，你像个喝多了的人，一直朝空气点头。",
+      "options": [
+        {
+          "id": "deal",
+          "text": "忍着继续用",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你把死区调到最大，勉强能跳舞。朋友们以为你在跳一种新舞步，跟着学了起来。",
+              "effects": {
+                "mood": 4,
+                "skills": {
+                  "dance": 11
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你忍着漂移划出的曲线，居然被夸“很有个人风格”。你有点不想修了。",
+              "effects": {
+                "mood": 5,
+                "fame": 2,
+                "tags": {
+                  "add": [
+                    "天赋型"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "fix",
+          "text": "拆开清理",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你拆开手柄，用棉签清出一小团黑色纤维。它活了过来。",
+              "effects": {
+                "mood": 3,
+                "assets": -20,
+                "skills": {
+                  "coding": 10
+                }
+              }
+            },
+            {
+              "weight": 35,
+              "tier": "rare",
+              "text": "清理之后漂移更严重了。你下单了一个新的，账单让你安静了三分钟。",
+              "effects": {
+                "mood": -6,
+                "assets": -300
+              }
+            }
+          ]
+        },
+        {
+          "id": "tell",
+          "text": "跟朋友说一声再走",
+          "condition": {
+            "minFriends": 3
+          },
+          "lockedHint": "需要好友 ≥ 3",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你在群里发了句“手柄飘了，先撤”。三个人同时回你“这么快”。你笑着关了机。",
+              "effects": {
+                "mood": 2,
+                "friends": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_003",
+      "title": "被吞掉的模型",
+      "category": "random",
+      "stage": "社交起步",
+      "hoursRange": [
+        50,
+        200
+      ],
+      "weight": 14,
+      "rarity": "rare",
+      "once": false,
+      "cooldown": 300,
+      "tags": [
+        "随机",
+        "消费"
+      ],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200
+      },
+      "text": "你在{中文吧}上传的新模型，在别人眼里是一团扭曲的色块。有人小声说：你刚才像被这个世界吞掉了。",
+      "options": [
+        {
+          "id": "laugh",
+          "text": "自己先笑出声",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你干脆顶着这团色块跳完一整首歌，全场笑到掉帧。有人截了图，说要当传家宝。",
+              "effects": {
+                "mood": 6,
+                "fame": 3,
+                "skills": {
+                  "meme": 18
+                },
+                "tags": {
+                  "add": [
+                    "整活王"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "这段画面被做成表情包，在圈子里传了半个月。你成了“那个被吞掉的人”。",
+              "effects": {
+                "mood": 4,
+                "fame": 6,
+                "counters": {
+                  "memeMade": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "reupload",
+          "text": "下线重新上传",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 60,
+              "tier": "normal",
+              "text": "重传后模型正常了。你顺手把面数砍掉一半，第一次体会到优化的快感。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "modeling": 8
+                }
+              }
+            },
+            {
+              "weight": 40,
+              "tier": "rare",
+              "text": "你重传了四次，第五次才发现是材质路径写错了。凌晨四点，你学会了看日志。",
+              "effects": {
+                "mood": -5,
+                "skills": {
+                  "modeling": 7,
+                  "coding": 10
+                },
+                "tags": {
+                  "add": [
+                    "技术宅"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "hide",
+          "text": "假装掉线逃回去",
+          "condition": {
+            "requireTags": [
+              "社恐"
+            ]
+          },
+          "lockedHint": "需要标签「社恐」",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你逃回自己的房间，第二天换了个更安全的模型。再没有人提起那件事。",
+              "effects": {
+                "mood": -10,
+                "tags": {
+                  "add": [
+                    "开麦恐惧"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_004",
+                  "delayHours": [
+                    22,
+                    90
+                  ],
+                  "chance": 0.35
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_004",
+      "title": "忘记关麦",
+      "category": "random",
+      "stage": "深度社交",
+      "hoursRange": [
+        200,
+        500
+      ],
+      "weight": 12,
+      "rarity": "rare",
+      "once": false,
+      "cooldown": 400,
+      "tags": [
+        "随机",
+        "现实",
+        "冲突"
+      ],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500
+      },
+      "text": "你以为自己闭麦了。直到{ta}在私聊里打出一个句号，你才想起刚才那三分钟，你把这周的委屈全说给了空气。",
+      "options": [
+        {
+          "id": "admit",
+          "text": "干脆承认",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你重新开麦，把话说完。{ta}安静地听完，说：我也有过。",
+              "effects": {
+                "mood": 8
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "ta 没有安慰你，只是陪你坐着，直到你的角色不再发抖。",
+              "effects": {
+                "mood": 11,
+                "friends": 1
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_006",
+                  "delayHours": [
+                    10,
+                    22
+                  ],
+                  "chance": 0.7
+                }
+              ]
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "那段话被房间里另一个人录了下来。第二天，你的真心话变成了别人的下酒菜。",
+              "effects": {
+                "mood": -39,
+                "fame": -6,
+                "friends": -3,
+                "tags": {
+                  "add": [
+                    "emo"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_011",
+                  "delayHours": [
+                    10,
+                    32
+                  ],
+                  "chance": 0.6
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "deny",
+          "text": "装作是室友在打电话",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你干笑着说刚才是室友在打电话。没人拆穿你，但房间安静了很久。",
+              "effects": {
+                "mood": -8,
+                "flags": {
+                  "add": [
+                    "hid_true_feeling"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "{ta}在私聊里只回了三个字：我信你。你盯着这三个字，比被拆穿还难受。",
+              "effects": {
+                "mood": -5,
+                "friends": 1,
+                "flags": {
+                  "add": [
+                    "hid_true_feeling"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave",
+          "text": "立刻下线",
+          "condition": {
+            "maxMood": 40
+          },
+          "lockedHint": "需要心态 ≤ 40",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你拔掉线，坐在黑暗里。手机屏幕亮起，是{ta}发来的：明天还在吗。",
+              "effects": {
+                "mood": -4,
+                "friends": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_005",
+      "title": "抽奖中了",
+      "category": "random",
+      "stage": "萌新探索",
+      "hoursRange": [
+        10,
+        50
+      ],
+      "weight": 16,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 500,
+      "tags": [
+        "随机",
+        "正面",
+        "消费"
+      ],
+      "condition": {
+        "minHours": 10,
+        "maxHours": 50,
+        "probability": 0.2
+      },
+      "text": "{世界}角落的抽奖转盘停了。你的名字停在第一格，奖品是一件别人排了三小时的限定模型。",
+      "options": [
+        {
+          "id": "take",
+          "text": "收下",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你把模型穿上，走路都小心了三分。有人问你哪来的，你说：运气。",
+              "effects": {
+                "mood": 7,
+                "avatars": 1,
+                "assets": 500
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "中奖截图被世界作者转发，陆续有人来加你。你的好友列表第一次变得这么热闹。",
+              "effects": {
+                "mood": 8,
+                "avatars": 1,
+                "assets": 800,
+                "fame": 5,
+                "friends": 3
+              }
+            },
+            {
+              "weight": 5,
+              "tier": "extreme",
+              "text": "奖品其实是作者留下的测试模型。穿上后，你在每个世界里都会多出一双眼睛。作者说：你是第 {N} 个发现的人。",
+              "effects": {
+                "mood": 6,
+                "avatars": 1,
+                "assets": 1000,
+                "fame": 8,
+                "flags": {
+                  "add": [
+                    "got_test_avatar"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "deep_005",
+                  "delayHours": [
+                    22,
+                    68
+                  ],
+                  "chance": 0.5
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "give",
+          "text": "转送给旁边一直没中的人",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "对方愣了三秒，然后给你发了三十个感谢的表情。你加到了一个好友。",
+              "effects": {
+                "mood": 6,
+                "friends": 1,
+                "fame": 2
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "后来你才知道，那个人是这个世界最早的建设者之一。他记住了你的名字。",
+              "effects": {
+                "mood": 5,
+                "fame": 6,
+                "friends": 1,
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 15,
+                  "initTrust": 10,
+                  "name": "auto"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "decline",
+          "text": "婉拒，说自己用不上",
+          "condition": {
+            "minAvatars": 3
+          },
+          "lockedHint": "需要模型 ≥ 3",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "工作人员有点意外，把模型转给了下一个人。你在角落里看着别人欢呼。",
+              "effects": {
+                "mood": 2,
+                "fame": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_006",
+      "title": "有人白送 VRC+",
+      "category": "random",
+      "stage": "社交起步",
+      "hoursRange": [
+        50,
+        200
+      ],
+      "weight": 13,
+      "rarity": "rare",
+      "once": false,
+      "cooldown": 600,
+      "tags": [
+        "随机",
+        "正面",
+        "消费"
+      ],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200,
+        "probability": 0.15
+      },
+      "text": "一个只见过两次的人私聊你：看你最近一直在{世界}拍照，VRC+ 我给你续了一年，别问为什么。",
+      "options": [
+        {
+          "id": "accept",
+          "text": "收下并道谢",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你收下了。那一年里你拍了 {N} 张照片，每次上传都会想起这个不肯留名的人。",
+              "effects": {
+                "mood": 9,
+                "assets": 600,
+                "skills": {
+                  "photo": 14
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你追问了很久，对方只说：我以前也被人送过。你决定以后也送别人一次。",
+              "effects": {
+                "mood": 11,
+                "assets": 600,
+                "fame": 4,
+                "flags": {
+                  "add": [
+                    "pay_it_forward"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "refuse",
+          "text": "婉拒",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你说了谢谢但没收。对方回了个“懂了”，之后再没提过这件事。",
+              "effects": {
+                "mood": 2,
+                "fame": 1
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你婉拒之后，ta 把那笔钱放进了社区活动的奖品池，署的是你的名字。",
+              "effects": {
+                "mood": 7,
+                "fame": 8,
+                "friends": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "trace",
+          "text": "先查清楚是谁",
+          "condition": {
+            "minFriends": 10
+          },
+          "lockedHint": "需要好友 ≥ 10",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你翻了半天共同好友，最后发现是刚入坑时你随手带过的一个新人。",
+              "effects": {
+                "mood": 10,
+                "friends": 1,
+                "tags": {
+                  "add": [
+                    "老好人"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "deep_012",
+                  "delayHours": [
+                    32,
+                    108
+                  ],
+                  "chance": 0.5
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_007",
+      "title": "被大 V 转发",
+      "category": "random",
+      "stage": "深度社交",
+      "hoursRange": [
+        200,
+        500
+      ],
+      "weight": 10,
+      "rarity": "rare",
+      "once": false,
+      "cooldown": 800,
+      "tags": [
+        "随机",
+        "正面",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500
+      },
+      "text": "你随手发的一张夜景照片，被一个有 {N} 万粉的摄影师转发了，配文只有两个字：好看。",
+      "options": [
+        {
+          "id": "enjoy",
+          "text": "享受这一晚",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "一晚上多了 {N} 个好友申请。你一条条回消息，回到手指发酸。",
+              "effects": {
+                "mood": 11,
+                "fame": 10,
+                "friends": 8,
+                "skills": {
+                  "photo": 17
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "有人在评论区说：这人我三年前见过，当时还在用默认模型。",
+              "effects": {
+                "mood": 12,
+                "fame": 12,
+                "friends": 5,
+                "tags": {
+                  "add": [
+                    "社区名人"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "第二天你被贴上“靠一张图火的人”的标签。有人翻出你早期的废片嘲笑，你删帖删到天亮。",
+              "effects": {
+                "mood": -29,
+                "fame": -8,
+                "friends": -4
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_011",
+                  "delayHours": [
+                    11,
+                    54
+                  ],
+                  "chance": 0.5
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "quiet",
+          "text": "关掉通知，继续拍照",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你没回任何一条消息，第二天照常去了那个天台。照片反而更好了。",
+              "effects": {
+                "mood": 5,
+                "fame": 3,
+                "skills": {
+                  "photo": 21
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "半年后你才知道，那位大 V 一直在默默看你的更新，只是从不点赞。",
+              "effects": {
+                "mood": 7,
+                "fame": 6,
+                "friends": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "reply",
+          "text": "认真回复每一条评论",
+          "condition": {
+            "minMood": 40
+          },
+          "lockedHint": "需要心态 ≥ 40",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你回复了两百条评论，累到凌晨。有人因此留了下来，也有人只是路过。",
+              "effects": {
+                "mood": -5,
+                "friends": 4,
+                "fame": 3,
+                "tags": {
+                  "add": [
+                    "疲惫"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "deep_005",
+                  "delayHours": [
+                    32,
+                    90
+                  ],
+                  "chance": 0.5
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_008",
+      "title": "被作者点名",
+      "category": "random",
+      "stage": "老油条",
+      "hoursRange": [
+        500,
+        1000
+      ],
+      "weight": 8,
+      "rarity": "rare",
+      "once": true,
+      "cooldown": 9999,
+      "tags": [
+        "随机",
+        "正面",
+        "成长"
+      ],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000
+      },
+      "text": "你常去的那个{世界}更新了。公告最后一行写着：感谢 {我} 这两年提交的 {N} 条 bug 反馈。",
+      "options": [
+        {
+          "id": "proud",
+          "text": "截图存进相册",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你把公告截了图，设成手机壁纸。这件事你谁也没说。",
+              "effects": {
+                "mood": 12,
+                "fame": 8
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "作者私聊你，说下个版本想请你做测试。你第一次觉得自己不是游客。",
+              "effects": {
+                "mood": 13,
+                "fame": 12,
+                "friends": 2,
+                "skills": {
+                  "coding": 24
+                },
+                "flags": {
+                  "add": [
+                    "world_tester"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "legend_003",
+                  "delayHours": [
+                    68,
+                    180
+                  ],
+                  "chance": 0.5
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "localize",
+          "text": "主动去帮忙做本地化",
+          "condition": {
+            "minSkills": {
+              "language": 30
+            }
+          },
+          "lockedHint": "需要语言 ≥ 30",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你把公告翻成了三种语言。作者把你的名字写进了世界入口的致谢墙。",
+              "effects": {
+                "mood": 11,
+                "fame": 10,
+                "skills": {
+                  "language": 26
+                },
+                "circles": {
+                  "add": [
+                    "语言交换圈"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "extreme",
+              "text": "你翻的版本被官方采用，出现在全世界的加载页上。有人专门跑到这个世界来找你。",
+              "effects": {
+                "mood": 15,
+                "fame": 15,
+                "friends": 6,
+                "assets": 1000,
+                "flags": {
+                  "add": [
+                    "official_credit"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "shy",
+          "text": "装作没看见",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你退出了世界，心跳得很快。第二天你照常来了，没有人提起这件事。",
+              "effects": {
+                "mood": 4,
+                "flags": {
+                  "add": [
+                    "shy_credit"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_009",
+      "title": "弹琴的人",
+      "category": "random",
+      "stage": "社交起步",
+      "hoursRange": [
+        50,
+        200
+      ],
+      "weight": 15,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 400,
+      "tags": [
+        "随机",
+        "技能",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200,
+        "probability": 0.12
+      },
+      "text": "有人在{世界}的角落弹琴，一个听众也没有。你站着听了四十分钟，他弹错一个音，然后从头再来。",
+      "options": [
+        {
+          "id": "listen",
+          "text": "听到他弹完",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "他弹完才发现你。他说：你是第一个听完整首的人。",
+              "effects": {
+                "mood": 8,
+                "skills": {
+                  "music": 22
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他教了你第一个和弦。你的手指在空气里按了半天，居然记住了。",
+              "effects": {
+                "mood": 7,
+                "friends": 1,
+                "skills": {
+                  "music": 44
+                },
+                "circles": {
+                  "add": [
+                    "音乐圈"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "clap",
+          "text": "鼓掌并加好友",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "他有点不好意思，说练了半年才敢在人前弹。你们约了下周同一时间。",
+              "effects": {
+                "mood": 6,
+                "friends": 1,
+                "skills": {
+                  "music": 18
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "social_008",
+                  "delayHours": [
+                    22,
+                    68
+                  ],
+                  "chance": 0.6
+                }
+              ]
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "他后来成了你见过最厉害的人，而你们的第一句话是“你弹错了一个音”。",
+              "effects": {
+                "mood": 5,
+                "friends": 1,
+                "fame": 3,
+                "skills": {
+                  "music": 11
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave",
+          "text": "悄悄走开，不打扰",
+          "condition": {
+            "maxMood": 60
+          },
+          "lockedHint": "需要心态 ≤ 60",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你退出房间，琴声在门关上前断了一拍。你希望他没有发现。",
+              "effects": {
+                "mood": 3,
+                "tags": {
+                  "add": [
+                    "独行侠"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_010",
+      "title": "不说话的人",
+      "category": "random",
+      "stage": "深度社交",
+      "hoursRange": [
+        200,
+        500
+      ],
+      "weight": 9,
+      "rarity": "rare",
+      "once": true,
+      "cooldown": 9999,
+      "tags": [
+        "随机",
+        "孤独",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500
+      },
+      "text": "连续 {N} 天，你都在同一个世界的同一个角落看见同一个人。他从不开麦，也从不坐下离开。",
+      "options": [
+        {
+          "id": "talk",
+          "text": "主动开口",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你说了一句“今天也来了”。他打字回：嗯。这是你们全部的对白，但你突然不觉得一个人了。",
+              "effects": {
+                "mood": 11,
+                "friends": 1
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "他终于开麦，声音哑得厉害。他说他很久没和人说过话了，谢谢你先开口。",
+              "effects": {
+                "mood": 15,
+                "friends": 2,
+                "fame": 3
+              },
+              "schedule": [
+                {
+                  "eventId": "deep_012",
+                  "delayHours": [
+                    43,
+                    135
+                  ],
+                  "chance": 0.5
+                }
+              ]
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "他打字告诉你，这是他最后一天上线。他把收藏了一年的模型，全部转给了你。",
+              "effects": {
+                "mood": -13,
+                "avatars": 3,
+                "assets": 1000,
+                "friends": 1,
+                "flags": {
+                  "add": [
+                    "silent_friend_gone"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "sit",
+          "text": "什么也不说，坐在旁边",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你们并排坐着，看世界里的太阳升了又落。谁也没觉得尴尬。",
+              "effects": {
+                "mood": 9,
+                "tags": {
+                  "add": [
+                    "佛系"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "第二天他给你留了一个模型，名字就叫“一起看日落的人”。",
+              "effects": {
+                "mood": 12,
+                "avatars": 1,
+                "assets": 300
+              }
+            }
+          ]
+        },
+        {
+          "id": "shoot",
+          "text": "当背景，继续拍自己的照",
+          "condition": {
+            "minSkills": {
+              "photo": 30
+            }
+          },
+          "lockedHint": "需要摄影 ≥ 30",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你架起相机拍日落，把他也拍了进去。后来那张照片是你最常回看的一张。",
+              "effects": {
+                "mood": 5,
+                "skills": {
+                  "photo": 14
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_011",
+      "title": "传说级老玩家",
+      "category": "random",
+      "stage": "老油条",
+      "hoursRange": [
+        500,
+        1000
+      ],
+      "weight": 7,
+      "rarity": "legendary",
+      "once": true,
+      "cooldown": 9999,
+      "tags": [
+        "随机",
+        "回忆",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000,
+        "probability": 0.08
+      },
+      "text": "在{世界}的房间里，有人报了个名字，全场安静了两秒。那是你入坑时贴在床头看的那个名字。",
+      "options": [
+        {
+          "id": "greet",
+          "text": "上前打招呼",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "他比你想的普通得多，说话很慢，会认真回答每个问题。他说：我也只是没走而已。",
+              "effects": {
+                "mood": 12,
+                "fame": 6,
+                "flags": {
+                  "add": [
+                    "met_legend"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他记得你。他说三年前在{中文吧}见过你一次，那时你还不会跳舞。",
+              "effects": {
+                "mood": 15,
+                "fame": 8,
+                "skills": {
+                  "social": 5
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 20,
+                  "initTrust": 25,
+                  "name": "auto"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "legend_003",
+                  "delayHours": [
+                    45,
+                    135
+                  ],
+                  "chance": 0.4
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "watch",
+          "text": "远远看着，不打扰",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你隔着人群看了他一会儿，然后去做自己该做的事。这大概就是长大。",
+              "effects": {
+                "mood": 6,
+                "tags": {
+                  "add": [
+                    "佛系"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "他走之前在你旁边停下：你也觉得这个世界的灯太亮了吗。",
+              "effects": {
+                "mood": 11,
+                "fame": 4,
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "认识",
+                  "initIntimacy": 12,
+                  "initTrust": 15,
+                  "name": "auto"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ask",
+          "text": "问他怎么坚持这么久",
+          "condition": {
+            "minFame": 20
+          },
+          "lockedHint": "需要声望 ≥ 20",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "他想了想说：不是坚持，是这里有我想见的人。这句话你后来复述过很多次。",
+              "effects": {
+                "mood": 10,
+                "fame": 5,
+                "flags": {
+                  "add": [
+                    "heard_legend_words"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_012",
+      "title": "教你操作的人",
+      "category": "random",
+      "stage": "传奇",
+      "hoursRange": [
+        1000,
+        99999
+      ],
+      "weight": 6,
+      "rarity": "legendary",
+      "once": true,
+      "cooldown": 9999,
+      "tags": [
+        "随机",
+        "回忆",
+        "正面"
+      ],
+      "condition": {
+        "minHours": 1000,
+        "maxHours": 99999,
+        "probability": 0.2
+      },
+      "text": "有人在{中文吧}叫住你：你还记得我吗，三年前是我教你怎么开麦的。你看着这张陌生的模型，说不出话。",
+      "options": [
+        {
+          "id": "remember",
+          "text": "用力点头",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你们聊了四个小时，从当年的默认模型聊到他现在的生活。他明天要去另一个城市上班了。",
+              "effects": {
+                "mood": 18,
+                "friends": 1,
+                "fame": 5,
+                "flags": {
+                  "add": [
+                    "found_first_mentor"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "extreme",
+              "text": "他说当年本来准备退坑了，是因为教你的时候，才想起自己为什么喜欢这里。",
+              "effects": {
+                "mood": 24,
+                "friends": 2,
+                "fame": 8,
+                "skills": {
+                  "social": 7
+                },
+                "flags": {
+                  "add": [
+                    "mentor_returned"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "give",
+          "text": "把最好的模型送给他",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "他推辞了很久才收下，说这是他收到过最贵的东西。",
+              "effects": {
+                "mood": 15,
+                "avatars": -1,
+                "friends": 1,
+                "fame": 6
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "extreme",
+              "text": "他把模型穿上，站回当年的位置。你们像三年前一样，拍了同一张照片。",
+              "effects": {
+                "mood": 21,
+                "avatars": -1,
+                "friends": 1,
+                "fame": 10,
+                "assets": 500,
+                "flags": {
+                  "add": [
+                    "recreated_photo"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "blank",
+          "text": "假装想不起来了",
+          "condition": {
+            "maxMood": 45
+          },
+          "lockedHint": "需要心态 ≤ 45",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说抱歉，人太多了。他笑了笑说没关系。那晚你翻了三年的聊天记录，没找到他。",
+              "effects": {
+                "mood": -16,
+                "flags": {
+                  "add": [
+                    "forgot_mentor"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_013",
+      "title": "被炸房",
+      "category": "random",
+      "stage": "萌新探索",
+      "hoursRange": [
+        10,
+        50
+      ],
+      "weight": 17,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 200,
+      "tags": [
+        "随机",
+        "负面",
+        "活动"
+      ],
+      "condition": {
+        "minHours": 10,
+        "maxHours": 50
+      },
+      "text": "中文吧 2 号房突然涌进 {N} 个人，接着所有人被弹了出去。聊天框最后一句是：别回来，他们在炸房。",
+      "options": [
+        {
+          "id": "switch",
+          "text": "换个分流房继续",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你换了个世界找到分流房，老朋友们都在。有人说：你还挺勇。",
+              "effects": {
+                "mood": 4,
+                "friends": 2,
+                "fame": 2
+              }
+            },
+            {
+              "weight": 35,
+              "tier": "rare",
+              "text": "你回去时正好撞见管理员在封人，你搭了把手，被拉进了管理群。",
+              "effects": {
+                "mood": 6,
+                "friends": 3,
+                "fame": 5,
+                "skills": {
+                  "social": 4
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "deep_005",
+                  "delayHours": [
+                    11,
+                    43
+                  ],
+                  "chance": 0.5
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "report",
+          "text": "截图举报",
+          "condition": {
+            "minMood": 30
+          },
+          "lockedHint": "需要心态 ≥ 30",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你提交了举报。三天后收到回执，说账号已被处理。你不知道该高兴还是难过。",
+              "effects": {
+                "mood": 1,
+                "fame": 2,
+                "flags": {
+                  "add": [
+                    "reported_raider"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "举报的人里只有你写清了时间线和房间号。社区管理员私聊向你道谢。",
+              "effects": {
+                "mood": 5,
+                "fame": 7,
+                "friends": 2
+              },
+              "schedule": [
+                {
+                  "eventId": "deep_005",
+                  "delayHours": [
+                    22,
+                    68
+                  ],
+                  "chance": 0.5
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "walk",
+          "text": "下线，一个人去逛世界",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你一个人逛了四个空世界，在最后一个世界的天台坐到天亮。被炸掉的那点热闹，好像也没那么重要。",
+              "effects": {
+                "mood": -5,
+                "skills": {
+                  "photo": 7
+                },
+                "tags": {
+                  "add": [
+                    "独行侠"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_004",
+                  "delayHours": [
+                    10,
+                    36
+                  ],
+                  "chance": 0.5
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_014",
+      "title": "服务器维护",
+      "category": "random",
+      "stage": "社交起步",
+      "hoursRange": [
+        50,
+        200
+      ],
+      "weight": 19,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 300,
+      "tags": [
+        "随机",
+        "活动",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200
+      },
+      "text": "你刚戴上头显，登录界面弹出一行字：服务器将于 {N} 分钟后维护。房间里还有人在倒计时。",
+      "options": [
+        {
+          "id": "wait",
+          "text": "和大家一起等",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "维护延迟了两次。你们在群里语音聊了两个小时，那是你第一次听见某些人真实的声音。",
+              "effects": {
+                "mood": 7,
+                "friends": 3
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "维护结束后所有人挤进同一个房间，像开学第一天。那天房间人数破了纪录。",
+              "effects": {
+                "mood": 10,
+                "friends": 4,
+                "fame": 5
+              },
+              "schedule": [
+                {
+                  "eventId": "social_008",
+                  "delayHours": [
+                    10,
+                    22
+                  ],
+                  "chance": 0.6
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "offline",
+          "text": "趁这个空去吃饭",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 85,
+              "tier": "normal",
+              "text": "你难得按时吃了一顿饭，还洗了碗。回来时服务器已经好了，朋友们还在。",
+              "effects": {
+                "mood": 6,
+                "flags": {
+                  "add": [
+                    "ate_on_time"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 15,
+              "tier": "extreme",
+              "text": "你吃完饭睡了过去，醒来是第二天中午。你错过了那个只在维护后开过一次的活动房间。",
+              "effects": {
+                "mood": -13,
+                "fame": -3,
+                "flags": {
+                  "add": [
+                    "missed_event"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "host",
+          "text": "自己在群里组织一场活动",
+          "condition": {
+            "minSkills": {
+              "social": 30
+            }
+          },
+          "lockedHint": "需要社交 ≥ 30",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "维护的两小时里，你主持了一场语音接歌。有人在结束后说：比平时好玩。",
+              "effects": {
+                "mood": 9,
+                "fame": 6,
+                "friends": 4,
+                "skills": {
+                  "social": 5
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "extreme",
+              "text": "这场临时活动来了近百人，第二天有人把它写进了社区周报。你第一次被称为“组织者”。",
+              "effects": {
+                "mood": 12,
+                "fame": 12,
+                "friends": 8,
+                "skills": {
+                  "social": 9
+                },
+                "flags": {
+                  "add": [
+                    "accidental_organizer"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "legend_003",
+                  "delayHours": [
+                    90,
+                    270
+                  ],
+                  "chance": 0.4
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_015",
+      "title": "大版本更新",
+      "category": "random",
+      "stage": "老油条",
+      "hoursRange": [
+        500,
+        1000
+      ],
+      "weight": 11,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 800,
+      "tags": [
+        "随机",
+        "负面",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000
+      },
+      "text": "更新之后，你熟悉的那个界面没了。常去的{世界}因为不兼容被下架，收藏夹里多了一排灰色的名字。",
+      "options": [
+        {
+          "id": "adapt",
+          "text": "重新学一遍",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你花一晚上适应了新界面，顺手帮三个新人指了路。你发现自己适应得比想象中快。",
+              "effects": {
+                "mood": 5,
+                "fame": 3,
+                "skills": {
+                  "social": 2
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你在新版里挖出一个隐藏的老功能，截图发到社区，被顶上了首页。",
+              "effects": {
+                "mood": 7,
+                "fame": 8,
+                "friends": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "grieve",
+          "text": "把旧世界的照片翻出来看",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你翻到凌晨三点，发现自己在那里拍过 {N} 张照片。你挑了一张设成主页。",
+              "effects": {
+                "mood": 4,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "原作者把那个世界重新上传了，改名叫“旧版·补档”。你在门口站了很久。",
+              "effects": {
+                "mood": 12,
+                "fame": 2,
+                "flags": {
+                  "add": [
+                    "old_world_back"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_009",
+                  "delayHours": [
+                    22,
+                    90
+                  ],
+                  "chance": 0.5
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "quit",
+          "text": "认真考虑退坑",
+          "condition": {
+            "maxMood": 45
+          },
+          "lockedHint": "需要心态 ≤ 45",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把头显收进柜子，说这次是真的。第三天你又把它拿了出来。",
+              "effects": {
+                "mood": -13,
+                "tags": {
+                  "add": [
+                    "退坑边缘"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_004",
+                  "delayHours": [
+                    22,
+                    90
+                  ],
+                  "chance": 0.5
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_016",
+      "title": "跨年卡住了",
+      "category": "random",
+      "stage": "传奇",
+      "hoursRange": [
+        1000,
+        99999
+      ],
+      "weight": 5,
+      "rarity": "legendary",
+      "once": true,
+      "cooldown": 9999,
+      "tags": [
+        "随机",
+        "回忆",
+        "活动"
+      ],
+      "condition": {
+        "minHours": 1000,
+        "maxHours": 99999
+      },
+      "text": "跨年房间挤进 {N} 个人。倒计时归零的那一刻，所有人的画面同时冻结。音乐还在放，没有人动。",
+      "options": [
+        {
+          "id": "wait",
+          "text": "等它自己好起来",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "画面恢复时已过十二点。聊天框刷满“新年快乐”，晚了几分钟，但一个都没少。",
+              "effects": {
+                "mood": 15,
+                "friends": 5,
+                "fame": 3
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "卡住的十七秒里，你听见有人一直在唱歌。恢复后你找到他，他在世界的角落，从没停过。",
+              "effects": {
+                "mood": 18,
+                "friends": 2,
+                "skills": {
+                  "music": 22
+                }
+              }
+            },
+            {
+              "weight": 15,
+              "tier": "extreme",
+              "text": "你们干脆在冻结的画面里语音倒数了第二次。这后来成了这个房间每年的保留节目。",
+              "effects": {
+                "mood": 21,
+                "fame": 12,
+                "friends": 8,
+                "flags": {
+                  "add": [
+                    "frozen_newyear"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "legend_003",
+                  "delayHours": [
+                    90,
+                    270
+                  ],
+                  "chance": 0.5
+                }
+              ],
+              "endingHint": {
+                "path": "legend",
+                "score": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "shoot",
+          "text": "趁卡住，截图",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你拍下所有人定格的瞬间。后来每年跨年，都会有人来问你要那张照片。",
+              "effects": {
+                "mood": 11,
+                "fame": 6,
+                "skills": {
+                  "photo": 17
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "那张照片被挂进了世界的入口，下面写着：那一年的我们都停在这里。",
+              "effects": {
+                "mood": 15,
+                "fame": 12,
+                "assets": 500,
+                "flags": {
+                  "add": [
+                    "photo_in_world"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "logout",
+          "text": "摘下头显，去看现实的烟火",
+          "condition": {
+            "minMood": 40
+          },
+          "lockedHint": "需要心态 ≥ 40",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你走到阳台上，楼下有人在放烟花。手机在口袋里震动，是房间里的朋友在找你。",
+              "effects": {
+                "mood": 9,
+                "friends": 2,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_017",
+      "title": "突然被表白",
+      "category": "random",
+      "stage": "社交起步",
+      "hoursRange": [
+        50,
+        200
+      ],
+      "weight": 16,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 500,
+      "tags": [
+        "随机",
+        "社交",
+        "冲突"
+      ],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200
+      },
+      "text": "{ta}在只有你们两个人的世界里突然说：我好像喜欢上你了。世界里的雪还在下，你的手停在半空。",
+      "options": [
+        {
+          "id": "accept",
+          "text": "答应",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 60,
+              "tier": "normal",
+              "text": "你们在一起了。接下来两周，你每天上线第一件事就是看他在不在。",
+              "effects": {
+                "mood": 15,
+                "friends": 1,
+                "tags": {
+                  "add": [
+                    "暧昧"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "暧昧"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_006",
+                  "delayHours": [
+                    11,
+                    43
+                  ],
+                  "chance": 0.65
+                }
+              ]
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你答应了，第二天他告诉你，他现实里有伴侣。你愣在原地，雪还在下。",
+              "effects": {
+                "mood": -32,
+                "friends": -1,
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_006",
+                  "delayHours": [
+                    10,
+                    27
+                  ],
+                  "chance": 0.7
+                }
+              ]
+            },
+            {
+              "weight": 15,
+              "tier": "extreme",
+              "text": "你答应了。三个月后你才发现，他用同样的话术对过 {N} 个人。",
+              "effects": {
+                "mood": -46,
+                "fame": -5,
+                "friends": -4,
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "end"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "friend",
+          "text": "说我们还是做朋友吧",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "他沉默了很久，说好。之后你们还是每天一起玩，只是有些东西不一样了。",
+              "effects": {
+                "mood": -8,
+                "friends": 1,
+                "relationOp": {
+                  "type": "setState",
+                  "state": "朋友"
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他笑着说早就猜到了，然后拉你去看他新做的世界。那晚你们玩到很晚。",
+              "effects": {
+                "mood": 5,
+                "friends": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "flee",
+          "text": "直接下线",
+          "condition": {
+            "requireTags": [
+              "社恐"
+            ]
+          },
+          "lockedHint": "需要标签「社恐」",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你按了退出，盯着天花板到凌晨。第二天他像什么都没发生过一样跟你打招呼。",
+              "effects": {
+                "mood": -10,
+                "flags": {
+                  "add": [
+                    "ran_from_confession"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_006",
+                  "delayHours": [
+                    11,
+                    43
+                  ],
+                  "chance": 0.65
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_018",
+      "title": "被当成一对",
+      "category": "random",
+      "stage": "深度社交",
+      "hoursRange": [
+        200,
+        500
+      ],
+      "weight": 14,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 400,
+      "tags": [
+        "随机",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500
+      },
+      "text": "有人指着你和{ta}说：你们俩看起来就像一对。房间里的人开始起哄，你和他同时沉默了。",
+      "options": [
+        {
+          "id": "deny",
+          "text": "立刻否认",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你笑着说没有没有。{ta}也跟着笑，笑声比平时短了一点。",
+              "effects": {
+                "mood": -5,
+                "friends": 1
+              }
+            },
+            {
+              "weight": 35,
+              "tier": "rare",
+              "text": "散场后{ta}问你：刚才为什么要解释得那么快。你没答上来。",
+              "effects": {
+                "mood": -10,
+                "flags": {
+                  "add": [
+                    "awkward_denial"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_006",
+                  "delayHours": [
+                    11,
+                    54
+                  ],
+                  "chance": 0.5
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "joke",
+          "text": "顺着玩笑承认",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你搂住{ta}说对啊我们结婚了。全场大笑，{ta}的模型僵了一下。",
+              "effects": {
+                "mood": 6,
+                "fame": 3,
+                "skills": {
+                  "meme": 18
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "那句玩笑被截图传了出去。接下来一个月，不停有人来问你们什么时候办酒。",
+              "effects": {
+                "mood": 4,
+                "fame": 8,
+                "friends": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "silent",
+          "text": "什么也不说",
+          "condition": {
+            "hasRelation": true,
+            "minIntimacy": 40
+          },
+          "lockedHint": "需要有一段亲密度 ≥ 40 的关系",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你没否认也没承认，只是走过去站在他旁边。起哄声慢慢停了下来。",
+              "effects": {
+                "mood": 8
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "extreme",
+              "text": "那天晚上他问你：如果我不是玩笑呢。你听见自己的心跳压过了音乐。",
+              "effects": {
+                "mood": 18,
+                "tags": {
+                  "add": [
+                    "暧昧"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "暧昧"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_019",
+      "title": "当面被说坏话",
+      "category": "random",
+      "stage": "老油条",
+      "hoursRange": [
+        500,
+        1000
+      ],
+      "weight": 13,
+      "rarity": "rare",
+      "once": false,
+      "cooldown": 600,
+      "tags": [
+        "随机",
+        "负面",
+        "冲突"
+      ],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000
+      },
+      "text": "你在{世界}的角落听见有人提你的名字：那个人啊，现在也就剩个资历了。说话的人，你上周才帮过他。",
+      "options": [
+        {
+          "id": "confront",
+          "text": "直接走过去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 55,
+              "tier": "normal",
+              "text": "你开麦说了句“我听见了”。房间安静几秒，他开始解释，你没有听完。",
+              "effects": {
+                "mood": -16,
+                "friends": -3,
+                "fame": 2
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "他当着所有人道歉，眼眶有点红。你突然觉得没意思，说了句算了。",
+              "effects": {
+                "mood": -8,
+                "friends": 1,
+                "fame": 4
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "extreme",
+              "text": "争吵被录下来发到了社区。两边都有人站队，你一夜之间成了话题中心。",
+              "effects": {
+                "mood": -32,
+                "fame": 10,
+                "friends": -8,
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_011",
+                  "delayHours": [
+                    10,
+                    32
+                  ],
+                  "chance": 0.7
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "leave",
+          "text": "安静地退出房间",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你退出房间，在门口站了很久。手机弹出他发来的消息：刚才在说你吗。你回：没有。",
+              "effects": {
+                "mood": -13,
+                "flags": {
+                  "add": [
+                    "swallowed_insult"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "第二天有三个人私聊你，说他们当时也在场，都觉得那人过分。你才知道自己没那么孤立。",
+              "effects": {
+                "mood": 7,
+                "friends": 3,
+                "fame": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "prove",
+          "text": "什么都不说，去做下一件事",
+          "condition": {
+            "minSkills": {
+              "social": 40
+            },
+            "minFame": 30
+          },
+          "lockedHint": "需要社交 ≥ 40 且声望 ≥ 30",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你把原本要办的社区活动办得更好了。有人在结束语里提了你的名字。",
+              "effects": {
+                "mood": 10,
+                "fame": 10,
+                "friends": 4,
+                "skills": {
+                  "social": 4
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "extreme",
+              "text": "那个活动成了年度最大的中文社区聚会。你站在台前，看见他也来了，站在最后一排。",
+              "effects": {
+                "mood": 15,
+                "fame": 15,
+                "friends": 10,
+                "assets": 1000,
+                "flags": {
+                  "add": [
+                    "biggest_event"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "legend_003",
+                  "delayHours": [
+                    90,
+                    270
+                  ],
+                  "chance": 0.4
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_020",
+      "title": "匿名礼物",
+      "category": "random",
+      "stage": "传奇",
+      "hoursRange": [
+        1000,
+        99999
+      ],
+      "weight": 12,
+      "rarity": "rare",
+      "once": false,
+      "cooldown": 900,
+      "tags": [
+        "随机",
+        "正面",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 1000,
+        "maxHours": 99999
+      },
+      "text": "你的礼物箱里躺着一个模型，没有署名，只有一行字：给那个在第 {N} 小时没有退坑的人。",
+      "options": [
+        {
+          "id": "keep",
+          "text": "收下，好好保存",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "模型很普通，甚至有点旧。但你把它挂在收藏夹第一位，再没换过。",
+              "effects": {
+                "mood": 12,
+                "avatars": 1,
+                "assets": 300
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你花了半年查到这个模型最早的主人，是一个已经注销的账号。",
+              "effects": {
+                "mood": 9,
+                "fame": 5,
+                "flags": {
+                  "add": [
+                    "ghost_gift"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "find",
+          "text": "在社区发帖找人",
+          "condition": {
+            "minFriends": 20
+          },
+          "lockedHint": "需要好友 ≥ 20",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "帖子被转了很多次，最后有个陌生人对上了暗号。他说：不用谢，我只是路过。",
+              "effects": {
+                "mood": 13,
+                "fame": 8,
+                "friends": 3
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "extreme",
+              "text": "找到之后你才知道，对方是你在低迷期无意间陪过一整夜的人。",
+              "effects": {
+                "mood": 21,
+                "fame": 6,
+                "friends": 2,
+                "flags": {
+                  "add": [
+                    "gift_from_past"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "朋友",
+                  "initIntimacy": 30,
+                  "initTrust": 30,
+                  "name": "auto"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "pass",
+          "text": "转送给刚入坑的新人",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 85,
+              "tier": "normal",
+              "text": "你在新人区把它送给一个刚入坑的人。他问为什么，你说：以后你就懂了。",
+              "effects": {
+                "mood": 11,
+                "friends": 2,
+                "fame": 6,
+                "tags": {
+                  "add": [
+                    "老好人"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 15,
+              "tier": "rare",
+              "text": "半年后，你收到同一个人送来的另一个模型，署名是：现在我也懂了。",
+              "effects": {
+                "mood": 15,
+                "avatars": 1,
+                "fame": 8,
+                "flags": {
+                  "add": [
+                    "gift_chain"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_021",
+      "title": "现实朋友",
+      "category": "random",
+      "stage": "初入",
+      "hoursRange": [
+        0,
+        10
+      ],
+      "weight": 15,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 9999,
+      "tags": [
+        "随机",
+        "现实",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 0,
+        "maxHours": 10
+      },
+      "text": "你在{中文吧}听见一个声音，和大学室友一模一样。你转过身，那张脸正是他。他也没想到会在这看见你。",
+      "options": [
+        {
+          "id": "reveal",
+          "text": "上前相认",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你们笑得停不下来。他说他玩了两年，从没跟身边人提过。",
+              "effects": {
+                "mood": 12,
+                "friends": 2,
+                "flags": {
+                  "add": [
+                    "reallife_friend_found"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他带你去了他常驻的私人世界，介绍你认识他那帮朋友。好友列表一夜多了 {N} 个人。",
+              "effects": {
+                "mood": 13,
+                "friends": 6,
+                "fame": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "hide",
+          "text": "假装没认出，退出房间",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你退了出去，心跳得厉害。你不知道自己在怕什么，也许是怕两个世界被缝在一起。",
+              "effects": {
+                "mood": -10,
+                "flags": {
+                  "add": [
+                    "hid_from_friend"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "extreme",
+              "text": "第二天他在微信上发来一张截图，正是你昨晚的模型。他说：那个是不是你。",
+              "effects": {
+                "mood": -20,
+                "friends": 1,
+                "flags": {
+                  "add": [
+                    "reallife_friend_found"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "observe",
+          "text": "远远看他在做什么",
+          "condition": {
+            "minSkills": {
+              "photo": 15
+            }
+          },
+          "lockedHint": "需要摄影 ≥ 15",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你看了他一晚上，发现他在教一群新人改模型。你从来没见过他这么有耐心。",
+              "effects": {
+                "mood": 7,
+                "skills": {
+                  "photo": 11
+                },
+                "flags": {
+                  "add": [
+                    "watched_friend"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_009",
+                  "delayHours": [
+                    22,
+                    68
+                  ],
+                  "chance": 0.5
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_022",
+      "title": "家人进房间",
+      "category": "random",
+      "stage": "社交起步",
+      "hoursRange": [
+        50,
+        200
+      ],
+      "weight": 17,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 300,
+      "tags": [
+        "随机",
+        "现实"
+      ],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200
+      },
+      "text": "你正戴着耳机和人聊到最投入的时候，房门被推开，你妈站在门口问：跟谁说话呢，都 {N} 点了。",
+      "options": [
+        {
+          "id": "mute",
+          "text": "手忙脚乱闭麦",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你闭了麦，摘下一只耳机说在开会。她信了，转身时又回头看了一眼屏幕里的人物。",
+              "effects": {
+                "mood": -10,
+                "tags": {
+                  "add": [
+                    "开麦恐惧"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你闭麦太急，碰掉了追踪器。回到游戏时朋友们都在等你，谁也没问刚才发生了什么。",
+              "effects": {
+                "mood": 4,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "introduce",
+          "text": "干脆让她看两眼",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你指着屏幕里的小人说这就是我。她看了半天：比你本人精神。",
+              "effects": {
+                "mood": 8,
+                "flags": {
+                  "add": [
+                    "family_saw_avatar"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 35,
+              "tier": "rare",
+              "text": "她居然坐下看了十分钟，还问你那个穿裙子的姑娘是谁。你解释了半天。",
+              "effects": {
+                "mood": 11,
+                "friends": 1,
+                "counters": {
+                  "familyWatched": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "stop",
+          "text": "关机，陪她看会儿电视",
+          "condition": {
+            "maxMood": 50
+          },
+          "lockedHint": "需要心态 ≤ 50",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你摘下头显，陪她看了一会儿电视。屏幕里的世界还在，但你今晚不想回去了。",
+              "effects": {
+                "mood": 7
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_023",
+      "title": "停电了",
+      "category": "random",
+      "stage": "深度社交",
+      "hoursRange": [
+        200,
+        500
+      ],
+      "weight": 16,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 400,
+      "tags": [
+        "随机",
+        "现实",
+        "负面"
+      ],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500
+      },
+      "text": "你正在{世界}里和人拍合照，屏幕一黑。整栋楼停电了，头显里最后定格的，是对方伸出的手。",
+      "options": [
+        {
+          "id": "phone",
+          "text": "用手机登进去道歉",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你用流量登了网页版留言。他回：我还以为你出事了。你盯着这句话看了很久。",
+              "effects": {
+                "mood": 7,
+                "friends": 1
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你举着手机在楼道里找信号，最后在楼梯间把话说完，在那儿坐了一个小时。",
+              "effects": {
+                "mood": 10,
+                "relationOp": {
+                  "type": "setState",
+                  "state": "常一起玩"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "sleep",
+          "text": "算了，早点睡",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你摸黑躺下，脑子里还在放刚才那首歌。第二天醒来电来了，消息里多了一句“早”。",
+              "effects": {
+                "mood": 4
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "第二天你才知道，那晚他一个人在同一个世界等到三点，最后留下：明天见。",
+              "effects": {
+                "mood": 12,
+                "friends": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "call",
+          "text": "打电话给现实朋友吐槽",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 85,
+              "tier": "normal",
+              "text": "你和现实朋友聊了一个小时，发现彼此都在玩 VRChat，只是从没说过。",
+              "effects": {
+                "mood": 6,
+                "friends": 1,
+                "flags": {
+                  "add": [
+                    "reallife_vr_talk"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 15,
+              "tier": "extreme",
+              "text": "那通电话打了四个小时。挂断时天快亮了，你意识到自己很久没和人这样说过话。",
+              "effects": {
+                "mood": 15,
+                "friends": 3,
+                "tags": {
+                  "add": [
+                    "元气"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_024",
+      "title": "明天要上班",
+      "category": "random",
+      "stage": "老油条",
+      "hoursRange": [
+        500,
+        1000
+      ],
+      "weight": 15,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 300,
+      "tags": [
+        "随机",
+        "现实",
+        "负面"
+      ],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000
+      },
+      "text": "凌晨三点，房间里还剩 {N} 个人。你明天八点要打卡。有人问：再来最后一首？",
+      "options": [
+        {
+          "id": "one_more",
+          "text": "再来最后一首",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你跳完那首就退出了，真的只跳了一首。躺下时天已经蒙蒙亮。",
+              "effects": {
+                "mood": 6,
+                "hoursBonus": 8,
+                "tags": {
+                  "add": [
+                    "夜猫子"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "那一首接了三首。你在晨光里摘下头显，洗了把脸直接出门，地铁上睡过了两站。",
+              "effects": {
+                "mood": -8,
+                "assets": -200,
+                "hoursBonus": 20,
+                "tags": {
+                  "add": [
+                    "疲惫"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave",
+          "text": "说声晚安，下线",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你在聊天框打了晚安就退出了。躺在床上时，你听见心里那点不甘心在响。",
+              "effects": {
+                "mood": -5,
+                "skills": {
+                  "social": 1
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你走之后，房间里的人集体在群里发了晚安。第二天醒来，消息是 {N} 条。",
+              "effects": {
+                "mood": 7,
+                "friends": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "stay",
+          "text": "直接请掉明天的假",
+          "condition": {
+            "minAssets": 500
+          },
+          "lockedHint": "需要资产 ≥ 500",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你发了条消息请假，然后玩到了日出。那天你睡了十四个小时，梦里还在跳舞。",
+              "effects": {
+                "mood": 11,
+                "assets": -300,
+                "hoursBonus": 15,
+                "tags": {
+                  "add": [
+                    "夜猫子"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "请假那天你干了一件想了一年的事：把这个世界的每个角落都拍了一遍。",
+              "effects": {
+                "mood": 13,
+                "assets": -200,
+                "skills": {
+                  "photo": 21
+                },
+                "counters": {
+                  "photosTaken": 5
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_025",
+      "title": "有人谢谢你",
+      "category": "random",
+      "stage": "深度社交",
+      "hoursRange": [
+        200,
+        500
+      ],
+      "weight": 14,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 500,
+      "tags": [
+        "随机",
+        "正面",
+        "成长"
+      ],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500
+      },
+      "text": "在{中文吧}，一个你几乎没印象的人叫住你。他说：三个月前你跟我说了一句话，我今天想认真跟你道谢。",
+      "options": [
+        {
+          "id": "listen",
+          "text": "问是哪句话",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "他说是你随口说的“你已经很好了”。你早忘了，他却记了三个月。",
+              "effects": {
+                "mood": 13,
+                "fame": 3
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他把当时的聊天记录截图给你看。你发现那天的自己，也正处在最糟的时期。",
+              "effects": {
+                "mood": 15,
+                "friends": 2,
+                "flags": {
+                  "add": [
+                    "unknowingly_helped"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "deflect",
+          "text": "说这没什么",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你摆摆手说小事。他认真地说：对你小，对我不小。",
+              "effects": {
+                "mood": 11,
+                "fame": 2
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "extreme",
+              "text": "他后来成了社区里最愿意帮人的人。有人问他为什么，他说是跟一个人学的。",
+              "effects": {
+                "mood": 18,
+                "fame": 12,
+                "friends": 5,
+                "flags": {
+                  "add": [
+                    "kindness_spread"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "community",
+                "score": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "record",
+          "text": "把这件事记下来",
+          "condition": {
+            "minSkills": {
+              "photo": 25
+            }
+          },
+          "lockedHint": "需要摄影 ≥ 25",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你为他拍了一张照片，存在一个叫“被感谢的夜晚”的文件夹里。",
+              "effects": {
+                "mood": 12,
+                "skills": {
+                  "photo": 14
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "deep_012",
+                  "delayHours": [
+                    22,
+                    68
+                  ],
+                  "chance": 0.4
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_026",
+      "title": "有人哭了",
+      "category": "random",
+      "stage": "老油条",
+      "hoursRange": [
+        500,
+        1000
+      ],
+      "weight": 12,
+      "rarity": "rare",
+      "once": false,
+      "cooldown": 700,
+      "tags": [
+        "随机",
+        "孤独",
+        "社交"
+      ],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000
+      },
+      "text": "{ta}的模型站在你面前一动不动。你听见耳机里很轻的抽气声。她说：对不起，我马上就好。",
+      "options": [
+        {
+          "id": "stay",
+          "text": "不说话，就在旁边站着",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你站了二十分钟。她后来打字说：谢谢你没有问我怎么了。",
+              "effects": {
+                "mood": 11,
+                "friends": 1
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "她哭完以后讲了一个很长的故事。你听完只说了一句：我在。",
+              "effects": {
+                "mood": 15,
+                "friends": 2,
+                "flags": {
+                  "add": [
+                    "heard_her_story"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "常一起玩"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ask",
+          "text": "问她发生了什么",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "她讲了，但你发现有些事你帮不上忙。你只能一直说“嗯”。",
+              "effects": {
+                "mood": 4,
+                "friends": 1
+              }
+            },
+            {
+              "weight": 35,
+              "tier": "rare",
+              "text": "她讲的每一句你都听懂了。因为你也经历过，只是从没告诉过任何人。",
+              "effects": {
+                "mood": 8,
+                "friends": 2,
+                "tags": {
+                  "add": [
+                    "emo"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave",
+          "text": "假装去接电话，走开",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你在别的世界逛了很久，心里一直不舒服。回去时她已经不在了。",
+              "effects": {
+                "mood": -16,
+                "flags": {
+                  "add": [
+                    "walked_away_from_tears"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "extreme",
+              "text": "第二天她的头像变成了灰色。你翻遍好友列表，再也找不到那个名字。",
+              "effects": {
+                "mood": -26,
+                "friends": -1,
+                "flags": {
+                  "add": [
+                    "walked_away_from_tears"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "end"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_027",
+      "title": "他生病了",
+      "category": "random",
+      "stage": "传奇",
+      "hoursRange": [
+        1000,
+        99999
+      ],
+      "weight": 6,
+      "rarity": "legendary",
+      "once": true,
+      "cooldown": 9999,
+      "tags": [
+        "随机",
+        "负面",
+        "孤独"
+      ],
+      "condition": {
+        "minHours": 1000,
+        "maxHours": 99999
+      },
+      "text": "{ta}很久没上线了。今晚他出现，用打字的方式告诉你：医生说我需要休息一段时间，可能很久。",
+      "options": [
+        {
+          "id": "stay",
+          "text": "说我等你",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你们那晚什么也没做，只并排坐在{世界}里看了一整夜星星。他下线前说：值了。",
+              "effects": {
+                "mood": 15,
+                "friends": 1,
+                "flags": {
+                  "add": [
+                    "waited_for_him"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "extreme",
+              "text": "你把你们的合照做成一个世界，只有你们两个能进。他说这是他见过最好的东西。",
+              "effects": {
+                "mood": 21,
+                "fame": 8,
+                "skills": {
+                  "modeling": 17,
+                  "coding": 24
+                },
+                "flags": {
+                  "add": [
+                    "made_their_world"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "practical",
+          "text": "问他需要什么实际的帮助",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你帮不上什么忙，但把他的模型和照片都备份了一份。他说：谢谢你想到这个。",
+              "effects": {
+                "mood": 11,
+                "skills": {
+                  "modeling": 8
+                },
+                "flags": {
+                  "add": [
+                    "backed_up_his_stuff"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你联系了几个共同好友，轮流在他能上线的时间陪他。这件事你们谁也没告诉他。",
+              "effects": {
+                "mood": 15,
+                "fame": 8,
+                "friends": 4,
+                "flags": {
+                  "add": [
+                    "friend_watch"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "deny",
+          "text": "假装这没什么大不了",
+          "condition": {
+            "maxMood": 50
+          },
+          "lockedHint": "需要心态 ≤ 50",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你笑着说那就好好休息，早点回来。他回了个笑脸。你摘下头显，在黑暗里坐了很久。",
+              "effects": {
+                "mood": -26,
+                "flags": {
+                  "add": [
+                    "pretended_ok"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "legend_003",
+                  "delayHours": [
+                    135,
+                    405
+                  ],
+                  "chance": 0.6
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_028",
+      "title": "他说要退坑",
+      "category": "random",
+      "stage": "传奇",
+      "hoursRange": [
+        1000,
+        99999
+      ],
+      "weight": 7,
+      "rarity": "rare",
+      "once": true,
+      "cooldown": 9999,
+      "tags": [
+        "随机",
+        "退坑",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 1000,
+        "maxHours": 99999
+      },
+      "text": "{ta}把模型换回了最初的默认款，站在{中文吧}的门口。他说：我玩到头了，来跟你道个别。",
+      "options": [
+        {
+          "id": "stop",
+          "text": "试着挽留",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 60,
+              "tier": "normal",
+              "text": "你说了很多，他只是笑。最后他说：不是这里不好，是我该走了。",
+              "effects": {
+                "mood": -16,
+                "flags": {
+                  "add": [
+                    "tried_to_stop_him"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "他答应再留一个月。那一个月你们玩了 {N} 个世界，像在把欠的账还完。",
+              "effects": {
+                "mood": 9,
+                "friends": 1,
+                "counters": {
+                  "lastMonthWorlds": 10
+                }
+              }
+            },
+            {
+              "weight": 15,
+              "tier": "extreme",
+              "text": "你没留住他，但他在临走前把自己做了三年的世界转给了你，说：别让它也走。",
+              "effects": {
+                "mood": 6,
+                "assets": 1000,
+                "fame": 8,
+                "skills": {
+                  "coding": 30
+                },
+                "flags": {
+                  "add": [
+                    "inherited_world"
+                  ],
+                  "remove": []
+                }
+              },
+              "endingHint": {
+                "path": "legend",
+                "score": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "walk",
+          "text": "陪他走完最后一晚",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你们从中文吧走到他第一个世界，最后一站是他学会跳舞的地方。天亮时他下线了，再没回来。",
+              "effects": {
+                "mood": 5,
+                "friends": 1,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "end"
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "extreme",
+              "text": "最后一站是个没人的世界，里面只有一张长椅和两块蛋糕。他说这是他准备的。",
+              "effects": {
+                "mood": 18,
+                "fame": 3,
+                "avatars": 1,
+                "flags": {
+                  "add": [
+                    "last_cake"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "let",
+          "text": "说一路顺风，不送",
+          "condition": {
+            "minMood": 55
+          },
+          "lockedHint": "需要心态 ≥ 55",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说完就退出了。后来你偶尔会想起他，像想起一个搬走了的邻居。",
+              "effects": {
+                "mood": 3,
+                "tags": {
+                  "add": [
+                    "佛系"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "veteran_009",
+                  "delayHours": [
+                    90,
+                    360
+                  ],
+                  "chance": 0.4
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_029",
+      "title": "镜像里的自己",
+      "category": "random",
+      "stage": "初入",
+      "hoursRange": [
+        0,
+        30
+      ],
+      "weight": 9,
+      "rarity": "rare",
+      "once": false,
+      "cooldown": 900,
+      "tags": [
+        "随机",
+        "孤独"
+      ],
+      "condition": {
+        "minHours": 0,
+        "maxHours": 30,
+        "probability": 0.3
+      },
+      "text": "你在{世界}的镜子前站定。镜子里的人比你慢了半秒，然后，它自己转过了头。",
+      "options": [
+        {
+          "id": "stare",
+          "text": "盯着它看",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你盯了很久，直到它恢复成普通的倒影。你不确定刚才那半秒是不是掉帧。",
+              "effects": {
+                "mood": -8,
+                "skills": {
+                  "photo": 7
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你截图了。照片里镜中的你，正看着另一个方向。",
+              "effects": {
+                "mood": 5,
+                "fame": 2,
+                "counters": {
+                  "creepyShots": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "run",
+          "text": "立刻转身走开",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你走出很远才回头。镜子里什么都没有，只有你刚才站过的那块地板。",
+              "effects": {
+                "mood": -5,
+                "tags": {
+                  "add": [
+                    "社恐"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "extreme",
+              "text": "你在下一个房间又看见了那面镜子。这次它没有延迟，直接对你抬了抬手。",
+              "effects": {
+                "mood": -23,
+                "flags": {
+                  "add": [
+                    "mirror_incident"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "wave",
+          "text": "向它挥手",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "它没有回应，只是安静地复制了你。你有点失望。",
+              "effects": {
+                "mood": 1
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "三秒后，你的角色不受控制地做了一个你没按过的手势。",
+              "effects": {
+                "mood": -13,
+                "flags": {
+                  "add": [
+                    "mirror_waved_back"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_030",
+      "title": "全员同一模型",
+      "category": "random",
+      "stage": "萌新探索",
+      "hoursRange": [
+        10,
+        50
+      ],
+      "weight": 16,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 400,
+      "tags": [
+        "随机",
+        "整活"
+      ],
+      "condition": {
+        "minHours": 10,
+        "maxHours": 50
+      },
+      "text": "你进入{中文吧}，房间里 {N} 个人全是同一个模型。他们同时转向你，动作整齐得像排练过。",
+      "options": [
+        {
+          "id": "join",
+          "text": "换上同款混进去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你在衣柜里翻到同款，换上去的那一刻全场爆笑。原来这是今晚的暗号。",
+              "effects": {
+                "mood": 8,
+                "friends": 3,
+                "skills": {
+                  "meme": 22
+                },
+                "tags": {
+                  "add": [
+                    "整活王"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你混进去之后真的没人认出你。你听他们聊了两个小时关于你的事。",
+              "effects": {
+                "mood": 5,
+                "fame": 2,
+                "counters": {
+                  "spiedOn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ask",
+          "text": "开麦问这是怎么回事",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "有人解释说这是给一个要退坑的朋友送行，他第一次来时大家就是这个模型。",
+              "effects": {
+                "mood": 7,
+                "friends": 2,
+                "flags": {
+                  "add": [
+                    "witnessed_farewell"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "extreme",
+              "text": "你说完话才发现，那个要退坑的朋友，是当初带你进来的那个人。",
+              "effects": {
+                "mood": -20,
+                "friends": 1,
+                "flags": {
+                  "add": [
+                    "mentor_leaving"
+                  ],
+                  "remove": []
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "deep_012",
+                  "delayHours": [
+                    22,
+                    68
+                  ],
+                  "chance": 0.5
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "shoot",
+          "text": "先拍一张再说",
+          "condition": {
+            "minSkills": {
+              "photo": 20
+            }
+          },
+          "lockedHint": "需要摄影 ≥ 20",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你拍下 {N} 张一模一样的脸。这张照片后来成了你对那个时期最准确的记忆。",
+              "effects": {
+                "mood": 6,
+                "skills": {
+                  "photo": 17
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "deep_005",
+                  "delayHours": [
+                    11,
+                    43
+                  ],
+                  "chance": 0.5
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_031",
+      "title": "只剩你一个人",
+      "category": "random",
+      "stage": "社交起步",
+      "hoursRange": [
+        50,
+        200
+      ],
+      "weight": 15,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 350,
+      "tags": [
+        "随机",
+        "孤独",
+        "日常"
+      ],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200
+      },
+      "text": "你回过神时，{世界}里的人已经走光了。音乐还在放，桌上的饮料还是满的，好像下一秒就会有人回来。",
+      "options": [
+        {
+          "id": "stay",
+          "text": "把歌听完",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你一个人在空房间里跳完整首歌。没有观众，你反而跳得比平时好。",
+              "effects": {
+                "mood": 7,
+                "skills": {
+                  "dance": 22
+                },
+                "tags": {
+                  "add": [
+                    "独行侠"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "音乐放到最后一首时，有人在门口站住了。他说：我以为这里没人了。",
+              "effects": {
+                "mood": 9,
+                "friends": 1
+              },
+              "schedule": [
+                {
+                  "eventId": "social_008",
+                  "delayHours": [
+                    11,
+                    43
+                  ],
+                  "chance": 0.5
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "explore",
+          "text": "一个人把这个世界走一遍",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你在墙后找到一个作者藏起来的房间，里面摆着一张全家福。",
+              "effects": {
+                "mood": 6,
+                "fame": 2,
+                "skills": {
+                  "photo": 11
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你在那里看到作者的留言：如果你看到这里，说明今晚只有你一个人。",
+              "effects": {
+                "mood": 11,
+                "fame": 5,
+                "flags": {
+                  "add": [
+                    "found_hidden_room"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "off",
+          "text": "关掉音乐，退出房间",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你按下退出，音乐戛然而止。那一刻你意识到，房间的热闹一直是别人给的。",
+              "effects": {
+                "mood": -10,
+                "tags": {
+                  "add": [
+                    "emo"
+                  ],
+                  "remove": []
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "extreme",
+              "text": "退出前你回头看了一眼，发现角落里一直站着一个人，从头到尾没有说话。",
+              "effects": {
+                "mood": -16,
+                "friends": 1,
+                "flags": {
+                  "add": [
+                    "silent_watcher"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wild_032",
+      "title": "挂机醒来",
+      "category": "random",
+      "stage": "老油条",
+      "hoursRange": [
+        500,
+        1000
+      ],
+      "weight": 5,
+      "rarity": "rare",
+      "once": false,
+      "cooldown": 9999,
+      "tags": [
+        "随机",
+        "正面",
+        "孤独"
+      ],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000
+      },
+      "text": "你戴着耳机睡着了。三小时后醒来，屏幕上{ta}还坐在你旁边，姿势和三小时前一模一样。",
+      "options": [
+        {
+          "id": "apologize",
+          "text": "道歉说自己睡着了",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "他说他知道，他看着你角色呼吸的节奏变了。本来想走，又怕你醒来是一个人。",
+              "effects": {
+                "mood": 18,
+                "friends": 1,
+                "relationOp": {
+                  "type": "setState",
+                  "state": "常一起玩"
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "extreme",
+              "text": "你问他等了多久，他说三个小时，反正也没别的地方想去。",
+              "effects": {
+                "mood": 24,
+                "fame": 3,
+                "friends": 2,
+                "flags": {
+                  "add": [
+                    "waited_three_hours"
+                  ],
+                  "remove": []
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "朋友",
+                  "initIntimacy": 35,
+                  "initTrust": 40,
+                  "name": "auto"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "peek",
+          "text": "假装还在挂机，偷偷看他",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你眯着眼看了十分钟。他只是安静地坐着，偶尔调一下视角，确认你还在。",
+              "effects": {
+                "mood": 12,
+                "counters": {
+                  "watchedOver": 1
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "过了一会儿他开始小声说话，像在自言自语。你听见了自己的名字。",
+              "effects": {
+                "mood": 15,
+                "tags": {
+                  "add": [
+                    "emo"
+                  ],
+                  "remove": []
+                },
+                "flags": {
+                  "add": [
+                    "heard_him_talk"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "gift",
+          "text": "把收藏里最好的东西送给他",
+          "condition": {
+            "minAssets": 300
+          },
+          "lockedHint": "需要资产 ≥ 300",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "他愣了很久才收下，说这太贵重了。你说：三个小时比这个贵。",
+              "effects": {
+                "mood": 15,
+                "assets": -300,
+                "friends": 1,
+                "fame": 3
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "extreme",
+              "text": "他收下之后，把自己做了两年的模型给了你。你们交换的不只是模型。",
+              "effects": {
+                "mood": 21,
+                "avatars": 2,
+                "assets": -300,
+                "friends": 2,
+                "flags": {
+                  "add": [
+                    "swapped_avatars"
+                  ],
+                  "remove": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1303 @@
+{
+  "bucket": "circle",
+  "version": "1.0",
+  "events": [
+    {
+      "id": "circle_k01",
+      "title": "另一个圈子",
+      "category": "key",
+      "stage": "社交起步",
+      "hoursRange": [50, 200],
+      "weight": 100,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": ["圈子", "关键", "社交"],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200,
+        "minFriends": 5,
+        "excludeFlags": ["joined_dlc_circle"]
+      },
+      "text": "你常待的地方已经熟了。有天一个人拉你进群：我们这边也缺人，你要不要来看看？群名你从没见过。",
+      "options": [
+        {
+          "id": "join",
+          "text": "进群看看",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "群里很热闹，话题从设备聊到模型，你插得上嘴。一晚下来，你多了几个新名字。",
+              "effects": {
+                "mood": 6,
+                "friends": 3,
+                "skills": { "social": 4 },
+                "circles": { "add": ["设备圈"], "remove": [] },
+                "flags": { "add": ["joined_dlc_circle"], "remove": [] }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你进群才知道，这里的人都是靠一件小事聚起来的——大家都自己折腾设备。你第一次觉得“找到同类”是个具体的画面。",
+              "effects": {
+                "mood": 9,
+                "friends": 4,
+                "favor": 5,
+                "skills": { "coding": 4 },
+                "circles": { "add": ["设备圈"], "remove": [] },
+                "flags": { "add": ["joined_dlc_circle"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "observe",
+          "text": "先加着，不说话",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你进去了，安静地看了一晚上。群里的梗你懂一半，剩下的一半你打算慢慢学。",
+              "effects": {
+                "mood": 2,
+                "friends": 1,
+                "flags": { "add": ["joined_dlc_circle"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "decline",
+          "text": "谢绝，我这边就够了",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说不用了，谢谢。对方发了句“随时”。你回到熟悉的老地方，那里的人还在。",
+              "effects": {
+                "mood": 1,
+                "favor": 2,
+                "flags": { "add": ["joined_dlc_circle"], "remove": [] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "circle_k02",
+      "title": "两个圈子",
+      "category": "key",
+      "stage": "深度社交",
+      "hoursRange": [200, 500],
+      "weight": 100,
+      "rarity": "rare",
+      "once": true,
+      "cooldown": 0,
+      "tags": ["圈子", "关键", "冲突"],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500,
+        "minFriends": 10,
+        "excludeFlags": ["feud_happened"]
+      },
+      "text": "你待的两个圈子闹翻了。起因很小：一次活动谁抢了麦，谁没被 @。但两边都不肯退。群里开始让你表态。",
+      "options": [
+        {
+          "id": "side_a",
+          "text": "站在你更早认识的那边",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你站了老圈子。另一边沉默地把你移出了群。你失去了一些人，但留在原地的人更信你了。",
+              "effects": {
+                "mood": -4,
+                "friends": -5,
+                "favor": 6,
+                "flags": { "add": ["feud_happened", "stood_with_old"], "remove": [] }
+              },
+              "schedule": [
+                { "eventId": "circle_012", "delayHours": [30, 120], "chance": 0.8 }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "side_b",
+          "text": "站在你觉得更有道理的那边",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说出了你看到的版本，站到了另一边。道理是赢了，但人际关系从来不是靠道理赢的。",
+              "effects": {
+                "mood": -2,
+                "friends": -6,
+                "favor": 4,
+                "skills": { "social": 3 },
+                "flags": { "add": ["feud_happened", "stood_with_new"], "remove": [] }
+              },
+              "schedule": [
+                { "eventId": "circle_012", "delayHours": [30, 120], "chance": 0.8 }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "mediate",
+          "text": "把两边叫到一起说清楚",
+          "condition": { "minSkills": { "social": 25 } },
+          "lockedHint": "需要社交 ≥ 25",
+          "outcomes": [
+            {
+              "weight": 55,
+              "tier": "normal",
+              "text": "你拉了个小房间，让两个人把话说完。它们没有和好，但至少不再互删了。你累得一句话都不想说。",
+              "effects": {
+                "mood": -6,
+                "favor": 8,
+                "skills": { "social": 6 },
+                "counters": { "feudsResolved": 1 },
+                "flags": { "add": ["feud_happened", "resolved_feud"], "remove": [] }
+              }
+            },
+            {
+              "weight": 45,
+              "tier": "extreme",
+              "text": "你说了一句所有人都没想到的话，两边都安静了。那晚之后，两个圈子虽然还是不来往，但都把你当自己人。",
+              "effects": {
+                "mood": 10,
+                "friends": 3,
+                "favor": 14,
+                "fame": 5,
+                "skills": { "social": 12 },
+                "counters": { "feudsResolved": 1 },
+                "flags": { "add": ["feud_happened", "resolved_feud"], "remove": [] }
+              },
+              "endingHint": { "path": "mediator", "score": 6 }
+            }
+          ]
+        },
+        {
+          "id": "avoid",
+          "text": "装没看见，谁也不站",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你退出了群聊，假装没看到那些 @。第二天你回到老地方，两边的人都对你客气了一点——客气的意思是，没那么近了。",
+              "effects": {
+                "mood": 1,
+                "friends": -3,
+                "favor": -4,
+                "flags": { "add": ["feud_happened"], "remove": [] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "circle_001",
+      "title": "圈子排外",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [50, 200],
+      "weight": 15,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 250,
+      "tags": ["圈子", "社交", "负面"],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200
+      },
+      "text": "你推开{世界}的门，里面的人正聊得开心。你说了句你好，只有一个人回了头，又转了回去。",
+      "options": [
+        {
+          "id": "persist",
+          "text": "厚着脸皮待着",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你坐了半小时，终于接上了一个话题。他们不是排外，只是没注意到你。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": { "social": 3 }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "一个一直被晾在角落的人先跟你搭了话。你们后来成了很熟的朋友。",
+              "effects": {
+                "mood": 5,
+                "friends": 1,
+                "favor": 6
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave",
+          "text": "换个房间",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你退出去，换了一个安静的世界。一个人也可以待得很好——你对自己说。",
+              "effects": {
+                "mood": -2,
+                "tags": { "add": ["独行侠"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "observe",
+          "text": "站远点看他们聊什么",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你听了一会，发现他们聊的是你完全不懂的东西。你记下了几个词，回去搜了搜。",
+              "effects": {
+                "mood": 2,
+                "skills": { "coding": 3, "social": 2 }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "circle_002",
+      "title": "圈主换人",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [500, 1000],
+      "weight": 13,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 400,
+      "tags": ["圈子", "社交", "现实"],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000
+      },
+      "text": "你待了很久的那个圈子，创建者退坑了。群主的位置空出来，有人开始讨论要不要换个地方。",
+      "options": [
+        {
+          "id": "takeover",
+          "text": "你来接这个位置",
+          "condition": { "minSkills": { "social": 30 } },
+          "lockedHint": "需要社交 ≥ 30",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你接手了。第一天就有三个人来问你规则，你才知道以前那些琐事有多烦。",
+              "effects": {
+                "mood": -3,
+                "fame": 6,
+                "friends": 3,
+                "skills": { "social": 6 },
+                "circles": { "add": ["设备圈"], "remove": [] }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你把群救了回来，还定了几条不成文的规矩。很久以后，新人都以为这个圈子本来就是你建的。",
+              "effects": {
+                "mood": 5,
+                "fame": 12,
+                "friends": 6,
+                "skills": { "social": 10 },
+                "endingHint": { "path": "leader", "score": 4 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "stay",
+          "text": "留下，但不接",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你留在了原地。群渐渐冷了下来，但每次有人回来，你们还能聊上两句。",
+              "effects": {
+                "mood": 1,
+                "friends": -1
+              }
+            }
+          ]
+        },
+        {
+          "id": "newplace",
+          "text": "跟一部分人搬到新圈子",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你们起了个新群，规矩从头再来一遍。人还是那些人，但总觉得少了点什么。",
+              "effects": {
+                "mood": 2,
+                "friends": -2,
+                "circles": { "add": ["设备圈"], "remove": [] },
+                "flags": { "add": ["circle_hopper"], "remove": [] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "circle_003",
+      "title": "跨圈活动",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [50, 200],
+      "weight": 16,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 300,
+      "tags": ["圈子", "活动", "社交"],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200
+      },
+      "text": "几个圈子联合办了一场活动，{世界}里挤满了不同群的人。你在人群里认出了好几张熟悉的脸，也看到了很多陌生的。",
+      "options": [
+        {
+          "id": "mix",
+          "text": "主动去认识别的圈子的人",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你端着一杯虚拟饮料，一晚上认识了五个新人。有人问你平时在哪个群，你说了，对方说“没听过”。",
+              "effects": {
+                "mood": 6,
+                "friends": 4,
+                "skills": { "social": 5 },
+                "favor": 3
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你发现两个群其实早就该认识。你把他们拉到一起，那晚的活动人数翻了一倍。",
+              "effects": {
+                "mood": 8,
+                "friends": 6,
+                "fame": 4,
+                "skills": { "social": 8 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "with_friends",
+          "text": "只跟熟人待在一起",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你们几个占了角落，自己玩自己的。热闹是别人的，你们有你们的小世界。",
+              "effects": {
+                "mood": 4,
+                "favor": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "help",
+          "text": "去帮忙维持秩序",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你帮主办方指路、拉人、清场，忙了一整晚，自己几乎没玩。散场时有人对你说：辛苦了。",
+              "effects": {
+                "mood": 3,
+                "fame": 4,
+                "friends": 2,
+                "skills": { "social": 6 }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "circle_004",
+      "title": "夹在中间",
+      "category": "normal",
+      "stage": "深度社交",
+      "hoursRange": [200, 500],
+      "weight": 15,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 300,
+      "tags": ["圈子", "冲突", "友情"],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500,
+        "minFriends": 12
+      },
+      "text": "两个你都熟的人冷战了。a 找你吐槽 b，说完让你别告诉 b；b 转头也来找你，说了差不多的版本。",
+      "options": [
+        {
+          "id": "listen_both",
+          "text": "两边都听，谁也不站",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你听完了两份证词，谁也没得罪。但你心里很清楚，他们其实说的是同一件事。",
+              "effects": {
+                "mood": -3,
+                "favor": 4,
+                "skills": { "social": 4 },
+                "counters": { "feudsResolved": 1 }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你把他们各自的话复述给对方听，删掉了最难听的部分。他们最后自己去找对方了。",
+              "effects": {
+                "mood": 3,
+                "favor": 9,
+                "friends": 1,
+                "skills": { "social": 8 },
+                "counters": { "feudsResolved": 1 },
+                "flags": { "add": ["resolved_feud"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "repeat",
+          "text": "把 a 的话转告 b",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 60,
+              "tier": "normal",
+              "text": "你以为是好心，结果话传回去就变了味。两边都觉得你在挑事。",
+              "effects": {
+                "mood": -8,
+                "friends": -4,
+                "favor": -8,
+                "tags": { "add": ["emo"], "remove": [] }
+              }
+            },
+            {
+              "weight": 40,
+              "tier": "rare",
+              "text": "b 听完沉默了很久，说：其实是我不好。事情意外地解开了，虽然过程很难看。",
+              "effects": {
+                "mood": 1,
+                "favor": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "tired",
+          "text": "说一句“你们自己解决”，退出",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你关了私聊。那天晚上你第一次觉得，别人的矛盾有时候真的不该由你来扛。",
+              "effects": {
+                "mood": 3,
+                "favor": -3,
+                "tags": { "add": ["疲惫"], "remove": [] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "circle_005",
+      "title": "圈子散了",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [500, 1000],
+      "weight": 12,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 500,
+      "tags": ["圈子", "回忆", "负面"],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000
+      },
+      "text": "你点进那个熟悉的群，最后一条消息是三个月前的。往上翻，是大家约着跨年。再往上，是你第一次说话。",
+      "options": [
+        {
+          "id": "revive",
+          "text": "在群里发一句“还在吗”",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "四个人回了你。你们约了这周聚一次，最后来了两个。也够了。",
+              "effects": {
+                "mood": 6,
+                "friends": 1,
+                "favor": 6
+              }
+            },
+            {
+              "weight": 35,
+              "tier": "rare",
+              "text": "消息发出去，陆续有人冒泡。你们聊到半夜，像什么都没变。虽然谁都知道，回不去了。",
+              "effects": {
+                "mood": 9,
+                "friends": 3,
+                "favor": 4,
+                "tags": { "add": ["怀旧"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "archive",
+          "text": "把聊天记录导出来存着",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你导出了整个群的记录，拖进一个叫“以前”的文件夹。你很久都不会再点开它。",
+              "effects": {
+                "mood": 1,
+                "tags": { "add": ["怀旧"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "quit",
+          "text": "退出这个群",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你按了退出。列表短了一格，你想了很久那一格原来是什么。",
+              "effects": {
+                "mood": -4,
+                "tags": { "add": ["断舍离"], "remove": [] },
+                "flags": { "add": ["circle_hopper"], "remove": [] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "circle_006",
+      "title": "小团体的八卦",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [50, 200],
+      "weight": 14,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 250,
+      "tags": ["圈子", "社交", "冲突"],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200
+      },
+      "text": "你在{世界}的角落听到几个人在说另一个人的事。说的那个人你也认识，前两天还帮过你。",
+      "options": [
+        {
+          "id": "join",
+          "text": "凑过去听",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你听完了整段。故事很精彩，你也笑了。回去之后你有点后悔笑了。",
+              "effects": {
+                "mood": 2,
+                "favor": -4,
+                "counters": { "gossipHeard": 1 }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你听着听着发现不对劲——被说的那个人，其实一直在被冤枉。你没有当场说什么，但记下了。",
+              "effects": {
+                "mood": -2,
+                "flags": { "add": ["knows_truth"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "defend",
+          "text": "打断他们，替那个人说话",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 60,
+              "tier": "normal",
+              "text": "你说“他应该不是那样的人”。场面安静了两秒，然后话题被你岔开了。",
+              "effects": {
+                "mood": 5,
+                "favor": 8,
+                "skills": { "social": 4 }
+              }
+            },
+            {
+              "weight": 40,
+              "tier": "rare",
+              "text": "那几个人有点下不来台，转头去别处说了。但你替人挡了一下这件事，后来传到了那个人耳朵里。",
+              "effects": {
+                "mood": 7,
+                "fame": 3,
+                "friends": 1,
+                "favor": 12,
+                "skills": { "social": 6 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave",
+          "text": "悄悄走开",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你退出了房间。有些话，不听比听了干净。",
+              "effects": {
+                "mood": 2
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "circle_007",
+      "title": "被误会了",
+      "category": "normal",
+      "stage": "深度社交",
+      "hoursRange": [200, 500],
+      "weight": 14,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 350,
+      "tags": ["圈子", "冲突", "负面"],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500
+      },
+      "text": "圈子里传开了：说你在背后说谁坏话。传来传去，最后变成了你说的原话。有人截图来问你，你根本没见过那段对话。",
+      "options": [
+        {
+          "id": "explain",
+          "text": "一个个解释清楚",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你私聊了十几个人，讲了同一段事。有人信了，有人客气地说“知道了”。",
+              "effects": {
+                "mood": -6,
+                "friends": -2,
+                "skills": { "social": 4 }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你找到了最早传话的那个人。他道歉了，在群里帮你澄清。事情压下去了，但你记住了这件事。",
+              "effects": {
+                "mood": -2,
+                "favor": 5,
+                "fame": 3,
+                "skills": { "social": 8 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ignore",
+          "text": "不解释",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 60,
+              "tier": "normal",
+              "text": "你什么也没说。谣言自己会淡，但也会留下痕迹——有些人从此没再主动找过你。",
+              "effects": {
+                "mood": -8,
+                "friends": -4,
+                "tags": { "add": ["小透明"], "remove": [] }
+              }
+            },
+            {
+              "weight": 40,
+              "tier": "rare",
+              "text": "你什么都不说，反而显得坦荡。有人私下和你说：我知道不是你。",
+              "effects": {
+                "mood": 3,
+                "favor": 8,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "confront",
+          "text": "在群里直接开麦对峙",
+          "condition": { "minMood": 40 },
+          "lockedHint": "需要心态 ≥ 40",
+          "outcomes": [
+            {
+              "weight": 55,
+              "tier": "normal",
+              "text": "你把事情摆到台面上说清楚了。有人退群，有人支持你。代价是那个群从此有了裂痕。",
+              "effects": {
+                "mood": -4,
+                "fame": 2,
+                "friends": -3,
+                "skills": { "social": 5 }
+              }
+            },
+            {
+              "weight": 45,
+              "tier": "extreme",
+              "text": "你没有吵，只是把来龙去脉讲了一遍，最后说：信不信由你们。那晚之后，很多人反而更尊重你了。",
+              "effects": {
+                "mood": 4,
+                "fame": 8,
+                "friends": 2,
+                "favor": 6,
+                "skills": { "social": 10 }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "circle_008",
+      "title": "带新人进圈",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [50, 200],
+      "weight": 15,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 300,
+      "tags": ["圈子", "成长", "社交"],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200
+      },
+      "text": "一个刚入坑的新人问你：你们那个圈子，我能进吗？你想了想自己当初是怎么被带进来的。",
+      "options": [
+        {
+          "id": "bring",
+          "text": "带他进去，慢慢教",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你拉他进群，帮他说了第一句话。群里的人很给面子，他很快就融进去了。",
+              "effects": {
+                "mood": 5,
+                "friends": 2,
+                "favor": 4,
+                "skills": { "social": 4 }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你带了他一个月。后来他成了群里最活跃的人，逢人就说“是 {我} 带我进来的”。你有点不好意思。",
+              "effects": {
+                "mood": 8,
+                "friends": 3,
+                "fame": 3,
+                "favor": 6,
+                "flags": { "add": ["mentor_once"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "warn",
+          "text": "先提醒他圈子里也有糟心事",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说了实话：这里有好的人，也有让你不舒服的时候。他听完说：那我还是想进。",
+              "effects": {
+                "mood": 3,
+                "friends": 1,
+                "favor": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "refuse",
+          "text": "说这圈子不适合他",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你劝他别来。他说了声谢谢，去了别的地方。你不知道自己是不是做对了。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "circle_009",
+      "title": "圈子变了",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [500, 1000],
+      "weight": 14,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 400,
+      "tags": ["圈子", "回忆", "负面"],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000
+      },
+      "text": "你回老圈子看了一眼。人多了很多，规矩也多了很多。有人问你是新人吗，你说不是，我早就来了。对方说：没见过你啊。",
+      "options": [
+        {
+          "id": "adapt",
+          "text": "适应新规矩",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你按新规矩来，很快又混熟了。只是你再也没有以前那种“这里是我的地方”的感觉。",
+              "effects": {
+                "mood": 2,
+                "friends": 2
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "新规矩是你认识的人定的。他看见你，说：你还在啊。这句话让你安心了一下。",
+              "effects": {
+                "mood": 6,
+                "favor": 6
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave",
+          "text": "退出去，不再回来",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你退出了世界，没有再看第二眼。有些地方，去一次就够了。",
+              "effects": {
+                "mood": -3,
+                "tags": { "add": ["断舍离"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "find_old",
+          "text": "去找还没走的那几个老人",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你在列表里一个个点过去，最后找到两个还上线的。你们在一个安静的世界里坐了一晚。",
+              "effects": {
+                "mood": 5,
+                "favor": 7,
+                "friends": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "circle_010",
+      "title": "跨圈的关系",
+      "category": "normal",
+      "stage": "深度社交",
+      "hoursRange": [200, 500],
+      "weight": 12,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 400,
+      "tags": ["圈子", "社交", "冲突"],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500,
+        "hasRelation": true
+      },
+      "text": "{ta}在{世界}里出现，而你的朋友们也在。两个圈子的人第一次碰面，气氛微妙。有人小声问你：ta 是谁？",
+      "options": [
+        {
+          "id": "introduce",
+          "text": "大方介绍",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你把 ta 拉进来，两边客气地认识了。之后每次活动都有人问你 ta 来不来。",
+              "effects": {
+                "mood": 5,
+                "friends": 2,
+                "favor": 3
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "两边意外地合得来，后来还一起办了个活动。你成了那个把人和人接起来的人。",
+              "effects": {
+                "mood": 7,
+                "friends": 4,
+                "fame": 3,
+                "skills": { "social": 6 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "separate",
+          "text": "把两边分开，不让他们碰面",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你分别在两个地方待了一会，来回传送，像在赶场。你有点累，但两边都满意了。",
+              "effects": {
+                "mood": -2,
+                "favor": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "honest",
+          "text": "当场说实话",
+          "condition": { "minFavor": 55 },
+          "lockedHint": "需要好感度 ≥ 55",
+          "outcomes": [
+            {
+              "weight": 60,
+              "tier": "normal",
+              "text": "你说 ta 是对你很重要的人。朋友愣了一下，然后说：那下次一起叫上。",
+              "effects": {
+                "mood": 8,
+                "friends": 1,
+                "favor": 6
+              }
+            },
+            {
+              "weight": 40,
+              "tier": "rare",
+              "text": "你说完之后，有个朋友私下跟你说：早就看出来了。你们笑成一团。",
+              "effects": {
+                "mood": 11,
+                "favor": 10,
+                "friends": 2
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "circle_011",
+      "title": "圈子门槛",
+      "category": "normal",
+      "stage": "萌新探索",
+      "hoursRange": [10, 50],
+      "weight": 15,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 250,
+      "tags": ["圈子", "技能", "成长"],
+      "condition": {
+        "minHours": 10,
+        "maxHours": 50
+      },
+      "text": "你想进的圈子有个不成文的门槛：得会点东西。有人在群里发了教程，说“学会了再来”。",
+      "options": [
+        {
+          "id": "study",
+          "text": "照着教程练",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你练了几个晚上，勉强能看了。你在群里发了一句“我学会了”，有人回了个鼓掌。",
+              "effects": {
+                "mood": 5,
+                "skills": { "modeling": 8 },
+                "circles": { "add": ["模型圈"], "remove": [] }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你练得比教程还细，交上去的作品被作者点了名。你说谢谢，手心有点汗。",
+              "effects": {
+                "mood": 8,
+                "fame": 3,
+                "skills": { "modeling": 14 },
+                "circles": { "add": ["模型圈"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ask_help",
+          "text": "找人带一带",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "一个老人愿意教你。他人很好，但语气有点凶。你学得很快，也有点怕他。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "favor": 4,
+                "skills": { "modeling": 6 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "give_up",
+          "text": "算了，不进也行",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你退出了群。门槛拦住了你，但也没关系——外面还有很多不用门槛的地方。",
+              "effects": {
+                "mood": -1,
+                "skills": { "modeling": 3 }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "circle_012",
+      "title": "站队之后",
+      "category": "chain",
+      "stage": "深度社交",
+      "hoursRange": [200, 600],
+      "weight": 40,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": ["圈子", "冲突", "友情"],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 600,
+        "requireFlags": ["feud_happened"],
+        "excludeFlags": ["resolved_feud"]
+      },
+      "text": "站队的余波还没过去。你在{世界}遇到那个没被你选的人。你们对视了一下，都没先说话。",
+      "options": [
+        {
+          "id": "greet",
+          "text": "先打招呼",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你说了句“好久不见”。对方愣了愣，回了一句。你们没提那件事，但都松了口气。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "favor": 6,
+                "flags": { "add": ["resolved_feud"], "remove": [] }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你们聊了很久，最后对方说：那时候其实我也想站你这边。你们把话都说开了。",
+              "effects": {
+                "mood": 7,
+                "friends": 2,
+                "favor": 10,
+                "skills": { "social": 5 },
+                "flags": { "add": ["resolved_feud"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "pretend",
+          "text": "装作没看见",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你从 ta 身边走过去。你们都很擅长这件事——在这个世界里，假装不认识只需要转个身。",
+              "effects": {
+                "mood": -3,
+                "friends": -1,
+                "favor": -4
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "circle_013",
+      "title": "退圈",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [500, 1000],
+      "weight": 12,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 450,
+      "tags": ["圈子", "退坑", "回忆"],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000
+      },
+      "text": "你数了数自己加过的群：{N} 个。大部分已经免打扰了。你在每个群里都说过话，现在没一个是你想打开的。",
+      "options": [
+        {
+          "id": "clean",
+          "text": "全部退掉，只留两个",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你清掉了一大半。手机安静了很多，世界也安静了很多。剩下的几个，你认真看了每一条。",
+              "effects": {
+                "mood": 3,
+                "tags": { "add": ["断舍离"], "remove": [] }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你退到最后一个群时犹豫了。那是你入坑时进的第一个群，里面只剩三个人还在。你留下了它。",
+              "effects": {
+                "mood": 6,
+                "favor": 5,
+                "tags": { "add": ["怀旧"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "mute",
+          "text": "全部免打扰，谁也不退",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把所有群都设成了免打扰。它们还在，只是不再响了。你说不清自己是在保留，还是在拖延。",
+              "effects": {
+                "mood": 2,
+                "tags": { "add": ["圈子浪人"], "remove": [] },
+                "flags": { "add": ["circle_hopper"], "remove": [] }
+              },
+              "endingHint": { "path": "circle_hopper", "score": 4 }
+            }
+          ]
+        },
+        {
+          "id": "pick_one",
+          "text": "认真经营其中一个",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你选了一个群，开始每天在里面出现。它慢慢有了温度，其他群则彻底安静了。",
+              "effects": {
+                "mood": 5,
+                "friends": 2,
+                "favor": 6
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1273 @@
+{
+  "bucket": "friend",
+  "version": "1.0",
+  "events": [
+    {
+      "id": "friend_k01",
+      "title": "有人跟你倒苦水",
+      "category": "key",
+      "stage": "社交起步",
+      "hoursRange": [50, 200],
+      "weight": 100,
+      "rarity": "common",
+      "once": true,
+      "cooldown": 0,
+      "tags": ["友情", "关键", "情绪"],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200,
+        "minFriends": 3
+      },
+      "text": "私聊亮了。一个平时很少说心事的人发来一大段，说最近工作不顺、家里也烦。他最后问：你有空吗。",
+      "options": [
+        {
+          "id": "listen",
+          "text": "认真听完",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你陪他聊到很晚。大多数时候你只是说“嗯”“我在”。挂掉之后你也有点沉，但他最后那句谢谢是真的。",
+              "effects": {
+                "mood": -4,
+                "favor": 8,
+                "skills": { "social": 4 },
+                "counters": { "friendsHelped": 1 }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你听完只说了一句话：我知道你不好受。他沉默了很久，说：你知道吗，没人这么跟我说过。",
+              "effects": {
+                "mood": 4,
+                "favor": 12,
+                "friends": 1,
+                "skills": { "social": 6 },
+                "counters": { "friendsHelped": 1 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "advise",
+          "text": "给他一堆建议",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你认真分析了他的问题，列了三条。他回了句“谢谢，我试试”，然后就没再说别的。",
+              "effects": {
+                "mood": -1,
+                "favor": 2
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他说：道理我都懂，我只是想有人听。你愣了愣，把刚才那三条删了，重新陪他聊。",
+              "effects": {
+                "mood": 2,
+                "favor": 6
+              }
+            }
+          ]
+        },
+        {
+          "id": "busy",
+          "text": "说自己今天很累",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说改天吧。他发了个“好”。你关掉对话框，心里空了一下，但确实也轻松了一点。",
+              "effects": {
+                "mood": 2,
+                "favor": -5
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "friend_k02",
+      "title": "他出事了",
+      "category": "key",
+      "stage": "深度社交",
+      "hoursRange": [200, 500],
+      "weight": 100,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": ["友情", "关键", "现实"],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500,
+        "minFriends": 10
+      },
+      "text": "一个认识很久的朋友突然说要退坑一段时间。不是不喜欢这里，是现实出了事。他说：可能很久都上不来了。",
+      "options": [
+        {
+          "id": "help_real",
+          "text": "问清楚，看能不能帮上忙",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你帮不上大忙，但陪他把要做的事列了一遍。他说：至少现在不那么乱了。",
+              "effects": {
+                "mood": 3,
+                "assets": -200,
+                "favor": 12,
+                "skills": { "social": 5 },
+                "counters": { "friendsHelped": 1 },
+                "flags": { "add": ["helped_friend"], "remove": [] }
+              }
+            },
+            {
+              "weight": 35,
+              "tier": "rare",
+              "text": "你把自己能做的都做了。他在退坑前把收藏的模型全转给了你，说：帮我保管着，说不定哪天我还回来。",
+              "effects": {
+                "mood": 6,
+                "assets": -200,
+                "avatars": 2,
+                "favor": 18,
+                "skills": { "social": 8 },
+                "counters": { "friendsHelped": 1 },
+                "flags": { "add": ["helped_friend"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "keep_company",
+          "text": "帮不上，但陪他坐到下线",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你们在一个没有别人的世界里坐着。他讲了很多和游戏无关的事，你一句句听着。最后他说：我下了。",
+              "effects": {
+                "mood": -3,
+                "favor": 14,
+                "counters": { "friendsHelped": 1 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "let_go",
+          "text": "祝他顺利，不挽留",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说现实要紧，这里随时都在。他说谢谢，把模型留给了别人。你们后来很少联系。",
+              "effects": {
+                "mood": -1,
+                "favor": -3,
+                "friends": -1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "friend_001",
+      "title": "退坑前夜",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [500, 1000],
+      "weight": 14,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 400,
+      "tags": ["友情", "退坑", "回忆"],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000
+      },
+      "text": "一个老朋友把模型换了又换，最后换回了最朴素的默认款。他说：这可能是我最后一次上线了。",
+      "options": [
+        {
+          "id": "last_photo",
+          "text": "拉他去拍最后一张合照",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你们去了第一次见面的地方，摆成当年的姿势。照片里两个模型都还在笑。",
+              "effects": {
+                "mood": 4,
+                "favor": 10,
+                "skills": { "photo": 4 }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "他拍着拍着不说话了。你也没问。那张照片你后来一直留着，没发过。",
+              "effects": {
+                "mood": -2,
+                "favor": 14,
+                "tags": { "add": ["怀旧"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "call_him",
+          "text": "把常一起玩的人都叫来",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你私下叫了五个人，凑了一场没有主题的聚会。散场时谁都没说“再见”。",
+              "effects": {
+                "mood": 7,
+                "friends": 2,
+                "fame": 2,
+                "favor": 8
+              }
+            }
+          ]
+        },
+        {
+          "id": "silent",
+          "text": "什么都不做，陪到最后",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你们像平常一样待着，聊了些没营养的话。他下线的时候，你看着那个头像变灰，坐了很久。",
+              "effects": {
+                "mood": -5,
+                "favor": 6
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "friend_002",
+      "title": "失恋的人",
+      "category": "normal",
+      "stage": "深度社交",
+      "hoursRange": [200, 500],
+      "weight": 15,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 300,
+      "tags": ["友情", "情绪", "负面"],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500
+      },
+      "text": "一个朋友也失恋了——和你当年差不多的时间点，差不多的理由。他来找你，说：你那时候是怎么过来的？",
+      "options": [
+        {
+          "id": "share",
+          "text": "把自己那段讲给他听",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你讲了，包括那些你从没跟人说过的部分。他听得很认真。讲完你自己也松了一点。",
+              "effects": {
+                "mood": 5,
+                "favor": 10,
+                "skills": { "social": 4 },
+                "counters": { "friendsHelped": 1 }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你说：我当时什么都不想听，所以你现在想说什么都行。他笑了，那是他这些天第一次笑。",
+              "effects": {
+                "mood": 8,
+                "favor": 14,
+                "friends": 1,
+                "counters": { "friendsHelped": 1 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "distract",
+          "text": "带他去跳舞/看风景，不提这事",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把他拉去{世界}，跳了一晚上。散场时他说：今天没想那么多。这就够了。",
+              "effects": {
+                "mood": 6,
+                "favor": 8,
+                "skills": { "dance": 3 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "avoid",
+          "text": "别找我，我还没走出来",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说抱歉，我自己那关都还没过。他说理解。你关掉私聊，发现自己的手在抖。",
+              "effects": {
+                "mood": -3,
+                "favor": -4
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "friend_003",
+      "title": "现实的窟窿",
+      "category": "normal",
+      "stage": "深度社交",
+      "hoursRange": [200, 500],
+      "weight": 13,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 350,
+      "tags": ["友情", "现实", "负面"],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500,
+        "minAssets": 200
+      },
+      "text": "朋友在群里轻描淡写地提了一句：这个月有点紧，设备想卖了。你私聊过去，他才说，是现实里出了个窟窿。",
+      "options": [
+        {
+          "id": "lend",
+          "text": "借他一笔",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你转了过去。他说下个月一定还。你没催，他也没忘。三个月后钱回来了，还多了一条很长的消息。",
+              "effects": {
+                "mood": 4,
+                "assets": -300,
+                "favor": 16,
+                "counters": { "friendsHelped": 1 },
+                "flags": { "add": ["helped_friend"], "remove": [] }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "钱借出去之后你们联系变少了。一年后他连本带利还回来，说：那阵子我谁都不想见。你们还是朋友。",
+              "effects": {
+                "mood": -1,
+                "assets": -300,
+                "favor": 10,
+                "counters": { "friendsHelped": 1 }
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "这笔钱再也回不来了，他也消失了。你在好友列表里看着那个灰色的名字，没有拉黑。",
+              "effects": {
+                "mood": -18,
+                "assets": -800,
+                "friends": -1,
+                "favor": -10,
+                "tags": { "add": ["emo"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "listen_only",
+          "text": "帮不上钱，但可以听他讲",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说钱的事我帮不了，但你随时可以找我说话。他说：这也很重要。",
+              "effects": {
+                "mood": 2,
+                "favor": 8,
+                "skills": { "social": 4 },
+                "counters": { "friendsHelped": 1 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "decline",
+          "text": "委婉拒绝",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说自己最近也紧。他表示理解，然后你们聊了点别的。之后他没再提这件事。",
+              "effects": {
+                "mood": 1,
+                "favor": -4
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "friend_004",
+      "title": "被排挤的人",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [50, 200],
+      "weight": 14,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 300,
+      "tags": ["友情", "圈子", "情绪"],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200
+      },
+      "text": "你注意到一个人总在{世界}的角落，别人玩的时候他就在旁边看着。有人说他“怪”。你走近，发现他只是在等一个愿意搭话的人。",
+      "options": [
+        {
+          "id": "approach",
+          "text": "坐过去搭话",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你坐下说“这里风景不错”。他愣了一下，说是啊。你们有一搭没一搭地聊了一晚上。",
+              "effects": {
+                "mood": 5,
+                "friends": 1,
+                "favor": 8
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "他其实很懂一个冷门技能。你听了一晚上，学到了很多东西。你庆幸自己坐了过来。",
+              "effects": {
+                "mood": 7,
+                "friends": 1,
+                "favor": 10,
+                "skills": { "coding": 5 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "invite_in",
+          "text": "把他拉进人群",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你把他介绍给朋友。他一开始很拘谨，后来慢慢放开了。你看着他从角落走到中间。",
+              "effects": {
+                "mood": 6,
+                "friends": 2,
+                "fame": 2,
+                "favor": 6,
+                "skills": { "social": 5 }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他融进去了，成了群体里很受欢迎的一个。没人记得他曾经一个人坐在角落。只有你记得。",
+              "effects": {
+                "mood": 9,
+                "friends": 3,
+                "fame": 4,
+                "favor": 8,
+                "flags": { "add": ["mentor_once"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ignore",
+          "text": "当没看见",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你继续玩自己的。回头的时候，那个角落空了。",
+              "effects": {
+                "mood": -1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "friend_005",
+      "title": "想借模型",
+      "category": "normal",
+      "stage": "深度社交",
+      "hoursRange": [200, 500],
+      "weight": 13,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 400,
+      "tags": ["友情", "消费", "社交"],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500,
+        "minAvatars": 3
+      },
+      "text": "一个朋友看上了你收藏里的一个模型，问你借去用几天。这个模型是你自己改的，改了很久。",
+      "options": [
+        {
+          "id": "lend",
+          "text": "借给他",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "他用了几天还回来，还帮你修了个小 bug。你说下次直接说不用还这么正式。",
+              "effects": {
+                "mood": 3,
+                "favor": 10
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "他穿去参加活动，有人问起作者是谁，他说了你的名字。你因此多了几个来求改模的人。",
+              "effects": {
+                "mood": 5,
+                "friends": 2,
+                "fame": 4,
+                "favor": 8
+              }
+            }
+          ]
+        },
+        {
+          "id": "lend_eye",
+          "text": "借可以，但你得盯着点",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你强调了三次别乱改参数。他说知道了知道了。你有点后悔，但话已经说出口了。",
+              "effects": {
+                "mood": 1,
+                "favor": 4
+              }
+            }
+          ]
+        },
+        {
+          "id": "refuse",
+          "text": "直说自己很在意这个",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说这个对你意义不一样。他说那算了，语气有点淡。你守住了东西，也失去了一点温度。",
+              "effects": {
+                "mood": 2,
+                "favor": -5
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "friend_006",
+      "title": "认不出的朋友",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [50, 200],
+      "weight": 14,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 300,
+      "tags": ["友情", "社交", "情绪"],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200
+      },
+      "text": "一个好友列表里的人都换了新模型，你在{中文吧}遇到，愣是没认出来。对方说：是我啊，认不出来啦？",
+      "options": [
+        {
+          "id": "apologize",
+          "text": "不好意思地承认",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你说了抱歉，他说这很正常，我们换模型换得自己都认不出。你们一起笑了。",
+              "effects": {
+                "mood": 4,
+                "favor": 6
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你干脆记住了他的新形象，还把他的新模型里的一个小细节夸了一遍。他说你眼真尖。",
+              "effects": {
+                "mood": 5,
+                "favor": 9,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "pretend",
+          "text": "假装认出来了",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你含糊地应着，心里一直在想这是谁。聊了十分钟你才从口音认出来，有点心虚。",
+              "effects": {
+                "mood": -1,
+                "favor": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "ask",
+          "text": "直接问：你是哪位",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你问了，对方报了名字，还顺便发来你们以前的合照。你尴尬地笑了笑——那张照片你也有。",
+              "effects": {
+                "mood": 2,
+                "favor": 4
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "friend_007",
+      "title": "凌晨三点的私聊",
+      "category": "normal",
+      "stage": "深度社交",
+      "hoursRange": [10, 99999],
+      "weight": 15,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 250,
+      "tags": ["友情", "情绪", "孤独"],
+      "condition": {
+        "minHours": 10,
+        "maxHours": 99999
+      },
+      "text": "凌晨三点，私聊亮了。一个朋友发来一句：你也没睡啊。你们都知道，这句话的意思不是问你睡没睡。",
+      "options": [
+        {
+          "id": "stay",
+          "text": "陪他聊到天亮",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你们聊了很多，什么都说一点，什么也没说透。天快亮的时候他说：谢谢你没睡。",
+              "effects": {
+                "mood": 3,
+                "favor": 10,
+                "tags": { "add": ["夜猫子"], "remove": [] },
+                "counters": { "friendsHelped": 1 }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "那一晚之后，你们之间多了一种默契：凌晨的私聊不用解释。这成了你们的暗号。",
+              "effects": {
+                "mood": 6,
+                "favor": 14,
+                "friends": 1,
+                "tags": { "add": ["夜猫子"], "remove": [] },
+                "flags": { "add": ["night_owl"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "short",
+          "text": "回一句就接着挂机",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你回了个“嗯”，然后继续看世界发呆。他在那头也没再打字。",
+              "effects": {
+                "mood": 1,
+                "favor": -2
+              }
+            }
+          ]
+        },
+        {
+          "id": "call",
+          "text": "直接打语音过去",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "他接了，没说话，只听见呼吸声。你说：我在。你们就这么连着，各自做各自的事，直到天蒙蒙亮。",
+              "effects": {
+                "mood": 5,
+                "favor": 12,
+                "skills": { "social": 3 },
+                "flags": { "add": ["night_owl"], "remove": [] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "friend_008",
+      "title": "找你评理",
+      "category": "normal",
+      "stage": "深度社交",
+      "hoursRange": [200, 500],
+      "weight": 13,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 350,
+      "tags": ["友情", "冲突", "调解"],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500,
+        "minFriends": 8
+      },
+      "text": "朋友和另一个人吵架了，跑来让你评理。他把聊天记录整段发给你，说：你说，是不是他不对。",
+      "options": [
+        {
+          "id": "side",
+          "text": "说你这边没错",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你说他不对。朋友满意了，但你也知道，另一边的版本你可能永远不会听到。",
+              "effects": {
+                "mood": 2,
+                "favor": 8,
+                "friends": -1
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你说完之后，朋友反而说：其实我也有问题。他找了个台阶，后来自己去和好了。",
+              "effects": {
+                "mood": 4,
+                "favor": 10,
+                "skills": { "social": 4 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "honest",
+          "text": "说两边都有责任",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 60,
+              "tier": "normal",
+              "text": "朋友有点不高兴，说你胳膊肘往外拐。但他冷静下来之后，还是听了你的。",
+              "effects": {
+                "mood": -2,
+                "favor": 3,
+                "skills": { "social": 5 }
+              }
+            },
+            {
+              "weight": 40,
+              "tier": "rare",
+              "text": "你把他俩拉到一起，让他们自己把话说完。最后谁也没赢，但都没再生气。",
+              "effects": {
+                "mood": 5,
+                "favor": 8,
+                "friends": 1,
+                "skills": { "social": 8 },
+                "counters": { "feudsResolved": 1 },
+                "flags": { "add": ["resolved_feud"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "dodge",
+          "text": "说这种事我不掺和",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说你们自己解决。朋友发了个“行吧”。你不知道他后来找了谁评理。",
+              "effects": {
+                "mood": 2,
+                "favor": -5
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "friend_009",
+      "title": "陪我练一会",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [10, 99999],
+      "weight": 16,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 200,
+      "tags": ["友情", "技能", "社交"],
+      "condition": {
+        "minHours": 10,
+        "maxHours": 99999,
+        "minFriends": 3
+      },
+      "text": "朋友说他想练一段舞，一个人练没意思，问你陪不陪。你其实不太想动，但他语气里有点期待。",
+      "options": [
+        {
+          "id": "company",
+          "text": "陪着练一晚上",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你陪他反复跳同一段，跳到自己都会了。他最后说：有你在，我练得下去。",
+              "effects": {
+                "mood": 4,
+                "favor": 9,
+                "skills": { "dance": 5 }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "练到最后你们把动作改了个版本，都更喜欢改完的。这段舞后来成了你们的。",
+              "effects": {
+                "mood": 7,
+                "favor": 12,
+                "skills": { "dance": 8, "meme": 3 },
+                "flags": { "add": ["shared_routine"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "watch",
+          "text": "不跳，但可以在旁边看",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你坐在旁边给他数拍子，递水式的虚拟鼓励。他说这样也行，起码有人在。",
+              "effects": {
+                "mood": 3,
+                "favor": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "decline",
+          "text": "说今天想自己待着",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说今天想一个人。他说好，改天。你确实需要独处，只是关掉对话后有点空。",
+              "effects": {
+                "mood": 2,
+                "favor": -4
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "friend_010",
+      "title": "他送了你东西",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [50, 200],
+      "weight": 15,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 300,
+      "tags": ["友情", "消费", "正面"],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200
+      },
+      "text": "朋友突然丢给你一个模型，说“看你最近老用那个旧的，这个送你”。你点开一看，是他自己改的。",
+      "options": [
+        {
+          "id": "accept_gift",
+          "text": "收下，并认真地谢谢他",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你穿上试了试，很合身。他说“就知道你会喜欢”。那晚你一直穿着它。",
+              "effects": {
+                "mood": 7,
+                "avatars": 1,
+                "favor": 10
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你发现模型里藏了一个小细节——是你们第一次见面那天你说过的一句话。你什么都没说，只是把它设成了常用。",
+              "effects": {
+                "mood": 10,
+                "avatars": 1,
+                "favor": 16,
+                "flags": { "add": ["kept_gift"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "give_back",
+          "text": "也回赠他一个",
+          "condition": { "minAvatars": 2 },
+          "lockedHint": "需要模型 ≥ 2",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你翻出自己最得意的那个改模送了过去。他穿上，在你面前转了两圈。你们对着镜子站了很久。",
+              "effects": {
+                "mood": 9,
+                "avatars": -1,
+                "favor": 14
+              }
+            }
+          ]
+        },
+        {
+          "id": "decline_gift",
+          "text": "不好意思收",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说太贵重了。他说改着玩的，不值钱。最后你没收，他也收回了那句话的温度。",
+              "effects": {
+                "mood": 1,
+                "favor": -3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "friend_011",
+      "title": "他说想见你",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [500, 1000],
+      "weight": 11,
+      "rarity": "rare",
+      "once": true,
+      "cooldown": 9999,
+      "tags": ["友情", "现实", "正面"],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000,
+        "minFavor": 60
+      },
+      "text": "认识很久的朋友忽然说：我们同城，要不要找个地方见一面。你盯着这句话看了很久——这里的友谊，一直是不落地的。",
+      "options": [
+        {
+          "id": "meet",
+          "text": "好，见一面",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你们在便利店门口见了面，聊了三个小时，比线上还自然。回家路上你反复想：原来你是这个样子。",
+              "effects": {
+                "mood": 12,
+                "favor": 15,
+                "flags": { "add": ["met_offline"], "remove": [] }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "见面那天下了雨，你们躲在同一把伞下，一句正经话都没说。回来之后，你们的关系不一样了。",
+              "effects": {
+                "mood": 16,
+                "favor": 20,
+                "friends": 1,
+                "flags": { "add": ["met_offline"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "hesitate",
+          "text": "说再等等",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说等有机会吧。他说好。你们都知道，这个机会可能不会有。",
+              "effects": {
+                "mood": -2,
+                "favor": -4
+              }
+            }
+          ]
+        },
+        {
+          "id": "keep_virtual",
+          "text": "说还是在这里见面好",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说，我们在这里就挺好的。他沉默了一下，说也是。你们都松了一口气，也都有一点遗憾。",
+              "effects": {
+                "mood": 3,
+                "favor": 5
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "friend_012",
+      "title": "忘了你生日",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [50, 200],
+      "weight": 14,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 300,
+      "tags": ["友情", "情绪", "负面"],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200
+      },
+      "text": "你在{世界}里随口提了一句今天是生日。朋友们说了句生日快乐，然后继续聊他们的。有一个人什么都没说——是你最在意的那个。",
+      "options": [
+        {
+          "id": "hint",
+          "text": "私聊提醒他一下",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "他秒回：对不起对不起！然后给你塞了一堆东西。你笑了，但心里那点没被记住的感觉还在。",
+              "effects": {
+                "mood": 2,
+                "favor": 2
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他说：我记着呢，故意的，礼物在路上了。你才知道他准备了很久。",
+              "effects": {
+                "mood": 9,
+                "favor": 10,
+                "avatars": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "silent",
+          "text": "不说，看看谁会想起",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "一直到下线，他没提。你也没提。有些期待，说出来就没意思了。",
+              "effects": {
+                "mood": -6,
+                "favor": -5,
+                "tags": { "add": ["emo"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "celebrate_self",
+          "text": "自己给自己过",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你换了一个最亮的模型，在空世界里给自己放了一场烟花。掉帧掉得厉害，但很热闹。",
+              "effects": {
+                "mood": 4,
+                "skills": { "meme": 4 },
+                "tags": { "add": ["独行侠"], "remove": [] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "friend_013",
+      "title": "好久不见的消息",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [600, 1200],
+      "weight": 10,
+      "rarity": "rare",
+      "once": true,
+      "cooldown": 9999,
+      "tags": ["友情", "回归", "回忆"],
+      "condition": {
+        "minHours": 600,
+        "maxHours": 1200,
+        "excludeFlags": ["got_reunion_message"]
+      },
+      "text": "一个很久没亮过的头像弹了出来。是你以为再也不会见的人：最近好吗。就四个字。",
+      "options": [
+        {
+          "id": "reply_warm",
+          "text": "好好回他",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你们约了个时间上线。他还是那个说话方式，只是模型换了。你们聊到很晚，谁也没提当年为什么走。",
+              "effects": {
+                "mood": 12,
+                "friends": 1,
+                "favor": 12,
+                "tags": { "add": ["怀旧"], "remove": [] },
+                "flags": { "add": ["got_reunion_message"], "remove": [] }
+              },
+              "endingHint": { "path": "reunion", "score": 6 }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他说那阵子是自己不好，走的时候没告别。你说都过去了。你们重新加回了好友，像补上一个句号。",
+              "effects": {
+                "mood": 18,
+                "friends": 2,
+                "favor": 18,
+                "skills": { "social": 4 },
+                "tags": { "add": ["怀旧"], "remove": [] },
+                "flags": { "add": ["got_reunion_message"], "remove": [] }
+              },
+              "endingHint": { "path": "reunion", "score": 8 }
+            }
+          ]
+        },
+        {
+          "id": "reply_short",
+          "text": "回一句“还行，你呢”",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你们客气地寒暄了几句，然后就没了下文。对话停在那里，谁都没有再开口。",
+              "effects": {
+                "mood": 2,
+                "flags": { "add": ["got_reunion_message"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "no_reply",
+          "text": "看了很久，没有回",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你点开又关掉了好几次。最后你什么都没发。有些话，隔了太久就说不出口了。",
+              "effects": {
+                "mood": -8,
+                "tags": { "add": ["emo"], "remove": [] }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

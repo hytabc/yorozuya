@@ -1,0 +1,1052 @@
+{
+  "bucket": "favor",
+  "version": "1.0",
+  "events": [
+    {
+      "id": "favor_k01",
+      "title": "有人叫你挚友",
+      "category": "key",
+      "stage": "深度社交",
+      "hoursRange": [300, 700],
+      "weight": 100,
+      "rarity": "rare",
+      "once": true,
+      "cooldown": 0,
+      "tags": ["友情", "关键", "正面"],
+      "condition": {
+        "minHours": 300,
+        "maxHours": 700,
+        "minFavor": 70
+      },
+      "text": "你在{世界}随口说了句最近有点撑不住。一个朋友立刻传了过来，坐下，什么都没问。过了一会他说：你是我在这里最好的朋友，你知道吗。",
+      "options": [
+        {
+          "id": "accept",
+          "text": "认真告诉他，你也是",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你说你也是，然后你们都有点不好意思。那晚你们聊到很晚，聊了很多以前不会聊的东西。",
+              "effects": {
+                "mood": 12,
+                "favor": 14,
+                "skills": { "social": 5 },
+                "tags": { "add": ["挚友"], "remove": [] },
+                "flags": { "add": ["has_best_friend"], "remove": [] }
+              },
+              "endingHint": { "path": "best_friend", "score": 6 }
+            },
+            {
+              "weight": 25,
+              "tier": "extreme",
+              "text": "你们聊了一整夜。原来他也是从入坑那天就关注着你，只是一直没敢说。你们把这段关系正式地叫出了名字。",
+              "effects": {
+                "mood": 18,
+                "favor": 20,
+                "friends": 1,
+                "tags": { "add": ["挚友", "元气"], "remove": [] },
+                "flags": { "add": ["has_best_friend"], "remove": [] }
+              },
+              "endingHint": { "path": "best_friend", "score": 10 }
+            }
+          ]
+        },
+        {
+          "id": "joke",
+          "text": "笑他肉麻，岔开话题",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你打了个哈哈说别肉麻了。他笑了笑，跟着转开话题。但那句话你一直记着。",
+              "effects": {
+                "mood": 3,
+                "favor": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "deny",
+          "text": "说“我们只是网友而已”",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说别想太多，大家都是网友。他愣了一秒，说对。之后你们的关系退回了平常的样子。",
+              "effects": {
+                "mood": -4,
+                "favor": -12,
+                "friends": -1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "favor_001",
+      "title": "他记住了你的名字",
+      "category": "normal",
+      "stage": "萌新探索",
+      "hoursRange": [10, 50],
+      "weight": 18,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 250,
+      "tags": ["友情", "社交", "正面"],
+      "condition": {
+        "minHours": 10,
+        "maxHours": 50
+      },
+      "text": "你又一次在{世界}遇到那个人。他先开口叫了你的名字，还问你上次说的那件事怎么样了。你愣住——你只说过一次。",
+      "options": [
+        {
+          "id": "surprised",
+          "text": "受宠若惊地接话",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你们聊了很久。原来他真的每一句都记得。你觉得自己在这片世界里，第一次有了一个坐标。",
+              "effects": {
+                "mood": 7,
+                "friends": 1,
+                "favor": 8
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "那天之后，你们开始固定地在同一个时间上线。没人约定，但谁都到了。",
+              "effects": {
+                "mood": 9,
+                "friends": 1,
+                "favor": 12,
+                "flags": { "add": ["steady_friend"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "awkward",
+          "text": "一时想不起他是谁",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你含糊地应着，拼命回忆。他好像看出来了，说没关系，人太多了。你有点过意不去。",
+              "effects": {
+                "mood": -2,
+                "favor": -3
+              }
+            }
+          ]
+        },
+        {
+          "id": "reciprocate",
+          "text": "也认真记住了他",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你翻出之前的聊天记录，把他说的每个细节都看了一遍。下次见面时你先叫出了他的名字。",
+              "effects": {
+                "mood": 5,
+                "favor": 6,
+                "skills": { "social": 3 }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "favor_002",
+      "title": "顺手帮了个忙",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [50, 200],
+      "weight": 16,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 200,
+      "tags": ["友情", "技能", "正面"],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200
+      },
+      "text": "朋友在群里求助：串流又断了，明天还要一起拍东西。你正好懂，顺手远程帮他调了十分钟。他连发了好几个感谢。",
+      "options": [
+        {
+          "id": "glad",
+          "text": "说小事情",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你说这不算什么。第二天拍摄很顺利，他把成片第一个发给了你。",
+              "effects": {
+                "mood": 4,
+                "favor": 7,
+                "skills": { "coding": 3 }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "他记着这件事很久。三个月后你遇到麻烦，他第一个出现。",
+              "effects": {
+                "mood": 6,
+                "favor": 12,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "teach",
+          "text": "顺便教他自己怎么弄",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把步骤写成了一份小文档发过去。他说以后遇到就知道怎么办了。你多了一个不会再来麻烦你的人，也多了一个朋友。",
+              "effects": {
+                "mood": 6,
+                "favor": 10,
+                "skills": { "coding": 6, "social": 3 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "busy",
+          "text": "说我现在没空",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说稍后吧，然后就忘了。他没有再催你，只是自己摸索到半夜。",
+              "effects": {
+                "mood": 1,
+                "favor": -4
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "favor_003",
+      "title": "让麦",
+      "category": "ambient",
+      "stage": "社交起步",
+      "hoursRange": [50, 200],
+      "weight": 15,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 200,
+      "tags": ["友情", "社交", "日常"],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200
+      },
+      "text": "房间里只有几个能开麦的位置。一个朋友刚想说话，你已经把麦让了出去。他看了你一眼。",
+      "options": [
+        {
+          "id": "let_him",
+          "text": "让他说",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "他讲了一晚上，你打了很多字。散场后他说：今天要不是有你让麦，我一句话都不敢说。",
+              "effects": {
+                "mood": 4,
+                "favor": 8
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "他把你的让麦形容成“这里最好的一种礼貌”。从此你们的默契里多了一条：谁更需要，谁先说。",
+              "effects": {
+                "mood": 7,
+                "favor": 12,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "take_back",
+          "text": "话到嘴边，还是自己说了",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你抢着说了那个段子，全场都笑了。他也笑了，只是没再开口。",
+              "effects": {
+                "mood": 2,
+                "fame": 2,
+                "favor": -3
+              }
+            }
+          ]
+        },
+        {
+          "id": "text",
+          "text": "打字告诉他你想说的话",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把想说的打在公屏上，留了麦给他。文字没有语气，他读成了另一个意思，你俩都愣了一下。",
+              "effects": {
+                "mood": -1,
+                "favor": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "favor_004",
+      "title": "叫错你的名字",
+      "category": "normal",
+      "stage": "萌新探索",
+      "hoursRange": [10, 50],
+      "weight": 16,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 250,
+      "tags": ["友情", "社交", "负面"],
+      "condition": {
+        "minHours": 10,
+        "maxHours": 50
+      },
+      "text": "一个经常一起玩的人，今天在{中文吧}当众叫错了你的名字。叫成了另一个人的。他说完自己也察觉了，有点尴尬。",
+      "options": [
+        {
+          "id": "forgive",
+          "text": "笑着说没事",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你说没关系，名字而已。他松了口气。这点小别扭很快就过去了。",
+              "effects": {
+                "mood": 1,
+                "favor": 2
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "他后来专门私聊你道歉，还问了你名字的来由。你们因此聊了很多。",
+              "effects": {
+                "mood": 4,
+                "favor": 6
+              }
+            }
+          ]
+        },
+        {
+          "id": "mind",
+          "text": "嘴上说没事，心里记住了",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说没事，但那一刻你意识到：你在他的世界里，可能没有那么重要。",
+              "effects": {
+                "mood": -5,
+                "favor": -6,
+                "tags": { "add": ["emo"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "correct",
+          "text": "半开玩笑地纠正他",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说“我叫 {我} 啦”。他连忙道歉，之后每次见面都故意把你的名字念得很响。",
+              "effects": {
+                "mood": 4,
+                "favor": 4
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "favor_005",
+      "title": "帮了倒忙",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [50, 200],
+      "weight": 14,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 300,
+      "tags": ["友情", "技能", "负面"],
+      "condition": {
+        "minHours": 50,
+        "maxHours": 200
+      },
+      "text": "你好心帮朋友改了一个参数，结果把他的世界弄崩了。他推开门看见一片灰色，看了你一眼，什么都没说。",
+      "options": [
+        {
+          "id": "fix",
+          "text": "今晚不睡了，给他修回来",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你熬夜翻日志，最后从一个备份里救了回来。他说没事的其实可以重做，但你知道他舍不得。",
+              "effects": {
+                "mood": -3,
+                "favor": 10,
+                "skills": { "coding": 8 }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "修的过程中你发现了他世界里一个从没被人看过的角落。他说那是给自己留的。你们聊了很久。",
+              "effects": {
+                "mood": 3,
+                "favor": 15,
+                "skills": { "coding": 10 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "apologize",
+          "text": "道歉，然后走了",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说了对不起就下线了。他回了个没关系。之后他再没让你碰过他的东西。",
+              "effects": {
+                "mood": -4,
+                "favor": -8
+              }
+            }
+          ]
+        },
+        {
+          "id": "blame",
+          "text": "说他本来就没做好备份",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说这是你自己的疏漏吧。他没反驳，只是从此把你归到了“好人但不亲近”的那一类。",
+              "effects": {
+                "mood": -2,
+                "favor": -10,
+                "friends": -1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "favor_006",
+      "title": "深夜的情绪劳动",
+      "category": "normal",
+      "stage": "深度社交",
+      "hoursRange": [200, 500],
+      "weight": 14,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 300,
+      "tags": ["友情", "情绪", "负面"],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500,
+        "minFavor": 45
+      },
+      "text": "又是凌晨，又是那个朋友。你已经是他的树洞很久了。今晚他讲的是更重的事，你听着，发现自己有点喘不过气。",
+      "options": [
+        {
+          "id": "keep_listening",
+          "text": "继续听，撑住",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你听完了。他说好多了。挂掉之后你躺在床上，睡不着，也说不清为什么。",
+              "effects": {
+                "mood": -8,
+                "favor": 10,
+                "counters": { "friendsHelped": 1 }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你听他讲到一半，终于也说了句“其实我最近也不好”。你们于是互相倒起苦水，反而都轻松了。",
+              "effects": {
+                "mood": 4,
+                "favor": 16,
+                "friends": 1,
+                "skills": { "social": 5 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "boundary",
+          "text": "告诉他：我也需要喘口气",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说今天真的不行了。他说对不起，是你太习惯找我了。你们第一次谈了“边界”这个词。",
+              "effects": {
+                "mood": 3,
+                "favor": 4,
+                "skills": { "social": 4 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "numb",
+          "text": "开着语音，其实在发呆",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你“嗯”了一路，其实一个字都没听进去。他最后说：谢谢你。你有点愧疚。",
+              "effects": {
+                "mood": -2,
+                "favor": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "favor_007",
+      "title": "被说得很难听",
+      "category": "normal",
+      "stage": "深度社交",
+      "hoursRange": [200, 500],
+      "weight": 13,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 400,
+      "tags": ["友情", "冲突", "负面"],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500
+      },
+      "text": "有人转告你：那个你一直很在意的朋友，私下说过你“其实挺装的”。转告的人说得有鼻子有眼，还截了图。",
+      "options": [
+        {
+          "id": "ask",
+          "text": "直接去问他",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "他承认说过，但上下文被截掉了。你听完觉得更难受——因为那半句是真的。",
+              "effects": {
+                "mood": -8,
+                "favor": -8,
+                "skills": { "social": 3 }
+              }
+            },
+            {
+              "weight": 35,
+              "tier": "rare",
+              "text": "他否认，并把完整聊天发给了你。截图确实是断章取义。你们都没再提这件事，但关系需要时间修复。",
+              "effects": {
+                "mood": -2,
+                "favor": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "cut",
+          "text": "不问了，慢慢疏远",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你没有对质，只是回复变慢了，邀请也变少了。他从没问过为什么。你们就这样淡了。",
+              "effects": {
+                "mood": -4,
+                "favor": -15,
+                "friends": -1
+              }
+            }
+          ]
+        },
+        {
+          "id": "trust",
+          "text": "选择相信他，把截图删了",
+          "condition": { "minFavor": 60 },
+          "lockedHint": "需要好感度 ≥ 60",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你删掉了截图，也没去问。后来你偶然知道，那是别人挑拨的。你庆幸自己没那么做。",
+              "effects": {
+                "mood": 6,
+                "favor": 8
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "favor_008",
+      "title": "一起通宵",
+      "category": "normal",
+      "stage": "社交起步",
+      "hoursRange": [10, 99999],
+      "weight": 15,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 250,
+      "tags": ["友情", "日常", "正面"],
+      "condition": {
+        "minHours": 10,
+        "maxHours": 99999,
+        "minFriends": 2
+      },
+      "text": "凌晨四点，房间里只剩你和另一个人。谁都没说要走，谁也没提困。你们就这样待着，看着这个世界里不会落下的月亮。",
+      "options": [
+        {
+          "id": "till_dawn",
+          "text": "陪到最后",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你们一起看到了虚拟的日出，虽然那只是贴图在移动。他下线前说：今天不想结束。",
+              "effects": {
+                "mood": 6,
+                "favor": 10,
+                "tags": { "add": ["夜猫子"], "remove": [] },
+                "flags": { "add": ["night_owl"], "remove": [] }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "从那天起，你们有了一个谁都没明说的习惯：每周总有那么一晚，会一起熬到天亮。",
+              "effects": {
+                "mood": 9,
+                "favor": 16,
+                "friends": 1,
+                "tags": { "add": ["夜猫子"], "remove": [] },
+                "flags": { "add": ["night_owl", "steady_friend"], "remove": [] }
+              },
+              "endingHint": { "path": "night_dancer", "score": 4 }
+            }
+          ]
+        },
+        {
+          "id": "leave_first",
+          "text": "先下线去睡",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说扛不住了先撤。他说晚安。你躺下时想，他是不是其实想让谁再陪一会。",
+              "effects": {
+                "mood": 3,
+                "favor": -2
+              }
+            }
+          ]
+        },
+        {
+          "id": "photo",
+          "text": "拍一张这个时刻",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你架起相机，把两个模型和月亮一起拍了下来。后来这张成了你最常翻出来的一张。",
+              "effects": {
+                "mood": 5,
+                "favor": 6,
+                "skills": { "photo": 4 },
+                "counters": { "photosTaken": 1 }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "favor_009",
+      "title": "他偏心你",
+      "category": "normal",
+      "stage": "深度社交",
+      "hoursRange": [200, 500],
+      "weight": 12,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 400,
+      "tags": ["友情", "社交", "冲突"],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500,
+        "minFavor": 60
+      },
+      "text": "一个朋友明显偏心你：好位置留给你，好东西先想到你，别人问起他总替你说话。有人嘀咕：这也太明显了吧。",
+      "options": [
+        {
+          "id": "enjoy",
+          "text": "心安理得地接受",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你享受这份偏爱。代价是有些人开始离你远了一点——他们不想站在你的旁边。",
+              "effects": {
+                "mood": 6,
+                "favor": 8,
+                "friends": -2
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你接住了这份偏爱，也替他把关系摆平了。有人说：也就你配得上他这么对你。",
+              "effects": {
+                "mood": 8,
+                "favor": 12,
+                "fame": 3
+              },
+              "endingHint": { "path": "best_friend", "score": 4 }
+            }
+          ]
+        },
+        {
+          "id": "deflect",
+          "text": "让他别这样，大家都看着",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你私下让他收敛一点。他说知道了，但下次还是会先把东西发给你。",
+              "effects": {
+                "mood": 2,
+                "favor": 4,
+                "friends": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "distance",
+          "text": "刻意保持距离",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你开始推掉他的好意。他有天问你：我是不是做错了什么。你说没有，只是有点重。",
+              "effects": {
+                "mood": -2,
+                "favor": -6
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "favor_010",
+      "title": "老朋友的分量",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [500, 1000],
+      "weight": 13,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 400,
+      "tags": ["友情", "回忆", "正面"],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000,
+        "minFavor": 55
+      },
+      "text": "你和一个人认识很久了。久到你们都忘了是怎么认识的。今天他随口说了句：要不是当年你拉我一把，我早就退坑了。你完全想不起来是哪件事。",
+      "options": [
+        {
+          "id": "ask",
+          "text": "让他讲讲那件事",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "他说了一件你早忘了的小事。你听着，忽然明白：有些你随手做的事，在别人那里是一根柱子。",
+              "effects": {
+                "mood": 9,
+                "favor": 12,
+                "tags": { "add": ["怀旧"], "remove": [] }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "他说那件事改变了他整个入坑的走向。你想起来了，那天你只是懒得多说一句废话地帮了他。",
+              "effects": {
+                "mood": 13,
+                "favor": 18,
+                "fame": 3,
+                "tags": { "add": ["怀旧"], "remove": [] }
+              },
+              "endingHint": { "path": "best_friend", "score": 5 }
+            }
+          ]
+        },
+        {
+          "id": "joke",
+          "text": "说“有这事？我肯定喝多了”",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你打着哈哈把话题带过去了。他笑了笑，没再说。有些谢意，被接不住就散了。",
+              "effects": {
+                "mood": 2,
+                "favor": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "reciprocate",
+          "text": "也告诉他，他帮过你什么",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说了他当年做过的一件小事。他瞪大眼睛：你还记得？你们坐在那里，把彼此的分量都称了一遍。",
+              "effects": {
+                "mood": 11,
+                "favor": 15
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "favor_011",
+      "title": "好感度清零",
+      "category": "normal",
+      "stage": "深度社交",
+      "hoursRange": [200, 500],
+      "weight": 11,
+      "rarity": "rare",
+      "once": false,
+      "cooldown": 600,
+      "tags": ["友情", "冲突", "负面"],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 500,
+        "maxMood": 50
+      },
+      "text": "你和一个曾经很近的人彻底闹翻了。这次没有第三方，没有误会，就是你们两个都不肯先低头。聊天框停在几天前，谁也没有再打一个字。",
+      "options": [
+        {
+          "id": "block",
+          "text": "拉黑，结束",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你按下了拉黑。那一刻很安静。你告诉自己这是解脱，但接下来几天你总是下意识去看那个位置。",
+              "effects": {
+                "mood": -12,
+                "favor": -25,
+                "friends": -2,
+                "tags": { "add": ["emo"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "reach_out",
+          "text": "隔了几天，先发一句“在吗”",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 55,
+              "tier": "normal",
+              "text": "他回得比你想的快。你们都没提吵架的事，只是重新开始聊别的。裂缝还在，但至少没断。",
+              "effects": {
+                "mood": 4,
+                "favor": 8
+              }
+            },
+            {
+              "weight": 45,
+              "tier": "extreme",
+              "text": "你发了“在吗”，显示已读，没有回复。你盯着那两个字看了很久，然后把手机关了。",
+              "effects": {
+                "mood": -16,
+                "favor": -18,
+                "friends": -1,
+                "tags": { "add": ["emo"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "let_cool",
+          "text": "先冷着，谁也别理谁",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你们进入了漫长的沉默。没有拉黑，也没有联系。关系就这么悬着，像没关的直播。",
+              "effects": {
+                "mood": -5,
+                "favor": -12
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "favor_012",
+      "title": "互删",
+      "category": "normal",
+      "stage": "老油条",
+      "hoursRange": [500, 1000],
+      "weight": 11,
+      "rarity": "rare",
+      "once": false,
+      "cooldown": 600,
+      "tags": ["友情", "负面", "回忆"],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 1000
+      },
+      "text": "你收到一条消息：“我们是不是该把好友删了。”发消息的人是半年前还很熟的一个。你们没有吵架，只是很久没说话了。",
+      "options": [
+        {
+          "id": "agree",
+          "text": "同意，好聚好散",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你们互相道了谢，然后删了。你翻了翻记录，从最后一句往前，一直看到第一句“你好”。",
+              "effects": {
+                "mood": -6,
+                "favor": -20,
+                "friends": -1,
+                "tags": { "add": ["断舍离"], "remove": [] }
+              }
+            }
+          ]
+        },
+        {
+          "id": "keep",
+          "text": "说留着吧，也不碍事",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说别删了，留着。他说好。之后你们再没说过话，但列表里一直有彼此。",
+              "effects": {
+                "mood": 2,
+                "favor": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "ask_why",
+          "text": "问一句为什么",
+          "condition": {},
+          "outcomes": [
+            {
+              "weight": 60,
+              "tier": "normal",
+              "text": "他说没什么原因，就是觉得列表太长了。你理解了，也接受了。成年人的告别多半没有理由。",
+              "effects": {
+                "mood": -3,
+                "favor": -8
+              }
+            },
+            {
+              "weight": 40,
+              "tier": "extreme",
+              "text": "他说：因为你后来再没找过我。你想辩解，却发现这是真的。最后你们谁都没删，但再也没有下一次了。",
+              "effects": {
+                "mood": -10,
+                "favor": -10,
+                "tags": { "add": ["怀旧"], "remove": [] }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

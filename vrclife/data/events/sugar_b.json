@@ -1,0 +1,4737 @@
+{
+  "bucket": "sugar_b",
+  "version": "1.0",
+  "events": [
+    {
+      "id": "sugar_b_k01",
+      "title": "不再心跳",
+      "category": "key",
+      "stage": "深度社交",
+      "hoursRange": [
+        200,
+        420
+      ],
+      "weight": 100,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "sugar",
+        "日常",
+        "关键"
+      ],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 420,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定"
+        ],
+        "requireTags": [
+          "砂糖中"
+        ],
+        "minIntimacy": 42
+      },
+      "text": "你和{ta}在{世界}挂了一整晚，各做各的事，一句话都没说。你忽然发现，自己心跳没有变快。",
+      "options": [
+        {
+          "id": "stay",
+          "text": "继续挂着，什么都不做",
+          "condition": {
+            "minIntimacy": 55
+          },
+          "lockedHint": "需要亲密度 ≥ 55",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你睡着了，醒来时游戏还开着，他的名字还亮着。你盯着那个名字看了很久。",
+              "effects": {
+                "mood": 4,
+                "counters": {
+                  "lateNights": 1
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k02",
+                  "delayHours": [
+                    10,
+                    36
+                  ],
+                  "chance": 0.8,
+                  "excludeIfFlags": [
+                    "sugar_first_fight"
+                  ]
+                }
+              ]
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他见你没动静，把模型挪过来，摆成靠着你坐的姿势。你假装没醒。",
+              "effects": {
+                "mood": 6,
+                "tags": {
+                  "add": [
+                    "挂机党"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "talk",
+          "text": "找点话说",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你问他今天怎么样，他说还行。然后又是很长一段安静，麦里只有风扇声。",
+              "effects": {
+                "mood": 1
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "他忽然说，这样挺好的。你说嗯。你是真的这么觉得，虽然说出来很平淡。",
+              "effects": {
+                "mood": 5,
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave",
+          "text": "先下线，去做别的事",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你说困了，先下了。他回了个好。你躺在床上，天花板很白，心里有点空。",
+              "effects": {
+                "mood": -3,
+                "counters": {
+                  "earlyExits": 1
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "下线之后你去看了一集剧，一晚上没想起他。你为这件事高兴了一下，又有点慌。",
+              "effects": {
+                "mood": 2,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_k02",
+      "title": "第一次吵到沉默",
+      "category": "key",
+      "stage": "深度社交",
+      "hoursRange": [
+        230,
+        480
+      ],
+      "weight": 100,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "sugar",
+        "冲突",
+        "关键"
+      ],
+      "condition": {
+        "minHours": 230,
+        "maxHours": 480,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定"
+        ],
+        "minRealPressure": 12
+      },
+      "text": "为了一件小事——你攒的局，{ta}没来。你们第一次把话说重了。语音里他沉默了很久，没挂断，也没开口。",
+      "options": [
+        {
+          "id": "finish",
+          "text": "把话说完",
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你把攒了{N}天的委屈全说了。他说，你以前不是这样的。你们谁都没认错。",
+              "effects": {
+                "mood": -6,
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "矛盾"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k03",
+                  "delayHours": [
+                    14,
+                    45
+                  ],
+                  "chance": 0.8,
+                  "excludeIfFlags": [
+                    "sugar_real_pressure"
+                  ]
+                }
+              ]
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "说完你哭了，哭得很难听。他慌了，说对不起。你们和好了，但你记得他慌了多久才开口。",
+              "effects": {
+                "mood": -2,
+                "skills": {
+                  "social": 1
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "矛盾",
+                  "initTrust": 55
+                }
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "你说了「要不就算了吧」。空气停了三秒。他说，你确定？你忽然不确定了。",
+              "effects": {
+                "mood": -13,
+                "tags": {
+                  "add": [
+                    "emo"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "矛盾",
+                  "initRealPressure": 55,
+                  "initFreshness": 30
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "apologize",
+          "text": "先道歉，哪怕不是你的错",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你说算了，是我不好。他顺着台阶下来了。事情过去了，你心里留了一点东西。",
+              "effects": {
+                "mood": -8,
+                "counters": {
+                  "swallowedWords": 1
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "矛盾",
+                  "initDependence": 55
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你道歉的时候他没有立刻接话。过了一会儿他说，你别总是这样。你没听懂。",
+              "effects": {
+                "mood": -5,
+                "skills": {
+                  "social": 1
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "矛盾"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "cold",
+          "text": "下线，冷处理",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你直接退了。第二天他照常给你发「上号吗」，像昨晚没发生过。你也照常回了「来」。",
+              "effects": {
+                "mood": -5,
+                "flags": {
+                  "add": [
+                    "sugar_first_fight"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "矛盾"
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "extreme",
+              "text": "你冷了他三天。第三天你上线，发现他这三天都在玩，只是没叫你。",
+              "effects": {
+                "mood": -11,
+                "flags": {
+                  "add": [
+                    "sugar_first_fight"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "矛盾",
+                  "initFreshness": 40,
+                  "initRealPressure": 35
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_k03",
+      "title": "他要回到现实",
+      "category": "key",
+      "stage": "深度社交",
+      "hoursRange": [
+        250,
+        540
+      ],
+      "weight": 100,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "sugar",
+        "现实",
+        "关键"
+      ],
+      "condition": {
+        "minHours": 250,
+        "maxHours": 540,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定",
+          "矛盾"
+        ],
+        "minIntimacy": 38
+      },
+      "text": "{ta}说下个月要考证，家里也催得紧，上线时间得砍一半。他说这话的时候语气很轻，像在说别人的事。",
+      "options": [
+        {
+          "id": "wait",
+          "text": "说「我等你」",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你说我等你。他说好。从那天起，你们的聊天框里多了很多「在忙」和「早点睡」。",
+              "effects": {
+                "mood": -4,
+                "flags": {
+                  "add": [
+                    "sugar_waited",
+                    "sugar_real_pressure"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "稳定",
+                  "initRealPressure": 70,
+                  "initFreshness": 25,
+                  "initDependence": 60
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k04",
+                  "delayHours": [
+                    18,
+                    63
+                  ],
+                  "chance": 0.75
+                }
+              ]
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你说我等你。他愣了一下，说你不用这样。你说我知道，我愿意。他很久没说话。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "social": 2
+                },
+                "flags": {
+                  "add": [
+                    "sugar_waited"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "稳定",
+                  "initRealPressure": 65,
+                  "initTrust": 70,
+                  "initFreshness": 30
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "question",
+          "text": "问「那我算什么」",
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "他沉默了。他说，你别逼我。你说我没逼你，我只是问一句。他没回答那个问题。",
+              "effects": {
+                "mood": -11,
+                "tags": {
+                  "add": [
+                    "emo"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_real_pressure"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "矛盾",
+                  "initRealPressure": 80,
+                  "initFreshness": 20
+                }
+              }
+            },
+            {
+              "weight": 35,
+              "tier": "extreme",
+              "text": "他说，你也可以不等。声音很平静。你听见自己说「好」，然后你们谁都没挂电话，挂了也没用。",
+              "effects": {
+                "mood": -16,
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "矛盾",
+                  "initRealPressure": 85,
+                  "initFreshness": 15,
+                  "initTrust": 30
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "pretend",
+          "text": "装作没事",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你说没事啊，忙你的。之后你每次想找他，都会先看一眼他的状态，再决定要不要发。",
+              "effects": {
+                "mood": -7,
+                "counters": {
+                  "swallowedWords": 1
+                },
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_real_pressure"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "稳定",
+                  "initRealPressure": 60,
+                  "initFreshness": 30
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你说没事。他说谢谢理解。这四个字你看了很久，越看越像一句客气话。",
+              "effects": {
+                "mood": -5,
+                "relationOp": {
+                  "type": "setState",
+                  "state": "稳定",
+                  "initRealPressure": 65,
+                  "initFreshness": 25
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_k04",
+      "title": "结束那天",
+      "category": "key",
+      "stage": "深度社交",
+      "hoursRange": [
+        280,
+        640
+      ],
+      "weight": 100,
+      "rarity": "rare",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "sugar",
+        "冲突",
+        "关键"
+      ],
+      "condition": {
+        "minHours": 280,
+        "maxHours": 640,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定",
+          "矛盾"
+        ],
+        "minRealPressure": 20
+      },
+      "text": "你上线，他的状态是在线，但不在你身边。{世界}的加载画面转了很久。你忽然明白，有些东西已经过去了。",
+      "options": [
+        {
+          "id": "he_ends",
+          "text": "等他先开口",
+          "outcomes": [
+            {
+              "weight": 60,
+              "tier": "normal",
+              "text": "他说，我们做回朋友吧。你说好。你甚至帮他把存在你这里的模型文件整理好，发了过去。",
+              "effects": {
+                "mood": -17,
+                "breakupCount": 1,
+                "tags": {
+                  "add": [
+                    "失恋"
+                  ],
+                  "remove": [
+                    "砂糖中"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_ended_by_ta"
+                  ]
+                },
+                "relationOp": {
+                  "type": "end"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k05",
+                  "delayHours": [
+                    10,
+                    16
+                  ],
+                  "chance": 0.95,
+                  "excludeIfFlags": [
+                    "sugar_lowest_night"
+                  ]
+                }
+              ]
+            },
+            {
+              "weight": 28,
+              "tier": "rare",
+              "text": "他犹豫了很久，问你最近是不是很累。你说没有。他说那好吧。之后他的头像就没再亮过。",
+              "effects": {
+                "mood": -20,
+                "breakupCount": 1,
+                "tags": {
+                  "add": [
+                    "失恋"
+                  ],
+                  "remove": [
+                    "砂糖中"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_ended_by_ta",
+                    "sugar_faded"
+                  ]
+                },
+                "relationOp": {
+                  "type": "end"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k05",
+                  "delayHours": [
+                    10,
+                    27
+                  ],
+                  "chance": 0.9,
+                  "excludeIfFlags": [
+                    "sugar_lowest_night"
+                  ]
+                }
+              ]
+            },
+            {
+              "weight": 12,
+              "tier": "extreme",
+              "text": "他是笑着说分手的，说这对我们都好。你也笑了。挂掉之后你在地板上坐了四十分钟。",
+              "effects": {
+                "mood": -25,
+                "breakupCount": 1,
+                "tags": {
+                  "add": [
+                    "失恋",
+                    "疲惫"
+                  ],
+                  "remove": [
+                    "砂糖中"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_ended_by_ta"
+                  ]
+                },
+                "relationOp": {
+                  "type": "end"
+                }
+              },
+              "endingHint": {
+                "path": "sugar_loop",
+                "score": 2
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k05",
+                  "delayHours": [
+                    10,
+                    15
+                  ],
+                  "chance": 1,
+                  "excludeIfFlags": [
+                    "sugar_lowest_night"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "i_ends",
+          "text": "你先说",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你说，我们到这儿吧。他愣了一下，说好。你先退的游戏，退之前看了一眼他的模型，没有回头。",
+              "effects": {
+                "mood": -12,
+                "breakupCount": 1,
+                "tags": {
+                  "add": [
+                    "失恋"
+                  ],
+                  "remove": [
+                    "砂糖中"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_ended_by_me"
+                  ]
+                },
+                "relationOp": {
+                  "type": "end"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k05",
+                  "delayHours": [
+                    10,
+                    27
+                  ],
+                  "chance": 0.9,
+                  "excludeIfFlags": [
+                    "sugar_lowest_night"
+                  ]
+                }
+              ]
+            },
+            {
+              "weight": 30,
+              "tier": "extreme",
+              "text": "你说完就退了。第二天你上线，好友列表里没有他。他删得比你快，也比你想的干净。",
+              "effects": {
+                "mood": -22,
+                "friends": -1,
+                "breakupCount": 1,
+                "tags": {
+                  "add": [
+                    "失恋",
+                    "emo"
+                  ],
+                  "remove": [
+                    "砂糖中"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_ended_by_me"
+                  ]
+                },
+                "relationOp": {
+                  "type": "end"
+                }
+              },
+              "endingHint": {
+                "path": "sugar_loop",
+                "score": 2
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k05",
+                  "delayHours": [
+                    10,
+                    15
+                  ],
+                  "chance": 1,
+                  "excludeIfFlags": [
+                    "sugar_lowest_night"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "fade",
+          "text": "什么都不说，让它自己过去",
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你没有说结束，他也没有。你们只是从每天上线，变成一周，变成一个月，最后连招呼都省了。",
+              "effects": {
+                "mood": -14,
+                "breakupCount": 1,
+                "tags": {
+                  "add": [
+                    "失恋"
+                  ],
+                  "remove": [
+                    "砂糖中"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_faded"
+                  ]
+                },
+                "relationOp": {
+                  "type": "end"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k05",
+                  "delayHours": [
+                    22,
+                    76
+                  ],
+                  "chance": 0.85,
+                  "excludeIfFlags": [
+                    "sugar_lowest_night"
+                  ]
+                }
+              ]
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "有一天你发现他换了名字，也换了模型，你差点没认出来。你也没有过去打招呼。",
+              "effects": {
+                "mood": -16,
+                "breakupCount": 1,
+                "tags": {
+                  "add": [
+                    "失恋",
+                    "怀旧"
+                  ],
+                  "remove": [
+                    "砂糖中"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_faded"
+                  ]
+                },
+                "relationOp": {
+                  "type": "end"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k05",
+                  "delayHours": [
+                    16,
+                    54
+                  ],
+                  "chance": 0.9,
+                  "excludeIfFlags": [
+                    "sugar_lowest_night"
+                  ]
+                }
+              ]
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "什么都没有发生。没有人说再见。你只是再也没有点开那个对话框，一年之后它沉到了列表最底下。",
+              "effects": {
+                "mood": -19,
+                "breakupCount": 1,
+                "tags": {
+                  "add": [
+                    "失恋"
+                  ],
+                  "remove": [
+                    "砂糖中"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_faded"
+                  ]
+                },
+                "relationOp": {
+                  "type": "end"
+                }
+              },
+              "endingHint": {
+                "path": "sugar_loop",
+                "score": 3
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k05",
+                  "delayHours": [
+                    32,
+                    108
+                  ],
+                  "chance": 0.8,
+                  "excludeIfFlags": [
+                    "sugar_lowest_night"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_k05",
+      "title": "第一个晚上",
+      "category": "key",
+      "stage": "深度社交",
+      "hoursRange": [
+        60,
+        99999
+      ],
+      "weight": 100,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "sugar",
+        "孤独",
+        "关键"
+      ],
+      "condition": {
+        "minHours": 60,
+        "maxHours": 99999,
+        "hasRelation": false,
+        "requireTags": [
+          "失恋"
+        ],
+        "excludeTags": [
+          "砂糖中"
+        ]
+      },
+      "text": "晚上十一点，你一个人上线了。好友列表里{N}个人亮着，你一个都不想点。{世界}还是老样子，连贴图错误都没变。",
+      "options": [
+        {
+          "id": "wander",
+          "text": "一个人逛到很晚",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你一个世界接一个世界地跳，什么都不看。回过神已经四点，你连去过哪里都记不清。",
+              "effects": {
+                "mood": -16,
+                "tags": {
+                  "add": [
+                    "退坑边缘",
+                    "夜猫子"
+                  ]
+                },
+                "counters": {
+                  "lateNights": 1
+                },
+                "flags": {
+                  "add": [
+                    "sugar_lowest_night"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "低迷"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k06",
+                  "delayHours": [
+                    11,
+                    43
+                  ],
+                  "chance": 0.9
+                }
+              ]
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你在一个空世界的角落里挂到天亮。有个路过的人问你要不要一起，你说不用。他说好，然后走了。",
+              "effects": {
+                "mood": -11,
+                "tags": {
+                  "add": [
+                    "退坑边缘"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_lowest_night"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "低迷"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k06",
+                  "delayHours": [
+                    11,
+                    43
+                  ],
+                  "chance": 0.9
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "offline",
+          "text": "关掉游戏，躺下",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你直接关了。躺在床上刷手机刷到两点，刷的全是没营养的东西，但你没想起他。",
+              "effects": {
+                "mood": -6,
+                "counters": {
+                  "earlyExits": 1
+                },
+                "flags": {
+                  "add": [
+                    "sugar_lowest_night"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "低迷"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k06",
+                  "delayHours": [
+                    16,
+                    54
+                  ],
+                  "chance": 0.85
+                }
+              ]
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你关了游戏，出门走了两圈。风很凉。回来的时候你想，其实也没那么严重。",
+              "effects": {
+                "mood": 2,
+                "flags": {
+                  "add": [
+                    "sugar_lowest_night"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "低迷"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k06",
+                  "delayHours": [
+                    22,
+                    65
+                  ],
+                  "chance": 0.8
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "draft",
+          "text": "打开对话框，打了一行字",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你打了「在吗」，看了很久，删掉，换成「没事」，又删掉。最后你退出了对话框，什么都没发。",
+              "effects": {
+                "mood": -13,
+                "tags": {
+                  "add": [
+                    "退坑边缘"
+                  ]
+                },
+                "counters": {
+                  "unsentMessages": 1
+                },
+                "flags": {
+                  "add": [
+                    "sugar_lowest_night"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "低迷"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k06",
+                  "delayHours": [
+                    11,
+                    43
+                  ],
+                  "chance": 0.9
+                }
+              ]
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你把想说的话写在手机备忘录里，写完读了一遍，没有发出去，然后睡了。第二天醒来，感觉轻了一点。",
+              "effects": {
+                "mood": -2,
+                "counters": {
+                  "unsentMessages": 1
+                },
+                "flags": {
+                  "add": [
+                    "sugar_lowest_night"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "低迷"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k06",
+                  "delayHours": [
+                    16,
+                    65
+                  ],
+                  "chance": 0.85
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_k06",
+      "title": "最难熬的那晚",
+      "category": "key",
+      "stage": "深度社交",
+      "hoursRange": [
+        120,
+        99999
+      ],
+      "weight": 100,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "sugar",
+        "孤独",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 120,
+        "maxHours": 99999,
+        "hasRelation": false,
+        "requireTags": [
+          "失恋"
+        ],
+        "excludeTags": [
+          "回归者"
+        ],
+        "maxMood": 60
+      },
+      "text": "凌晨两点，你翻相册时划到了{ta}的旧截图。手指停在删除键上。{N}个月，几百张，全在这儿。",
+      "options": [
+        {
+          "id": "delete",
+          "text": "删掉所有聊天记录",
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你按了删除，进度条走得很快。删完之后房间特别安静，你发现并没有好受，也没有更难受。",
+              "effects": {
+                "mood": -10,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ]
+                },
+                "counters": {
+                  "deletedLogs": 1
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "低迷"
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k07",
+                  "delayHours": [
+                    22,
+                    76
+                  ],
+                  "chance": 0.85,
+                  "excludeIfFlags": [
+                    "sugar_someone_stayed"
+                  ]
+                }
+              ]
+            },
+            {
+              "weight": 35,
+              "tier": "extreme",
+              "text": "你删到一半停住了，翻回去看了一段去年冬天的对话，看了整整一个小时，然后全部删掉。",
+              "effects": {
+                "mood": -14,
+                "tags": {
+                  "add": [
+                    "断舍离",
+                    "怀旧"
+                  ]
+                },
+                "counters": {
+                  "deletedLogs": 1
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "低迷"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "profile",
+          "text": "点开他的主页看一眼",
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "他的主页还是那几张图，签名换了，换成了你看不懂的一句英文。你关掉了。",
+              "effects": {
+                "mood": -11,
+                "counters": {
+                  "profileVisits": 1
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "低迷"
+                }
+              }
+            },
+            {
+              "weight": 35,
+              "tier": "extreme",
+              "text": "他的新头像是情侣款，另一个人的模型在他旁边。你盯着看了很久，久到屏幕自动变暗。",
+              "effects": {
+                "mood": -17,
+                "counters": {
+                  "profileVisits": 1
+                },
+                "tags": {
+                  "add": [
+                    "emo"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "低迷"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "sleep",
+          "text": "什么都不做，去睡觉",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你把手机扣在桌上，躺平。脑子里很吵，但你还是睡着了，睡了很久。",
+              "effects": {
+                "mood": -3,
+                "relationOp": {
+                  "type": "setState",
+                  "state": "低迷"
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你梦到他了。梦里你们还在{世界}，什么都没发生。醒来天已经亮了，你发现没那么难受。",
+              "effects": {
+                "mood": 4,
+                "counters": {
+                  "dreams": 1
+                },
+                "skills": {
+                  "social": 1
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "低迷"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_k07",
+      "title": "那天有人陪你",
+      "category": "key",
+      "stage": "老油条",
+      "hoursRange": [
+        200,
+        99999
+      ],
+      "weight": 100,
+      "rarity": "uncommon",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "sugar",
+        "回归",
+        "正面"
+      ],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 99999,
+        "hasRelation": false,
+        "requireTags": [
+          "失恋"
+        ]
+      },
+      "text": "你在{中文吧}的角落坐着，没开麦。有个人跳完舞走过来，在你旁边坐下，也没说话。过了很久他打字：你看起来不想说话，那我就陪着。",
+      "options": [
+        {
+          "id": "open",
+          "text": "开麦，跟他说说",
+          "condition": {
+            "minSkills": {
+              "social": 10
+            }
+          },
+          "lockedHint": "需要社交 ≥ 10",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你开了麦，说了很久，说得乱七八糟。他没打断你，只在最后说了一句：那确实挺难受的。",
+              "effects": {
+                "mood": 10,
+                "friends": 1,
+                "tags": {
+                  "add": [
+                    "回归者",
+                    "回归者"
+                  ],
+                  "remove": [
+                    "退坑边缘",
+                    "失恋"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_someone_stayed"
+                  ]
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "恢复",
+                  "initIntimacy": 25,
+                  "initTrust": 45,
+                  "initFreshness": 85,
+                  "initDependence": 10,
+                  "name": "auto",
+                  "force": true
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "extreme",
+              "text": "你说完之后他说，我也失恋过，是去年的事。你们在{中文吧}坐到早上六点，谁都没提要走。",
+              "effects": {
+                "mood": 13,
+                "friends": 1,
+                "skills": {
+                  "social": 2
+                },
+                "tags": {
+                  "add": [
+                    "回归者",
+                    "回归者"
+                  ],
+                  "remove": [
+                    "退坑边缘",
+                    "emo",
+                    "失恋"
+                  ]
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "恢复",
+                  "initIntimacy": 40,
+                  "initTrust": 60,
+                  "initFreshness": 90,
+                  "initDependence": 20,
+                  "name": "auto",
+                  "force": true
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "small_talk",
+          "text": "不聊那件事，聊点别的",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你开麦问他这舞怎么跳。他教了你两个八拍。你学得很慢，但一晚上没想起别的事。",
+              "effects": {
+                "mood": 6,
+                "friends": 1,
+                "skills": {
+                  "dance": 11
+                },
+                "tags": {
+                  "add": [
+                    "回归者",
+                    "回归者"
+                  ],
+                  "remove": [
+                    "失恋"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_someone_stayed"
+                  ]
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "恢复",
+                  "initIntimacy": 20,
+                  "initTrust": 40,
+                  "initFreshness": 85,
+                  "initDependence": 5,
+                  "name": "auto",
+                  "force": true
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你们聊了一晚上模型和贴图，一句正事没有。下线的时候你才发现，这是你这两个月笑得最多的一次。",
+              "effects": {
+                "mood": 8,
+                "friends": 1,
+                "skills": {
+                  "dance": 4,
+                  "social": 1
+                },
+                "tags": {
+                  "add": [
+                    "回归者",
+                    "回归者"
+                  ],
+                  "remove": [
+                    "退坑边缘",
+                    "失恋"
+                  ]
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "恢复",
+                  "initIntimacy": 30,
+                  "initTrust": 45,
+                  "initFreshness": 88,
+                  "initDependence": 10,
+                  "name": "auto",
+                  "force": true
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "silent",
+          "text": "点个头，继续坐着",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你什么也没说，他也没走。两个人的模型在角落里坐了四十分钟。下线前他加了你。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "flags": {
+                  "add": [
+                    "sugar_someone_stayed"
+                  ]
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "恢复",
+                  "initIntimacy": 10,
+                  "initTrust": 35,
+                  "initFreshness": 80,
+                  "initDependence": 5,
+                  "name": "auto",
+                  "force": true
+                },
+                "tags": {
+                  "remove": [
+                    "失恋"
+                  ],
+                  "add": [
+                    "回归者"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "第二天你又去了那个角落，他也在。第三天也是。你开始觉得，这个地方还能再来。",
+              "effects": {
+                "mood": 7,
+                "friends": 1,
+                "tags": {
+                  "add": [
+                    "回归者",
+                    "回归者"
+                  ],
+                  "remove": [
+                    "退坑边缘",
+                    "失恋"
+                  ]
+                },
+                "relationOp": {
+                  "type": "spawn",
+                  "state": "恢复",
+                  "initIntimacy": 25,
+                  "initTrust": 50,
+                  "initFreshness": 90,
+                  "initDependence": 15,
+                  "name": "auto",
+                  "force": true
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k08",
+                  "delayHours": [
+                    43,
+                    151
+                  ],
+                  "chance": 0.7
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_k08",
+      "title": "新的砂糖",
+      "category": "key",
+      "stage": "老油条",
+      "hoursRange": [
+        500,
+        960
+      ],
+      "weight": 100,
+      "rarity": "rare",
+      "once": true,
+      "cooldown": 0,
+      "tags": [
+        "sugar",
+        "成长",
+        "关键"
+      ],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 960,
+        "minBreakupCount": 1,
+        "hasRelation": true,
+        "relationState": [
+          "认识",
+          "朋友",
+          "常一起玩"
+        ],
+        "minIntimacy": 30,
+        "minTrust": 28
+      },
+      "text": "又是{世界}，又挂到半夜。他说：我们要不要……后半句没说完。你听见自己的心跳，这次没有上一次快。",
+      "options": [
+        {
+          "id": "yes",
+          "text": "说好",
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你说好。他说那以后就是砂糖了。你笑了一下，心里想的却是：这次得慢一点。",
+              "effects": {
+                "sugarCount": 1,
+                "mood": 8,
+                "tags": {
+                  "add": [
+                    "砂糖中"
+                  ],
+                  "remove": [
+                    "失恋",
+                    "退坑边缘"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_new_cycle"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "砂糖",
+                  "initIntimacy": 60,
+                  "initTrust": 60,
+                  "initFreshness": 70,
+                  "initDependence": 30,
+                  "initRealPressure": 5
+                }
+              }
+            },
+            {
+              "weight": 35,
+              "tier": "extreme",
+              "text": "你说好。然后你补了一句：这次我可能不会像上次那样了。他沉默了两秒，说，行。",
+              "effects": {
+                "sugarCount": 1,
+                "mood": 11,
+                "skills": {
+                  "social": 2
+                },
+                "tags": {
+                  "add": [
+                    "砂糖中",
+                    "佛系"
+                  ],
+                  "remove": [
+                    "失恋",
+                    "退坑边缘",
+                    "emo"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_new_cycle",
+                    "sugar_kept_self"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "砂糖",
+                  "initIntimacy": 55,
+                  "initTrust": 70,
+                  "initFreshness": 65,
+                  "initDependence": 25,
+                  "initRealPressure": 5
+                }
+              },
+              "endingHint": {
+                "path": "sugar_loop",
+                "score": 3
+              }
+            }
+          ]
+        },
+        {
+          "id": "slow",
+          "text": "先不急，慢慢来",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你说再看看吧。他说行，那就先这样。你们照旧每天一起上线，谁都没再提这件事。",
+              "effects": {
+                "mood": 4,
+                "tags": {
+                  "add": [
+                    "佛系"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_kept_self"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "常一起玩",
+                  "initIntimacy": 50,
+                  "initTrust": 60,
+                  "initFreshness": 75,
+                  "initDependence": 25
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你说慢慢来吧。他停了一下，说其实我也就是问问。那晚你们照常挂到三点，什么都没变。",
+              "effects": {
+                "mood": 2,
+                "counters": {
+                  "heldBack": 1
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "常一起玩",
+                  "initIntimacy": 45,
+                  "initTrust": 55,
+                  "initFreshness": 80,
+                  "initDependence": 20
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "pretend_not_heard",
+          "text": "装作没听见",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你岔开了话题，说这世界帧数好低。他接了话。你们谁都没有再回到那句话上。",
+              "effects": {
+                "mood": -5,
+                "counters": {
+                  "heldBack": 1
+                },
+                "tags": {
+                  "add": [
+                    "emo"
+                  ]
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "朋友"
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "过了半小时，他又问了一次，问得很轻。你说，我们做朋友不是挺好吗。他说，也是。",
+              "effects": {
+                "mood": -2,
+                "counters": {
+                  "heldBack": 1
+                },
+                "relationOp": {
+                  "type": "setState",
+                  "state": "朋友",
+                  "initFreshness": 65
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_001",
+      "title": "挂到天亮",
+      "category": "sugar",
+      "stage": "深度社交",
+      "hoursRange": [
+        200,
+        340
+      ],
+      "weight": 50,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 60,
+      "tags": [
+        "sugar",
+        "日常",
+        "正面"
+      ],
+      "condition": {
+        "minHours": 200,
+        "maxHours": 340,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定"
+        ],
+        "requireTags": [
+          "砂糖中"
+        ],
+        "minFreshness": 50
+      },
+      "text": "你说就挂十分钟。醒来的时候天亮了，游戏还开着，{ta}的模型趴在你旁边，麦里偶尔有翻身的动静。",
+      "options": [
+        {
+          "id": "record",
+          "text": "把这段录下来",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你开了录制，录了二十分钟的静止画面。后来这段视频你一次没看过，但也没删。",
+              "effects": {
+                "mood": 5,
+                "skills": {
+                  "photo": 3
+                },
+                "counters": {
+                  "clipsSaved": 1
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你截图的时候他正好醒了，麦里含糊地问你在干嘛。你说没干嘛。他说哦，又睡过去了。",
+              "effects": {
+                "mood": 7,
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "morning",
+          "text": "跟他说早安",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你说了句早。他嗯了一声，说他要去上班了。下线之前他把模型往你这边挪了挪。",
+              "effects": {
+                "mood": 5,
+                "skills": {
+                  "social": 1
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "他没醒。你等到八点，自己下线了。中午他发消息说，昨晚睡得太死了。",
+              "effects": {
+                "mood": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "quiet_leave",
+          "text": "悄悄下线",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你退了游戏，去洗漱。镜子里的自己有点憔悴。你想，这样的日子挺不错。",
+              "effects": {
+                "mood": 3,
+                "tags": {
+                  "add": [
+                    "挂机党"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_002",
+      "title": "同步看片",
+      "category": "sugar",
+      "stage": "深度社交",
+      "hoursRange": [
+        205,
+        350
+      ],
+      "weight": 45,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 50,
+      "tags": [
+        "sugar",
+        "日常",
+        "正面"
+      ],
+      "condition": {
+        "minHours": 205,
+        "maxHours": 350,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定"
+        ],
+        "requireTags": [
+          "砂糖中"
+        ]
+      },
+      "text": "你们找了个有屏幕的世界，同步看一部老片子。看到第{N}分钟他那边卡住了，两个人一起骂了句破网。",
+      "options": [
+        {
+          "id": "restart",
+          "text": "退回去重看",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你们把进度条拖回去，重新看那一段。第二次还是卡。他说算了，看个大概就行。",
+              "effects": {
+                "mood": 4
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "重看的时候他一直在剧透，你让他闭嘴。他闭嘴了半分钟，又开始了。",
+              "effects": {
+                "mood": 6,
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "chat",
+          "text": "不看片了，就聊天",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "屏幕还亮着，你们聊到了别的事情上。电影演完了谁都没注意。",
+              "effects": {
+                "mood": 5,
+                "skills": {
+                  "social": 1
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你说起小时候的一件事，说完才发现自己从来没跟别人讲过。他说，那你挺厉害的。",
+              "effects": {
+                "mood": 7
+              }
+            }
+          ]
+        },
+        {
+          "id": "switch_world",
+          "text": "换个世界再看",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你们换了三个世界才找到一个不卡的。片子在第四个世界看完了，结局谁都没看懂。",
+              "effects": {
+                "mood": 3,
+                "counters": {
+                  "worldVisits": 3
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_003",
+      "title": "情侣模型改崩了",
+      "category": "sugar",
+      "stage": "深度社交",
+      "hoursRange": [
+        210,
+        600
+      ],
+      "weight": 45,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 70,
+      "tags": [
+        "sugar",
+        "技能",
+        "日常"
+      ],
+      "condition": {
+        "minHours": 210,
+        "maxHours": 600,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定"
+        ],
+        "minSkills": {
+          "modeling": 10
+        }
+      },
+      "text": "你把{ta}的模型拆开，想给自己改一套情侣款。改到凌晨三点，blendshape 全崩了，脸上多了两个洞。",
+      "options": [
+        {
+          "id": "redo",
+          "text": "备份回滚，重来",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你回滚了三次，终于把洞补上。上传的时候手是抖的。进游戏看到成品，还行。",
+              "effects": {
+                "mood": 5,
+                "skills": {
+                  "modeling": 7
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "重来的时候你顺手把配色也改了，改成了他第一次见你时穿的那套。你谁都没说。",
+              "effects": {
+                "mood": 7,
+                "skills": {
+                  "modeling": 4
+                },
+                "tags": {
+                  "add": [
+                    "审美在线"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ship_it",
+          "text": "就这样上线",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "脸上的洞被头发挡住了。他说挺好看的。你说嗯，心里知道他在给你留面子。",
+              "effects": {
+                "mood": 2,
+                "tags": {
+                  "add": [
+                    "手残"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "他看了半天，问你是不是脸崩了。你说没有，这是设计。他说，哦，设计。",
+              "effects": {
+                "mood": -2,
+                "skills": {
+                  "modeling": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ask_help",
+          "text": "让他自己来改",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "他把文件接过去，二十分钟搞定。你坐在旁边看他操作，比自己改一晚上学到的东西还多。",
+              "effects": {
+                "mood": 4,
+                "skills": {
+                  "modeling": 4
+                },
+                "avatars": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_004",
+      "title": "他的生日",
+      "category": "sugar",
+      "stage": "深度社交",
+      "hoursRange": [
+        215,
+        400
+      ],
+      "weight": 40,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 300,
+      "tags": [
+        "sugar",
+        "活动",
+        "正面"
+      ],
+      "condition": {
+        "minHours": 215,
+        "maxHours": 400,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定"
+        ],
+        "minFriends": 5
+      },
+      "text": "{ta}的生日。你在{世界}约了{N}个人，摆了一个蛋糕模型。他上线的时候，全场同时开麦唱生日歌，跑调跑得很厉害。",
+      "options": [
+        {
+          "id": "gift",
+          "text": "送他一套模型",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你把改了两周的那套模型发给他。他穿上转了一圈，说以后就穿这个了。他穿了三个月。",
+              "effects": {
+                "mood": 9,
+                "assets": -200,
+                "skills": {
+                  "modeling": 4
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他穿上之后在人群里转了一圈，所有人都说好看。他说这是我{我}做的。你站在旁边，没说话，但一直在笑。",
+              "effects": {
+                "mood": 12,
+                "assets": -200,
+                "fame": 3,
+                "tags": {
+                  "add": [
+                    "模型师"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "photo",
+          "text": "给大家拍一张合照",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你摆了十分钟机位，拍了三十张，最后能用的只有一张。那张后来成了你的电脑壁纸。",
+              "effects": {
+                "mood": 6,
+                "skills": {
+                  "photo": 7
+                },
+                "counters": {
+                  "photosTaken": 30
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "合照里他站在最中间，你在最边上，隔着三个人。你后来把这张图裁了一下，裁成了两个人。",
+              "effects": {
+                "mood": 8,
+                "skills": {
+                  "photo": 11
+                },
+                "counters": {
+                  "photosTaken": 30
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "words",
+          "text": "只说一句生日快乐",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "散场之后只剩你们两个人。你说生日快乐。他说谢谢，然后补了一句，你在就行。",
+              "effects": {
+                "mood": 8
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_005",
+      "title": "世界巡礼",
+      "category": "sugar",
+      "stage": "深度社交",
+      "hoursRange": [
+        220,
+        420
+      ],
+      "weight": 45,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 80,
+      "tags": [
+        "sugar",
+        "日常",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 220,
+        "maxHours": 420,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定"
+        ],
+        "minFreshness": 40
+      },
+      "text": "你们列了个单子，要把收藏夹里的世界一个个走完。今晚是第{N}个：一个一直下雨的地图，没有别人。",
+      "options": [
+        {
+          "id": "finish",
+          "text": "认真走完单子",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你们一个世界待二十分钟，像完成任务。走到第二十个的时候，他说这个最好。你也是这么想的。",
+              "effects": {
+                "mood": 5,
+                "counters": {
+                  "worldVisits": 20
+                },
+                "skills": {
+                  "photo": 3
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你在单子上加了一行「以后要一起去的」。他没看见，你也没打算让他看见。",
+              "effects": {
+                "mood": 7,
+                "flags": {
+                  "add": [
+                    "sugar_world_list"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "stay",
+          "text": "就待在这一个世界里",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你们在那个雨里坐到三点。雨声是循环的，听久了像白噪音。他先睡着的那次，你没叫他。",
+              "effects": {
+                "mood": 7
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你在这个世界里发现了一个藏起来的房间，里面有人留了一把椅子。你们把它搬到了外面。",
+              "effects": {
+                "mood": 8,
+                "counters": {
+                  "worldVisits": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave_early",
+          "text": "今天先到这儿",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说有点累，改天再走。他说好。单子后来再也没被打开过，你们只走完了七个。",
+              "effects": {
+                "mood": -3,
+                "counters": {
+                  "earlyExits": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_006",
+      "title": "照片归档",
+      "category": "sugar",
+      "stage": "深度社交",
+      "hoursRange": [
+        225,
+        440
+      ],
+      "weight": 40,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 90,
+      "tags": [
+        "sugar",
+        "回忆",
+        "技能"
+      ],
+      "condition": {
+        "minHours": 225,
+        "maxHours": 440,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定"
+        ],
+        "minSkills": {
+          "photo": 15
+        }
+      },
+      "text": "你整理相册，发现这半年拍的照片里，有三分之一都有{ta}。你把它们挑出来，单独建了个文件夹。",
+      "options": [
+        {
+          "id": "name_it",
+          "text": "给它起个名字",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你打了三个字，删掉，又打，又删。最后文件夹叫「存档」。你觉得挺合适。",
+              "effects": {
+                "mood": 5,
+                "counters": {
+                  "photosTaken": 1
+                },
+                "skills": {
+                  "photo": 3
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你用了日期当名字。那个日期是你们第一次一起拍照的那天，你记得比自己的生日还清楚。",
+              "effects": {
+                "mood": 7,
+                "skills": {
+                  "photo": 7
+                },
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "shared",
+          "text": "放进共享相册",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你把文件夹共享给了他。他第二天说，原来你拍了这么多。他说的时候在笑。",
+              "effects": {
+                "mood": 6,
+                "fame": 2
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "他也在里面传了几张，全是你没见过的角度。有几张你都不知道是什么时候被拍的。",
+              "effects": {
+                "mood": 8,
+                "fame": 3,
+                "skills": {
+                  "photo": 3
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "no_name",
+          "text": "不起名字，就放着",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "文件夹叫「新建文件夹(3)」。你想着以后再说。这个以后一直没来。",
+              "effects": {
+                "mood": 1,
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_007",
+      "title": "跨年倒数",
+      "category": "sugar",
+      "stage": "深度社交",
+      "hoursRange": [
+        230,
+        460
+      ],
+      "weight": 35,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 500,
+      "tags": [
+        "sugar",
+        "活动",
+        "正面"
+      ],
+      "condition": {
+        "minHours": 230,
+        "maxHours": 460,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定"
+        ],
+        "minIntimacy": 55
+      },
+      "text": "跨年那晚，{中文吧}挤了{N}个人，倒计时在刷屏。零点的时候{ta}的模型贴过来，你听见他在麦里说新年快乐。",
+      "options": [
+        {
+          "id": "reply",
+          "text": "也回一句新年快乐",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你回了一句。麦里很吵，但他听见了。他说，明年也一起过。你说好。",
+              "effects": {
+                "mood": 7,
+                "tags": {
+                  "add": [
+                    "活动咖"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你回完之后他没说话，只是把模型往你这边又靠了靠。人群在刷屏，你们俩谁都没打字。",
+              "effects": {
+                "mood": 10,
+                "tags": {
+                  "add": [
+                    "活动咖"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "screenshot",
+          "text": "截一张图",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你截了图，人群、倒计时、他贴过来的那个角度，全在里面。这张图你留了很久。",
+              "effects": {
+                "mood": 6,
+                "skills": {
+                  "photo": 3
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "serious",
+          "text": "说点更认真的",
+          "condition": {
+            "minIntimacy": 65
+          },
+          "lockedHint": "需要亲密度 ≥ 65",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你说，希望明年这个时候我们还在。他停顿了一下，说会的。你信了，至少当时信了。",
+              "effects": {
+                "mood": 9,
+                "flags": {
+                  "add": [
+                    "sugar_new_year_promise"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "extreme",
+              "text": "你说完他没接。过了一会儿他说，别想那么远。你把这句话记了很久，一直记到结束那天。",
+              "effects": {
+                "mood": -5,
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_new_year_promise"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_008",
+      "title": "回复变慢",
+      "category": "sugar",
+      "stage": "深度社交",
+      "hoursRange": [
+        250,
+        480
+      ],
+      "weight": 55,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 40,
+      "tags": [
+        "sugar",
+        "负面",
+        "冲突"
+      ],
+      "condition": {
+        "minHours": 250,
+        "maxHours": 480,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定",
+          "矛盾"
+        ],
+        "maxFreshness": 55,
+        "minRealPressure": 10
+      },
+      "text": "你发的消息，他隔了{N}个小时才回，回的是「刚看到」。你翻了下记录，上个月他都是秒回的。",
+      "options": [
+        {
+          "id": "ask",
+          "text": "直接问他",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你问他最近是不是很忙。他说是。你说好。之后你又看了三遍那条「是」。",
+              "effects": {
+                "mood": -5,
+                "flags": {
+                  "add": [
+                    "sugar_chat_gap"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你说你最近回消息好慢。他道歉，说以后注意。他注意了四天。",
+              "effects": {
+                "mood": -2,
+                "skills": {
+                  "social": 1
+                },
+                "flags": {
+                  "add": [
+                    "sugar_chat_gap"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ignore",
+          "text": "装作不在意",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你回了个「嗯」。他也回了个「嗯」。对话框停在那里，谁都没有再往下说。",
+              "effects": {
+                "mood": -6,
+                "counters": {
+                  "swallowedWords": 1
+                },
+                "flags": {
+                  "add": [
+                    "sugar_chat_gap"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你什么都没说，去做了别的事。半夜你发现自己也没那么在意了，这个发现让你更难受。",
+              "effects": {
+                "mood": -4,
+                "tags": {
+                  "add": [
+                    "emo"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_chat_gap"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "mirror",
+          "text": "那你也不再秒回",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "他发消息来，你故意隔了两个小时才回。他没有任何反应。这场较量只有你一个人在打。",
+              "effects": {
+                "mood": -8,
+                "counters": {
+                  "swallowedWords": 1
+                },
+                "flags": {
+                  "add": [
+                    "sugar_chat_gap"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你拖了很久才回，他反而问你今天怎么了。你说没事。他说哦。你有点想笑。",
+              "effects": {
+                "mood": -3,
+                "flags": {
+                  "add": [
+                    "sugar_chat_gap"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_009",
+      "title": "上线不找你",
+      "category": "sugar",
+      "stage": "深度社交",
+      "hoursRange": [
+        255,
+        500
+      ],
+      "weight": 55,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 40,
+      "tags": [
+        "sugar",
+        "负面",
+        "孤独"
+      ],
+      "condition": {
+        "minHours": 255,
+        "maxHours": 500,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定",
+          "矛盾"
+        ],
+        "minDependence": 30,
+        "maxFreshness": 45
+      },
+      "text": "{ta}上线了。你看着那个头像从灰变亮，等了二十分钟，他没有来找你，直接进了{世界}。",
+      "options": [
+        {
+          "id": "follow",
+          "text": "跟过去",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你跳进同一个世界，他有点意外，说你怎么来了。你说随便逛逛。你们一起待到下线。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "social": 1
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你进去的时候，房间里还有别人。他介绍你们认识，介绍得很随意，像在介绍一个普通朋友。",
+              "effects": {
+                "mood": -7,
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "message",
+          "text": "发消息问他",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你问他在哪。他说在跟朋友玩。你说好。你没问他为什么不叫你。",
+              "effects": {
+                "mood": -6,
+                "counters": {
+                  "swallowedWords": 1
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你说下次叫我。他说好。这句「好」你等了两周，一直没有兑现。",
+              "effects": {
+                "mood": -8
+              }
+            }
+          ]
+        },
+        {
+          "id": "hide",
+          "text": "关掉好友列表",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把好友列表收了起来，自己去了另一个世界。你那天玩得还不错，就是有点安静。",
+              "effects": {
+                "mood": -2,
+                "counters": {
+                  "earlyExits": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_010",
+      "title": "他和别人玩",
+      "category": "sugar",
+      "stage": "深度社交",
+      "hoursRange": [
+        260,
+        520
+      ],
+      "weight": 50,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 60,
+      "tags": [
+        "sugar",
+        "负面",
+        "冲突"
+      ],
+      "condition": {
+        "minHours": 260,
+        "maxHours": 520,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定",
+          "矛盾"
+        ],
+        "maxFreshness": 45,
+        "minRealPressure": 20
+      },
+      "text": "有人在{中文吧}看到{ta}，说他最近总跟一个新人一起玩，那新人穿的模型还是你改的那一套。",
+      "options": [
+        {
+          "id": "confront",
+          "text": "去问清楚",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你说有人看到你带新人。他说就是随便带带。你说哦。之后你们谁都没再提这件事。",
+              "effects": {
+                "mood": -8,
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他反问你听谁说的。你说不重要。他说你最近很爱多想。这句话比那件事本身更疼。",
+              "effects": {
+                "mood": -11
+              }
+            }
+          ]
+        },
+        {
+          "id": "find_newbie",
+          "text": "去找那个新人看看",
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你去了。那是个刚玩了两周的人，说话很客气，还问你模型怎么改。你教了他一个小时。",
+              "effects": {
+                "mood": 3,
+                "skills": {
+                  "modeling": 2,
+                  "social": 1
+                },
+                "friends": 1
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你去了。他们两个人坐在一起，你进去的时候他抬头看了你一眼，说，来啦。语气很正常。",
+              "effects": {
+                "mood": -10,
+                "tags": {
+                  "add": [
+                    "emo"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "你去了，什么都没说，在角落里站了十分钟。那十分钟里他们笑了{N}次，没有一次是因为你。",
+              "effects": {
+                "mood": -16,
+                "tags": {
+                  "add": [
+                    "隐患",
+                    "emo"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_third_party"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "pretend",
+          "text": "装作不知道",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你什么都没说。之后每次他上线，你都会先看一眼他在哪个世界，再决定自己去哪。",
+              "effects": {
+                "mood": -5,
+                "counters": {
+                  "profileVisits": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_011",
+      "title": "他忘了你说过",
+      "category": "sugar",
+      "stage": "深度社交",
+      "hoursRange": [
+        265,
+        540
+      ],
+      "weight": 45,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 70,
+      "tags": [
+        "sugar",
+        "负面",
+        "日常"
+      ],
+      "condition": {
+        "minHours": 265,
+        "maxHours": 540,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定",
+          "矛盾"
+        ],
+        "maxFreshness": 50
+      },
+      "text": "你上个月跟{ta}说过的事，今天他像第一次听说一样问你。你重复了一遍，声音越来越小。",
+      "options": [
+        {
+          "id": "remind",
+          "text": "提醒他你说过",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你说我上次跟你讲过了。他说是吗，可能没注意。你说没事。确实没事，就是有点凉。",
+              "effects": {
+                "mood": -6
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "他翻了一下聊天记录，翻到了，说抱歉。他说最近事情太多了。你说我知道。",
+              "effects": {
+                "mood": -3,
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "drop_it",
+          "text": "说没事，不讲了",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你把话咽了回去。从那以后，有些事你就不太想跟他说了，反正说了也留不住。",
+              "effects": {
+                "mood": -7,
+                "counters": {
+                  "swallowedWords": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "note",
+          "text": "记下来，以后不指望他记",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你在备忘录里加了一条：他记性不好。你写得很平静，写完看了一会儿。",
+              "effects": {
+                "mood": -4,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ]
+                },
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_012",
+      "title": "模型被换掉",
+      "category": "sugar",
+      "stage": "深度社交",
+      "hoursRange": [
+        270,
+        700
+      ],
+      "weight": 50,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 100,
+      "tags": [
+        "sugar",
+        "负面",
+        "冲突"
+      ],
+      "condition": {
+        "minHours": 270,
+        "maxHours": 700,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定",
+          "矛盾"
+        ]
+      },
+      "text": "你给{ta}改的那套模型，今天下线了。他换了个新的，是别人做的。你问了一句，他说那个更好看。",
+      "options": [
+        {
+          "id": "fine",
+          "text": "说挺好的",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你说挺好看的。他说是吧。之后你每次看到他穿那套，都会想起自己那套现在在哪个文件夹里。",
+              "effects": {
+                "mood": -7,
+                "counters": {
+                  "swallowedWords": 1
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k04",
+                  "delayHours": [
+                    11,
+                    54
+                  ],
+                  "chance": 0.5
+                }
+              ]
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你说挺好的。他听出你语气不对，问你生气了。你说没有。他说那就好。",
+              "effects": {
+                "mood": -5
+              }
+            }
+          ]
+        },
+        {
+          "id": "who",
+          "text": "问他谁做的",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "他说了一个名字，你没听过。你说哦。那天晚上你去搜了那个人的主页，看了很久。",
+              "effects": {
+                "mood": -8,
+                "counters": {
+                  "profileVisits": 1
+                },
+                "flags": {
+                  "add": [
+                    "sugar_third_party"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "他说是群里有人送的。你说哦，那挺好的。你发现自己说「挺好的」的时候一点表情都没有。",
+              "effects": {
+                "mood": -6,
+                "counters": {
+                  "swallowedWords": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "change_too",
+          "text": "把自己那套也换掉",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你换了一套完全不一样的，颜色都不同了。他上线的时候说，你换模型了？你说嗯。",
+              "effects": {
+                "mood": -2,
+                "avatars": 1,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你换掉之后，那套情侣款就再也没人穿了。它们并排躺在你的收藏夹里，像一对没人要的东西。",
+              "effects": {
+                "mood": -11,
+                "flags": {
+                  "add": [
+                    "sugar_models_shelved"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_013",
+      "title": "为了一首歌",
+      "category": "sugar",
+      "stage": "深度社交",
+      "hoursRange": [
+        280,
+        580
+      ],
+      "weight": 50,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 50,
+      "tags": [
+        "sugar",
+        "冲突",
+        "负面"
+      ],
+      "condition": {
+        "minHours": 280,
+        "maxHours": 580,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定",
+          "矛盾"
+        ],
+        "minRealPressure": 20
+      },
+      "text": "为了一首歌。你切了歌，他说他正听着。你们在语音里谁都不说话，整整{N}分钟，谁也没有先退。",
+      "options": [
+        {
+          "id": "speak_first",
+          "text": "先开口",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你说要不你放吧。他说不用了。气氛松下来了，但那一晚你们话都很少。",
+              "effects": {
+                "mood": -2,
+                "skills": {
+                  "social": 1
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你先开口道歉，他笑了，说至于吗。你说至于。他愣了一下，说那好吧，对不起。",
+              "effects": {
+                "mood": 3,
+                "skills": {
+                  "social": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "wait_him",
+          "text": "等他先开口",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "他先退了频道。半小时后他发消息说，刚网断了。你回了个哦。你们都当刚才没发生。",
+              "effects": {
+                "mood": -6
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "extreme",
+              "text": "他退了，然后三天没上线。第四天他回来，什么都不提。你也没提，但你把那首歌从歌单里删了。",
+              "effects": {
+                "mood": -12,
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_silent_days"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave_room",
+          "text": "直接退房",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你退了。躺在床上你觉得自己有点幼稚，又觉得不完全是你的错。你没去解释。",
+              "effects": {
+                "mood": -5,
+                "counters": {
+                  "earlyExits": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_014",
+      "title": "第三个人",
+      "category": "sugar",
+      "stage": "深度社交",
+      "hoursRange": [
+        285,
+        600
+      ],
+      "weight": 45,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 60,
+      "tags": [
+        "sugar",
+        "冲突",
+        "负面"
+      ],
+      "condition": {
+        "minHours": 285,
+        "maxHours": 600,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定",
+          "矛盾"
+        ],
+        "maxFreshness": 45
+      },
+      "text": "{ta}新认识的那个人开始在你们的局里出现，坐在他左边。你发现自己一整晚都在数他们说了几句话。",
+      "options": [
+        {
+          "id": "say_it",
+          "text": "把不舒服说出来",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你说我不太喜欢他。他说你想多了。你说可能吧。之后那个人还是照常出现。",
+              "effects": {
+                "mood": -10,
+                "flags": {
+                  "add": [
+                    "sugar_third_party"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你说完之后他沉默了一会儿，说以后我少带他来。他真的少带了。你反而有点过意不去。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "social": 1
+                }
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "他说，你以前不是这么小气的人。这句话之后，你们之间的东西好像被挪走了一块。",
+              "effects": {
+                "mood": -14,
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_third_party"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "cold",
+          "text": "冷处理，少上线",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你把上线时间挪到了深夜。他问你怎么最近都不在。你说忙。你说的是真的，也不全是真的。",
+              "effects": {
+                "mood": -6,
+                "counters": {
+                  "earlyExits": 1
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你两天没上线。第三天他给你发了条消息：你最近怎么了。你看着那条消息，过了很久才回。",
+              "effects": {
+                "mood": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave_group",
+          "text": "退掉那个群",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你退了群，没跟任何人说。有人在群里问你去哪了，是他问的。你没回。",
+              "effects": {
+                "mood": -5,
+                "friends": -1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_015",
+      "title": "你在不在意我",
+      "category": "sugar",
+      "stage": "深度社交",
+      "hoursRange": [
+        290,
+        620
+      ],
+      "weight": 45,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 120,
+      "tags": [
+        "sugar",
+        "冲突",
+        "负面"
+      ],
+      "condition": {
+        "minHours": 290,
+        "maxHours": 620,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定",
+          "矛盾"
+        ],
+        "minIntimacy": 35,
+        "minDependence": 20
+      },
+      "text": "你终于问出口了：「{ta}，你到底在不在意我。」问完你立刻后悔，可是话已经过麦了，撤不回来。",
+      "options": [
+        {
+          "id": "wait_answer",
+          "text": "等他的回答",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "他想了几秒，说在意啊。你说哦。这三个字你等了一个月，听到的时候居然没什么感觉。",
+              "effects": {
+                "mood": -2,
+                "flags": {
+                  "add": [
+                    "sugar_asked"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "extreme",
+              "text": "他没回答，反问你，那你呢。你们互相把问题推回去，推到后来谁都不记得最开始想问什么。",
+              "effects": {
+                "mood": -11,
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_asked"
+                  ]
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k04",
+                  "delayHours": [
+                    11,
+                    54
+                  ],
+                  "chance": 0.6
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "joke",
+          "text": "补一句「开玩笑的」",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你笑着说开玩笑的。他说吓我一跳。你们都笑了。这件事就过去了，表面上是。",
+              "effects": {
+                "mood": -4,
+                "counters": {
+                  "swallowedWords": 1
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "他说，我没当玩笑。你说我也是。然后你们都不说话了，但这次不说话不难受。",
+              "effects": {
+                "mood": 5,
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "logout",
+          "text": "直接下线",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你说了句我先下了，退得很快。他在你退出之后发了一条消息，你第二天早上才看到。",
+              "effects": {
+                "mood": -8,
+                "counters": {
+                  "earlyExits": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_016",
+      "title": "现实怎么算",
+      "category": "sugar",
+      "stage": "深度社交",
+      "hoursRange": [
+        295,
+        640
+      ],
+      "weight": 45,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 100,
+      "tags": [
+        "sugar",
+        "现实",
+        "冲突"
+      ],
+      "condition": {
+        "minHours": 295,
+        "maxHours": 640,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定",
+          "矛盾"
+        ],
+        "minRealPressure": 40,
+        "maxFreshness": 45
+      },
+      "text": "{ta}说，现实里有人问他，游戏里的这段关系算什么。他说他不知道该怎么回答。他把问题原样丢给了你。",
+      "options": [
+        {
+          "id": "nothing",
+          "text": "说「不算也没关系」",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你说不算也没关系。他说谢谢。这句谢谢让你在之后的很多天里反复回想。",
+              "effects": {
+                "mood": -10,
+                "counters": {
+                  "swallowedWords": 1
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k04",
+                  "delayHours": [
+                    11,
+                    54
+                  ],
+                  "chance": 0.6
+                }
+              ]
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你说不算也没关系。他说，对你也不算什么吗。你说对我算。他说，那怎么办。",
+              "effects": {
+                "mood": -5,
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "matters",
+          "text": "说「对我算」",
+          "outcomes": [
+            {
+              "weight": 65,
+              "tier": "normal",
+              "text": "你说对我算。他说那我知道了。你没有问他知道什么。那晚你们照常挂到三点。",
+              "effects": {
+                "mood": 2,
+                "flags": {
+                  "add": [
+                    "sugar_said_matters"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 35,
+              "tier": "extreme",
+              "text": "你说对我算。他很久没说话，最后说，我怕我给不了。你说我没要你给什么。",
+              "effects": {
+                "mood": -8,
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_said_matters"
+                  ]
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k04",
+                  "delayHours": [
+                    10,
+                    32
+                  ],
+                  "chance": 0.7
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "silence",
+          "text": "不回答",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你没接话。他也没再问。那个问题像一块石头落在水里，沉下去了，但一直压在底下。",
+              "effects": {
+                "mood": -6,
+                "tags": {
+                  "add": [
+                    "隐患"
+                  ]
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k04",
+                  "delayHours": [
+                    16,
+                    65
+                  ],
+                  "chance": 0.5
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_017",
+      "title": "灰掉的头像",
+      "category": "sugar",
+      "stage": "深度社交",
+      "hoursRange": [
+        300,
+        660
+      ],
+      "weight": 45,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 80,
+      "tags": [
+        "sugar",
+        "孤独",
+        "负面"
+      ],
+      "condition": {
+        "minHours": 300,
+        "maxHours": 660,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定",
+          "矛盾"
+        ],
+        "minRealPressure": 50,
+        "maxFreshness": 40
+      },
+      "text": "他的头像已经灰了{N}天。你每天上线都会先看一眼那个位置，看完再去做别的事。",
+      "options": [
+        {
+          "id": "text_him",
+          "text": "发消息问他",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你问他最近还好吗。第二天他回了个「忙」。你把这两个字看了很久。",
+              "effects": {
+                "mood": -6
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "他过了三天才回，说家里出了点事。你说需要我做什么吗。他说不用。你说好。",
+              "effects": {
+                "mood": -3,
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "let_go",
+          "text": "就这样吧",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你不再等他上线，改成自己去玩。这样过了一周，你发现自己也能玩得下去。",
+              "effects": {
+                "mood": 2,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ]
+                },
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "less_online",
+          "text": "自己也少上线",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你把游戏从任务栏取消固定了。一周之后你打开它，发现更新了{N}个G。",
+              "effects": {
+                "mood": -5,
+                "counters": {
+                  "earlyExits": 1
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你少上线之后，反而有人来问你怎么不见了。你有点意外，原来还有人注意到。",
+              "effects": {
+                "mood": 3,
+                "friends": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_018",
+      "title": "那只手",
+      "category": "sugar",
+      "stage": "深度社交",
+      "hoursRange": [
+        305,
+        680
+      ],
+      "weight": 45,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 100,
+      "tags": [
+        "sugar",
+        "冲突",
+        "负面"
+      ],
+      "condition": {
+        "minHours": 305,
+        "maxHours": 680,
+        "hasRelation": true,
+        "relationState": [
+          "砂糖",
+          "稳定",
+          "矛盾"
+        ],
+        "minRealPressure": 35,
+        "excludeTags": [
+          "回归者"
+        ]
+      },
+      "text": "在{世界}，你看到{ta}牵着别人的手。你知道这个动作在 VRChat 里什么都说明不了。你还是站在原地看了很久。",
+      "options": [
+        {
+          "id": "greet",
+          "text": "过去打招呼",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你走过去说了句嗨。他介绍了一下，说是朋友。你握了一下那个人的手，握得很用力。",
+              "effects": {
+                "mood": -8,
+                "skills": {
+                  "social": 1
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你走过去，他松开了手。这个动作很自然，自然到你没法说什么。你们聊了几句，你走了。",
+              "effects": {
+                "mood": -5
+              }
+            }
+          ]
+        },
+        {
+          "id": "turn_away",
+          "text": "转身走",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你退出世界，换了一个没人的地图。你在里面站了很久，什么都没做。",
+              "effects": {
+                "mood": -8,
+                "counters": {
+                  "earlyExits": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "screenshot_ask",
+          "text": "截图发给他问",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你发了截图，问这是谁。他说是朋友，问我是不是又要多想。你把消息删了。",
+              "effects": {
+                "mood": -10,
+                "counters": {
+                  "swallowedWords": 1
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k04",
+                  "delayHours": [
+                    10,
+                    43
+                  ],
+                  "chance": 0.65
+                }
+              ]
+            },
+            {
+              "weight": 30,
+              "tier": "extreme",
+              "text": "他说，那是我现实里的对象，最近刚在一起的。他说得很平静，像在念一条公告。",
+              "effects": {
+                "mood": -19,
+                "breakupCount": 1,
+                "tags": {
+                  "add": [
+                    "失恋",
+                    "emo"
+                  ],
+                  "remove": [
+                    "砂糖中"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_ended_by_ta",
+                    "sugar_real_partner"
+                  ]
+                },
+                "relationOp": {
+                  "type": "end"
+                }
+              },
+              "endingHint": {
+                "path": "sugar_loop",
+                "score": 2
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_019",
+      "title": "情侣款",
+      "category": "sugar",
+      "stage": "老油条",
+      "hoursRange": [
+        360,
+        720
+      ],
+      "weight": 55,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 40,
+      "tags": [
+        "sugar",
+        "孤独",
+        "负面"
+      ],
+      "condition": {
+        "minHours": 360,
+        "maxHours": 720,
+        "hasRelation": false,
+        "requireTags": [
+          "失恋"
+        ],
+        "excludeTags": [
+          "砂糖中"
+        ]
+      },
+      "text": "{中文吧}里有人在用情侣款模型，一左一右，颜色配得很讲究。你看了两秒，把视角转开了。",
+      "options": [
+        {
+          "id": "leave",
+          "text": "回自己的房间",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你开了个单人世界，把模型停在海边。帧数很高，声音只有水声。你待到很晚。",
+              "effects": {
+                "mood": -5,
+                "counters": {
+                  "lateNights": 1
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你在单人世界里把自己的模型改成了一套完全新的样子，改到凌晨。改完你看了一会儿，还行。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "modeling": 4
+                },
+                "avatars": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "do_something",
+          "text": "找点别的事做",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你去跳舞房跟着跳了一个小时，跳得满头汗，中间一次都没想起那对模型。",
+              "effects": {
+                "mood": 5,
+                "skills": {
+                  "dance": 11
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你随手拍了几张别人的合照，拍得不错。有人问你能不能发给他。你说可以。",
+              "effects": {
+                "mood": 6,
+                "fame": 2,
+                "skills": {
+                  "photo": 7
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "watch",
+          "text": "就站在那儿看",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你站在原地看了很久，久到那两个人下线了。房间里只剩你一个，和那面还在循环的镜子。",
+              "effects": {
+                "mood": -10,
+                "counters": {
+                  "lateNights": 1
+                },
+                "tags": {
+                  "add": [
+                    "emo"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "看了一会儿，你忽然觉得那两个人也未必长久。这么想的时候你舒服了一点，然后又为这个念头觉得难堪。",
+              "effects": {
+                "mood": -3,
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_020",
+      "title": "不想去中文吧",
+      "category": "sugar",
+      "stage": "老油条",
+      "hoursRange": [
+        380,
+        740
+      ],
+      "weight": 50,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 60,
+      "tags": [
+        "sugar",
+        "孤独",
+        "退坑"
+      ],
+      "condition": {
+        "minHours": 380,
+        "maxHours": 740,
+        "hasRelation": false,
+        "requireTags": [
+          "失恋"
+        ],
+        "maxMood": 60
+      },
+      "text": "你打开收藏夹，{中文吧}排在第一个。你点了别的。这已经是第{N}天了。",
+      "options": [
+        {
+          "id": "force",
+          "text": "逼自己去一次",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你进去了，站在门口听了两首歌，然后就退了。没人注意到你来过。",
+              "effects": {
+                "mood": -4,
+                "counters": {
+                  "earlyExits": 1
+                }
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你进去之后有人跟你打招呼，说好久不见。你说最近忙。他信了。你站到了打烊。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "tags": {
+                  "add": [
+                    "老好人"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "new_world",
+          "text": "换个没去过的新世界",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你按随机跳了五个世界，最后在一个没人的小岛上待了一晚。那里没有回忆。",
+              "effects": {
+                "mood": 4,
+                "counters": {
+                  "worldVisits": 5
+                },
+                "skills": {
+                  "photo": 3
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你在那个新世界里遇到一群在办小型活动的人，他们没问你是谁，直接让你站进队伍里拍照。",
+              "effects": {
+                "mood": 7,
+                "friends": 2,
+                "fame": 2,
+                "tags": {
+                  "add": [
+                    "活动咖"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "log_off",
+          "text": "关掉游戏",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你关掉了，连着三天没打开。第三天晚上你躺在床上，还是想了一下中文吧门口长什么样。",
+              "effects": {
+                "mood": -5,
+                "counters": {
+                  "earlyExits": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_021",
+      "title": "删了又加",
+      "category": "sugar",
+      "stage": "老油条",
+      "hoursRange": [
+        400,
+        760
+      ],
+      "weight": 50,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 70,
+      "tags": [
+        "sugar",
+        "孤独",
+        "回忆"
+      ],
+      "condition": {
+        "minHours": 400,
+        "maxHours": 760,
+        "hasRelation": false,
+        "requireTags": [
+          "失恋"
+        ],
+        "excludeTags": [
+          "砂糖中"
+        ]
+      },
+      "text": "你把{ta}删了。第三天，你在搜索框里一个字一个字打出他的名字，点开，加回来，备注什么都没写。",
+      "options": [
+        {
+          "id": "add_back",
+          "text": "就这样加回来",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "他通过了，什么都没问。你们的好友列表里重新有了对方，但谁都没发过一条消息。",
+              "effects": {
+                "mood": -5,
+                "counters": {
+                  "profileVisits": 1
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "他通过了，还发了一句：最近还好吗。你打了半天，回了个「挺好」。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "social": 1
+                }
+              }
+            },
+            {
+              "weight": 10,
+              "tier": "extreme",
+              "text": "他秒通过，然后发来一条：你上次把我删了。你看着这句话，不知道该说什么。",
+              "effects": {
+                "mood": -11,
+                "tags": {
+                  "add": [
+                    "emo"
+                  ]
+                },
+                "counters": {
+                  "profileVisits": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "leave_deleted",
+          "text": "算了，不加了",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你关掉搜索框。之后你又搜过两次，都没有点下去。第三次你没有再搜。",
+              "effects": {
+                "mood": 2,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你把他的名字从输入法记忆里删掉了。做完这件事你坐在椅子上，觉得有点荒诞。",
+              "effects": {
+                "mood": 1,
+                "skills": {
+                  "social": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "block_all",
+          "text": "把相关的全删干净",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你删掉了聊天记录、共享相册和那个「新建文件夹(3)」。删完之后硬盘空出来{N}个G。",
+              "effects": {
+                "mood": 3,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ]
+                },
+                "counters": {
+                  "deletedLogs": 1
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你删到最后发现一张截图，是你们第一次见面时拍的。你犹豫了，最后把它留下了。",
+              "effects": {
+                "mood": -2,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ]
+                },
+                "counters": {
+                  "deletedLogs": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_022",
+      "title": "旧截图",
+      "category": "sugar",
+      "stage": "老油条",
+      "hoursRange": [
+        420,
+        780
+      ],
+      "weight": 45,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 80,
+      "tags": [
+        "sugar",
+        "回忆",
+        "孤独"
+      ],
+      "condition": {
+        "minHours": 420,
+        "maxHours": 780,
+        "hasRelation": false,
+        "requireTags": [
+          "失恋"
+        ],
+        "maxMood": 55
+      },
+      "text": "你翻到一张跨年的截图，{N}个人挤在一起，{ta}在你右边。你把图放大，看了很久。",
+      "options": [
+        {
+          "id": "delete_it",
+          "text": "删掉",
+          "outcomes": [
+            {
+              "weight": 75,
+              "tier": "normal",
+              "text": "你删了，然后去回收站看了一眼，没有还原。第二天你想不起来那张图长什么样了。",
+              "effects": {
+                "mood": 2,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 25,
+              "tier": "rare",
+              "text": "你删之前把它裁了一下，只留下自己那半边，存进了另一个文件夹。你说不清这算什么。",
+              "effects": {
+                "mood": -2,
+                "counters": {
+                  "photosTaken": 1
+                },
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "keep_it",
+          "text": "存起来，然后关掉",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你把它归档到一个不常打开的文件夹里，命名为「以前」。然后你去洗了个澡。",
+              "effects": {
+                "mood": 2,
+                "tags": {
+                  "add": [
+                    "怀旧"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你存好之后顺手整理了整个相册，整理到天亮。你发现自己这{N}个月其实也拍了很多别的东西。",
+              "effects": {
+                "mood": 5,
+                "skills": {
+                  "photo": 7
+                },
+                "counters": {
+                  "photosTaken": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "send_it",
+          "text": "发给他",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你发了过去，配了一句「翻到了」。他回了个笑脸。之后就没有下文了。",
+              "effects": {
+                "mood": -6,
+                "counters": {
+                  "unsentMessages": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_023",
+      "title": "有人劝你",
+      "category": "sugar",
+      "stage": "老油条",
+      "hoursRange": [
+        300,
+        99999
+      ],
+      "weight": 45,
+      "rarity": "common",
+      "once": false,
+      "cooldown": 120,
+      "tags": [
+        "sugar",
+        "成长",
+        "回归"
+      ],
+      "condition": {
+        "minHours": 300,
+        "maxHours": 99999,
+        "hasRelation": false,
+        "requireTags": [
+          "失恋"
+        ],
+        "minFriends": 5
+      },
+      "text": "有人在语音里说，你已经这样{N}个月了，他早就不在了。你说我知道。他说你知道个屁。然后他把你拉进了舞房。",
+      "options": [
+        {
+          "id": "admit",
+          "text": "承认自己没走出来",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你说我确实没走出来。他说那就慢慢走。那天晚上你们跳了两个小时，你跳得很烂。",
+              "effects": {
+                "mood": 5,
+                "skills": {
+                  "dance": 11
+                },
+                "friends": 1
+              }
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你说完之后他没安慰你，只是每天都来叫你上号。叫到第十天，你发现自己会主动上线了。",
+              "effects": {
+                "mood": 8,
+                "skills": {
+                  "dance": 4,
+                  "social": 2
+                },
+                "friends": 1,
+                "tags": {
+                  "add": [
+                    "元气"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "he_doesnt_get_it",
+          "text": "说他不懂",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你说你又没经历过。他愣了一下，说他经历过，去年。你道歉，他说不用，然后继续教你踩点。",
+              "effects": {
+                "mood": 3,
+                "skills": {
+                  "dance": 4
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你说他不懂。他没反驳，只是把麦关了。过了一会儿他又开了，说，来跳舞吧。",
+              "effects": {
+                "mood": 2,
+                "skills": {
+                  "dance": 11
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "change_topic",
+          "text": "换个话题",
+          "outcomes": [
+            {
+              "weight": 100,
+              "tier": "normal",
+              "text": "你问他们最近在玩什么图。他们聊开了。你听着，偶尔插一句。这一晚过得比想象中快。",
+              "effects": {
+                "mood": 4,
+                "friends": 1,
+                "skills": {
+                  "social": 1
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k08",
+                  "delayHours": [
+                    43,
+                    135
+                  ],
+                  "chance": 0.6
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sugar_b_024",
+      "title": "凌晨三点",
+      "category": "sugar",
+      "stage": "老油条",
+      "hoursRange": [
+        500,
+        900
+      ],
+      "weight": 45,
+      "rarity": "uncommon",
+      "once": false,
+      "cooldown": 150,
+      "tags": [
+        "sugar",
+        "回归",
+        "成长"
+      ],
+      "condition": {
+        "minHours": 500,
+        "maxHours": 900,
+        "hasRelation": false,
+        "requireTags": [
+          "失恋"
+        ],
+        "maxMood": 65
+      },
+      "text": "凌晨三点，你一个人回到那个一直下雨的老地图。没有别人，帧数高得离谱。你站了{N}分钟，然后打开了麦克风。",
+      "options": [
+        {
+          "id": "dance_again",
+          "text": "重新开始跳舞",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你在雨里跳了一支以前学会的舞，跳错了两次，第三次对了。你出了一身汗。",
+              "effects": {
+                "mood": 8,
+                "skills": {
+                  "dance": 18
+                },
+                "circles": {
+                  "add": [
+                    "跳舞圈"
+                  ]
+                },
+                "tags": {
+                  "add": [
+                    "回归者"
+                  ],
+                  "remove": [
+                    "退坑边缘"
+                  ]
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k08",
+                  "delayHours": [
+                    32,
+                    108
+                  ],
+                  "chance": 0.7
+                }
+              ]
+            },
+            {
+              "weight": 30,
+              "tier": "rare",
+              "text": "你跳完之后把这段录了下来，发到了群里。有人回：你什么时候回来的。你说刚刚。",
+              "effects": {
+                "mood": 11,
+                "fame": 3,
+                "skills": {
+                  "dance": 11
+                },
+                "friends": 2,
+                "tags": {
+                  "add": [
+                    "回归者"
+                  ],
+                  "remove": [
+                    "退坑边缘",
+                    "emo"
+                  ]
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k08",
+                  "delayHours": [
+                    22,
+                    90
+                  ],
+                  "chance": 0.75
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "put_away",
+          "text": "把旧模型收起来",
+          "outcomes": [
+            {
+              "weight": 80,
+              "tier": "normal",
+              "text": "你把那套情侣款从收藏夹里移了出去，放进一个叫「存档」的文件夹。然后你换回了最初那个默认模型。",
+              "effects": {
+                "mood": 5,
+                "avatars": -1,
+                "tags": {
+                  "add": [
+                    "断舍离"
+                  ]
+                }
+              }
+            },
+            {
+              "weight": 20,
+              "tier": "rare",
+              "text": "你没有删，只是移走了。移走的时候你发现那套模型你改了十七个版本，最早的日期是去年。",
+              "effects": {
+                "mood": 3,
+                "skills": {
+                  "modeling": 4
+                },
+                "tags": {
+                  "add": [
+                    "怀旧",
+                    "断舍离"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "write_it",
+          "text": "写一段话发出去",
+          "outcomes": [
+            {
+              "weight": 70,
+              "tier": "normal",
+              "text": "你在动态里写了一段话，没有提名字，没有提发生了什么。发完你就去睡了。第二天有{N}个人点了赞。",
+              "effects": {
+                "mood": 6,
+                "fame": 2,
+                "tags": {
+                  "add": [
+                    "回归者"
+                  ],
+                  "remove": [
+                    "退坑边缘"
+                  ]
+                },
+                "counters": {
+                  "unsentMessages": 1
+                }
+              },
+              "schedule": [
+                {
+                  "eventId": "sugar_b_k08",
+                  "delayHours": [
+                    43,
+                    151
+                  ],
+                  "chance": 0.65
+                }
+              ]
+            },
+            {
+              "weight": 30,
+              "tier": "extreme",
+              "text": "你写完之后看了一遍，删掉了。然后你重新写了一版，只留了一句话：我还在。发出去，关了手机。",
+              "effects": {
+                "mood": 10,
+                "fame": 3,
+                "friends": 1,
+                "tags": {
+                  "add": [
+                    "回归者",
+                    "元气"
+                  ],
+                  "remove": [
+                    "退坑边缘",
+                    "emo"
+                  ]
+                },
+                "flags": {
+                  "add": [
+                    "sugar_stayed"
+                  ]
+                }
+              },
+              "endingHint": {
+                "path": "sugar_loop",
+                "score": 2
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

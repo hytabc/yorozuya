@@ -1,0 +1,103 @@
+{
+  "$comment": "全局结局判定配置。终章 4-3 结算时使用，见 PRD §5.3 与 docs/02-判定引擎规格.md",
+
+  "variables": {
+    "levelScore": {
+      "source": "judgeChain(chain, level_4_3).score",
+      "weight": 0.4,
+      "normalize": "score / 100",
+      "description": "终章序列的归一化得分"
+    },
+    "goodCount": {
+      "source": "save.endingsSeen 中 type === 'good' 的数量",
+      "weight": 0.2,
+      "normalize": "min(count, 9) / 9",
+      "description": "全作达成的修复结局数"
+    },
+    "trueCount": {
+      "source": "save.endingsSeen 中 type === 'true' 的数量",
+      "weight": 0.2,
+      "normalize": "min(count, 10) / 10",
+      "description": "全作达成的真相结局数"
+    },
+    "bondMean": {
+      "source": "mean(bond.Mio, bond.Shiori, bond.Rin)",
+      "weight": 0.2,
+      "normalize": "(bondMean + 100) / 200",
+      "description": "三名主要角色的羁绊值均值，映射到 0..1"
+    }
+  },
+
+  "formula": "GlobalScore = 100 * ( 0.4*levelScore + 0.2*goodCount + 0.2*trueCount + 0.2*bondMean )",
+
+  "thresholds": [
+    { "min": 85, "endingId": "global_true" },
+    { "min": 65, "endingId": "global_good" },
+    { "min": 40, "endingId": "global_bittersweet" },
+    { "min": -1, "endingId": "global_bad" }
+  ],
+
+  "overrides": [
+    {
+      "endingId": "global_give_away",
+      "priority": 100,
+      "condition": "level_4_3 的金色碎片 frag_4_3_08 与 frag_4_3_07 相邻，且 before(frag_4_3_08, frag_4_3_05)；且全局中「放手类」结局数 >= 3",
+      "conditionConstraints": [
+        { "kind": "adjacent", "a": "frag_4_3_08", "b": "frag_4_3_07", "weight": 0 },
+        { "kind": "before", "a": "frag_4_3_08", "b": "frag_4_3_05", "weight": 0 }
+      ],
+      "releaseEndingIds": ["3_2_true", "4_2_good", "4_2_true"],
+      "minReleaseCount": 3
+    }
+  ],
+
+  "globalEndings": [
+    {
+      "id": "global_true",
+      "type": "true",
+      "title": "欢迎回来",
+      "subtitle": "真结局",
+      "excerpt": "糖霜世界，在线人数：3。",
+      "text": "澪用真名回应了。栞说「欢迎回来」，凛把热可可放在桌上，说「茶还热着」。\n\n原来有些人从来没有走。他们只是把灯留着，等你什么时候想起来要点亮它。"
+    },
+    {
+      "id": "global_good",
+      "type": "good",
+      "title": "重新开始",
+      "subtitle": "Happy End",
+      "excerpt": "不是所有关系都能回到从前。",
+      "text": "三个人重新坐在了雪原上。过去那一年的时间没有回来，但今晚开始了新的第一晚。\n\n不是所有关系都能回到从前，但有些可以重新长出从前没有的东西。"
+    },
+    {
+      "id": "global_bittersweet",
+      "type": "bittersweet",
+      "title": "远处的灯",
+      "subtitle": "Bittersweet End",
+      "excerpt": "她终于知道他们都还好。",
+      "text": "澪没有推门进去。她在雪原外站了很久，看见窗户里有两个人影和一盏灯。\n\n她终于知道他们都还好，然后安静地退出了这个世界。"
+    },
+    {
+      "id": "global_bad",
+      "type": "bad",
+      "title": "无人登入",
+      "subtitle": "Bad End",
+      "excerpt": "这一次，她没有留下任何东西。",
+      "text": "澪把 4-3 的碎片排成了「告别」。她重新卸载了游戏，这一次，她没有留下任何东西。\n\n三天后，糖霜世界被设为「仅好友可见」。一周后，栞的好友列表里，澪的名字变灰了。"
+    },
+    {
+      "id": "global_give_away",
+      "type": "true",
+      "title": "把世界交给你",
+      "subtitle": "隐藏·放手结局",
+      "excerpt": "「随便逛逛。」",
+      "text": "澪没有选择回来，也没有选择告别。她做了一件事：把糖霜世界的链接，发给了下一个陌生人。\n\n附言只有四个字：「随便逛逛。」\n\n——她终于明白，世界不是用来留住人的，是用来让人相遇的。"
+    }
+  ],
+
+  "epilogue": {
+    "true": "「今晚我依然登入。因为我还想再说一次——欢迎回来。」",
+    "good": "「今晚我依然登入。因为有些事，可以重新开始。」",
+    "bittersweet": "「今晚我没有登入。但我知道那里的灯，还亮着。」",
+    "bad": "「今晚我不会登入了。」"
+  }
+}

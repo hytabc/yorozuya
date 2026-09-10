@@ -1,0 +1,256 @@
+{
+  "id": "4-3",
+  "title": "今晚我依然登入",
+  "chapter": 4,
+  "order": 3,
+  "epigraph": "",
+  "intro": "回声服务器最后一次开口：「现在，轮到你了。」",
+  "hasButterfly": true,
+  "anchors": { "first": "frag_4_3_01", "last": "frag_4_3_09" },
+  "initialOrder": [
+    "frag_4_3_01",
+    "frag_4_3_08",
+    "frag_4_3_03",
+    "frag_4_3_05",
+    "frag_4_3_02",
+    "frag_4_3_07",
+    "frag_4_3_04",
+    "frag_4_3_06",
+    "frag_4_3_09"
+  ],
+  "fragments": [
+    {
+      "id": "frag_4_3_01",
+      "levelId": "4-3",
+      "type": "gray",
+      "character": "Mio",
+      "text": "澪重新安装了 VRChat，登入提示显示：「你已经 217 天没有上线。」",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定起点。217 天 = 从 3-2 那一晚算起。"
+    },
+    {
+      "id": "frag_4_3_02",
+      "levelId": "4-3",
+      "type": "white",
+      "character": "Mio",
+      "text": "好友列表里，栞的头像还是亮的，只是名字后面多了一行简介：「等人。」",
+      "tags": ["return"],
+      "draggable": true,
+      "valence": 2,
+      "note": "本关的第一个信号。"
+    },
+    {
+      "id": "frag_4_3_03",
+      "levelId": "4-3",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪点开了糖霜世界的入口。雪还在下，灯还亮着。",
+      "tags": ["return_rin"],
+      "draggable": true,
+      "valence": 2,
+      "note": "呼应 4-2 的灯。"
+    },
+    {
+      "id": "frag_4_3_04",
+      "levelId": "4-3",
+      "type": "white",
+      "character": "Mio",
+      "text": "房子里没有人，桌上放着一个没有署名的 Avatar，配色是蓝色。",
+      "tags": ["gift"],
+      "draggable": true,
+      "valence": 1,
+      "note": "呼应 2-2 的「澪蓝」。"
+    },
+    {
+      "id": "frag_4_3_05",
+      "levelId": "4-3",
+      "type": "white",
+      "character": "Shiori",
+      "text": "身后传来脚步声。栞站在门口，说：「我猜你今晚会来。」",
+      "tags": ["reunion"],
+      "draggable": true,
+      "valence": 2,
+      "note": "本关的情感峰值之一。"
+    },
+    {
+      "id": "frag_4_3_06",
+      "levelId": "4-3",
+      "type": "white",
+      "character": "Rin",
+      "text": "凛从另一个房间走出来，手里拿着两杯虚拟的热可可。",
+      "tags": ["rin_present"],
+      "draggable": true,
+      "valence": 2,
+      "note": "凛的在场。"
+    },
+    {
+      "id": "frag_4_3_07",
+      "levelId": "4-3",
+      "type": "white",
+      "character": "Observer",
+      "text": "观测者——也就是澪——第一次，用自己真正的名字回应了。",
+      "tags": ["name"],
+      "draggable": true,
+      "valence": 2,
+      "note": "全作的情感落点：承认自己是谁。"
+    },
+    {
+      "id": "frag_4_3_08",
+      "levelId": "4-3",
+      "type": "gold",
+      "character": "Narrator",
+      "text": "【关键】交换「告别」与「重逢」的顺序。",
+      "tags": ["swap", "key", "final"],
+      "draggable": true,
+      "valence": 0,
+      "note": "金色碎片。它决定了这是最后一次登入，还是第一次回来。"
+    },
+    {
+      "id": "frag_4_3_09",
+      "levelId": "4-3",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "屏幕右下角显示：「今晚，你依然登入了。」",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": 1,
+      "note": "固定终点。与标题同名。"
+    },
+    {
+      "id": "frag_4_3_10",
+      "levelId": "4-3",
+      "type": "blue",
+      "character": "Observer",
+      "text": "【观测者】我一直在找一个人替我说「欢迎回来」。原来那个人，一直都在。",
+      "tags": ["insight", "final"],
+      "draggable": false,
+      "valence": 0,
+      "hidden": true,
+      "unlockedBy": "endingType:true",
+      "note": "达成任意 true 结局后解锁。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "4_3_good",
+      "levelId": "4-3",
+      "type": "good",
+      "title": "重新开始",
+      "threshold": 70,
+      "valence": 1,
+      "constraints": [
+        { "kind": "before", "a": "frag_4_3_02", "b": "frag_4_3_03", "weight": 20 },
+        { "kind": "before", "a": "frag_4_3_03", "b": "frag_4_3_04", "weight": 20 },
+        { "kind": "before", "a": "frag_4_3_04", "b": "frag_4_3_05", "weight": 20 },
+        { "kind": "before", "a": "frag_4_3_05", "b": "frag_4_3_07", "weight": 20 },
+        { "kind": "adjacent", "a": "frag_4_3_07", "b": "frag_4_3_09", "weight": 20 }
+      ],
+      "anti": [
+        { "kind": "position", "frag": "frag_4_3_08", "index": 1, "weight": 50 }
+      ],
+      "text": "澪看到栞的简介写着「等人」，然后点开了糖霜世界的入口。雪还在下，灯还亮着。\n\n桌上放着一个没有署名的 Avatar，配色是蓝色。\n\n身后传来脚步声。栞站在门口，说：「我猜你今晚会来。」\n\n澪用自己真正的名字回应了她。过去那一年没有回来，但从今晚开始，有了新的第一晚。",
+      "excerpt": "过去没有回来，但今晚是新的第一晚。",
+      "bondEffect": { "Mio": 15, "Shiori": 15, "Rin": 8 }
+    },
+    {
+      "id": "4_3_bittersweet",
+      "levelId": "4-3",
+      "type": "bittersweet",
+      "title": "远处的灯",
+      "threshold": 60,
+      "valence": 0,
+      "constraints": [
+        { "kind": "before", "a": "frag_4_3_02", "b": "frag_4_3_03", "weight": 25 },
+        { "kind": "before", "a": "frag_4_3_03", "b": "frag_4_3_05", "weight": 25 },
+        { "kind": "before", "a": "frag_4_3_05", "b": "frag_4_3_08", "weight": 25 },
+        { "kind": "position", "frag": "frag_4_3_08", "index": 7, "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "group", "frags": ["frag_4_3_05", "frag_4_3_06", "frag_4_3_07"], "weight": 50 }
+      ],
+      "text": "澪点开了糖霜世界的入口。雪还在下，灯还亮着，窗户里有两个人影。\n\n她没有推门进去。\n\n她在雪原外站了很久，看见栞抬了一下头，又低下去。\n\n然后她退出了这个世界。至少她知道了——他们都还好。",
+      "excerpt": "她在雪原外站了很久，然后退出了。",
+      "bondEffect": { "Mio": -3, "Shiori": -3, "Rin": -3 }
+    },
+    {
+      "id": "4_3_bad",
+      "levelId": "4-3",
+      "type": "bad",
+      "title": "无人登入",
+      "threshold": 55,
+      "valence": -2,
+      "constraints": [
+        { "kind": "position", "frag": "frag_4_3_08", "index": 1, "weight": 30 },
+        { "kind": "before", "a": "frag_4_3_08", "b": "frag_4_3_02", "weight": 25 },
+        { "kind": "before", "a": "frag_4_3_08", "b": "frag_4_3_03", "weight": 25 },
+        { "kind": "before", "a": "frag_4_3_04", "b": "frag_4_3_05", "weight": 20 }
+      ],
+      "anti": [],
+      "text": "澪把「告别」排在了最前面。\n\n她看完了那条「等人」的简介，看完了那盏亮着的灯，然后做了一件事：重新卸载了游戏。\n\n这一次，她没有留下任何东西。\n\n三天后，糖霜世界被设为「仅好友可见」。一周后，栞的好友列表里，澪的名字变灰了。",
+      "excerpt": "她的名字变灰了。",
+      "bondEffect": { "Mio": -20, "Shiori": -15, "Rin": -15 }
+    },
+    {
+      "id": "4_3_true",
+      "levelId": "4-3",
+      "type": "true",
+      "title": "欢迎回来",
+      "threshold": 75,
+      "valence": 2,
+      "hidden": true,
+      "constraints": [
+        { "kind": "group", "frags": ["frag_4_3_05", "frag_4_3_06", "frag_4_3_07"], "weight": 30 },
+        { "kind": "before", "a": "frag_4_3_04", "b": "frag_4_3_05", "weight": 25 },
+        { "kind": "before", "a": "frag_4_3_03", "b": "frag_4_3_04", "weight": 20 },
+        { "kind": "before", "a": "frag_4_3_06", "b": "frag_4_3_07", "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "position", "frag": "frag_4_3_08", "index": 1, "weight": 50 }
+      ],
+      "text": "澪推开了门。\n\n栞在门口，凛从另一个房间走出来，手里拿着两杯虚拟的热可可。三个人站在同一间房子里，谁都没有先说话。\n\n然后澪做了一件她从来没能做到的事——她用了自己真正的名字。\n\n「我回来了。」\n\n屏幕右下角跳出一行小字：「糖霜世界，在线人数：3。」\n\n——原来有些人从来没有走。他们只是把灯留着，等你什么时候想起来要点亮它。",
+      "excerpt": "「我回来了。」在线人数：3。",
+      "bondEffect": { "Mio": 20, "Shiori": 20, "Rin": 20 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "4_3_chaos",
+    "levelId": "4-3",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……这一晚还没有被决定。\n\n金色碎片的位置，决定的是：这是最后一次登入，还是第一次回来。",
+    "excerpt": "最后一次登入，还是第一次回来。"
+  },
+  "butterflies": [
+    {
+      "id": "4-3:A",
+      "requires": [
+        { "kind": "adjacent", "a": "frag_4_3_03", "b": "frag_4_3_02", "weight": 1 }
+      ],
+      "unlocks": ["frag_4_3_10"],
+      "revealText": "把「栞的简介写着等人」和「糖霜世界的灯还亮着」放在一起，两条线在同一分钟交汇了。\n\n原来这一年里，不是只有一个人在等。"
+    }
+  ],
+  "hints": [
+    {
+      "tier": 1,
+      "text": "金色碎片决定这一晚的性质。放在最前面，它叫告别；放在最后面，它叫回来。"
+    },
+    {
+      "tier": 2,
+      "text": "让「栞」「凛」「澪」三句话连成一段——三个人必须站在同一间房子里。",
+      "highlight": ["frag_4_3_05", "frag_4_3_06", "frag_4_3_07"]
+    },
+    {
+      "tier": 3,
+      "text": "推荐顺序：栞的简介 → 糖霜世界的入口 → 蓝色的 Avatar → 栞在门口 → 凛端着热可可 → 澪用真名回应 → 接终点。",
+      "highlight": ["frag_4_3_02", "frag_4_3_03", "frag_4_3_04", "frag_4_3_05", "frag_4_3_06", "frag_4_3_07"]
+    }
+  ],
+  "behindTheScenes": "4-3 是全作的情感落点，也是唯一一关「三个人的碎片必须连在一起」的关卡。\n\ntrue 结局的触发条件在本关之外还有全局条件（见 global-endings.json）：它要求玩家在前面的关卡里攒下足够多的 good 与 true。因为'欢迎回来'不是靠一次正确的排列换来的，它是被一整段旅程换来的。\n\n标题「今晚我依然登入」来自本作最初的那句设想：有些人上线，不是为了玩，是为了再说一次'欢迎回来'。"
+}

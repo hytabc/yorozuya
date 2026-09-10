@@ -1,0 +1,198 @@
+{
+  "id": "2-1",
+  "title": "连续三晚",
+  "chapter": 2,
+  "order": 1,
+  "epigraph": "比朋友更近，比恋人更远。这段距离只有半步，却没有人知道该怎么迈过去。",
+  "intro": "第三天凌晨四点，她们发现彼此都还没下线。谁也没有先说「该睡了」。",
+  "hasButterfly": false,
+  "anchors": { "first": "frag_2_1_01", "last": "frag_2_1_07" },
+  "initialOrder": [
+    "frag_2_1_01",
+    "frag_2_1_04",
+    "frag_2_1_06",
+    "frag_2_1_02",
+    "frag_2_1_05",
+    "frag_2_1_03",
+    "frag_2_1_07"
+  ],
+  "fragments": [
+    {
+      "id": "frag_2_1_01",
+      "levelId": "2-1",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "第一晚，两人在一个几乎没人的星空房间聊到天亮。",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定起点。"
+    },
+    {
+      "id": "frag_2_1_02",
+      "levelId": "2-1",
+      "type": "white",
+      "character": "Shiori",
+      "text": "第二晚，栞主动发来消息：「今天还去吗？」",
+      "tags": ["initiative"],
+      "draggable": true,
+      "valence": 1,
+      "note": "栞的主动。它出现得越早，关系推进得越快。"
+    },
+    {
+      "id": "frag_2_1_03",
+      "levelId": "2-1",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪回了一个字：「去。」然后立刻后悔回得太快。",
+      "tags": ["eagerness", "shy"],
+      "draggable": true,
+      "valence": 1,
+      "note": "回应。紧邻邀请 = 自然的默契；离得远 = 各自的期待错位。"
+    },
+    {
+      "id": "frag_2_1_04",
+      "levelId": "2-1",
+      "type": "white",
+      "character": "Narrator",
+      "text": "第三晚，两个人并排躺在虚拟的草地上，谁都没说话。",
+      "tags": ["silence", "comfort"],
+      "draggable": true,
+      "valence": 1,
+      "note": "沉默。它可以被排成'舒适'，也可以被排成'无话可说'。"
+    },
+    {
+      "id": "frag_2_1_05",
+      "levelId": "2-1",
+      "type": "white",
+      "character": "Shiori",
+      "text": "栞说：「和你在一起的时候，我不用一直说话。」",
+      "tags": ["confession"],
+      "draggable": true,
+      "valence": 2,
+      "note": "最关键的一句话。它前面有没有那段沉默，意义完全不同。"
+    },
+    {
+      "id": "frag_2_1_06",
+      "levelId": "2-1",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪想说「我也是」，最后只发出了一个「嗯」。",
+      "tags": ["unspoken"],
+      "draggable": true,
+      "valence": 0,
+      "note": "没说出口的话。它必须紧跟在 05 之后，才叫'还来得及'。"
+    },
+    {
+      "id": "frag_2_1_07",
+      "levelId": "2-1",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "天快亮了，好友列表里只有她们两个还亮着。",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": 1,
+      "note": "固定终点。"
+    },
+    {
+      "id": "frag_2_1_09",
+      "levelId": "2-1",
+      "type": "blue",
+      "character": "Shiori",
+      "text": "【栞的独白】我说「不用一直说话」，其实是在说「你别走」。",
+      "tags": ["insight"],
+      "draggable": false,
+      "valence": 0,
+      "hidden": true,
+      "unlockedBy": "ending:2-1:good",
+      "note": "通关 good 结局后解锁的氛围碎片。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "2_1_good",
+      "levelId": "2-1",
+      "type": "good",
+      "title": "还没说完的话",
+      "threshold": 70,
+      "valence": 1,
+      "constraints": [
+        { "kind": "before", "a": "frag_2_1_02", "b": "frag_2_1_03", "weight": 20 },
+        { "kind": "before", "a": "frag_2_1_03", "b": "frag_2_1_04", "weight": 20 },
+        { "kind": "before", "a": "frag_2_1_04", "b": "frag_2_1_05", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_2_1_05", "b": "frag_2_1_06", "weight": 35 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_2_1_06", "b": "frag_2_1_05", "weight": 30 }
+      ],
+      "text": "栞问了，澪秒回了一个「去」——她后悔自己回得太快，但栞看到的时候笑了。\n\n第三晚，两个人躺在草地上谁都没说话。然后栞说：「和你在一起的时候，我不用一直说话。」\n\n澪想说「我也是」。这一次，她只用了三秒。\n\n——有些话迟到，但不算错过。",
+      "excerpt": "回得太快的那句「去」，其实是对的。",
+      "bondEffect": { "Mio": 10, "Shiori": 10 }
+    },
+    {
+      "id": "2_1_bittersweet",
+      "levelId": "2-1",
+      "type": "bittersweet",
+      "title": "习惯",
+      "threshold": 60,
+      "valence": 0,
+      "constraints": [
+        { "kind": "before", "a": "frag_2_1_02", "b": "frag_2_1_04", "weight": 25 },
+        { "kind": "before", "a": "frag_2_1_04", "b": "frag_2_1_06", "weight": 25 },
+        { "kind": "before", "a": "frag_2_1_06", "b": "frag_2_1_05", "weight": 25 },
+        { "kind": "before", "a": "frag_2_1_05", "b": "frag_2_1_03", "weight": 25 }
+      ],
+      "anti": [],
+      "text": "「嗯」来得太早，栞没有听出其中的分量。第三晚的沉默被当成了理所当然。\n\n三晚变成了三十晚，草地上再没有人提过那句话。她们依然每晚都在，只是谁也不说「为什么」。\n\n有些默契，其实是没敢说出口的空洞。",
+      "excerpt": "三晚变成三十晚，谁也没再提。",
+      "bondEffect": { "Mio": -2, "Shiori": 0 }
+    },
+    {
+      "id": "2_1_bad",
+      "levelId": "2-1",
+      "type": "bad",
+      "title": "第四晚",
+      "threshold": 55,
+      "valence": -1,
+      "constraints": [
+        { "kind": "adjacent", "a": "frag_2_1_02", "b": "frag_2_1_03", "weight": 30 },
+        { "kind": "before", "a": "frag_2_1_03", "b": "frag_2_1_06", "weight": 25 },
+        { "kind": "before", "a": "frag_2_1_06", "b": "frag_2_1_05", "weight": 25 },
+        { "kind": "position", "frag": "frag_2_1_04", "index": 5, "weight": 20 }
+      ],
+      "anti": [],
+      "text": "澪回得越快，栞就越习惯。第三晚的沉默被排到了最后，成了一段可有可无的空白。\n\n第四晚，栞没有发消息。澪在星空房间里等到了天亮，好友列表里只有她一个人是亮的。\n\n她这才发现，「连续三晚」是一个可以被单方面中断的约定。",
+      "excerpt": "第四晚，对面没有亮。",
+      "bondEffect": { "Mio": -12, "Shiori": -8 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "2_1_chaos",
+    "levelId": "2-1",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……这三晚里，似乎有什么话一直没有被说出来。\n\n想想看：「我不用一直说话」这句话，需要前面有什么，才算是温柔的？",
+    "excerpt": "有话没有说出来。"
+  },
+  "hints": [
+    {
+      "tier": 1,
+      "text": "「我不用一直说话」这句话，如果前面没有那段沉默，就只是一句客套。"
+    },
+    {
+      "tier": 2,
+      "text": "让「嗯」紧跟在「我不用一直说话」之后——那是本关最窄的一道缝。",
+      "highlight": ["frag_2_1_05", "frag_2_1_06"]
+    },
+    {
+      "tier": 3,
+      "text": "推荐顺序：栞问「今天还去吗」→ 澪回「去」→ 草地上的沉默 → 栞的那句话 → 澪的「嗯」。",
+      "highlight": ["frag_2_1_02", "frag_2_1_03", "frag_2_1_04", "frag_2_1_05", "frag_2_1_06"]
+    }
+  ],
+  "behindTheScenes": "2-1 是本作「砂糖」关系的起点。我想表达的是：亲密感不是靠说了多少话建立的，而是靠「可以不说」建立的。所以最优解的顺序强调「先有沉默，才有那句话」。\n\n如果玩家把「嗯」排在那句话之前，栞的坦白就变成了自言自语——这就是 bad 结局「第四晚」的由来。"
+}
