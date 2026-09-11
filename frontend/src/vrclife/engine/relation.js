@@ -12,6 +12,29 @@ const SPAWN_COOLDOWN_HOURS = 120;
 const DIM_KEYS = ['intimacy', 'trust', 'freshness', 'dependence', 'realPressure'];
 
 /**
+ * 进入亲密关系所需的最低好感度（DLC1）。
+ * 好感度衡量「交情」：交情不够时关系不推进到暧昧 / 砂糖 / 稳定——
+ * 否则会出现「好感度 5 却处上砂糖」这种没交情也能在一起的情况。
+ * 与 simulate_dlc1.py 的 FAVOR_MIN_FOR_STATE 保持一致。
+ */
+export const FAVOR_MIN_FOR_STATE = { 暧昧: 30, 砂糖: 40, 稳定: 50 };
+
+/**
+ * 目标状态是否被好感度门槛拦住；未设门槛的状态一律放行。
+ * @param {string|undefined} state
+ * @param {object} st
+ * @returns {boolean}
+ */
+export function favorGateBlocks(state, st) {
+  const need = FAVOR_MIN_FOR_STATE[state];
+  if (need === undefined) return false;
+  const favor = Number(st && st.favor);
+  // 没有 favor 字段（非 DLC1 场景、手工构造的状态）不设门槛。
+  if (!Number.isFinite(favor)) return false;
+  return favor < need;
+}
+
+/**
  * 开一段新关系。
  * @param {object} st
  * @param {{pick: Function}} rng
@@ -55,6 +78,8 @@ export function applyRelationOp(st, rop, rng, vocab, eventsLog) {
     // 分手冷却（SCHEMA §5.2）：刚失恋的一段时间内不会立刻开始下一段，
     // 除非该 spawn 显式声明 "force": true。
     if (st.hours < st.spawnBlockUntil && !rop.force) return;
+    // 好感度门槛：交情不够时，即使直接 spawn 也不开这段亲密关系。
+    if (favorGateBlocks(rop.state, st)) return;
     if (!r || INACTIVE_REL_STATES.includes(r.state)) {
       r = newRelation(st, rng, vocab, rop.state || '认识');
     }
@@ -77,6 +102,7 @@ export function applyRelationOp(st, rop, rng, vocab, eventsLog) {
     if (r && INACTIVE_REL_STATES.includes(r.state)
         && !INACTIVE_REL_STATES.includes(rop.state)) {
       if (st.hours < st.spawnBlockUntil && !rop.force) return;
+      if (favorGateBlocks(rop.state, st)) return;
       r = newRelation(st, rng, vocab, rop.state);
     }
   }
@@ -103,6 +129,8 @@ export function applyRelationOp(st, rop, rng, vocab, eventsLog) {
     const target = rop.state;
     const legal = (vocab.relationStateFlow || {})[r.state] || [];
     if (legal.includes(target) || target === r.state) {
+      // 好感度门槛：数值照常变化，但交情不够时不推进到亲密状态。
+      if (target !== r.state && favorGateBlocks(target, st)) return;
       r.state = target;
       if (target === '低迷') st.sawLow = true;
       else if (target === '恢复') st.sawRecover = true;

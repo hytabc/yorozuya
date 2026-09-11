@@ -42,6 +42,58 @@ function makeSt(overrides = {}) {
   };
 }
 
+
+test('好感度门槛：交情不够时不进入亲密状态', () => {
+  const vocab = loadVocab();
+  const mkSt = (favor, over = {}) => makeSt({
+    hours: 100,
+    favor,
+    relation: { name: '小满', state: '朋友', intimacy: 40, trust: 30, freshness: 80, dependence: 0, realPressure: 0, metAt: 0 },
+    ...over,
+  });
+  const rng = makeRng();
+
+  const low = mkSt(5);
+  applyRelationOp(low, { type: 'setState', state: '砂糖' }, rng, vocab);
+  assert.equal(low.relation.state, '朋友', 'favor 5 不该处上砂糖');
+
+  const ok = mkSt(45);
+  applyRelationOp(ok, { type: 'setState', state: '砂糖' }, rng, vocab);
+  assert.equal(ok.relation.state, '砂糖', 'favor ≥ 40 应允许进入砂糖');
+
+  const dims = mkSt(5);
+  applyRelationOp(dims, { type: 'setState', state: '砂糖', intimacy: 10 }, rng, vocab);
+  assert.equal(dims.relation.state, '朋友');
+  assert.equal(dims.relation.intimacy, 50, '被门槛拦住时数值照常变化');
+
+  const plain = mkSt(0);
+  applyRelationOp(plain, { type: 'setState', state: '常一起玩' }, rng, vocab);
+  assert.equal(plain.relation.state, '常一起玩', '非亲密状态不受门槛影响');
+
+  const legacy = mkSt(undefined);
+  delete legacy.favor;
+  applyRelationOp(legacy, { type: 'setState', state: '砂糖' }, rng, vocab);
+  assert.equal(legacy.relation.state, '砂糖', '没有 favor 字段时不设门槛');
+});
+
+test('好感度门槛：spawn 亲密状态也要交情', () => {
+  const vocab = loadVocab();
+  const rng = makeRng();
+
+  const low = makeSt({ hours: 100, favor: 10 });
+  applyRelationOp(low, { type: 'spawn', state: '砂糖' }, rng, vocab);
+  assert.equal(low.relation, null, 'favor 不足时不该 spawn 出砂糖关系');
+
+  const ok = makeSt({ hours: 100, favor: 60 });
+  applyRelationOp(ok, { type: 'spawn', state: '砂糖' }, rng, vocab);
+  assert.ok(ok.relation, 'favor 足够时应正常开关系');
+  assert.equal(ok.relation.state, '砂糖');
+
+  const plain = makeSt({ hours: 100, favor: 0 });
+  applyRelationOp(plain, { type: 'spawn' }, rng, vocab);
+  assert.ok(plain.relation, '未指定亲密状态时不受门槛影响');
+  assert.equal(plain.relation.state, '认识');
+});
 test('spawn 冷却抑制与 force 豁免', () => {
   const vocab = loadVocab();
   const st = makeSt({ hours: 100, spawnBlockUntil: 200, relation: null });

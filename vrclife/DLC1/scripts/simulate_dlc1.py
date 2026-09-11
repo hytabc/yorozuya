@@ -103,6 +103,20 @@ MAX_EVENTS_PER_RUN = 72
 MAX_TURNS = 400
 SPAWN_COOLDOWN_HOURS = 120
 
+# 进入亲密关系所需的最低好感度：交情不够时关系不推进到暧昧 / 砂糖 / 稳定。
+# 与前端 frontend/src/vrclife/engine/relation.js 的 FAVOR_MIN_FOR_STATE 保持一致。
+FAVOR_MIN_FOR_STATE = {"暧昧": 30, "砂糖": 40, "稳定": 50}
+
+
+def favor_gate_blocks(state, st):
+    """目标状态是否被好感度门槛拦住；未设门槛、或无 favor 字段时一律放行。"""
+    if state not in FAVOR_MIN_FOR_STATE:
+        return False
+    favor = st.get("favor")
+    if not isinstance(favor, (int, float)):
+        return False
+    return favor < FAVOR_MIN_FOR_STATE[state]
+
 STAGE_STATS = defaultdict(lambda: {"events": 0, "mood": [], "favor": []})
 
 
@@ -323,6 +337,9 @@ def apply_relation_op(st, rop, log):
     if t == "spawn":
         if st["hours"] < st["spawnBlockUntil"] and not rop.get("force"):
             return
+        # 好感度门槛：交情不够时，即使直接 spawn 也不开这段亲密关系。
+        if favor_gate_blocks(rop.get("state"), st):
+            return
         if not r or r["state"] in INACTIVE_REL_STATES:
             new_relation(st, rop.get("state") or "认识")
     elif t == "end":
@@ -339,6 +356,8 @@ def apply_relation_op(st, rop, log):
         if r and r["state"] in INACTIVE_REL_STATES and rop["state"] not in INACTIVE_REL_STATES:
             if st["hours"] < st["spawnBlockUntil"] and not rop.get("force"):
                 return
+            if favor_gate_blocks(rop["state"], st):
+                return
             new_relation(st, rop["state"])
     if not st["relation"]:
         return
@@ -354,6 +373,9 @@ def apply_relation_op(st, rop, log):
         target = rop["state"]
         legal = REL_FLOW.get(r["state"], [])
         if target in legal or target == r["state"]:
+            # 好感度门槛：数值照常变化，但交情不够时不推进到亲密状态。
+            if target != r["state"] and favor_gate_blocks(target, st):
+                return
             r["state"] = target
             if target == "低迷":
                 st["sawLow"] = True
