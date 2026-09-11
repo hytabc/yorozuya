@@ -33,7 +33,7 @@ RELATION_STATES = {
     "矛盾", "结束", "低迷", "恢复",
 }
 RELATION_OPS = {"spawn", "setState", "end", "renew", "none"}
-RELATION_OP_BASE_KEYS = {"type", "state", "name"}
+RELATION_OP_BASE_KEYS = {"type", "state", "name", "target"}
 RELATION_DIMS = {"intimacy", "trust", "freshness", "dependence", "realPressure"}
 RELATION_INIT_KEYS = {"init" + d[0].upper() + d[1:] for d in RELATION_DIMS}
 EFFECT_BASE_KEYS = {
@@ -279,6 +279,8 @@ def main():
                         err(f"{octag} relationOp.type 非法: {rtype!r}")
                     if rop.get("state") and rop["state"] not in RELATION_STATES:
                         err(f"{octag} relationOp.state 非法: {rop['state']!r}")
+                    if rop.get("target") not in (None, "focus", "other"):
+                        err(f"{octag} relationOp.target 非法: {rop['target']!r}（合法：focus/other）")
                     for k in rop:
                         if k in RELATION_OP_BASE_KEYS or k in RELATION_DIMS or k in RELATION_INIT_KEYS:
                             continue

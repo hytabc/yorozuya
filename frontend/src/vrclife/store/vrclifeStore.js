@@ -78,6 +78,8 @@ export const useVrclifeStore = defineStore('vrclife', {
         flags: [...s.flags],
         history: [...s.history],
         relation: s.relation ? { ...s.relation } : null,
+        relations: (s.relations || []).map((r) => ({ ...r })),
+        focusId: s.relation && s.relation.id !== undefined ? s.relation.id : null,
       };
     },
     vocab: (state) => (state.data ? state.data.vocab : null),

@@ -68,6 +68,7 @@ export const IN_RUN_ACHIEVEMENTS = [
   { id: 'relation_any', name: '名分已定', icon: '🤝', tier: 'silver', desc: '建立过一段关系', check: (c) => allRels(c.st).length > 0 },
   { id: 'relation_stable', name: '稳定关系', icon: '🏡', tier: 'gold', desc: '把一段关系走到「稳定」', check: (c) => allRels(c.st).some((r) => r.state === '稳定') },
   { id: 'parallel_line', name: '两条线', icon: '🎭', tier: 'silver', desc: '同时维系 2 段关系', check: (c) => activeRels(c.st).length >= 2 },
+  { id: 'parallel_sugar', name: '两边都是真的', icon: '💞', tier: 'gold', desc: '同时维持 2 段砂糖关系', check: (c) => activeRels(c.st).filter((r) => r.state === '砂糖').length >= 2 },
   { id: 'parallel_three', name: '三线并行', icon: '🕸️', tier: 'gold', desc: '同时维持 3 段活跃关系', check: (c) => activeRels(c.st).length >= 3 },
   { id: 'rebound', name: '触底反弹', icon: '🌈', tier: 'silver', desc: '心态跌破 15 后又回到 60 以上', check: (c) => num(c.insights && c.insights.mood && c.insights.mood.min && c.insights.mood.min.value) <= 15 && num(c.st.mood) >= 60 },
   { id: 'rare_ending', name: '难得一见', icon: '🏅', tier: 'gold', desc: '达成一个稀有结局', check: (c) => c.ending.rarity === 'rare' },

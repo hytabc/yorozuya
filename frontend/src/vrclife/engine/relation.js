@@ -160,6 +160,15 @@ export function applyRelationOp(st, rop, rng, vocab, eventsLog) {
   if (!rop) return;
   // 焦点可能是上一段已结束的关系：有活跃关系时先切回来，叙事「ta」才对得上人。
   syncFocus(st);
+  // target: 'other' —— 作用于「另一段活跃关系」而不是焦点（同时多段的剧情用）。
+  if (rop.target === 'other') {
+    const others = activeRelations(st).filter((r) => r !== st.relation);
+    const fresh = others.filter((r) => r.state !== '砂糖');
+    const pool = fresh.length ? fresh : others;
+    if (!pool.length) return;
+    const pick = pool.reduce((best, r) => (Number(r.intimacy) > Number(best.intimacy) ? r : best), pool[0]);
+    setFocus(st, pick);
+  }
   const t = rop.type;
   let r = st.relation;
 

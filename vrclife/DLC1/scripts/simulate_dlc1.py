@@ -425,6 +425,15 @@ def apply_relation_op(st, rop, log):
         return
     # 焦点可能是上一段已结束的关系：有活跃关系时先切回来
     sync_focus(st)
+    # target: 'other' —— 作用于「另一段活跃关系」而不是焦点（同时多段的剧情用）
+    if rop.get("target") == "other":
+        others = [x for x in active_relations(st) if x is not st["relation"]]
+        fresh = [x for x in others if x["state"] != "砂糖"]
+        pool = fresh or others
+        if not pool:
+            return
+        pick = max(pool, key=lambda x: x["intimacy"])
+        set_focus(st, pick)
     t = rop.get("type")
     r = st["relation"]
     if t == "spawn":

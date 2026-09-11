@@ -24,6 +24,7 @@ const FALLBACK_STATE = {
   skills: {},
   tags: [],
   relation: null,
+  relations: [],
 };
 
 const st = computed(() => store.gameState || FALLBACK_STATE);
@@ -73,6 +74,26 @@ const REL_DIMS = [
 ];
 
 const relTone = computed(() => relationTone(st.value.relation && st.value.relation.state));
+
+/** 同时多段：侧栏列出所有关系（焦点高亮）。 */
+const relList = computed(() => {
+  const list = Array.isArray(st.value.relations) && st.value.relations.length
+    ? st.value.relations
+    : (st.value.relation ? [st.value.relation] : []);
+  return list.map((r) => ({
+    id: r.id,
+    name: r.name,
+    state: r.state,
+    intimacy: Math.round(Number(r.intimacy) || 0),
+    tone: relationTone(r.state),
+  }));
+});
+
+const focusId = computed(() => {
+  const r = st.value.relation;
+  if (r && r.id !== undefined) return r.id;
+  return relList.value.length ? relList.value[relList.value.length - 1].id : null;
+});
 
 const relDims = computed(() => {
   const r = st.value.relation;
@@ -186,22 +207,38 @@ onMounted(() => {
 
     <section class="panel">
       <h3 class="panel-title">情感</h3>
-      <p v-if="!st.relation" class="empty-text">
+      <p v-if="!relList.length" class="empty-text">
         还没有固定的人。世界里的关系，都还只是擦肩而过。
       </p>
-      <div v-else class="relation" :class="`tone-${relTone}`">
-        <div class="rel-head">
-          <span class="rel-name">{{ st.relation.name }}</span>
-          <span class="rel-state">{{ st.relation.state }}</span>
-        </div>
-        <div v-for="d in relDims" :key="d.key" class="mini-row">
-          <span class="mini-label">{{ d.label }}</span>
-          <div class="mini-bar">
-            <div class="mini-fill" :style="{ width: percent(d.value), background: d.color }"></div>
+      <template v-else>
+        <ul v-if="relList.length > 1" class="rel-list">
+          <li
+            v-for="r in relList"
+            :key="r.id"
+            class="rel-item"
+            :class="[`tone-${r.tone}`, { focus: r.id === focusId }]"
+          >
+            <span class="rel-name">{{ r.name }}</span>
+            <span class="rel-state">{{ r.state }}</span>
+            <span class="rel-mini">
+              <span class="rel-mini-fill" :style="{ width: percent(r.intimacy) }"></span>
+            </span>
+          </li>
+        </ul>
+        <div class="relation" :class="`tone-${relTone}`">
+          <div class="rel-head">
+            <span class="rel-name">{{ st.relation.name }}</span>
+            <span class="rel-state">{{ st.relation.state }}</span>
           </div>
-          <span class="mini-value">{{ d.value }}</span>
+          <div v-for="d in relDims" :key="d.key" class="mini-row">
+            <span class="mini-label">{{ d.label }}</span>
+            <div class="mini-bar">
+              <div class="mini-fill" :style="{ width: percent(d.value), background: d.color }"></div>
+            </div>
+            <span class="mini-value">{{ d.value }}</span>
+          </div>
         </div>
-      </div>
+      </template>
     </section>
 
     <section class="panel">
@@ -345,6 +382,66 @@ onMounted(() => {
   font-size: 13px;
   line-height: 1.7;
   color: #8b7fa8;
+}
+
+.rel-list {
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rel-item {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: rgba(124, 58, 237, 0.07);
+  border: 1px solid rgba(124, 58, 237, 0.18);
+  font-size: 12px;
+}
+
+.rel-item .rel-name {
+  font-size: 13px;
+}
+
+.rel-item .rel-state {
+  font-size: 11px;
+}
+
+.rel-item.focus {
+  border-color: rgba(124, 58, 237, 0.55);
+  background: rgba(124, 58, 237, 0.16);
+}
+
+.rel-item.tone-sugar {
+  border-color: rgba(236, 72, 153, 0.45);
+}
+
+.rel-item.tone-bad {
+  border-color: rgba(244, 63, 94, 0.4);
+}
+
+.rel-item.tone-good {
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.rel-mini {
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(124, 58, 237, 0.22);
+  overflow: hidden;
+}
+
+.rel-mini-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #7c3aed, #ec4899);
 }
 
 .relation {

@@ -98,7 +98,18 @@ function relationStats(history, st) {
     if (hs[i].relationSnapshot) { lastSnap = hs[i].relationSnapshot; break; }
   }
   const final = (st && st.relation) || lastSnap || null;
-  return { final, changes, hadRelation: !!final };
+  // 同时多段：列出这一局牵过的所有关系（含已结束的）
+  const source = Array.isArray(st && st.relations) && st.relations.length
+    ? st.relations
+    : (final ? [final] : []);
+  const all = source.filter(Boolean).map((r) => ({
+    id: r.id,
+    name: r.name || '那个陌生人',
+    state: r.state || '认识',
+    intimacy: Math.round(num(r.intimacy)),
+    metAt: num(r.metAt),
+  }));
+  return { final, changes, hadRelation: !!final, all };
 }
 
 function pathLabel(path, endings) {
@@ -124,9 +135,13 @@ function buildSummary(ins) {
   if (ins.mood.max.value - ins.mood.min.value >= 40) parts.push('这一局的情绪起伏很大，几乎不像同一个人走完的。');
   else if (ins.mood.max.value - ins.mood.min.value <= 10) parts.push('情绪几乎没有大起大落，你走得很稳。');
   parts.push('好感度最高到过 ' + Math.round(ins.favor.max.value) + '，最后停在 ' + Math.round(ins.favor.end) + '。');
-  if (ins.relation && ins.relation.final && ins.relation.final.name) {
-    const r = ins.relation.final;
-    parts.push('唯一深交的是 ' + r.name + '，关系最终停在「' + (r.state || '朋友') + '」，中间换过 ' + Math.max(0, ins.relation.changes.length - 1) + ' 次状态。');
+  const rels = (ins.relation && ins.relation.all) || [];
+  if (rels.length > 1) {
+    const shown = rels.slice(0, 3).map((r) => r.name + '（' + r.state + '）').join('、');
+    parts.push('这一局你同时牵过 ' + rels.length + ' 段关系：' + shown + (rels.length > 3 ? ' 等' : '') + '。');
+  } else if (rels.length === 1) {
+    const r = rels[0];
+    parts.push('唯一深交的是 ' + r.name + '，关系最终停在「' + r.state + '」，中间换过 ' + Math.max(0, ins.relation.changes.length - 1) + ' 次状态。');
   } else {
     parts.push('一局下来，没有哪个名字留到了最后一回合。');
   }

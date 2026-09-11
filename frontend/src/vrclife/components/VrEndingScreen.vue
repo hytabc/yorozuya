@@ -16,6 +16,7 @@ import {
   skillTier,
   firstSentence,
   formatNumber,
+  relationTone,
 } from '../utils/format.js';
 
 const emit = defineEmits(['show-timeline']);
@@ -127,10 +128,17 @@ const moodText = computed(() => {
   return `峰值 ${Math.round(v.max.value)}｜谷底 ${Math.round(v.min.value)}`;
 });
 
+/** 这一局牵过的所有关系（含已结束的） */
+const relationList = computed(() => (insights.value.relation && insights.value.relation.all) || []);
+
 const relationText = computed(() => {
-  const r = insights.value.relation;
-  if (!r || !r.final || !r.final.name) return '这一局没有留下关系';
-  return `${r.final.name}｜最终「${r.final.state || '朋友'}」｜变化 ${Math.max(0, r.changes.length - 1)} 次`;
+  const list = relationList.value;
+  if (!list.length) return '这一局没有留下关系';
+  if (list.length === 1) {
+    const r = insights.value.relation.final || list[0];
+    return `${r.name}｜最终「${r.state || '朋友'}」｜变化 ${Math.max(0, insights.value.relation.changes.length - 1)} 次`;
+  }
+  return `同时牵过 ${list.length} 段关系`;
 });
 
 const tagText = computed(() => (insights.value.tags.length ? insights.value.tags.join(' · ') : '—'));
@@ -233,6 +241,17 @@ function doRestart() {
             <span class="fact-label">路线倾向</span>
             <span class="fact-value">{{ pathText }}</span>
           </div>
+        </div>
+
+        <div v-if="relationList.length > 1" class="rel-chips">
+          <span
+            v-for="r in relationList"
+            :key="r.id"
+            class="rel-chip"
+            :class="`tone-${relationTone(r.state)}`"
+          >
+            {{ r.name }} · {{ r.state }}
+          </span>
         </div>
       </section>
 
@@ -728,6 +747,38 @@ function doRestart() {
   color: #e9e4f5;
   text-align: right;
   overflow-wrap: anywhere;
+}
+
+/* 结局页：多段关系的名字/状态标签 */
+.rel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.rel-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: rgba(124, 58, 237, 0.12);
+  border: 1px solid rgba(124, 58, 237, 0.35);
+  color: #cbb8f5;
+}
+
+.rel-chip.tone-sugar {
+  border-color: rgba(236, 72, 153, 0.5);
+  background: rgba(236, 72, 153, 0.12);
+}
+
+.rel-chip.tone-bad {
+  border-color: rgba(244, 63, 94, 0.45);
+  background: rgba(244, 63, 94, 0.1);
+}
+
+.rel-chip.tone-good {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.1);
 }
 
 /* =============== 成就 =============== */
