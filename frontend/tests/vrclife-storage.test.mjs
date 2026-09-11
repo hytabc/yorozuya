@@ -136,6 +136,7 @@ test('loadMeta 缺省时返回默认值', () => {
     unlockedEndings: [],
     unlockedArchetypes: [],
     seenEvents: [],
+    unlockedAchievements: [],
   });
 });
 
@@ -148,6 +149,7 @@ test('loadMeta / writeMeta 往返一致', () => {
     unlockedEndings: ['end_a', 'end_b'],
     unlockedArchetypes: ['arch_x'],
     seenEvents: ['ev_1'],
+    unlockedAchievements: ['favor_80'],
   };
 
   assert.equal(storage.writeMeta(meta), true);
@@ -164,6 +166,7 @@ test('loadMeta 在数据损坏时回落默认值', () => {
     unlockedEndings: [],
     unlockedArchetypes: [],
     seenEvents: [],
+    unlockedAchievements: [],
   });
 });
 
@@ -185,6 +188,7 @@ test('loadMeta 对非法字段做清洗（负数 / 非数组）', () => {
     unlockedEndings: [],
     unlockedArchetypes: [],
     seenEvents: [],
+    unlockedAchievements: [],
   });
 });
 

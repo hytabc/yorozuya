@@ -7,6 +7,7 @@ import { createGame } from '../engine/engine.js';
 import { loadVrclifeData } from '../data/loader.js';
 import { createStorage, defaultMeta } from '../utils/storage.js';
 import { stageOf } from '../utils/format.js';
+import { buildInsights, evaluateAchievements } from '../engine/insights.js';
 
 /** 模块级 storage 单例（不放进 state，避免被响应式代理） */
 let _storage = null;
@@ -52,6 +53,8 @@ export const useVrclifeStore = defineStore('vrclife', {
     saveInfo: null,
     /** 内部：本局是否已结算，防止 playCount 重复累加 */
     _finalized: false,
+    /** 本局成就结算结果：{ earnedIds, newlyIds }（供结局页高亮新解锁） */
+    endingAchievements: null,
   }),
 
   getters: {
@@ -135,6 +138,7 @@ export const useVrclifeStore = defineStore('vrclife', {
       this.startArch = null;
       this.startText = '';
       this._finalized = false;
+      this.endingAchievements = null;
       const save = storage.loadSave();
       this.saveInfo = save ? this._describeSave(save) : null;
       this.phase = 'start';
@@ -171,6 +175,7 @@ export const useVrclifeStore = defineStore('vrclife', {
       this.turn++;
       this.result = null;
       this._finalized = false;
+      this.endingAchievements = null;
       this.startArch = (game.state && game.state.arch) || null;
       this.startText = (this.startArch && this.startArch.startText) || '';
       this.saveInfo = null;
@@ -234,6 +239,7 @@ export const useVrclifeStore = defineStore('vrclife', {
         this.turn++;
         this.result = null;
         this._finalized = false;
+      this.endingAchievements = null;
         this.startArch = (game.state && game.state.arch) || null;
         this.startText = '';
         this.saveInfo = null;
@@ -266,6 +272,7 @@ export const useVrclifeStore = defineStore('vrclife', {
       this.startText = '';
       this.saveInfo = null;
       this._finalized = false;
+      this.endingAchievements = null;
       this.phase = 'start';
     },
 
@@ -289,6 +296,26 @@ export const useVrclifeStore = defineStore('vrclife', {
       if (ending && ending.id && !this.meta.unlockedEndings.includes(ending.id)) {
         this.meta.unlockedEndings.push(ending.id);
       }
+
+      // ---- 成就结算：本局判定 + 跨局累计（写入 meta）----
+      const st = this.gameState || {};
+      const insights = buildInsights(st, this.vocab, this.data);
+      const before = new Set(this.meta.unlockedAchievements || []);
+      const result = evaluateAchievements({
+        st,
+        ending,
+        insights,
+        vocab: this.vocab,
+        data: this.data,
+        meta: this.meta,
+      });
+      const newlyIds = result.earnedIds.filter((id) => !before.has(id));
+      const unlocked = new Set(this.meta.unlockedAchievements || []);
+      for (const id of result.earnedIds) unlocked.add(id);
+      this.meta.unlockedAchievements = [...unlocked];
+      this.endingAchievements = { earnedIds: result.earnedIds, newlyIds };
+      // ------------------------------------------------
+
       this.persistMeta();
       storage.clearSave();
 

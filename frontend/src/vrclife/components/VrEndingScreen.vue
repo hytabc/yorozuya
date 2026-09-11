@@ -1,18 +1,21 @@
 <script setup>
 /**
- * 结局页：称号 / 描述 / 关键数值 / 雷达图 / 关键选择回放 / 重开·分享·时间线。
+ * 结局页：称号 / 描述 / 关键数值 / 雷达图 / 情感分析 / 成就 / 重开·分享·时间线。
  */
 import { ref, computed } from 'vue';
 import { useVrclifeStore } from '../store/vrclifeStore.js';
 import VrRadarChart from './VrRadarChart.vue';
 import VrShareCard from './VrShareCard.vue';
+import VrMoodChart from './VrMoodChart.vue';
+import { buildInsights, evaluateAchievements } from '../engine/insights.js';
 import {
   clamp,
   fameTier,
+  moodTier,
   maxSkill,
   skillTier,
   firstSentence,
-  shorten,
+  formatNumber,
 } from '../utils/format.js';
 
 const emit = defineEmits(['show-timeline']);
@@ -46,33 +49,34 @@ const radarValues = computed(() => {
   ];
 });
 
+/** 关键数值：优先按结局自带的 keyStats 取项，缺省回落到固定六项 */
+const STAT_ROWS = {
+  hours: { label: '总时长', value: (s) => `${Math.round(s.hours || 0)}h` },
+  friends: { label: '好友', value: (s) => String(Math.round(s.friends || 0)) },
+  favor: { label: '好感度', value: (s) => String(Math.round(s.favor || 0)) },
+  mood: { label: '心态', value: (s) => `${Math.round(s.mood || 0)} · ${moodTier(s.mood || 0, vocab.value)}` },
+  fame: { label: '声望', value: (s) => `${Math.round(s.fame || 0)} · ${fameTier(s.fame || 0, vocab.value)}` },
+  avatars: { label: '模型', value: (s) => String(Math.round(s.avatars || 0)) },
+  assets: { label: '资产', value: (s) => formatNumber(s.assets || 0) },
+  sugarCount: { label: '砂糖关系', value: (s) => String(s.sugarCount || 0) },
+  breakupCount: { label: '关系破裂', value: (s) => String(s.breakupCount || 0) },
+  'circle.count': { label: '圈子', value: (s) => String((s.circles || []).length) },
+  'tag.count': { label: '标签', value: (s) => String((s.tags || []).length) },
+  'skill.max': {
+    label: '最高技能',
+    value: () => `${bestSkill.value.name}（${bestSkill.value.value} · ${skillTier(bestSkill.value.value, vocab.value)}）`,
+  },
+};
+
+const DEFAULT_STAT_KEYS = ['hours', 'friends', 'favor', 'sugarCount', 'skill.max', 'fame'];
+
 const statRows = computed(() => {
   const s = st.value;
-  return [
-    { label: '总时长', value: `${Math.round(s.hours || 0)}h` },
-    { label: '好友', value: String(Math.round(s.friends || 0)) },
-    { label: '砂糖关系', value: String(s.sugarCount || 0) },
-    { label: '关系破裂', value: String(s.breakupCount || 0) },
-    {
-      label: '最高技能',
-      value: `${bestSkill.value.name}（${bestSkill.value.value} · ${skillTier(bestSkill.value.value, vocab.value)}）`,
-    },
-    {
-      label: '声望档位',
-      value: `${Math.round(s.fame || 0)} · ${fameTier(s.fame || 0, vocab.value)}`,
-    },
-  ];
-});
-
-const replay = computed(() => {
-  const h = (st.value.history || []).filter((e) => e.isTurnPoint);
-  const tail = h.slice(-8);
-  return tail.map((e) => ({
-    turn: e.turn,
-    hours: e.hoursAfter,
-    optionText: e.optionText,
-    brief: shorten(e.outcomeText || '', 34),
-  }));
+  const declared = Array.isArray(ending.value.keyStats)
+    ? ending.value.keyStats.filter((k) => STAT_ROWS[k])
+    : [];
+  const keys = declared.length ? declared : DEFAULT_STAT_KEYS;
+  return keys.map((k) => ({ label: STAT_ROWS[k].label, value: STAT_ROWS[k].value(s) }));
 });
 
 const shareStats = computed(() => ({
@@ -84,6 +88,54 @@ const shareStats = computed(() => ({
 }));
 
 const shareSummary = computed(() => firstSentence(summary.value || desc.value, 46));
+
+/* ---------- 情感分析 / 成就（纯函数计算，不额外持久化） ---------- */
+const insights = computed(() => buildInsights(st.value, vocab.value, store.data));
+
+const achResult = computed(() =>
+  evaluateAchievements({
+    st: st.value,
+    ending: ending.value,
+    insights: insights.value,
+    vocab: vocab.value,
+    data: store.data,
+    meta: store.meta,
+  }),
+);
+
+const inRun = computed(() => achResult.value.inRun);
+const crossRun = computed(() => achResult.value.crossRun);
+const earnedCount = computed(() => achResult.value.earnedIds.length);
+const totalCount = computed(() => inRun.value.length + crossRun.value.length);
+const inRunEarned = computed(() => inRun.value.filter((a) => a.earned));
+const crossRunEarned = computed(() => crossRun.value.filter((a) => a.earned));
+const freshIds = computed(
+  () => new Set((store.endingAchievements && store.endingAchievements.newlyIds) || []),
+);
+
+function isFresh(id) {
+  return freshIds.value.has(id);
+}
+
+const favorText = computed(() => {
+  const v = insights.value.favor;
+  return `开局 ${Math.round(v.start)} → 结束 ${Math.round(v.end)}｜峰值 ${Math.round(v.max.value)}`;
+});
+
+const moodText = computed(() => {
+  const v = insights.value.mood;
+  return `峰值 ${Math.round(v.max.value)}｜谷底 ${Math.round(v.min.value)}`;
+});
+
+const relationText = computed(() => {
+  const r = insights.value.relation;
+  if (!r || !r.final || !r.final.name) return '这一局没有留下关系';
+  return `${r.final.name}｜最终「${r.final.state || '朋友'}」｜变化 ${Math.max(0, r.changes.length - 1)} 次`;
+});
+
+const tagText = computed(() => (insights.value.tags.length ? insights.value.tags.join(' · ') : '—'));
+const circleText = computed(() => (insights.value.circles.length ? insights.value.circles.join('、') : '—'));
+const pathText = computed(() => insights.value.paths.map((p) => p.label).join(' / '));
 
 function doRestart() {
   confirmRestart.value = false;
@@ -121,16 +173,103 @@ function doRestart() {
         </div>
       </div>
 
-      <section v-if="replay.length" class="replay">
-        <h3 class="box-title">关键选择回放</h3>
-        <ul class="replay-list">
-          <li v-for="r in replay" :key="r.turn" class="replay-item">
-            <span class="replay-hours">{{ r.hours }}h</span>
-            <span class="replay-option">{{ r.optionText }}</span>
-            <span class="replay-arrow">→</span>
-            <span class="replay-brief">{{ r.brief }}</span>
-          </li>
-        </ul>
+      <section v-if="insights.turns" class="insight">
+        <h3 class="box-title">情感分析</h3>
+
+        <div class="chart-row">
+          <div class="chart-cell">
+            <div class="chart-head">
+              <span class="chart-name">好感度</span>
+              <span class="chart-meta">{{ favorText }}</span>
+            </div>
+            <VrMoodChart :points="insights.favorSeries" color="#f472b6" />
+          </div>
+          <div class="chart-cell">
+            <div class="chart-head">
+              <span class="chart-name">心态</span>
+              <span class="chart-meta">{{ moodText }}</span>
+            </div>
+            <VrMoodChart :points="insights.moodSeries" color="#22d3ee" />
+          </div>
+        </div>
+
+        <p class="insight-summary">{{ insights.summary }}</p>
+
+        <div class="peak-grid">
+          <div class="peak-col">
+            <h4 class="peak-title up">高光时刻</h4>
+            <ul class="peak-list">
+              <li v-for="h in insights.highs" :key="'hi-' + h.turn">
+                <span class="peak-diff up">+{{ h.diff }}</span>
+                <span class="peak-body">{{ h.eventTitle }} · {{ h.optionText }}</span>
+              </li>
+            </ul>
+          </div>
+          <div class="peak-col">
+            <h4 class="peak-title down">低谷时刻</h4>
+            <ul class="peak-list">
+              <li v-for="l in insights.lows" :key="'lo-' + l.turn">
+                <span class="peak-diff down">{{ l.diff }}</span>
+                <span class="peak-body">{{ l.eventTitle }} · {{ l.optionText }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="fact-grid">
+          <div class="fact">
+            <span class="fact-label">关系轨迹</span>
+            <span class="fact-value">{{ relationText }}</span>
+          </div>
+          <div class="fact">
+            <span class="fact-label">圈子</span>
+            <span class="fact-value">{{ circleText }}</span>
+          </div>
+          <div class="fact">
+            <span class="fact-label">社交标签</span>
+            <span class="fact-value">{{ tagText }}</span>
+          </div>
+          <div v-if="insights.paths.length" class="fact">
+            <span class="fact-label">路线倾向</span>
+            <span class="fact-value">{{ pathText }}</span>
+          </div>
+        </div>
+      </section>
+
+      <section v-if="earnedCount" class="ach">
+        <h3 class="box-title">成就<span class="ach-count">{{ earnedCount }} / {{ totalCount }}</span></h3>
+
+        <template v-if="inRunEarned.length">
+          <h4 class="ach-sub">本局</h4>
+          <div class="ach-grid">
+            <div
+              v-for="a in inRunEarned"
+              :key="a.def.id"
+              class="ach-badge"
+              :class="[a.def.tier, { fresh: isFresh(a.def.id) }]"
+            >
+              <span class="ach-icon">{{ a.def.icon }}</span>
+              <span class="ach-name">{{ a.def.name }}</span>
+              <span class="ach-desc">{{ a.def.desc }}</span>
+            </div>
+          </div>
+        </template>
+
+        <template v-if="crossRunEarned.length">
+          <h4 class="ach-sub">生涯</h4>
+          <div class="ach-grid">
+            <div
+              v-for="a in crossRunEarned"
+              :key="a.def.id"
+              class="ach-badge"
+              :class="[a.def.tier, { fresh: isFresh(a.def.id) }]"
+            >
+              <span class="ach-icon">{{ a.def.icon }}</span>
+              <span class="ach-name">{{ a.def.name }}</span>
+              <span class="ach-desc">{{ a.def.desc }}</span>
+            </div>
+          </div>
+        </template>
       </section>
 
       <div class="ending-actions">
@@ -273,51 +412,6 @@ function doRestart() {
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-
-.replay {
-  margin-bottom: 24px;
-}
-
-.replay-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.replay-item {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 9px 12px;
-  border-radius: 10px;
-  background: rgba(124, 58, 237, 0.08);
-  font-size: 14px;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
-}
-
-.replay-hours {
-  color: #06b6d4;
-  font-variant-numeric: tabular-nums;
-}
-
-.replay-option {
-  color: #cbb8f5;
-}
-
-.replay-arrow {
-  color: #6f648c;
-}
-
-.replay-brief {
-  color: #8b7fa8;
-  flex: 1 1 auto;
-  min-width: 0;
 }
 
 .ending-actions {
@@ -464,16 +558,6 @@ function doRestart() {
     align-items: stretch;
   }
 
-  .replay-item {
-    font-size: 13px;
-    padding: 8px 10px;
-    gap: 6px;
-  }
-
-  .replay-brief {
-    flex-basis: 100%;
-  }
-
   .ending-actions {
     flex-direction: column;
     gap: 10px;
@@ -501,6 +585,252 @@ function doRestart() {
 @media (prefers-reduced-motion: reduce) {
   .btn {
     transition: none;
+  }
+}
+
+/* =============== 情感分析 =============== */
+.insight {
+  margin-bottom: 24px;
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.chart-cell {
+  min-width: 0;
+  padding: 10px 12px 6px;
+  border-radius: 12px;
+  background: rgba(124, 58, 237, 0.08);
+  border: 1px solid rgba(124, 58, 237, 0.18);
+}
+
+.chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.chart-name {
+  font-size: 13px;
+  color: #cbb8f5;
+}
+
+.chart-meta {
+  font-size: 11px;
+  color: #8b7fa8;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.insight-summary {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(6, 182, 212, 0.08);
+  border-left: 3px solid #22d3ee;
+  font-size: 14px;
+  line-height: 1.85;
+  color: #cfe9f3;
+  overflow-wrap: anywhere;
+}
+
+.peak-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.peak-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.peak-title.up {
+  color: #34d399;
+}
+
+.peak-title.down {
+  color: #fb7185;
+}
+
+.peak-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.peak-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 9px;
+  background: rgba(124, 58, 237, 0.08);
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.peak-diff {
+  flex: 0 0 auto;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.peak-diff.up {
+  color: #34d399;
+}
+
+.peak-diff.down {
+  color: #fb7185;
+}
+
+.peak-body {
+  min-width: 0;
+  color: #cbb8f5;
+}
+
+.fact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+}
+
+.fact {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(124, 58, 237, 0.16);
+}
+
+.fact-label {
+  flex: 0 0 auto;
+  font-size: 13px;
+  color: #8b7fa8;
+}
+
+.fact-value {
+  font-size: 13px;
+  color: #e9e4f5;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* =============== 成就 =============== */
+.ach {
+  margin-bottom: 24px;
+}
+
+.ach-count {
+  margin-left: 8px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.ach-sub {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: #6f648c;
+}
+
+.ach-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.ach-badge {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(124, 58, 237, 0.45);
+  background: rgba(124, 58, 237, 0.14);
+}
+
+.ach-badge.gold {
+  border-color: rgba(245, 158, 11, 0.65);
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.18);
+}
+
+.ach-badge.silver {
+  border-color: rgba(148, 163, 184, 0.6);
+}
+
+.ach-badge.bronze {
+  border-color: rgba(180, 120, 80, 0.6);
+}
+
+.ach-badge.fresh {
+  animation: ach-pop 1.1s ease;
+}
+
+@keyframes ach-pop {
+  0% {
+    transform: scale(0.86);
+  }
+  45% {
+    transform: scale(1.06);
+    box-shadow: 0 0 22px rgba(244, 114, 182, 0.55);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.ach-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.ach-name {
+  font-size: 13px;
+  color: #e9e4f5;
+}
+
+.ach-desc {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #8b7fa8;
+}
+
+@media (max-width: 900px) {
+  .chart-row,
+  .peak-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .fact-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ach-grid {
+    grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ach-badge.fresh {
+    animation: none;
   }
 }
 </style>
