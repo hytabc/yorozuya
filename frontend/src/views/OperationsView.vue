@@ -1,10 +1,14 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { BarChart3, Check, Edit3, Eye, EyeOff, Megaphone, Pin, Plus, Save, Sparkles, Trash2, UsersRound, X } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
+import { useAuthStore } from '../stores/auth'
 
 const toast = useToast()
+const auth = useAuthStore()
+const router = useRouter()
 const activeTab = ref('analytics')
 const loading = ref(true)
 const announcements = ref([])
@@ -111,7 +115,12 @@ async function reviewBetaApplication(item, action) {
   } catch (error) { toast.error(errorMessage(error)) } finally { reviewBetaAppId.value = null }
 }
 
-onMounted(load)
+onMounted(async () => {
+  // 双保险：即使路由守卫被绕过，也先确认服务端身份再拉取运营数据。
+  await auth.restore()
+  if (!auth.canOperate) { router.replace('/'); return }
+  await load()
+})
 </script>
 
 <template>

@@ -7,6 +7,7 @@ import hmac
 import json
 import os
 import time
+from dataclasses import dataclass
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -15,6 +16,12 @@ from .config import settings
 
 
 SESSION_MAX_AGE_SECONDS = 24 * 60 * 60
+
+
+@dataclass(frozen=True)
+class TokenPayload:
+    user_id: int
+    token_version: int
 
 
 def hash_password(password: str) -> str:
@@ -44,13 +51,14 @@ def _b64decode(data: str) -> bytes:
     return base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))
 
 
-def create_access_token(user_id: int) -> str:
+def create_access_token(user_id: int, token_version: int = 0) -> str:
     issued_at = int(time.time())
     header = _b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}, separators=(",", ":")).encode())
     payload = _b64encode(
         json.dumps(
             {
                 "sub": str(user_id),
+                "ver": token_version,
                 "iat": issued_at,
                 "exp": issued_at + min(settings.access_token_minutes * 60, SESSION_MAX_AGE_SECONDS),
             },
@@ -61,7 +69,7 @@ def create_access_token(user_id: int) -> str:
     return f"{header}.{payload}.{signature}"
 
 
-def decode_access_token(token: str) -> int:
+def decode_access_token(token: str) -> TokenPayload:
     credentials_error = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="登录状态无效或已过期",
@@ -79,6 +87,7 @@ def decode_access_token(token: str) -> int:
         issued_at = int(data["iat"])
         if issued_at > now or now - issued_at >= SESSION_MAX_AGE_SECONDS or int(data["exp"]) <= now:
             raise credentials_error
-        return int(data["sub"])
+        # 旧格式令牌没有 ver 字段，视为 0，与历史账号的 token_version 默认值一致。
+        return TokenPayload(user_id=int(data["sub"]), token_version=int(data.get("ver", 0)))
     except (TypeError, ValueError, KeyError, OverflowError, json.JSONDecodeError, binascii.Error):
         raise credentials_error

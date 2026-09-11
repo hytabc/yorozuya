@@ -14,7 +14,15 @@
       "Shell(Remove-Item:*)",
       "Shell(Test-Path:*)",
       "Shell(powershell -NoProfile -Command \"Remove-Item 'F:\\Code\\yorozuya\\frontend\\scripts\\_frost-smoke.mjs' -Force; Test-Path 'F:\\Code\\yorozuya\\frontend\\scripts\\_frost-smoke.mjs'\")",
-      "Shell(Select-Object:*)"
+      "Shell(Select-Object:*)",
+      "Shell(git ls-files .idea .commandcode .env 2>/dev/null; echo \"---status---\"; git status --short)",
+      "Shell(ls:*)",
+      "Shell(backend/.venv/bin/python:*)",
+      "Shell(.venv/bin/python:*)",
+      "Shell(test:*)",
+      "Shell(grep:*)",
+      "Shell(sed:*)",
+      "Shell(node -e console.log(Object.keys(require('./package.json').scripts).join(', ')))"
     ],
     "deny": [],
     "defaultMode": "default"

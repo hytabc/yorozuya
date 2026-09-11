@@ -350,7 +350,12 @@ async function saveReportLimit() {
 
 const date = (value) => new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 const authorOf = (item) => (item.user ? item.user.nickname : item.contact || '游客')
-onMounted(load)
+onMounted(async () => {
+  // 双保险：即使路由守卫被绕过，也先确认服务端身份再拉取任何管理数据。
+  await auth.restore()
+  if (!auth.canModerate) { router.replace('/'); return }
+  await load()
+})
 </script>
 
 <template>

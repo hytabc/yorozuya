@@ -41,23 +41,30 @@ export const useAuthStore = defineStore('auth', () => {
   const persisted = readPersistedAuth()
   const token = ref(persisted.token)
   const user = ref(persisted.user)
+  // 权限可信标记：只有服务端（登录/注册响应或 /auth/me）确认过身份后才为 true。
+  // localStorage 中的 wsw_user 可被任意篡改，因此所有权限判断都必须等 verified 之后，
+  // 这样即便手动改写缓存也无法让界面认为自己拥有管理员权限。
+  const verified = ref(false)
   const ready = ref(false)
 
   const isLoggedIn = computed(() => Boolean(token.value && user.value))
-  const isAdmin = computed(() => Boolean(user.value?.is_admin))
-  const isStaff = computed(() => !isAdmin.value && user.value?.role === 'staff')
-  const isMascot = computed(() => !isAdmin.value && user.value?.role === 'mascot')
-  const isDisciplinarian = computed(() => !isAdmin.value && user.value?.role === 'disciplinarian')
+  const isAdmin = computed(() => verified.value && Boolean(user.value?.is_admin))
+  const isStaff = computed(() => verified.value && !isAdmin.value && user.value?.role === 'staff')
+  const isMascot = computed(() => verified.value && !isAdmin.value && user.value?.role === 'mascot')
+  const isDisciplinarian = computed(() => verified.value && !isAdmin.value && user.value?.role === 'disciplinarian')
+  const role = computed(() => (verified.value ? user.value?.role ?? null : null))
   const canModerate = computed(() => isAdmin.value || isStaff.value || isDisciplinarian.value)
   const canManageRoles = computed(() => isAdmin.value || isStaff.value)
   const canOperate = computed(() => isAdmin.value || isMascot.value)
-  const isBetaTester = computed(() => Boolean(user.value?.is_beta_tester))
+  const isBetaTester = computed(() => verified.value && Boolean(user.value?.is_beta_tester))
   // 虚拟人生对所有登录用户开放（内测标记仅作身份展示，不再门控）
   const canPlayLife = computed(() => isLoggedIn.value)
 
   function persist(payload) {
     token.value = payload.access_token
     user.value = payload.user
+    // 登录/注册响应由服务端签发，可据此信任身份。
+    verified.value = true
     localStorage.setItem('wsw_token', token.value)
     localStorage.setItem('wsw_user', JSON.stringify(user.value))
     localStorage.setItem('wsw_auth_version', AUTH_CACHE_VERSION)
@@ -86,6 +93,8 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const { data } = await api.get('/auth/me')
       user.value = data
+      // 以服务端返回为准确认身份，之后权限判断才可信。
+      verified.value = true
       localStorage.setItem('wsw_user', JSON.stringify(data))
     } catch {
       logout()
@@ -102,6 +111,7 @@ export const useAuthStore = defineStore('auth', () => {
   function logout() {
     token.value = null
     user.value = null
+    verified.value = false
     localStorage.removeItem('wsw_token')
     localStorage.removeItem('wsw_user')
     localStorage.removeItem('wsw_auth_version')
@@ -109,5 +119,5 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   window.addEventListener('auth-expired', logout)
-  return { token, user, ready, isLoggedIn, isAdmin, isStaff, isMascot, isDisciplinarian, canModerate, canManageRoles, canOperate, isBetaTester, canPlayLife, login, register, restore, updateUser, logout }
+  return { token, user, verified, ready, isLoggedIn, isAdmin, isStaff, isMascot, isDisciplinarian, role, canModerate, canManageRoles, canOperate, isBetaTester, canPlayLife, login, register, restore, updateUser, logout }
 })

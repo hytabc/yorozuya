@@ -90,6 +90,16 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 13. **地图实拍**：推荐地图时可附 3 张图片；此后每位用户可为同一地图上传最多 5 张实拍，单张最大 10 MB，审核通过后公开展示。
 14. **糖霜世界**（`/frost`，任意登录用户可玩）：纯前端因果解谜游戏，12 关 / 45 设计结局 + 5 全局结局；进度按用户存于 `sugar_frost_saves`（`GET/PUT /api/sugar-frost/save`，revision CAS，409 表示其他页面已更新）。关卡数据/文案在 `frontend/src/frost/data/`，判定逻辑在 `frontend/src/frost/engine/`；改数据后跑 `node frontend/scripts/verify-frost.mjs` 校验可达性。
 
+## 安全加固（2026-09 起）
+
+- **令牌版本**：`User.token_version`（JWT 载荷 `ver`）；`dependencies.py` 比对令牌与用户字段，不匹配即 401。改密/管理员重置密码时 `token_version += 1`，旧令牌立即失效。新增列需在 `migrate_schema()` 补 `ALTER TABLE users ADD COLUMN token_version`。
+- **自助改密**必须带 `current_password`（`UserPasswordUpdate`）；管理员重置用 `AdminPasswordReset`（无此要求）。
+- **限流**：`backend/app/ratelimit.py` 进程内滑动窗口，`enforce(bucket, key, limit, window)`；已用于登录（IP+账号）、注册、带密码接取、看板娘 `/mascot/chat`、反馈。`BEHIND_PROXY=true` 时按 `X-Real-IP/X-Forwarded-For` 取真实 IP（compose 已设）。**pytest 下自动跳过**（否则测试会互相触发 429）。
+- **默认值防护**：`config.py` 不再直接使用 `change-this-secret-in-production`/`Admin123!`；未配置 `SECRET_KEY` 时启动随机生成，首次创建管理员随机密码并打印日志，已存在且仍用默认密码的管理员会被自动轮换（pytest 下跳过以免动到真实库）。`SUGAR_UPLOAD_DIR` 不得指向数据库目录，否则启动报错。
+- **前端权限**：`router.js` 对 `moderator/operations/life*/roleManager` 路由先 `await auth.restore()`（走 `/api/auth/me`）再判权限；`AdminView/OperationsView` 在 `onMounted` 再复核一次。**localStorage 的 `wsw_user` 只是界面缓存，绝不可作为权限依据**。
+- **权限可信标记 `auth.verified`**：只有服务端响应（登录/注册或 `/auth/me`）才能把 `verified` 置为 true；`isAdmin/isStaff/isMascot/isDisciplinarian/role/canModerate/canManageRoles/canOperate/isBetaTester` 全部 `verified && ...`。组件里禁止直接读 `auth.user.role/is_admin`（用 `auth.role`/`auth.isAdmin`），这样改写 localStorage 也无法让界面误认为自己拥有权限。
+- **请求模型**：`RequestModel` 设 `extra="forbid"`，请求体夹带 `role`/`is_admin` 等多余字段会被 422 拒绝（后端另有显式白名单赋值与 `update_user_role` 的角色保护，`is_admin` 无法经任何接口写入）。
+
 ## 启动行为（main.py 顶部）
 
 - 建表 + 若无管理员则按 `ADMIN_USERNAME/PASSWORD` bootstrap 创建；旧 SQLite 库自动 `ALTER TABLE` 补 `role` 列等轻量迁移（改枚举/加列时在此处追加）。

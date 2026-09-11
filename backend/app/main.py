@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import logging
+import secrets
+import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, time, timedelta, timezone
 from errno import EACCES, ENOSPC, EPERM, EROFS
@@ -15,9 +18,10 @@ from pydantic import BeforeValidator, ValidationError
 from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.orm import Session, joinedload
 
-from .config import settings
+from .config import INSECURE_DEFAULT_ADMIN_PASSWORD, settings
 from .backup import skip_next_snapshot
 from .database import Base, SessionLocal, engine, get_db
+from .ratelimit import client_ip, enforce
 from .dependencies import get_admin, get_beta_application_manager, get_content_moderator, get_current_user, get_operations_manager, get_optional_user, get_role_manager
 from .models import (
     AppSetting,
@@ -58,6 +62,7 @@ from .schemas import (
     AnalyticsOut,
     AnnouncementOut,
     AnnouncementWrite,
+    AdminPasswordReset,
     AdminStats,
     AdminTaskUpdate,
     AdminUserLimitUpdate,
@@ -137,21 +142,52 @@ TaskStatusFilter = Annotated[
 ]
 
 
+def _running_under_pytest() -> bool:
+    """测试会触碰真实数据库，此时不要随机化/轮换管理员密码以免影响本地数据。"""
+    return "pytest" in sys.modules
+
+
 def initialize_database() -> None:
+    settings.validate_storage_isolation()
     Base.metadata.create_all(bind=engine)
     migrate_schema()
+    logger = logging.getLogger("yorozuya")
+    harden_default_password = not _running_under_pytest()
     with SessionLocal() as db:
         admin = db.scalar(select(User).where(User.username == settings.admin_username))
         if admin is None:
+            password = settings.admin_password
+            if settings.admin_password_is_default and harden_default_password:
+                password = secrets.token_urlsafe(15)
+                logger.warning(
+                    "未配置 ADMIN_PASSWORD，已为超级管理员 %s 生成随机密码：%s"
+                    "（请立即记录，并在 .env 中设置固定的 ADMIN_PASSWORD）",
+                    settings.admin_username,
+                    password,
+                )
             db.add(
                 User(
                     username=settings.admin_username,
-                    password_hash=hash_password(settings.admin_password),
+                    password_hash=hash_password(password),
                     nickname=settings.admin_nickname,
                     is_admin=True,
                 )
             )
             db.commit()
+        elif harden_default_password and verify_password(
+            INSECURE_DEFAULT_ADMIN_PASSWORD, admin.password_hash
+        ):
+            # 已有管理员仍在使用公开的默认密码：强制轮换，避免被直接登录后台。
+            rotated = secrets.token_urlsafe(15)
+            admin.password_hash = hash_password(rotated)
+            admin.token_version = (admin.token_version or 0) + 1
+            db.commit()
+            logger.warning(
+                "检测到超级管理员 %s 仍在使用默认密码，已自动轮换为：%s"
+                "（请立即记录，并在 .env 中设置固定的 ADMIN_PASSWORD）",
+                settings.admin_username,
+                rotated,
+            )
         seed_virtual_life_packs(db)
 
 
@@ -181,6 +217,8 @@ def migrate_schema() -> None:
                 connection.execute(text("ALTER TABLE users ADD COLUMN avatar_moderated_at DATETIME"))
             if "is_beta_tester" not in user_columns:
                 connection.execute(text("ALTER TABLE users ADD COLUMN is_beta_tester BOOLEAN NOT NULL DEFAULT 0"))
+            if "token_version" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_users_is_beta_tester ON users (is_beta_tester)"))
         if not inspector.has_table("tasks"):
             return
@@ -1209,7 +1247,8 @@ def health():
 
 
 @app.post("/api/auth/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+def register(payload: RegisterRequest, request: Request, db: Session = Depends(get_db)):
+    enforce("register-ip", client_ip(request), 10, 3600)
     if db.scalar(select(User).where(User.username == payload.username)):
         raise HTTPException(status_code=409, detail="用户名已被使用")
     user = User(
@@ -1220,17 +1259,26 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
-    return TokenResponse(access_token=create_access_token(user.id), user=UserSelf.model_validate(user))
+    return TokenResponse(
+        access_token=create_access_token(user.id, user.token_version),
+        user=UserSelf.model_validate(user),
+    )
 
 
 @app.post("/api/auth/login", response_model=TokenResponse)
-def login(payload: LoginRequest, db: Session = Depends(get_db)):
+def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
+    # 按来源 IP 与账号双维度限流，抵御暴力破解与撞库。
+    enforce("login-ip", client_ip(request), 30, 300)
+    enforce("login-user", payload.username, 10, 300)
     user = db.scalar(select(User).where(User.username == payload.username))
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="用户名或密码错误")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="账号已停用")
-    return TokenResponse(access_token=create_access_token(user.id), user=UserSelf.model_validate(user))
+    return TokenResponse(
+        access_token=create_access_token(user.id, user.token_version),
+        user=UserSelf.model_validate(user),
+    )
 
 
 @app.get("/api/auth/me", response_model=UserSelf)
@@ -1255,7 +1303,11 @@ def update_my_password(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(status_code=403, detail="当前密码不正确")
     user.password_hash = hash_password(payload.password)
+    # 自增令牌版本：旧密码签发的所有会话立即失效，需用新密码重新登录。
+    user.token_version = (user.token_version or 0) + 1
     db.commit()
     db.refresh(user)
     return user
@@ -1716,10 +1768,12 @@ def end_sugar_pair(pair_id: int, user: User = Depends(get_current_user), db: Ses
 @app.post("/api/feedback", response_model=FeedbackOut, status_code=status.HTTP_201_CREATED)
 def create_feedback(
     payload: FeedbackCreate,
+    request: Request,
     viewer: User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
     """提交反馈/建议。登录用户可留空联系方式；游客需填写联系方式便于管理员回复。"""
+    enforce("feedback-ip", client_ip(request), 10, 3600)
     if viewer is None and not payload.contact:
         raise HTTPException(status_code=422, detail="请先登录，或填写联系方式以便管理员联系你")
     if viewer is None and payload.contact and len(payload.contact) < 2:
@@ -2754,6 +2808,7 @@ def set_report_limit(
 def accept_task(
     task_id: int,
     payload: AcceptRequest,
+    request: Request,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -2800,6 +2855,8 @@ def accept_task(
         if joined >= task.required_takers:
             raise HTTPException(status_code=409, detail="需要的人数已满，委托即将开始")
     if task.requires_password:
+        # 限流尝试次数，防止暴力枚举 4 位起的接取密码。
+        enforce("accept-password", str(user.id), 10, 300)
         if not payload.password or not verify_password(payload.password, task.accept_password_hash):
             raise HTTPException(status_code=403, detail="接取密码不正确，请联系委托人确认")
     # 在支持行锁的数据库上串行化同一用户的接单操作，避免并发突破个人上限。
@@ -3354,7 +3411,7 @@ def update_user_task_limit(
 @app.patch("/api/admin/users/{user_id}/password", response_model=AdminUserOut)
 def reset_user_password(
     user_id: int,
-    payload: UserPasswordUpdate,
+    payload: AdminPasswordReset,
     _: User = Depends(get_admin),
     db: Session = Depends(get_db),
 ):
@@ -3362,6 +3419,8 @@ def reset_user_password(
     if user is None:
         raise HTTPException(status_code=404, detail="用户不存在")
     user.password_hash = hash_password(payload.password)
+    # 重置密码后立即吊销该用户已签发的全部登录令牌。
+    user.token_version = (user.token_version or 0) + 1
     db.commit()
     db.refresh(user)
     return AdminUserOut.model_validate(user).model_copy(
