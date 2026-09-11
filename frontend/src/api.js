@@ -1,21 +1,19 @@
 import axios from 'axios'
+import { clearAuth, getToken, getTokenSync } from './authStorage'
 
 export const api = axios.create({ baseURL: import.meta.env.VITE_API_BASE || '/api' })
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('wsw_token')
+api.interceptors.request.use(async (config) => {
+  const token = await getToken()
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401 && localStorage.getItem('wsw_token')) {
-      localStorage.removeItem('wsw_token')
-      localStorage.removeItem('wsw_user')
-      localStorage.removeItem('wsw_auth_version')
-      localStorage.removeItem('wsw_login_at')
+  async (error) => {
+    if (error.response?.status === 401 && getTokenSync()) {
+      await clearAuth()
       window.dispatchEvent(new Event('auth-expired'))
     }
     return Promise.reject(error)

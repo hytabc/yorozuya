@@ -37,7 +37,7 @@ backend/app/
 frontend/src/
   api.js         # axios 实例：自动带 token、401 时清缓存并派发 auth-expired
   constants.js   # 角色显示名 ROLE_LABELS / ROLE_HINTS / roleLabel()（⚠️ 改角色文案先看这里）
-  stores/auth.js # Pinia：token/user 持久化到 localStorage；isAdmin / isStaff / canManageRoles
+  stores/auth.js # Pinia：凭证经 authStorage.js 加密存于 localStorage/IndexedDB；isAdmin / isStaff / canManageRoles
   router.js      # 路由守卫（auth / guestOnly / roleManager）
   views/         # TaskHall(大厅) AdminView(后台) OperationsView(运营台) AnnouncementsView(公告) 等
   components/    # TaskDialog(委托详情+接取) CreateTaskDialog ReportDialog FeedbackDialog
@@ -99,6 +99,8 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - **前端权限**：`router.js` 对 `moderator/operations/life*/roleManager` 路由先 `await auth.restore()`（走 `/api/auth/me`）再判权限；`AdminView/OperationsView` 在 `onMounted` 再复核一次。**localStorage 的 `wsw_user` 只是界面缓存，绝不可作为权限依据**。
 - **权限可信标记 `auth.verified`**：只有服务端响应（登录/注册或 `/auth/me`）才能把 `verified` 置为 true；`isAdmin/isStaff/isMascot/isDisciplinarian/role/canModerate/canManageRoles/canOperate/isBetaTester` 全部 `verified && ...`。组件里禁止直接读 `auth.user.role/is_admin`（用 `auth.role`/`auth.isAdmin`），这样改写 localStorage 也无法让界面误认为自己拥有权限。
 - **请求模型**：`RequestModel` 设 `extra="forbid"`，请求体夹带 `role`/`is_admin` 等多余字段会被 422 拒绝（后端另有显式白名单赋值与 `update_user_role` 的角色保护，`is_admin` 无法经任何接口写入）。
+- **本地凭证加密存储**：登录令牌/用户信息不再明文写 localStorage，改由 `frontend/src/authStorage.js` 用 Web Crypto AES-GCM 加密后写入 `wsw_auth`，密钥为不可导出的 `CryptoKey` 存于 IndexedDB；旧明文键（`wsw_token` 等）首次读取时自动迁移并删除。取 token 一律走 `getToken()/getTokenSync()`，禁止再直接读 localStorage。非安全上下文自动降级为“仅内存不落盘”。
+- **登录/注册人机验证**：`backend/app/captcha.py`，`CAPTCHA_PROVIDER` 可选 `turnstile`（Cloudflare，推荐）或 `builtin`（Pillow 图形验证码）；前端 `composables/useCaptcha.js` + `components/CaptchaField.vue`。`login/register` 在校验密码前先 `verify_captcha`（fail-closed），pytest 下自动跳过。Turnstile Secret Key 只放 `.env`（`TURNSTILE_SECRET_KEY`），Site Key 公开。
 
 ## 启动行为（main.py 顶部）
 

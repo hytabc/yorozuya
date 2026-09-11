@@ -22,7 +22,9 @@
       "Shell(test:*)",
       "Shell(grep:*)",
       "Shell(sed:*)",
-      "Shell(node -e console.log(Object.keys(require('./package.json').scripts).join(', ')))"
+      "Shell(node -e console.log(Object.keys(require('./package.json').scripts).join(', ')))",
+      "Shell(python -c \"import PIL, sys; print('Pillow', PIL.__version__); print(sys.version)\" 2>&1)",
+      "powershell"
     ],
     "deny": [],
     "defaultMode": "default"

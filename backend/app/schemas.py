@@ -60,12 +60,17 @@ class RegisterRequest(RequestModel):
     username: str = Field(min_length=3, max_length=32, pattern=r"^[a-zA-Z0-9_]+$")
     password: str = Field(min_length=8, max_length=72)
     nickname: str = Field(min_length=1, max_length=32)
+    # 人机验证：builtin 用 captcha_id + captcha_code；turnstile 用 captcha_code 传 token。
+    captcha_id: str = Field(default="", max_length=128)
+    captcha_code: str = Field(default="", max_length=4096)
 
 
 class LoginRequest(RequestModel):
     # 限制长度，避免超长输入拖垮 PBKDF2 校验（CPU 消耗型拒绝服务）。
     username: str = Field(min_length=1, max_length=64)
     password: str = Field(min_length=1, max_length=128)
+    captcha_id: str = Field(default="", max_length=128)
+    captcha_code: str = Field(default="", max_length=4096)
 
 
 class UserPhotoOut(ApiModel):
@@ -129,6 +134,21 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserSelf
+
+
+class CaptchaChallenge(ApiModel):
+    """前端拉取的人机验证配置。
+
+    - provider="off"：当前未启用验证码，前端不渲染任何控件。
+    - provider="turnstile"：前端按 site_key 渲染 Cloudflare Turnstile。
+    - provider="builtin"：前端显示 image（data URL）并要求填写 captcha_code。
+    """
+
+    provider: str
+    captcha_id: str = ""
+    image: str | None = None
+    expires_in: int = 0
+    site_key: str | None = None
 
 
 class TaskCreate(RequestModel):

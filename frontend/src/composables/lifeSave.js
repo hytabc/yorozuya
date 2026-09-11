@@ -1,15 +1,21 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import axios from 'axios'
+import { getToken, getTokenSync } from '../authStorage'
 
 // Serial saves + optimistic revision; never retry a conflict by overwriting it.
 // autoLoad: false 时由调用方在内容包就绪后手动调用 load()。
 export function useLifeSave(snapshot, hydrate, { autoLoad = true } = {}) {
-  const ownerToken = localStorage.getItem('wsw_token')
-  const api = axios.create({ baseURL: '/api', timeout: 15000,
-    headers: { Authorization: `Bearer ${ownerToken}` } })
+  // 凭证为加密存储，用同步快照做“账号未变更”判定；请求头按需异步取令牌。
+  const ownerToken = getTokenSync()
+  const api = axios.create({ baseURL: '/api', timeout: 15000 })
+  api.interceptors.request.use(async (config) => {
+    const token = await getToken()
+    if (token) config.headers.Authorization = `Bearer ${token}`
+    return config
+  })
   function ownerValid() {
-    if (ownerToken && localStorage.getItem('wsw_token') === ownerToken) return true
+    if (ownerToken && getTokenSync() === ownerToken) return true
     ready.value = false
     error.value = '登录身份已变更，请重新进入游戏。未向其他账号写入进度。'
     return false
