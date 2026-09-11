@@ -25,6 +25,28 @@ function countingRng() {
   };
 }
 
+
+test('同时多段关系条件：minActiveRelations / minSugarRelations / anyRelation', () => {
+  const relA = { id: 1, name: 'A', state: '朋友', intimacy: 10, trust: 10, freshness: 50, dependence: 0, realPressure: 0 };
+  const relB = { id: 2, name: 'B', state: '砂糖', intimacy: 70, trust: 60, freshness: 60, dependence: 10, realPressure: 5 };
+  const st = baseState({ relations: [relA, relB], relation: relA });
+
+  assert.equal(match({ minActiveRelations: 2 }, st), true);
+  assert.equal(match({ minActiveRelations: 3 }, st), false);
+  assert.equal(match({ minSugarRelations: 1 }, st), true);
+  assert.equal(match({ minSugarRelations: 2 }, st), false);
+
+  // 默认看焦点（relA，intimacy 10）；anyRelation 时 relB 满足
+  assert.equal(match({ minIntimacy: 50 }, st), false);
+  assert.equal(match({ minIntimacy: 50, anyRelation: true }, st), true);
+  assert.equal(match({ relationState: ['砂糖'] }, st), false);
+  assert.equal(match({ relationState: ['砂糖'], anyRelation: true }, st), true);
+
+  // 已结束的关系不计入活跃数
+  const st2 = baseState({ relations: [relA, { ...relB, state: '结束' }], relation: relA });
+  assert.equal(match({ minActiveRelations: 2 }, st2), false);
+  assert.equal(match({ minSugarRelations: 1 }, st2), false);
+});
 test('空 condition 恒真', () => {
   assert.equal(match(null, baseState()), true);
   assert.equal(match({}, baseState()), true);

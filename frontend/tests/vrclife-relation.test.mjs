@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { applyRelationOp, driftRelation } from '../src/vrclife/engine/relation.js';
+import { applyRelationOp, driftRelation, newRelation, syncFocus, MAX_ACTIVE_RELATIONS } from '../src/vrclife/engine/relation.js';
 import { INACTIVE_REL_STATES } from '../src/vrclife/engine/conditions.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -122,6 +122,67 @@ test('关系推进门槛：稳定需要 intimacy ≥ 80 且 realPressure ≤ 40'
   const ok = mk();
   applyRelationOp(ok, { type: 'setState', state: '稳定' }, rng, vocab);
   assert.equal(ok.relation.state, '稳定', '门槛满足应允许进入稳定');
+});
+
+test('同时多段：newRelation 追加到 relations[] 并成为焦点', () => {
+  const vocab = loadVocab();
+  const rng = makeRng();
+  const st = makeSt({ hours: 100, favor: 60 });
+  const a = newRelation(st, rng, vocab, '认识');
+  const b = newRelation(st, rng, vocab, '朋友');
+  assert.equal(st.relations.length, 2);
+  assert.equal(a.id, 1);
+  assert.equal(b.id, 2);
+  assert.equal(st.relation, b, '新开的人成为焦点');
+  assert.equal(st.focusId, b.id);
+});
+
+test('同时多段：spawn 最多 3 段，到顶后不再新增', () => {
+  const vocab = loadVocab();
+  const rng = makeRng();
+  const st = makeSt({ hours: 100, favor: 60 });
+  for (let i = 0; i < 5; i += 1) applyRelationOp(st, { type: 'spawn', state: '认识' }, rng, vocab);
+  assert.equal(MAX_ACTIVE_RELATIONS, 3);
+  assert.equal(st.relations.length, 3, '上限 3 段');
+});
+
+test('同时多段：end 只结束焦点，焦点自动切到另一段活跃关系', () => {
+  const vocab = loadVocab();
+  const rng = makeRng();
+  const st = makeSt({ hours: 500, favor: 60 });
+  const a = newRelation(st, rng, vocab, '砂糖');
+  const b = newRelation(st, rng, vocab, '朋友');
+  applyRelationOp(st, { type: 'end' }, rng, vocab);
+  assert.equal(b.state, '结束', '只结束焦点那段');
+  assert.equal(a.state, '砂糖', '另一段不受影响');
+  assert.equal(st.relation, a, '焦点切到剩下的活跃关系');
+  assert.equal(st.relation.freshness, 90);
+  assert.equal(st.spawnBlockUntil, 620);
+});
+
+test('同时多段：syncFocus 在焦点失效时切到最近的活跃关系', () => {
+  const vocab = loadVocab();
+  const rng = makeRng();
+  const st = makeSt({ hours: 100, favor: 60 });
+  const a = newRelation(st, rng, vocab, '砂糖');
+  newRelation(st, rng, vocab, '砂糖');
+  st.relation.state = '结束';
+  const f = syncFocus(st);
+  assert.equal(f, a, '切到最早那段活跃关系（数组里最后一段活跃的）');
+  assert.equal(st.focusId, a.id);
+});
+
+test('同时多段：driftRelation 覆盖所有活跃关系', () => {
+  const vocab = loadVocab();
+  const rng = makeRng();
+  const st = makeSt({ hours: 100, relation: null });
+  const a = newRelation(st, rng, vocab, '砂糖');
+  const b = newRelation(st, rng, vocab, '砂糖');
+  const f0 = a.freshness;
+  const f1 = b.freshness;
+  driftRelation(st, rng, []);
+  assert.equal(a.freshness, f0 - 2);
+  assert.equal(b.freshness, f1 - 2);
 });
 test('spawn 冷却抑制与 force 豁免', () => {
   const vocab = loadVocab();

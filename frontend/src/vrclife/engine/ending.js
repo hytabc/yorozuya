@@ -41,9 +41,18 @@ function tokenize(expr) {
   return out;
 }
 
+const INACTIVE_STATES = ['结束', '低迷', '恢复'];
+
+/** 活跃关系列表；兼容只有单个 relation 的旧状态。 */
+function activeRelList(st) {
+  const list = Array.isArray(st.relations) ? st.relations : (st.relation ? [st.relation] : []);
+  return list.filter((r) => r && !INACTIVE_STATES.includes(r.state));
+}
+
 function varsFor(st) {
   let maxSkill = 0;
   for (const v of Object.values(st.skills || {})) if (v > maxSkill) maxSkill = v;
+  const rels = activeRelList(st);
   return {
     hours: st.hours,
     friends: st.friends,
@@ -57,6 +66,8 @@ function varsFor(st) {
     'skill.max': maxSkill,
     'circle.count': (st.circles || []).length,
     'tag.count': (st.tags || []).length,
+    'relation.count': rels.length,
+    'sugar.relation.count': rels.filter((r) => r.state === '砂糖').length,
   };
 }
 
@@ -183,6 +194,11 @@ export function evaluateEnding(st, vocab, endings) {
     if (c.minFavor !== undefined && st.favor < c.minFavor) return false;
     if (c.maxFavor !== undefined && st.favor > c.maxFavor) return false;
     if (c.minCircles !== undefined && (st.circles || []).length < c.minCircles) return false;
+    // 同时多段关系
+    if (c.minActiveRelations !== undefined
+        && activeRelList(st).length < c.minActiveRelations) return false;
+    if (c.minSugarRelations !== undefined
+        && activeRelList(st).filter((r) => r.state === '砂糖').length < c.minSugarRelations) return false;
     // --------------------------
     const minSkills = c.minSkills;
     if (minSkills) {

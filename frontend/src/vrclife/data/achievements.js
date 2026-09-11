@@ -8,9 +8,22 @@
  * 判定函数一律防御取值：老存档、测试桩缺字段时返回 false / 0，不得抛错。
  */
 
+const INACTIVE_STATES = ['结束', '低迷', '恢复'];
+
 function num(v) {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
+}
+
+/** 全部关系（含已结束）；兼容只有单个 relation 的旧状态。 */
+function allRels(st) {
+  if (!st) return [];
+  return Array.isArray(st.relations) ? st.relations.filter(Boolean) : (st.relation ? [st.relation] : []);
+}
+
+/** 活跃关系（同时多段用）。 */
+function activeRels(st) {
+  return allRels(st).filter((r) => !INACTIVE_STATES.includes(r.state));
 }
 
 function arr(v) {
@@ -52,8 +65,10 @@ export const IN_RUN_ACHIEVEMENTS = [
   { id: 'avatars_10', name: '模型收藏家', icon: '👗', tier: 'bronze', desc: '换过 10 个模型', check: (c) => num(c.st.avatars) >= 10 },
   { id: 'assets_100000', name: '资产自由', icon: '💰', tier: 'silver', desc: '资产达到 10 万', check: (c) => num(c.st.assets) >= 100000 },
   { id: 'lone_wolf', name: '独行侠', icon: '🌙', tier: 'bronze', desc: '200 小时以上，好友不超过 3 人', check: (c) => num(c.st.hours) >= 200 && num(c.st.friends) <= 3 },
-  { id: 'relation_any', name: '名分已定', icon: '🤝', tier: 'silver', desc: '建立过一段关系', check: (c) => !!(c.st.relation && c.st.relation.name) },
-  { id: 'relation_stable', name: '稳定关系', icon: '🏡', tier: 'gold', desc: '把关系走到「稳定」', check: (c) => !!(c.st.relation && c.st.relation.state === '稳定') },
+  { id: 'relation_any', name: '名分已定', icon: '🤝', tier: 'silver', desc: '建立过一段关系', check: (c) => allRels(c.st).length > 0 },
+  { id: 'relation_stable', name: '稳定关系', icon: '🏡', tier: 'gold', desc: '把一段关系走到「稳定」', check: (c) => allRels(c.st).some((r) => r.state === '稳定') },
+  { id: 'parallel_line', name: '两条线', icon: '🎭', tier: 'silver', desc: '同时维系 2 段关系', check: (c) => activeRels(c.st).length >= 2 },
+  { id: 'parallel_three', name: '三线并行', icon: '🕸️', tier: 'gold', desc: '同时维持 3 段活跃关系', check: (c) => activeRels(c.st).length >= 3 },
   { id: 'rebound', name: '触底反弹', icon: '🌈', tier: 'silver', desc: '心态跌破 15 后又回到 60 以上', check: (c) => num(c.insights && c.insights.mood && c.insights.mood.min && c.insights.mood.min.value) <= 15 && num(c.st.mood) >= 60 },
   { id: 'rare_ending', name: '难得一见', icon: '🏅', tier: 'gold', desc: '达成一个稀有结局', check: (c) => c.ending.rarity === 'rare' },
   { id: 'burnout_ending', name: '燃尽', icon: '🕯️', tier: 'bronze', desc: '达成结局「燃尽」', check: (c) => c.ending.id === 'end_burnout' },

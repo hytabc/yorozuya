@@ -37,6 +37,23 @@ function playFirstAvailable(game) {
   return game;
 }
 
+test('存档迁移：旧档只有单个 relation 时自动包成 relations[]', () => {
+  const data = loadData();
+  const g = createGame({ data, seed: '834271' });
+  playFirstAvailable(g);
+  const save = JSON.parse(JSON.stringify(g.serialize()));
+  if (!save.relation) {
+    save.relation = { name: '小满', state: '砂糖', intimacy: 60, trust: 50, freshness: 70, dependence: 10, realPressure: 5, metAt: 12 };
+  }
+  const legacy = { ...save, relations: undefined, focusId: undefined };
+  const g2 = createGame.fromSave(legacy, data);
+  const st = g2.state;
+  assert.ok(Array.isArray(st.relations), '迁移后应有 relations[]');
+  assert.equal(st.relations.length, 1);
+  assert.equal(st.relations[0].name, save.relation.name);
+  assert.equal(st.relation, st.relations[0], '焦点应指向数组里的同一个对象');
+  assert.equal(st.focusId, 1, '旧的单个关系补上 id=1');
+});
 test('种子复现：两局逐字节相等，中途存档续跑一致', () => {
   const data = loadData();
   const seed = '834271';

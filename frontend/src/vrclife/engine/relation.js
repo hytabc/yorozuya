@@ -74,7 +74,51 @@ export function relationGateBlocks(state, st, vocab, isSpawn = false) {
 }
 
 /**
- * 开一段新关系。
+ * 同时最多几段活跃关系。
+ */
+export const MAX_ACTIVE_RELATIONS = 3;
+
+/**
+ * 活跃关系列表（不含 结束 / 低迷 / 恢复）。
+ * 兼容只有单个 st.relation 的旧状态与手工构造的测试桩。
+ * @param {object} st
+ * @returns {object[]}
+ */
+export function activeRelations(st) {
+  if (!st) return [];
+  const list = Array.isArray(st.relations) ? st.relations : (st.relation ? [st.relation] : []);
+  return list.filter((r) => r && !INACTIVE_REL_STATES.includes(r.state));
+}
+
+/**
+ * 切换焦点关系：st.relation 始终指向数组里被聚焦的那一个。
+ * @param {object} st
+ * @param {object|null} rel
+ * @returns {object|null}
+ */
+export function setFocus(st, rel) {
+  st.relation = rel || null;
+  st.focusId = rel && rel.id !== undefined ? rel.id : null;
+  return st.relation;
+}
+
+/**
+ * 收敛焦点：焦点仍活跃就保持；否则切到最近建立的那段活跃关系；
+ * 一段活跃的都没有时保留原焦点（通常是刚结束的那段，供「ta」继续指代）。
+ * @param {object} st
+ * @returns {object|null}
+ */
+export function syncFocus(st) {
+  if (!st) return null;
+  if (!Array.isArray(st.relations)) st.relations = st.relation ? [st.relation] : [];
+  if (st.relation && !INACTIVE_REL_STATES.includes(st.relation.state)) return st.relation;
+  const list = activeRelations(st);
+  if (list.length) return setFocus(st, list[list.length - 1]);
+  return st.relation || null;
+}
+
+/**
+ * 开一段新关系：追加到 st.relations 并成为焦点。
  * @param {object} st
  * @param {{pick: Function}} rng
  * @param {object} vocab
@@ -85,7 +129,9 @@ export function newRelation(st, rng, vocab, stateStr = '认识') {
   const relStates = vocab.relationStates || [];
   let s = stateStr;
   if (!relStates.includes(s)) s = '认识';
-  st.relation = {
+  if (!Array.isArray(st.relations)) st.relations = st.relation ? [st.relation] : [];
+  const rel = {
+    id: st.relations.length + 1,
     name: rng.pick(vocab.nicknamePool),
     state: s,
     intimacy: 0,
@@ -95,9 +141,11 @@ export function newRelation(st, rng, vocab, stateStr = '认识') {
     realPressure: 0,
     metAt: st.hours,
   };
+  st.relations.push(rel);
+  setFocus(st, rel);
   if (s === '低迷') st.sawLow = true;
   else if (s === '恢复') st.sawRecover = true;
-  return st.relation;
+  return rel;
 }
 
 /**
@@ -110,6 +158,8 @@ export function newRelation(st, rng, vocab, stateStr = '认识') {
  */
 export function applyRelationOp(st, rop, rng, vocab, eventsLog) {
   if (!rop) return;
+  // 焦点可能是上一段已结束的关系：有活跃关系时先切回来，叙事「ta」才对得上人。
+  syncFocus(st);
   const t = rop.type;
   let r = st.relation;
 
@@ -120,15 +170,17 @@ export function applyRelationOp(st, rop, rng, vocab, eventsLog) {
     // 推进门槛：交情（favor）不够时，即使直接 spawn 也不开这段亲密关系。
     // spawn 时还没有关系数值，只校验 favor。
     if (relationGateBlocks(rop.state, st, vocab, true)) return;
-    if (!r || INACTIVE_REL_STATES.includes(r.state)) {
-      r = newRelation(st, rng, vocab, rop.state || '认识');
-    }
+    // 同时多段：还没到上限就再开一段（新开的人成为焦点）。
+    if (activeRelations(st).length >= MAX_ACTIVE_RELATIONS) return;
+    r = newRelation(st, rng, vocab, rop.state || '认识');
   } else if (t === 'end') {
     if (r && !INACTIVE_REL_STATES.includes(r.state)) {
       r.state = '结束';
       st.spawnBlockUntil = st.hours + SPAWN_COOLDOWN_HOURS;
       if (eventsLog) eventsLog.push(['state', '结束']);
     }
+    // 这段结束了：还有别的活跃关系就把焦点移到那段
+    syncFocus(st);
     // 忽略数值键
     return;
   } else if (t === 'renew') {
@@ -192,35 +244,35 @@ export function applyRelationOp(st, rop, rng, vocab, eventsLog) {
  * @param {Array} scheduled
  */
 export function driftRelation(st, rng, scheduled) {
-  const r = st.relation;
-  if (!r || INACTIVE_REL_STATES.includes(r.state)) return;
+  // 同时多段：所有活跃关系各自漂移（结束判定也逐段独立）。
+  for (const r of activeRelations(st)) {
+    r.freshness = Math.max(0, r.freshness - 2);
+    if (st.recentTags.includes('sugar')) {
+      r.intimacy = Math.min(100, r.intimacy + 1);
+    } else {
+      r.intimacy = Math.max(0, r.intimacy - 1);
+    }
+    if (r.state === '砂糖' || r.state === '稳定') {
+      r.dependence = Math.min(100, r.dependence + 0.5);
+    }
+    r.realPressure = Math.max(0, Math.min(100, r.realPressure + rng.randint(-3, 4)));
 
-  r.freshness = Math.max(0, r.freshness - 2);
-  if (st.recentTags.includes('sugar')) {
-    r.intimacy = Math.min(100, r.intimacy + 1);
-  } else {
-    r.intimacy = Math.max(0, r.intimacy - 1);
+    if (r.realPressure > 60 && rng.next() < 0.08) {
+      scheduled.push({
+        eventId: DRIFT_CHAIN_END,
+        at: st.hours + rng.randint(0, 40),
+        chance: 1.0,
+      });
+    }
+    if (r.freshness < 30 && r.state === '砂糖' && rng.next() < 0.1) {
+      scheduled.push({
+        eventId: DRIFT_CHAIN_CONFLICT,
+        at: st.hours + rng.randint(10, 60),
+        chance: 0.8,
+      });
+    }
+    if (r.state === '砂糖' || r.state === '稳定') st.sugarPath.add('sugar');
+    if (r.state === '矛盾') st.sugarPath.add('conflict');
+    if (r.state === '低迷') st.sugarPath.add('low');
   }
-  if (r.state === '砂糖' || r.state === '稳定') {
-    r.dependence = Math.min(100, r.dependence + 0.5);
-  }
-  r.realPressure = Math.max(0, Math.min(100, r.realPressure + rng.randint(-3, 4)));
-
-  if (r.realPressure > 60 && rng.next() < 0.08) {
-    scheduled.push({
-      eventId: DRIFT_CHAIN_END,
-      at: st.hours + rng.randint(0, 40),
-      chance: 1.0,
-    });
-  }
-  if (r.freshness < 30 && r.state === '砂糖' && rng.next() < 0.1) {
-    scheduled.push({
-      eventId: DRIFT_CHAIN_CONFLICT,
-      at: st.hours + rng.randint(10, 60),
-      chance: 0.8,
-    });
-  }
-  if (r.state === '砂糖' || r.state === '稳定') st.sugarPath.add('sugar');
-  if (r.state === '矛盾') st.sugarPath.add('conflict');
-  if (r.state === '低迷') st.sugarPath.add('low');
 }
