@@ -92,7 +92,7 @@ async function submit() {
   busy.value = true
   try {
     if (isRegister.value) await auth.register(form)
-    else await auth.login(form)
+    else await auth.login({ username: form.username, password: form.password })
     router.push(safeRedirect(route.query.redirect))
   } catch (err) {
     if (!isRegister.value || !applyRegistrationApiErrors(err)) {
