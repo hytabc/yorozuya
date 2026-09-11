@@ -60,10 +60,13 @@ MASCOT_MODEL=kimi-k2.7-code-highspeed
 1. 创建环境配置：
 
    ```bash
-   cp env.example .env
+   cp .env.example .env
    ```
 
-2. 修改 `.env` 中的 `SECRET_KEY` 和 `ADMIN_PASSWORD`。推荐生成密钥：
+2. 修改 `.env` 中的 `SECRET_KEY` 和 `ADMIN_PASSWORD`（这两项在 Compose 中为必填，未填写会拒绝启动）。
+   若直接以 `uvicorn`/`start.sh` 等方式运行且未配置，程序会拒绝使用内置占位值：
+   `SECRET_KEY` 每次启动随机生成（重启后需重新登录），首次创建管理员时随机生成密码并打印到日志。
+   推荐生成密钥：
 
    ```bash
    openssl rand -hex 32
@@ -180,6 +183,22 @@ start.bat test
 
 > 升级提示：旧版单接单人委托（含更早“submitted/待验收”状态）会在启动时自动迁移进
 > “接单人成员表”，并补齐“需要人数=1”；历史进行中的委托需要委托人再补一次确认即可完成。
+
+## 安全说明
+
+- **会话令牌**：JWT 存于浏览器 localStorage，有效期 24 小时；修改密码会自增令牌版本，旧密码签发的所有登录立即失效。
+- **密码**：PBKDF2-HMAC-SHA256（31 万次迭代）；自助改密必须验证当前密码；超级管理员重置密码后对方需重新登录。
+- **登录限流**：登录（按来源 IP 与账号双维度）、注册、带密码委托接取、看板娘对话、反馈提交均有滑动窗口限流，超限返回 429。
+- **权限校验**：前端所有权限标记（`auth.isAdmin`/`auth.role`/`canModerate` 等）都带 `verified` 前缀，
+  只有服务端响应（登录/注册或 `/auth/me`）才能置为可信；路由与页面会先向服务端复核身份。
+  因此手工改写 localStorage 中的 `wsw_user` 也无法让界面误认为自己拥有管理员权限（后端对每个接口独立鉴权）。
+- **拒绝越权字段**：请求模型启用 `extra="forbid"`，请求体夹带 `role`/`is_admin` 等额外字段会返回 422；
+  `is_admin` 无法通过任何接口写入，只有超级管理员能通过 `PATCH /admin/users/{id}/role` 调整 `staff`/`mascot`/`disciplinarian`。
+- **上传与文件**：图片按文件头校验真实类型、由服务端生成 UUID 文件名，头像/实拍等需审核后才公开；
+  上传目录与数据库目录强制隔离，避免 `wsw.db` 与备份被静态托管下载。
+- **响应头**：Nginx 统一附加 `X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`。
+- **生产建议**：务必在 `.env` 设置足够随机的 `SECRET_KEY` 与强 `ADMIN_PASSWORD`；对外建议在 Nginx 前增加 HTTPS（如 Let's Encrypt），
+  当前示例仅监听 80 端口，令牌与密码在链路上为明文。
 
 ## 数据存储与备份
 

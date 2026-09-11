@@ -40,17 +40,20 @@ const router = createRouter({
   ],
 })
 
+// 涉及权限的页面一律先向服务端核实身份：localStorage 中的 wsw_user 可被随意篡改，
+// 绝不能用它作为管理员/运营权限的判定依据。
+const SERVER_VERIFIED_META = ['lifeOnly', 'lifeManager', 'roleManager', 'moderator', 'operations']
+
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
-  if (to.meta.lifeOnly || to.meta.lifeManager) {
+  if (SERVER_VERIFIED_META.some((key) => to.meta[key])) {
     if (!auth.token) return '/'
-    // Check the server identity, not cached localStorage permission flags.
     await auth.restore()
     if (!auth.isLoggedIn) return '/'
-    if (to.meta.lifeOnly && !auth.canPlayLife) return '/'
-    if (to.meta.lifeManager && !auth.canManageRoles) return '/'
   }
   if (to.meta.auth && !auth.isLoggedIn) return { path: '/login', query: { redirect: to.fullPath } }
+  if (to.meta.lifeOnly && !auth.canPlayLife) return '/'
+  if (to.meta.lifeManager && !auth.canManageRoles) return '/'
   if (to.meta.roleManager && !auth.canManageRoles) return '/'
   if (to.meta.moderator && !auth.canModerate) return '/'
   if (to.meta.operations && !auth.canOperate) return '/'

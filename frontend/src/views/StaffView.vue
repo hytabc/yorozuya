@@ -18,8 +18,9 @@ const selectedUser = ref(null)
 const showApplyDialog = ref(false)
 const myApplication = ref(null)
 
+// 依赖 auth.role（服务端确认后的角色），不读取可被篡改的本地缓存对象。
 const canApply = computed(() =>
-  auth.user && !auth.user.is_admin && auth.user.role === 'user' && myApplication.value?.status !== 'pending'
+  auth.verified && !auth.isAdmin && auth.role === 'user' && myApplication.value?.status !== 'pending'
 )
 
 const directorySections = computed(() => [

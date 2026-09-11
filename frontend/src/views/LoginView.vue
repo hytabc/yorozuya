@@ -80,6 +80,12 @@ function applyRegistrationApiErrors(err) {
   return matched
 }
 
+function safeRedirect(target) {
+  // 只允许站内相对路径，避免 redirect 参数被用来跳转到外站。
+  if (typeof target !== 'string' || !target.startsWith('/') || target.startsWith('//')) return '/'
+  return target
+}
+
 async function submit() {
   error.value = ''
   if (isRegister.value ? !validateRegistration() : !validateLogin()) return
@@ -87,7 +93,7 @@ async function submit() {
   try {
     if (isRegister.value) await auth.register(form)
     else await auth.login(form)
-    router.push(route.query.redirect || '/')
+    router.push(safeRedirect(route.query.redirect))
   } catch (err) {
     if (!isRegister.value || !applyRegistrationApiErrors(err)) {
       error.value = errorMessage(err, isRegister.value ? '注册失败' : '登录失败')

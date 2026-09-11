@@ -51,7 +51,9 @@ class ApiModel(BaseModel):
 
 
 class RequestModel(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True)
+    # extra="forbid"：拒绝多余字段，杜绝通过请求体夹带 role / is_admin 之类的越权字段
+    # （即便处理器只读取白名单字段，也在入口处显式报错而不是静默忽略）。
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
 
 class RegisterRequest(RequestModel):
@@ -61,8 +63,9 @@ class RegisterRequest(RequestModel):
 
 
 class LoginRequest(RequestModel):
-    username: str
-    password: str
+    # 限制长度，避免超长输入拖垮 PBKDF2 校验（CPU 消耗型拒绝服务）。
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=128)
 
 
 class UserPhotoOut(ApiModel):
@@ -155,7 +158,13 @@ class PasswordUpdate(RequestModel):
 
 
 class UserPasswordUpdate(RequestModel):
-    """用户登录密码；比委托接取密码要求更长。"""
+    """用户自助修改登录密码：必须校验当前密码，防止令牌被盗后直接改密夺号。"""
+    current_password: str = Field(min_length=1, max_length=128)
+    password: str = Field(min_length=8, max_length=72)
+
+
+class AdminPasswordReset(RequestModel):
+    """超级管理员重置他人密码：不需要对方当前密码。"""
     password: str = Field(min_length=8, max_length=72)
 
 

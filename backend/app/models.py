@@ -93,6 +93,8 @@ class User(Base):
     )
     max_concurrent_tasks: Mapped[int] = mapped_column(default=2)
     is_beta_tester: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # 会话令牌版本：修改密码时自增，使此前签发的所有登录令牌立即失效。
+    token_version: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     # 头像：仅存相对 uploads 目录的路径；上传后需管理员审核（avatar_visible）才公开展示。
     avatar_path: Mapped[str | None] = mapped_column(String(255), nullable=True)

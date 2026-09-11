@@ -6,3 +6,4 @@
 - Asks that operational/deployment procedures be written into the project README. Confidence: 0.8
 - Wants prototype/sub-project features integrated into the main project as a new page rendered inside the existing app layout, and explicitly open to all logged-in users rather than gated to specific roles. Confidence: 0.65
 - Prefers user/game progress persisted server-side as a per-user record (mirroring existing similar features) over browser localStorage. Confidence: 0.6
+- Communicates in Chinese and expects code comments, docs (README/AGENTS), and UI copy written in Chinese. Confidence: 0.7

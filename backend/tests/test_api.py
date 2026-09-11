@@ -2,6 +2,8 @@ from datetime import datetime, timedelta
 from errno import ENOSPC
 from pathlib import Path
 
+import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
@@ -2447,3 +2449,89 @@ def test_sugar_frost_save_rejects_invalid_state():
             "revision": 0, "state": {**frost_state(), "unknown": 1},
         })
         assert unknown_field.status_code == 422
+
+
+def test_password_change_requires_current_and_revokes_old_tokens():
+    with TestClient(app) as client:
+        headers = auth(client, "pwd_user")
+        assert client.get("/api/auth/me", headers=headers).status_code == 200
+
+        # 缺少或错误的当前密码均被拒绝
+        missing = client.patch("/api/users/me/password", headers=headers, json={"password": "NewPassword123!"})
+        assert missing.status_code == 422
+        wrong = client.patch(
+            "/api/users/me/password",
+            headers=headers,
+            json={"current_password": "not-my-password", "password": "NewPassword123!"},
+        )
+        assert wrong.status_code == 403
+
+        changed = client.patch(
+            "/api/users/me/password",
+            headers=headers,
+            json={"current_password": "Password123!", "password": "NewPassword123!"},
+        )
+        assert changed.status_code == 200, changed.text
+
+        # 改密后旧令牌立即失效，旧密码不能再登录，新密码可以
+        assert client.get("/api/auth/me", headers=headers).status_code == 401
+        assert client.post(
+            "/api/auth/login", json={"username": "pwd_user", "password": "Password123!"}
+        ).status_code == 401
+        assert client.post(
+            "/api/auth/login", json={"username": "pwd_user", "password": "NewPassword123!"}
+        ).status_code == 200
+
+
+def test_admin_password_reset_revokes_target_tokens():
+    with TestClient(app) as client:
+        headers = auth(client, "reset_target")
+        user_id = client.get("/api/auth/me", headers=headers).json()["id"]
+        admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
+        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        reset = client.patch(
+            f"/api/admin/users/{user_id}/password", headers=admin, json={"password": "ResetPassword123!"}
+        )
+        assert reset.status_code == 200, reset.text
+        assert client.get("/api/auth/me", headers=headers).status_code == 401
+
+
+def test_privilege_fields_in_request_body_are_rejected():
+    """普通用户不能通过请求体夹带 role/is_admin 提权。"""
+    with TestClient(app) as client:
+        headers = auth(client, "no_escalate")
+        my_id = client.get("/api/auth/me", headers=headers).json()["id"]
+
+        injected = client.patch("/api/users/me", headers=headers, json={"nickname": "no_escalate", "is_admin": True})
+        assert injected.status_code == 422
+
+        injected_role = client.patch("/api/users/me", headers=headers, json={"nickname": "no_escalate", "role": "staff"})
+        assert injected_role.status_code == 422
+
+        register_injected = client.post(
+            "/api/auth/register",
+            json={"username": "no_escalate2", "password": "Password123!", "nickname": "x", "role": "staff"},
+        )
+        assert register_injected.status_code == 422
+
+        # 自行调用管理员接口提权同样被拒
+        promote = client.patch(f"/api/admin/users/{my_id}/role", headers=headers, json={"role": "staff"})
+        assert promote.status_code == 403
+
+        me = client.get("/api/auth/me", headers=headers).json()
+        assert me["role"] == "user"
+        assert me["is_admin"] is False
+
+
+def test_sliding_window_limiter_blocks_after_limit():
+    from app.ratelimit import limiter
+
+    key = "unit-test:sliding-window"
+    limiter._events.pop(key, None)
+    for _ in range(3):
+        limiter.hit(key, limit=3, window_seconds=60)
+    with pytest.raises(HTTPException) as excinfo:
+        limiter.hit(key, limit=3, window_seconds=60)
+    assert excinfo.value.status_code == 429
+    limiter._events.pop(key, None)

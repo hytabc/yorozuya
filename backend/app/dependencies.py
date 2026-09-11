@@ -17,8 +17,9 @@ def get_current_user(
 ) -> User:
     if credentials is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录")
-    user = db.get(User, decode_access_token(credentials.credentials))
-    if user is None or not user.is_active:
+    payload = decode_access_token(credentials.credentials)
+    user = db.get(User, payload.user_id)
+    if user is None or not user.is_active or user.token_version != payload.token_version:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号不可用")
     return user
 
@@ -31,11 +32,11 @@ def get_optional_user(
     if credentials is None:
         return None
     try:
-        user_id = decode_access_token(credentials.credentials)
+        payload = decode_access_token(credentials.credentials)
     except HTTPException:
         return None
-    user = db.get(User, user_id)
-    if user is None or not user.is_active:
+    user = db.get(User, payload.user_id)
+    if user is None or not user.is_active or user.token_version != payload.token_version:
         return None
     return user
 

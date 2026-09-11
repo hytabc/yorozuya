@@ -25,7 +25,7 @@ const form = reactive({
   qq_public: Boolean(auth.user.qq_public),
   bio: auth.user.bio || '',
 })
-const passwordForm = reactive({ password: '', confirm: '' })
+const passwordForm = reactive({ current: '', password: '', confirm: '' })
 const joined = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' }).format(new Date(auth.user.created_at))
 async function save() {
   busy.value = true
@@ -33,12 +33,17 @@ async function save() {
   catch (error) { toast.error(errorMessage(error)) } finally { busy.value = false }
 }
 async function changePassword() {
+  if (!passwordForm.current) return toast.error('请输入当前密码')
   if (passwordForm.password.length < 8) return toast.error('新密码至少需要 8 位')
   if (passwordForm.password !== passwordForm.confirm) return toast.error('两次输入的新密码不一致')
   passwordBusy.value = true
   try {
-    const { data } = await api.patch('/users/me/password', { password: passwordForm.password })
+    const { data } = await api.patch('/users/me/password', {
+      current_password: passwordForm.current,
+      password: passwordForm.password,
+    })
     auth.updateUser(data)
+    passwordForm.current = ''
     passwordForm.password = ''
     passwordForm.confirm = ''
     toast.success('密码已重置，请使用新密码登录')
@@ -115,14 +120,14 @@ async function deleteAvatar() {
         <h2>{{ auth.user.nickname }}</h2><p>@{{ auth.user.username }}</p>
         <div class="profile-role-tags">
           <span v-if="auth.isAdmin" class="admin-tag"><ShieldCheck :size="15" />超级管理员</span>
-          <span v-else class="role-tag" :class="`role-${auth.user.role}`">
-            <Store v-if="auth.user.role === 'staff'" :size="15" />
-            <Heart v-else-if="auth.user.role === 'volunteer'" :size="15" />
-            <UserRound v-else :size="15" />{{ roleLabel(auth.user) }}
+          <span v-else class="role-tag" :class="`role-${auth.role}`">
+            <Store v-if="auth.role === 'staff'" :size="15" />
+            <Heart v-else-if="auth.role === 'volunteer'" :size="15" />
+            <UserRound v-else :size="15" />{{ roleLabel({ is_admin: auth.isAdmin, role: auth.role }) }}
           </span>
-          <span v-if="auth.user.is_beta_tester" class="role-tag beta-tag">内测用户</span>
+          <span v-if="auth.isBetaTester" class="role-tag beta-tag">内测用户</span>
         </div>
-        <p v-if="!auth.isAdmin" class="role-hint muted">{{ ROLE_HINTS[auth.user.role] }}</p>
+        <p v-if="!auth.isAdmin" class="role-hint muted">{{ ROLE_HINTS[auth.role] }}</p>
         <div class="profile-divider" />
         <span class="profile-since"><CalendarDays :size="16" />{{ joined }} 加入</span>
       </aside>
@@ -130,14 +135,15 @@ async function deleteAvatar() {
         <div class="section-heading compact"><div><span class="section-index">01</span><h2>公开资料</h2><p>昵称和简介会展示在委托中</p></div></div>
         <form class="form-stack" @submit.prevent="save">
           <label>昵称<input v-model.trim="form.nickname" required maxlength="32" /></label>
-          <label>QQ 号<input v-model.trim="form.qq" inputmode="numeric" pattern="[0-9]{5,20}" maxlength="20" placeholder="接单人需要靠它联系你" /><small>{{ auth.user.role === 'staff' ? '管理员 QQ 会在成员名录中向所有访客公开' : '委托双方始终可以看到彼此的 QQ，用于协作联系' }}</small></label>
-          <label v-if="auth.user.role === 'volunteer'" class="checkbox-inline profile-qq-public"><input v-model="form.qq_public" type="checkbox" /><span>在成员名录中公开 QQ 号</span></label>
+          <label>QQ 号<input v-model.trim="form.qq" inputmode="numeric" pattern="[0-9]{5,20}" maxlength="20" placeholder="接单人需要靠它联系你" /><small>{{ auth.role === 'staff' ? '管理员 QQ 会在成员名录中向所有访客公开' : '委托双方始终可以看到彼此的 QQ，用于协作联系' }}</small></label>
+          <label v-if="auth.role === 'volunteer'" class="checkbox-inline profile-qq-public"><input v-model="form.qq_public" type="checkbox" /><span>在成员名录中公开 QQ 号</span></label>
           <label>个人简介<textarea v-model.trim="form.bio" maxlength="300" rows="6" placeholder="简单介绍你擅长的事情、空闲时间等"></textarea><small>{{ form.bio.length }}/300</small></label>
           <div><button class="button" :disabled="busy"><Save :size="17" />{{ busy ? '保存中…' : '保存更改' }}</button></div>
         </form>
         <div class="profile-password-section">
-          <div class="section-heading compact"><div><span class="section-index">02</span><h2>重置密码</h2><p>设置新密码并确认，至少 8 位</p></div></div>
+          <div class="section-heading compact"><div><span class="section-index">02</span><h2>重置密码</h2><p>先验证当前密码，再设置至少 8 位的新密码</p></div></div>
           <form class="form-stack" @submit.prevent="changePassword">
+            <label>当前密码<input v-model="passwordForm.current" type="password" required maxlength="128" autocomplete="current-password" placeholder="请输入当前密码" /></label>
             <label>新密码<input v-model="passwordForm.password" type="password" required minlength="8" maxlength="72" autocomplete="new-password" placeholder="至少 8 位" /></label>
             <label>确认新密码<input v-model="passwordForm.confirm" type="password" required minlength="8" maxlength="72" autocomplete="new-password" placeholder="再次输入新密码" /></label>
             <div><button class="button" :disabled="passwordBusy"><KeyRound :size="17" />{{ passwordBusy ? '重置中…' : '确认重置密码' }}</button></div>
