@@ -11,6 +11,7 @@
  *  5. 承载「完整时间线」弹层（由顶部栏 / 结局页的 show-timeline 事件触发）。
  */
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { useRoute } from 'vue-router';
 import { useVrclifeStore } from '../vrclife/store/vrclifeStore.js';
 import { rarityLabel } from '../vrclife/utils/format.js';
 
@@ -26,6 +27,7 @@ import VrEndingScreen from '../vrclife/components/VrEndingScreen.vue';
 const PAGE_TITLE = '虚拟人生 · VRChat 玩家历程模拟器';
 
 const store = useVrclifeStore();
+const route = useRoute();
 
 /** 完整时间线弹层开关 */
 const showTimeline = ref(false);
@@ -56,6 +58,37 @@ function retry() {
 /** 开场卡 → 正式回合 */
 function beginPlay() {
   store.begin();
+}
+
+/* ---------------- 演示入口（仅开发环境） ----------------
+ * /life?demo=1            随机种子自动跑一局
+ * /life?demo=123456       指定 6 位种子复现某一局
+ * 自动把选项点到底后直接落到结局页，省去手点；生产构建里该分支不存在。
+ */
+function demoSeed() {
+  const q = route.query.demo;
+  if (typeof q === 'string' && /^\d{4,8}$/.test(q)) return q;
+  return undefined;
+}
+
+function maybeRunDemo() {
+  if (!import.meta.env.DEV) return;
+  if (!route.query.demo) return;
+  if (store.phase === 'loading' || store.phase === 'error') return;
+
+  store.newGame({ seed: demoSeed() });
+  store.begin();
+
+  let guard = 0;
+  while (store.phase === 'playing' && guard < 600) {
+    guard += 1;
+    const cur = store.currentEvent;
+    if (!cur || !Array.isArray(cur.options)) break;
+    const available = cur.options.filter((o) => o && o.available);
+    if (!available.length) break;
+    // 轮换选项，避免整局都选同一项导致数据太平
+    store.choose(available[guard % available.length].id);
+  }
 }
 
 /** 事件卡选项点击 */
@@ -102,13 +135,14 @@ function handleKeydown(e) {
   store.choose(opt.id);
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (typeof document !== 'undefined') {
     document.title = PAGE_TITLE;
     document.addEventListener('keydown', handleKeydown);
   }
   // 数据未加载时（首次进入）才初始化，避免页面重挂载时把进行中的一局重置掉
-  if (!store.data) store.init();
+  if (!store.data) await store.init();
+  maybeRunDemo();
 });
 
 onBeforeUnmount(() => {

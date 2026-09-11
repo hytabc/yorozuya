@@ -149,7 +149,7 @@
       "condition": {
         "minSugarCount": 2
       },
-      "score": "hint.sugar_loop * 6 + sugarCount * 12 + breakupCount * 8",
+      "score": "hint.sugar_loop * 8 + sugarCount * 26 + breakupCount * 12",
       "desc": "你爱过很多次，每次都很认真。",
       "summaryTemplate": "你成为过 {sugarCount} 次砂糖，结束过 {breakupCount} 次。每一次你都以为这次不一样。也许确实不一样——只是结局相同。你还在等下一次。",
       "keyStats": [

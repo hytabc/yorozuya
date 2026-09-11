@@ -6,6 +6,49 @@
 export const INACTIVE_REL_STATES = ['结束', '低迷', '恢复'];
 
 /**
+ * 活跃关系列表（不含 结束 / 低迷 / 恢复）；兼容只有单个 relation 的旧状态。
+ * @param {object} st
+ * @returns {object[]}
+ */
+function activeRelationList(st) {
+  const list = Array.isArray(st.relations) ? st.relations : (st.relation ? [st.relation] : []);
+  return list.filter((r) => r && !INACTIVE_REL_STATES.includes(r.state));
+}
+
+/**
+ * 单个关系是否满足 cond 里的关系数值条件。
+ * @param {object} cond
+ * @param {object|undefined} r
+ * @param {boolean} active
+ * @returns {boolean}
+ */
+function relationMatches(cond, r, active) {
+  if (cond.relationState && cond.relationState.length) {
+    // NOTE: relationState 不要求活跃 —— 结束/低迷/恢复也能命中，按 simulate.py 原样。
+    if (!r || !cond.relationState.includes(r.state)) return false;
+  }
+  if (cond.minIntimacy !== undefined) {
+    if (!active || r.intimacy < cond.minIntimacy) return false;
+  }
+  if (cond.minDependence !== undefined) {
+    if (!active || r.dependence < cond.minDependence) return false;
+  }
+  if (cond.minTrust !== undefined) {
+    if (!active || r.trust < cond.minTrust) return false;
+  }
+  if (cond.minFreshness !== undefined) {
+    if (!active || r.freshness < cond.minFreshness) return false;
+  }
+  if (cond.minRealPressure !== undefined) {
+    if (!active || r.realPressure < cond.minRealPressure) return false;
+  }
+  if (cond.maxRealPressure !== undefined) {
+    if (!r || r.realPressure > cond.maxRealPressure) return false;
+  }
+  return true;
+}
+
+/**
  * @param {object} cond
  * @param {object} st
  * @returns {boolean}
@@ -108,33 +151,29 @@ export function match(cond, st, rng) {
     }
   }
 
+  // —— 关系条件 ——
+  // 默认看「当前焦点关系」（st.relation）；cond.anyRelation 时任一活跃关系满足即可。
   const r = st.relation;
   // 「有关系」= 存在且处于活跃状态。结束/低迷/恢复 三段属于「上一段已经没了」。
   const active = !!r && !INACTIVE_REL_STATES.includes(r.state);
   if (cond.hasRelation === true && !active) return false;
   if (cond.hasRelation === false && active) return false;
-  if (cond.relationState && cond.relationState.length) {
-    // NOTE: relationState 不要求活跃 —— 结束/低迷/恢复也能命中，按 simulate.py 原样。
-    if (!r || !cond.relationState.includes(r.state)) return false;
+
+  const needsRelCheck = !!cond.relationState
+    || cond.minIntimacy !== undefined || cond.minDependence !== undefined
+    || cond.minTrust !== undefined || cond.minFreshness !== undefined
+    || cond.minRealPressure !== undefined || cond.maxRealPressure !== undefined;
+  if (needsRelCheck) {
+    if (cond.anyRelation) {
+      if (!activeRelationList(st).some((rel) => relationMatches(cond, rel, true))) return false;
+    } else if (!relationMatches(cond, r, active)) return false;
   }
-  if (cond.minIntimacy !== undefined) {
-    if (!active || r.intimacy < cond.minIntimacy) return false;
-  }
-  if (cond.minDependence !== undefined) {
-    if (!active || r.dependence < cond.minDependence) return false;
-  }
-  if (cond.minTrust !== undefined) {
-    if (!active || r.trust < cond.minTrust) return false;
-  }
-  if (cond.minFreshness !== undefined) {
-    if (!active || r.freshness < cond.minFreshness) return false;
-  }
-  if (cond.minRealPressure !== undefined) {
-    if (!active || r.realPressure < cond.minRealPressure) return false;
-  }
-  if (cond.maxRealPressure !== undefined) {
-    if (!r || r.realPressure > cond.maxRealPressure) return false;
-  }
+
+  // 同时多段的计数条件
+  const relList = activeRelationList(st);
+  if (cond.minActiveRelations !== undefined && relList.length < cond.minActiveRelations) return false;
+  if (cond.minSugarRelations !== undefined
+      && relList.filter((rel) => rel.state === '砂糖').length < cond.minSugarRelations) return false;
 
   const reqDone = cond.requiresEventDone;
   if (reqDone) {

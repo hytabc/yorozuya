@@ -15,6 +15,7 @@ export function defaultMeta() {
     unlockedEndings: [],
     unlockedArchetypes: [],
     seenEvents: [],
+    unlockedAchievements: [],
   };
 }
 
@@ -142,6 +143,7 @@ export function createStorage(backend) {
         unlockedEndings: Array.isArray(obj.unlockedEndings) ? [...obj.unlockedEndings] : [],
         unlockedArchetypes: Array.isArray(obj.unlockedArchetypes) ? [...obj.unlockedArchetypes] : [],
         seenEvents: Array.isArray(obj.seenEvents) ? [...obj.seenEvents] : [],
+        unlockedAchievements: Array.isArray(obj.unlockedAchievements) ? [...obj.unlockedAchievements] : [],
       };
     },
 

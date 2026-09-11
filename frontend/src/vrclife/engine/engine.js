@@ -63,6 +63,8 @@ function initState(seed, arch, playerName, vocab) {
     flags: [],
     counters: {},
     relation: null,
+    relations: [],
+    focusId: null,
     usedEvents: [],
     lastSeen: {},
     scheduled: [],
@@ -400,6 +402,8 @@ function serializeState(st, rng, fired, phase, ending, error, current, turnStart
     flags: [...st.flags],
     counters: { ...st.counters },
     relation: st.relation ? { ...st.relation } : null,
+    relations: (st.relations || []).map((r) => ({ ...r })),
+    focusId: st.relation && st.relation.id !== undefined ? st.relation.id : null,
     usedEvents: [...st.usedEvents],
     lastSeen: { ...st.lastSeen },
     scheduled: st.scheduled.map((s) => ({ ...s })),
@@ -428,6 +432,16 @@ function serializeState(st, rng, fired, phase, ending, error, current, turnStart
 
 function deserializeState(save) {
   const skills = { ...(save.skills || {}) };
+  // 存档迁移：旧档只有单个 relation，新档是 relations[] + focusId。
+  const relations = Array.isArray(save.relations)
+    ? save.relations.map((r) => ({ ...r }))
+    : (save.relation ? [{ ...save.relation }] : []);
+  relations.forEach((r, i) => {
+    if (typeof r.id !== 'number') r.id = i + 1;
+  });
+  const focusRel = relations.find((r) => r.id === save.focusId)
+    || (save.relation ? relations[0] : null)
+    || null;
   return {
     seed: save.seed,
     arch: save.arch,
@@ -446,7 +460,9 @@ function deserializeState(save) {
     tags: [...(save.tags || [])],
     flags: [...(save.flags || [])],
     counters: { ...(save.counters || {}) },
-    relation: save.relation ? { ...save.relation } : null,
+    relation: focusRel,
+    relations,
+    focusId: focusRel ? focusRel.id : null,
     usedEvents: [...(save.usedEvents || [])],
     lastSeen: { ...(save.lastSeen || {}) },
     scheduled: (save.scheduled || []).map((s) => ({ ...s })),

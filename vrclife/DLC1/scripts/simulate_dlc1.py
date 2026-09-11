@@ -103,6 +103,97 @@ MAX_EVENTS_PER_RUN = 72
 MAX_TURNS = 400
 SPAWN_COOLDOWN_HOURS = 120
 
+# 同时最多几段活跃关系（与前端 relation.js 的 MAX_ACTIVE_RELATIONS 一致）
+MAX_ACTIVE_RELATIONS = 3
+
+# 关系推进门槛（数据源：vocab.relationGate，见 PRD §4.3）。
+# 与前端 frontend/src/vrclife/engine/relation.js 的 DEFAULT_RELATION_GATE 保持一致，
+# 权威值在 vrclife/data/vocab.json 的 relationGate。
+DEFAULT_RELATION_GATE = {
+    "暧昧": {"minFavor": 30, "minIntimacy": 50, "minFreshness": 40},
+    "砂糖": {"minFavor": 40, "minIntimacy": 65, "minTrust": 50},
+    "稳定": {"minFavor": 50, "minIntimacy": 80, "maxRealPressure": 40},
+}
+MIN_GATE_FIELDS = (
+    ("minIntimacy", "intimacy"),
+    ("minTrust", "trust"),
+    ("minFreshness", "freshness"),
+    ("minDependence", "dependence"),
+    ("minRealPressure", "realPressure"),
+)
+
+
+def relation_gate_for(state):
+    """取目标状态的推进门槛；返回 None 表示该状态不受限。"""
+    table = VOCAB.get("relationGate") or DEFAULT_RELATION_GATE
+    gate = table.get(state)
+    return gate if isinstance(gate, dict) else None
+
+
+def active_relations(st):
+    """活跃关系列表（不含 结束/低迷/恢复）；兼容只有单个 relation 的旧状态。"""
+    rels = st.get("relations")
+    if not isinstance(rels, list):
+        rels = [st["relation"]] if st.get("relation") else []
+    return [r for r in rels if r and r["state"] not in INACTIVE_REL_STATES]
+
+
+def set_focus(st, rel):
+    """切换焦点关系：st['relation'] 始终指向列表里被聚焦的那一个。"""
+    st["relation"] = rel
+    st["focusId"] = rel.get("id") if rel else None
+    return st["relation"]
+
+
+def sync_focus(st):
+    """焦点仍活跃就保持；否则切到最近建立的那段活跃关系。"""
+    if not isinstance(st.get("relations"), list):
+        st["relations"] = [st["relation"]] if st.get("relation") else []
+    r = st.get("relation")
+    if r and r["state"] not in INACTIVE_REL_STATES:
+        return r
+    act = active_relations(st)
+    if act:
+        return set_focus(st, act[-1])
+    return r
+
+
+def _relation_matches(cond, r, active):
+    """单个关系是否满足 cond 里的关系数值条件。"""
+    if cond.get("relationState"):
+        if not r or r["state"] not in cond["relationState"]:
+            return False
+    for key, rk in (("minIntimacy", "intimacy"), ("minDependence", "dependence"),
+                    ("minTrust", "trust"), ("minFreshness", "freshness"),
+                    ("minRealPressure", "realPressure")):
+        if key in cond and (not active or r[rk] < cond[key]):
+            return False
+    if "maxRealPressure" in cond and (not r or r["realPressure"] > cond["maxRealPressure"]):
+        return False
+    return True
+
+
+def relation_gate_blocks(state, st, is_spawn=False):
+    """该次状态推进是否被门槛拒绝；创建新关系（is_spawn）时只校验 favor。"""
+    gate = relation_gate_for(state)
+    if not gate:
+        return False
+    favor = st.get("favor")
+    if isinstance(favor, (int, float)):
+        if "minFavor" in gate and favor < gate["minFavor"]:
+            return True
+        if "maxFavor" in gate and favor > gate["maxFavor"]:
+            return True
+    rel = None if is_spawn else st.get("relation")
+    if not isinstance(rel, dict):
+        return False
+    for key, field in MIN_GATE_FIELDS:
+        if key in gate and (rel.get(field) or 0) < gate[key]:
+            return True
+    if "maxRealPressure" in gate and (rel.get("realPressure") or 0) > gate["maxRealPressure"]:
+        return True
+    return False
+
 STAGE_STATS = defaultdict(lambda: {"events": 0, "mood": [], "favor": []})
 
 
@@ -195,22 +286,31 @@ def match(cond, st):
         elif st["skills"].get(k, 0) > v:
             return False
 
+    # —— 关系条件：默认看焦点关系；anyRelation 时任一活跃关系满足即可 ——
     r = st["relation"]
     active = bool(r) and r["state"] not in INACTIVE_REL_STATES
     if cond.get("hasRelation") is True and not active:
         return False
     if cond.get("hasRelation") is False and active:
         return False
-    if cond.get("relationState"):
-        if not r or r["state"] not in cond["relationState"]:
+
+    rel_keys = ("relationState", "minIntimacy", "minDependence", "minTrust",
+                "minFreshness", "minRealPressure", "maxRealPressure")
+    if any(k in cond for k in rel_keys):
+        if cond.get("anyRelation"):
+            if not any(_relation_matches(cond, rel, True) for rel in active_relations(st)):
+                return False
+        elif not _relation_matches(cond, r, active):
             return False
-    for key, rk in (("minIntimacy", "intimacy"), ("minDependence", "dependence"),
-                    ("minTrust", "trust"), ("minFreshness", "freshness"),
-                    ("minRealPressure", "realPressure")):
-        if key in cond and (not active or r[rk] < cond[key]):
-            return False
-    if "maxRealPressure" in cond and (not r or r["realPressure"] > cond["maxRealPressure"]):
+
+    # 同时多段的计数条件
+    rels = active_relations(st)
+    if "minActiveRelations" in cond and len(rels) < cond["minActiveRelations"]:
         return False
+    if "minSugarRelations" in cond:
+        sugar_n = sum(1 for rel in rels if rel["state"] == "砂糖")
+        if sugar_n < cond["minSugarRelations"]:
+            return False
     for eid in cond.get("requiresEventDone", []):
         if eid not in st["usedEvents"]:
             return False
@@ -299,36 +399,60 @@ DIM_KEYS = ["intimacy", "trust", "freshness", "dependence", "realPressure"]
 
 
 def new_relation(st, state="认识"):
+    """开一段新关系：追加到 st['relations'] 并成为焦点。"""
     if state not in REL_STATES:
         state = "认识"
-    st["relation"] = {
+    rels = st.setdefault("relations", [])
+    rel = {
+        "id": len(rels) + 1,
         "name": st["rng"].choice(NICKNAMES),
         "state": state,
         "intimacy": 0, "trust": 0, "freshness": 90,
         "dependence": 0, "realPressure": 0,
         "metAt": st["hours"],
     }
+    rels.append(rel)
+    set_focus(st, rel)
     if state == "低迷":
         st["sawLow"] = True
     elif state == "恢复":
         st["sawRecover"] = True
-    return st["relation"]
+    return rel
 
 
 def apply_relation_op(st, rop, log):
     if not rop:
         return
+    # 焦点可能是上一段已结束的关系：有活跃关系时先切回来
+    sync_focus(st)
+    # target: 'other' —— 作用于「另一段活跃关系」而不是焦点（同时多段的剧情用）
+    if rop.get("target") == "other":
+        others = [x for x in active_relations(st) if x is not st["relation"]]
+        fresh = [x for x in others if x["state"] != "砂糖"]
+        pool = fresh or others
+        if not pool:
+            return
+        pick = max(pool, key=lambda x: x["intimacy"])
+        set_focus(st, pick)
     t = rop.get("type")
     r = st["relation"]
     if t == "spawn":
         if st["hours"] < st["spawnBlockUntil"] and not rop.get("force"):
             return
-        if not r or r["state"] in INACTIVE_REL_STATES:
-            new_relation(st, rop.get("state") or "认识")
+        # 推进门槛：交情（favor）不够时，即使直接 spawn 也不开这段亲密关系。
+        # spawn 时还没有关系数值，只校验 favor。
+        if relation_gate_blocks(rop.get("state"), st, is_spawn=True):
+            return
+        # 同时多段：还没到上限就再开一段（新开的人成为焦点）
+        if len(active_relations(st)) >= MAX_ACTIVE_RELATIONS:
+            return
+        new_relation(st, rop.get("state") or "认识")
     elif t == "end":
         if r and r["state"] not in INACTIVE_REL_STATES:
             r["state"] = "结束"
             st["spawnBlockUntil"] = st["hours"] + SPAWN_COOLDOWN_HOURS
+        # 这段结束了：还有别的活跃关系就把焦点移到那段
+        sync_focus(st)
         return
     elif t == "renew":
         if r:
@@ -338,6 +462,9 @@ def apply_relation_op(st, rop, log):
     elif t == "setState" and rop.get("state"):
         if r and r["state"] in INACTIVE_REL_STATES and rop["state"] not in INACTIVE_REL_STATES:
             if st["hours"] < st["spawnBlockUntil"] and not rop.get("force"):
+                return
+            # 由「已结束」重新开始，同样按新关系处理：只校验 favor。
+            if relation_gate_blocks(rop["state"], st, is_spawn=True):
                 return
             new_relation(st, rop["state"])
     if not st["relation"]:
@@ -354,6 +481,9 @@ def apply_relation_op(st, rop, log):
         target = rop["state"]
         legal = REL_FLOW.get(r["state"], [])
         if target in legal or target == r["state"]:
+            # 推进门槛：数值照常变化，但交情 / 关系数值不够时不推进到亲密状态。
+            if target != r["state"] and relation_gate_blocks(target, st):
+                return
             r["state"] = target
             if target == "低迷":
                 st["sawLow"] = True
@@ -477,21 +607,20 @@ def step_hours(st):
 
 
 def drift_relation(st, sched):
-    r = st["relation"]
-    if not r or r["state"] in INACTIVE_REL_STATES:
-        return
-    r["freshness"] = max(0, r["freshness"] - 2)
-    if "sugar" in st["recentTags"]:
-        r["intimacy"] = min(100, r["intimacy"] + 1)
-    else:
-        r["intimacy"] = max(0, r["intimacy"] - 1)
-    if r["state"] in ("砂糖", "稳定"):
-        r["dependence"] = min(100, r["dependence"] + 0.5)
-    r["realPressure"] = clamp(r["realPressure"] + st["rng"].randint(-3, 4), 0, 100)
-    if r["realPressure"] > 60 and st["rng"].random() < 0.08:
-        sched.append({"eventId": "sugar_b_k04", "at": st["hours"] + st["rng"].randint(0, 40), "chance": 1.0})
-    if r["freshness"] < 30 and r["state"] == "砂糖" and st["rng"].random() < 0.1:
-        sched.append({"eventId": "sugar_b_k02", "at": st["hours"] + st["rng"].randint(10, 60), "chance": 0.8})
+    # 同时多段：所有活跃关系各自漂移
+    for r in active_relations(st):
+        r["freshness"] = max(0, r["freshness"] - 2)
+        if "sugar" in st["recentTags"]:
+            r["intimacy"] = min(100, r["intimacy"] + 1)
+        else:
+            r["intimacy"] = max(0, r["intimacy"] - 1)
+        if r["state"] in ("砂糖", "稳定"):
+            r["dependence"] = min(100, r["dependence"] + 0.5)
+        r["realPressure"] = clamp(r["realPressure"] + st["rng"].randint(-3, 4), 0, 100)
+        if r["realPressure"] > 60 and st["rng"].random() < 0.08:
+            sched.append({"eventId": "sugar_b_k04", "at": st["hours"] + st["rng"].randint(0, 40), "chance": 1.0})
+        if r["freshness"] < 30 and r["state"] == "砂糖" and st["rng"].random() < 0.1:
+            sched.append({"eventId": "sugar_b_k02", "at": st["hours"] + st["rng"].randint(10, 60), "chance": 0.8})
 
 
 # ---------------------------------------------------------------- endings / score expr
@@ -518,12 +647,15 @@ def _tokenize(expr):
 
 
 def _vars_for(st):
+    rels = active_relations(st)
     return {
         "hours": st["hours"], "friends": st["friends"], "mood": st["mood"],
         "fame": st["fame"], "avatars": st["avatars"], "assets": st["assets"],
         "sugarCount": st["sugarCount"], "breakupCount": st["breakupCount"],
         "favor": st["favor"], "skill.max": max(st["skills"].values()),
         "circle.count": len(st["circles"]), "tag.count": len(st["tags"]),
+        "relation.count": len(rels),
+        "sugar.relation.count": sum(1 for rel in rels if rel["state"] == "砂糖"),
     }
 
 
@@ -645,6 +777,14 @@ def evaluate_ending(st):
             return False
         if "minCircles" in c and len(st["circles"]) < c["minCircles"]:
             return False
+        # 同时多段关系
+        rels = active_relations(st)
+        if "minActiveRelations" in c and len(rels) < c["minActiveRelations"]:
+            return False
+        if "minSugarRelations" in c:
+            sugar_n = sum(1 for rel in rels if rel["state"] == "砂糖")
+            if sugar_n < c["minSugarRelations"]:
+                return False
         # -------------
         for k, v in (c.get("minSkills") or {}).items():
             if st["skills"].get(k, 0) < v:
@@ -689,7 +829,8 @@ def new_state(seed, arch=None):
         "assets": 0, "sugarCount": 0, "breakupCount": 0, "favor": FAVOR_START,
         "skills": {k: 0 for k in SKILLS},
         "circles": [], "tags": ["萌新"], "flags": [], "counters": {},
-        "relation": None, "usedEvents": [], "lastSeen": {}, "scheduled": [],
+        "relation": None, "relations": [], "focusId": None,
+        "usedEvents": [], "lastSeen": {}, "scheduled": [],
         "recentTags": [], "lastEvents": [], "negStreak": 0, "posStreak": 0,
         "milestones": set(), "illegal": 0, "keyIds": frozenset(e["id"] for e in KEY_EVENTS),
         "spawnBlockUntil": -1, "sawLow": False, "sawRecover": False,
@@ -855,6 +996,7 @@ def main():
 
     titles = {e["id"]: e["title"] for e in ENDINGS["endings"]}
     dlc_ending_ids = {"end_mediator", "end_best_friend", "end_reunion", "end_circle_hopper",
+                   "end_parallel",
                       "end_gearhead", "end_tracker_dancer", "end_night_dancer"}
     print(f"\n结局分布:")
     for eid, c in endings.most_common():

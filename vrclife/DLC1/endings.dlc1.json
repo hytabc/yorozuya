@@ -21,7 +21,9 @@
       "hint.circle_hopper",
       "hint.gearhead",
       "hint.tracker",
-      "hint.night_dancer"
+      "hint.night_dancer",
+      "relation.count",
+      "sugar.relation.count"
     ]
   },
   "endingPaths": [
@@ -160,6 +162,24 @@
       "keyStats": ["skill.dance", "friends", "hours"],
       "color": "#818cf8",
       "unlockCondition": "舞蹈 ≥ 30、好友少、长期深夜在线"
+    },
+    {
+      "id": "end_parallel",
+      "title": "同时的心动",
+      "priority": 62,
+      "lock": false,
+      "rarity": "rare",
+      "condition": {
+        "minHours": 300,
+        "minActiveRelations": 2,
+        "minSugarCount": 1
+      },
+      "score": "sugar.relation.count * 26 + relation.count * 16 + favor * 0.9 + mood * 0.3",
+      "desc": "你同时维系着两段关系，其中一段是砂糖。它们各自都是真的，只是不能同时说给同一个人听。",
+      "summaryTemplate": "你在 {hours} 小时里让两条线同时亮着——一个知道你的下午，一个知道你的凌晨。你没骗过谁，只是每次开口前都要先想一下：这件事，是跟谁说的。",
+      "keyStats": ["favor", "sugarCount", "hours", "mood"],
+      "color": "#f472b6",
+      "unlockCondition": "同时维系 2 段关系，且经历过砂糖关系"
     }
   ]
 }

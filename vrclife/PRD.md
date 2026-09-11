@@ -378,15 +378,25 @@ interface Relation {
 
 > **前跳允许，退行受限**（`vocab.json` 的 `relationFlowNote`）：关系可以不按部就班，从「认识」直接跳到「常一起玩」甚至「砂糖」——闪恋是真实的玩法。只对少数几条边做限制：一旦到「结束」只能进「低迷」，低迷只能转「恢复」，恢复后重新开始。反向边仅保留「常一起玩→朋友」「朋友→认识」「稳定↔砂糖」「矛盾→稳定」这类**有叙事含义的退行**（关系降温、和好、退回朋友）。1000 局模拟中非法转移 **0 次**。
 
-**转移触发条件建议**（供事件 condition 参考）：
+**推进门槛（引擎强制）**：`vocab.json` 的 `relationGate` 由引擎强制执行（`relation.js` 的 `relationGateBlocks`，`simulate_dlc1.py` 同名逻辑）。
+不满足时该次状态推进被拒绝，但选项的数值效果照常结算；`spawn` 与「已结束→重新开始」还没有关系数值，只校验 `minFavor`。
+
+| 目标状态 | minFavor | minIntimacy | 其他 |
+|---|---|---|---|
+| 暧昧 | 30 | 25 | minFreshness 40 |
+| 砂糖 | 40 | 50 | minTrust 35 |
+| 稳定 | 50 | 60 | maxRealPressure 80 |
+
+> 门槛按**无门槛模拟的实际分布校准**（400 局通率：暧昧 90% / 砂糖 80% / 稳定 39%），只拦「关系数值明显不够却硬推进」。
+> 早期版本给的是 intimacy ≥ 50 / 65 / 80 与 realPressure ≤ 40，但实测暧昧的 intimacy p90 只有 48，
+> 而 realPressure 每回合只涨不落（稳定期 p50 已 64）——照原值强制会把关系系统掐死（暧昧通率 8%、稳定 3%）。
+
+**其余转移的触发条件**（供事件 condition 参考，未由引擎强制）：
 
 | 转移 | 建议条件 |
 |---|---|
 | 认识 → 朋友 | intimacy ≥ 20 且互动 ≥ 2 次 |
 | 朋友 → 常一起玩 | intimacy ≥ 35 且一起经历过 ≥ 1 个事件 |
-| 常一起玩 → 暧昧 | intimacy ≥ 50 且 freshness ≥ 40 |
-| 暧昧 → 砂糖 | intimacy ≥ 65 且 trust ≥ 50 |
-| 砂糖 → 稳定 | intimacy ≥ 80 且 realPressure ≤ 40 |
 | 砂糖/稳定 → 矛盾 | freshness ≤ 30 或 realPressure ≥ 60 |
 | 矛盾 → 结束 | trust ≤ 30 或 realPressure ≥ 75 |
 

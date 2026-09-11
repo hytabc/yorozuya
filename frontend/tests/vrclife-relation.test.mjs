@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { applyRelationOp, driftRelation } from '../src/vrclife/engine/relation.js';
+import { applyRelationOp, driftRelation, newRelation, syncFocus, MAX_ACTIVE_RELATIONS } from '../src/vrclife/engine/relation.js';
 import { INACTIVE_REL_STATES } from '../src/vrclife/engine/conditions.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -42,6 +42,148 @@ function makeSt(overrides = {}) {
   };
 }
 
+
+test('关系推进门槛：favor + 关系数值（数据源 vocab.relationGate）', () => {
+  const vocab = loadVocab();
+  const mkSt = (favor, rel = {}) => makeSt({
+    hours: 100,
+    favor,
+    relation: { name: '小满', state: '朋友', intimacy: 40, trust: 30, freshness: 80, dependence: 0, realPressure: 0, metAt: 0, ...rel },
+  });
+  const rng = makeRng();
+
+  const lowFavor = mkSt(5, { intimacy: 90, trust: 90 });
+  applyRelationOp(lowFavor, { type: 'setState', state: '砂糖' }, rng, vocab);
+  assert.equal(lowFavor.relation.state, '朋友', 'favor 5 不该处上砂糖');
+
+  const lowIntimacy = mkSt(60, { intimacy: 40, trust: 90 });
+  applyRelationOp(lowIntimacy, { type: 'setState', state: '砂糖' }, rng, vocab);
+  assert.equal(lowIntimacy.relation.state, '朋友', 'intimacy 40 < 65 不该进砂糖');
+
+  const lowTrust = mkSt(60, { intimacy: 70, trust: 10 });
+  applyRelationOp(lowTrust, { type: 'setState', state: '砂糖' }, rng, vocab);
+  assert.equal(lowTrust.relation.state, '朋友', 'trust 10 < 50 不该进砂糖');
+
+  const ok = mkSt(60, { intimacy: 70, trust: 60 });
+  applyRelationOp(ok, { type: 'setState', state: '砂糖' }, rng, vocab);
+  assert.equal(ok.relation.state, '砂糖', '门槛全部满足应允许进入砂糖');
+
+  const dims = mkSt(5, { intimacy: 90, trust: 90 });
+  applyRelationOp(dims, { type: 'setState', state: '砂糖', intimacy: 10 }, rng, vocab);
+  assert.equal(dims.relation.state, '朋友');
+  assert.equal(dims.relation.intimacy, 100, '被拦住时数值照常变化（90+10 夹到 100）');
+
+  const plain = mkSt(0, { intimacy: 0, freshness: 0 });
+  applyRelationOp(plain, { type: 'setState', state: '常一起玩' }, rng, vocab);
+  assert.equal(plain.relation.state, '常一起玩', '非亲密状态不受门槛影响');
+
+  const legacy = mkSt(undefined, { intimacy: 70, trust: 60 });
+  delete legacy.favor;
+  applyRelationOp(legacy, { type: 'setState', state: '砂糖' }, rng, vocab);
+  assert.equal(legacy.relation.state, '砂糖', '没有 favor 字段时不校验 favor（非 DLC1 场景）');
+});
+
+test('关系推进门槛：spawn 只校验 favor（新关系还没有关系数值）', () => {
+  const vocab = loadVocab();
+  const rng = makeRng();
+
+  const low = makeSt({ hours: 100, favor: 10 });
+  applyRelationOp(low, { type: 'spawn', state: '砂糖' }, rng, vocab);
+  assert.equal(low.relation, null, 'favor 不足时不该 spawn 出砂糖关系');
+
+  const ok = makeSt({ hours: 100, favor: 60 });
+  applyRelationOp(ok, { type: 'spawn', state: '砂糖' }, rng, vocab);
+  assert.ok(ok.relation, 'favor 足够时闪恋 spawn 应放行（不看 intimacy）');
+  assert.equal(ok.relation.state, '砂糖');
+
+  const plain = makeSt({ hours: 100, favor: 0 });
+  applyRelationOp(plain, { type: 'spawn' }, rng, vocab);
+  assert.ok(plain.relation, '未指定亲密状态时不受门槛影响');
+  assert.equal(plain.relation.state, '认识');
+});
+
+test('关系推进门槛：稳定需要 intimacy ≥ 80 且 realPressure ≤ 40', () => {
+  const vocab = loadVocab();
+  const rng = makeRng();
+  const mk = (over = {}) => makeSt({
+    hours: 100,
+    favor: 60,
+    relation: { name: '小满', state: '砂糖', intimacy: 85, trust: 70, freshness: 60, dependence: 50, realPressure: 10, metAt: 0, ...over },
+  });
+
+  const pressure = mk({ realPressure: 90 });
+  applyRelationOp(pressure, { type: 'setState', state: '稳定' }, rng, vocab);
+  assert.equal(pressure.relation.state, '砂糖', 'realPressure 90 > 80 不该进稳定');
+
+  const weak = mk({ intimacy: 50 });
+  applyRelationOp(weak, { type: 'setState', state: '稳定' }, rng, vocab);
+  assert.equal(weak.relation.state, '砂糖', 'intimacy 50 < 60 不该进稳定');
+
+  const ok = mk();
+  applyRelationOp(ok, { type: 'setState', state: '稳定' }, rng, vocab);
+  assert.equal(ok.relation.state, '稳定', '门槛满足应允许进入稳定');
+});
+
+test('同时多段：newRelation 追加到 relations[] 并成为焦点', () => {
+  const vocab = loadVocab();
+  const rng = makeRng();
+  const st = makeSt({ hours: 100, favor: 60 });
+  const a = newRelation(st, rng, vocab, '认识');
+  const b = newRelation(st, rng, vocab, '朋友');
+  assert.equal(st.relations.length, 2);
+  assert.equal(a.id, 1);
+  assert.equal(b.id, 2);
+  assert.equal(st.relation, b, '新开的人成为焦点');
+  assert.equal(st.focusId, b.id);
+});
+
+test('同时多段：spawn 最多 3 段，到顶后不再新增', () => {
+  const vocab = loadVocab();
+  const rng = makeRng();
+  const st = makeSt({ hours: 100, favor: 60 });
+  for (let i = 0; i < 5; i += 1) applyRelationOp(st, { type: 'spawn', state: '认识' }, rng, vocab);
+  assert.equal(MAX_ACTIVE_RELATIONS, 3);
+  assert.equal(st.relations.length, 3, '上限 3 段');
+});
+
+test('同时多段：end 只结束焦点，焦点自动切到另一段活跃关系', () => {
+  const vocab = loadVocab();
+  const rng = makeRng();
+  const st = makeSt({ hours: 500, favor: 60 });
+  const a = newRelation(st, rng, vocab, '砂糖');
+  const b = newRelation(st, rng, vocab, '朋友');
+  applyRelationOp(st, { type: 'end' }, rng, vocab);
+  assert.equal(b.state, '结束', '只结束焦点那段');
+  assert.equal(a.state, '砂糖', '另一段不受影响');
+  assert.equal(st.relation, a, '焦点切到剩下的活跃关系');
+  assert.equal(st.relation.freshness, 90);
+  assert.equal(st.spawnBlockUntil, 620);
+});
+
+test('同时多段：syncFocus 在焦点失效时切到最近的活跃关系', () => {
+  const vocab = loadVocab();
+  const rng = makeRng();
+  const st = makeSt({ hours: 100, favor: 60 });
+  const a = newRelation(st, rng, vocab, '砂糖');
+  newRelation(st, rng, vocab, '砂糖');
+  st.relation.state = '结束';
+  const f = syncFocus(st);
+  assert.equal(f, a, '切到最早那段活跃关系（数组里最后一段活跃的）');
+  assert.equal(st.focusId, a.id);
+});
+
+test('同时多段：driftRelation 覆盖所有活跃关系', () => {
+  const vocab = loadVocab();
+  const rng = makeRng();
+  const st = makeSt({ hours: 100, relation: null });
+  const a = newRelation(st, rng, vocab, '砂糖');
+  const b = newRelation(st, rng, vocab, '砂糖');
+  const f0 = a.freshness;
+  const f1 = b.freshness;
+  driftRelation(st, rng, []);
+  assert.equal(a.freshness, f0 - 2);
+  assert.equal(b.freshness, f1 - 2);
+});
 test('spawn 冷却抑制与 force 豁免', () => {
   const vocab = loadVocab();
   const st = makeSt({ hours: 100, spawnBlockUntil: 200, relation: null });

@@ -2,7 +2,7 @@
  "version": "1.0",
  "dlc": "DLC1",
  "counts": {
-  "total": 355,
+  "total": 356,
   "byBucket": {
    "intro": 30,
    "newbie": 30,
@@ -17,31 +17,31 @@
    "circle": 15,
    "device": 16,
    "favor": 13,
-   "friend": 15
+   "friend": 16
   },
   "byCategory": {
    "key": 47,
    "ambient": 26,
    "random": 50,
-   "normal": 160,
+   "normal": 161,
    "sugar": 48,
    "chain": 14,
    "pity": 10
   },
   "byRarity": {
    "common": 165,
-   "uncommon": 133,
+   "uncommon": 134,
    "rare": 46,
    "legendary": 11
   },
   "byTier": {
-   "normal": 1089,
-   "rare": 616,
+   "normal": 1091,
+   "rare": 618,
    "extreme": 149
   },
   "keyEvents": 47,
-  "options": 1071,
-  "outcomes": 1854
+  "options": 1073,
+  "outcomes": 1858
  },
  "events": [
   {
@@ -47522,6 +47522,100 @@
          ],
          "remove": []
         }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "friend_014",
+   "title": "两边都在等",
+   "category": "normal",
+   "stage": "深度社交",
+   "hoursRange": [
+    300,
+    1500
+   ],
+   "weight": 58,
+   "rarity": "uncommon",
+   "once": true,
+   "cooldown": 0,
+   "tags": [
+    "友情",
+    "sugar",
+    "情绪"
+   ],
+   "condition": {
+    "minHours": 300,
+    "minActiveRelations": 2,
+    "minSugarCount": 1
+   },
+   "text": "两个人都在这周问你同一个问题：周末有空吗。你盯着两个聊天框看了一会儿，第一次意识到自己在排班。",
+   "options": [
+    {
+     "id": "both",
+     "text": "两个都答应，把时间错开",
+     "condition": {},
+     "outcomes": [
+      {
+       "weight": 62,
+       "tier": "normal",
+       "text": "你做到了。周六下午陪一个人看展，周日凌晨陪另一个人跳舞。回家路上你累得说不出话，但两条消息都回了「今天很开心」。",
+       "effects": {
+        "mood": -5,
+        "favor": 6,
+        "sugarCount": 1,
+        "skills": {
+         "social": 3
+        }
+       },
+       "relationOp": {
+        "type": "setState",
+        "state": "砂糖",
+        "target": "other",
+        "initIntimacy": 58,
+        "initTrust": 48
+       }
+      },
+      {
+       "weight": 38,
+       "tier": "rare",
+       "text": "你算错了时间。两个人在同一个世界的不同角落都看见了你。那天之后，两条线都很安静。",
+       "effects": {
+        "mood": -16,
+        "favor": -8,
+        "friends": -2
+       },
+       "relationOp": {
+        "type": "setState",
+        "state": "矛盾",
+        "target": "other"
+       }
+      }
+     ]
+    },
+    {
+     "id": "choose_one",
+     "text": "只答应一个，另一个直说这周不行",
+     "condition": {},
+     "outcomes": [
+      {
+       "weight": 70,
+       "tier": "normal",
+       "text": "你把话说清楚了。被推掉的那个回「没事，下次」，但你听得出那句下次有多轻。",
+       "effects": {
+        "mood": 2,
+        "favor": -3
+       }
+      },
+      {
+       "weight": 30,
+       "tier": "rare",
+       "text": "你选了那个更需要你的人。另一个没再问过。",
+       "effects": {
+        "mood": -3,
+        "favor": 3
        }
       }
      ]
@@ -95008,6 +95102,100 @@
          ],
          "remove": []
         }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "friend_014": {
+   "id": "friend_014",
+   "title": "两边都在等",
+   "category": "normal",
+   "stage": "深度社交",
+   "hoursRange": [
+    300,
+    1500
+   ],
+   "weight": 58,
+   "rarity": "uncommon",
+   "once": true,
+   "cooldown": 0,
+   "tags": [
+    "友情",
+    "sugar",
+    "情绪"
+   ],
+   "condition": {
+    "minHours": 300,
+    "minActiveRelations": 2,
+    "minSugarCount": 1
+   },
+   "text": "两个人都在这周问你同一个问题：周末有空吗。你盯着两个聊天框看了一会儿，第一次意识到自己在排班。",
+   "options": [
+    {
+     "id": "both",
+     "text": "两个都答应，把时间错开",
+     "condition": {},
+     "outcomes": [
+      {
+       "weight": 62,
+       "tier": "normal",
+       "text": "你做到了。周六下午陪一个人看展，周日凌晨陪另一个人跳舞。回家路上你累得说不出话，但两条消息都回了「今天很开心」。",
+       "effects": {
+        "mood": -5,
+        "favor": 6,
+        "sugarCount": 1,
+        "skills": {
+         "social": 3
+        }
+       },
+       "relationOp": {
+        "type": "setState",
+        "state": "砂糖",
+        "target": "other",
+        "initIntimacy": 58,
+        "initTrust": 48
+       }
+      },
+      {
+       "weight": 38,
+       "tier": "rare",
+       "text": "你算错了时间。两个人在同一个世界的不同角落都看见了你。那天之后，两条线都很安静。",
+       "effects": {
+        "mood": -16,
+        "favor": -8,
+        "friends": -2
+       },
+       "relationOp": {
+        "type": "setState",
+        "state": "矛盾",
+        "target": "other"
+       }
+      }
+     ]
+    },
+    {
+     "id": "choose_one",
+     "text": "只答应一个，另一个直说这周不行",
+     "condition": {},
+     "outcomes": [
+      {
+       "weight": 70,
+       "tier": "normal",
+       "text": "你把话说清楚了。被推掉的那个回「没事，下次」，但你听得出那句下次有多轻。",
+       "effects": {
+        "mood": 2,
+        "favor": -3
+       }
+      },
+      {
+       "weight": 30,
+       "tier": "rare",
+       "text": "你选了那个更需要你的人。另一个没再问过。",
+       "effects": {
+        "mood": -3,
+        "favor": 3
        }
       }
      ]

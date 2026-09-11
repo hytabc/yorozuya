@@ -32,7 +32,7 @@ RELATION_STATES = {
     "矛盾", "结束", "低迷", "恢复",
 }
 RELATION_OPS = {"spawn", "setState", "end", "renew", "none"}
-RELATION_OP_BASE_KEYS = {"type", "state", "name"}
+RELATION_OP_BASE_KEYS = {"type", "state", "name", "target"}
 RELATION_DIMS = {"intimacy", "trust", "freshness", "dependence", "realPressure"}
 RELATION_INIT_KEYS = {"init" + d[0].upper() + d[1:] for d in RELATION_DIMS}
 
@@ -278,6 +278,11 @@ def main():
                             if not isinstance(rop[k], bool):
                                 err(f"{octag} relationOp.force 必须是布尔值")
                             continue
+                        if k == "target":
+                            # 同时多段：'other' = 作用于「另一段活跃关系」而不是焦点
+                            if rop[k] not in ("focus", "other"):
+                                err(f"{octag} relationOp.target 非法: {rop[k]!r}（合法：focus/other）")
+                            continue
                         if k in RELATION_DIMS:
                             rel_delta_keys.add(k)
                             continue
@@ -285,7 +290,7 @@ def main():
                             rel_init_keys.add(k)
                             continue
                         err(f"{octag} relationOp 含未知键 `{k}`"
-                            f"（合法：type/state/name + {sorted(RELATION_INIT_KEYS)} + {sorted(RELATION_DIMS)}）")
+                            f"（合法：type/state/name/target + {sorted(RELATION_INIT_KEYS)} + {sorted(RELATION_DIMS)}）")
                     if rtype != "spawn" and any(k in rop for k in RELATION_INIT_KEYS):
                         # setState/renew 上使用 init* 是合法的绝对赋值，仅提示
                         pass
