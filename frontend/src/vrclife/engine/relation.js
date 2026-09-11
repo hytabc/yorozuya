@@ -12,26 +12,65 @@ const SPAWN_COOLDOWN_HOURS = 120;
 const DIM_KEYS = ['intimacy', 'trust', 'freshness', 'dependence', 'realPressure'];
 
 /**
- * 进入亲密关系所需的最低好感度（DLC1）。
- * 好感度衡量「交情」：交情不够时关系不推进到暧昧 / 砂糖 / 稳定——
- * 否则会出现「好感度 5 却处上砂糖」这种没交情也能在一起的情况。
- * 与 simulate_dlc1.py 的 FAVOR_MIN_FOR_STATE 保持一致。
+ * 关系推进门槛（数据源：vocab.relationGate，见 PRD §4.3）。
+ * 好感度衡量「交情」，关系数值衡量「这段关系到哪一步了」：
+ * 两者都不够时，状态不推进——否则会出现「好感度 5 却处上砂糖」这种没交情也能在一起的情况。
+ * 这里的默认值仅是 vocab 缺失时的兜底，权威值在 vrclife/data/vocab.json。
  */
-export const FAVOR_MIN_FOR_STATE = { 暧昧: 30, 砂糖: 40, 稳定: 50 };
+export const DEFAULT_RELATION_GATE = {
+  暧昧: { minFavor: 30, minIntimacy: 50, minFreshness: 40 },
+  砂糖: { minFavor: 40, minIntimacy: 65, minTrust: 50 },
+  稳定: { minFavor: 50, minIntimacy: 80, maxRealPressure: 40 },
+};
+
+const MIN_GATE_FIELDS = [
+  ['minIntimacy', 'intimacy'],
+  ['minTrust', 'trust'],
+  ['minFreshness', 'freshness'],
+  ['minDependence', 'dependence'],
+  ['minRealPressure', 'realPressure'],
+];
 
 /**
- * 目标状态是否被好感度门槛拦住；未设门槛的状态一律放行。
+ * 取目标状态的推进门槛；返回 null 表示该状态不受限。
  * @param {string|undefined} state
+ * @param {object} vocab
+ * @returns {object|null}
+ */
+export function relationGateFor(state, vocab) {
+  const table = (vocab && vocab.relationGate) || DEFAULT_RELATION_GATE;
+  const gate = table ? table[state] : null;
+  return gate && typeof gate === 'object' ? gate : null;
+}
+
+/**
+ * 该次状态推进是否被门槛拒绝。
+ * @param {string|undefined} state 目标状态
  * @param {object} st
+ * @param {object} vocab
+ * @param {boolean} [isSpawn] 是否在创建新关系：此时还没有关系数值，只校验 favor
  * @returns {boolean}
  */
-export function favorGateBlocks(state, st) {
-  const need = FAVOR_MIN_FOR_STATE[state];
-  if (need === undefined) return false;
+export function relationGateBlocks(state, st, vocab, isSpawn = false) {
+  const gate = relationGateFor(state, vocab);
+  if (!gate) return false;
+
   const favor = Number(st && st.favor);
-  // 没有 favor 字段（非 DLC1 场景、手工构造的状态）不设门槛。
-  if (!Number.isFinite(favor)) return false;
-  return favor < need;
+  const favorKnown = Number.isFinite(favor);
+  // 没有 favor 字段（非 DLC1 场景、手工构造的状态）不校验 favor。
+  if (favorKnown && gate.minFavor !== undefined && favor < gate.minFavor) return true;
+  if (favorKnown && gate.maxFavor !== undefined && favor > gate.maxFavor) return true;
+
+  const rel = !isSpawn && st ? st.relation : null;
+  if (!rel) return false;
+
+  for (const [key, field] of MIN_GATE_FIELDS) {
+    if (gate[key] !== undefined && Number(rel[field] || 0) < gate[key]) return true;
+  }
+  if (gate.maxRealPressure !== undefined && Number(rel.realPressure || 0) > gate.maxRealPressure) {
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -78,8 +117,9 @@ export function applyRelationOp(st, rop, rng, vocab, eventsLog) {
     // 分手冷却（SCHEMA §5.2）：刚失恋的一段时间内不会立刻开始下一段，
     // 除非该 spawn 显式声明 "force": true。
     if (st.hours < st.spawnBlockUntil && !rop.force) return;
-    // 好感度门槛：交情不够时，即使直接 spawn 也不开这段亲密关系。
-    if (favorGateBlocks(rop.state, st)) return;
+    // 推进门槛：交情（favor）不够时，即使直接 spawn 也不开这段亲密关系。
+    // spawn 时还没有关系数值，只校验 favor。
+    if (relationGateBlocks(rop.state, st, vocab, true)) return;
     if (!r || INACTIVE_REL_STATES.includes(r.state)) {
       r = newRelation(st, rng, vocab, rop.state || '认识');
     }
@@ -102,7 +142,8 @@ export function applyRelationOp(st, rop, rng, vocab, eventsLog) {
     if (r && INACTIVE_REL_STATES.includes(r.state)
         && !INACTIVE_REL_STATES.includes(rop.state)) {
       if (st.hours < st.spawnBlockUntil && !rop.force) return;
-      if (favorGateBlocks(rop.state, st)) return;
+      // 由「已结束」重新开始，同样按新关系处理：只校验 favor。
+      if (relationGateBlocks(rop.state, st, vocab, true)) return;
       r = newRelation(st, rng, vocab, rop.state);
     }
   }
@@ -129,8 +170,8 @@ export function applyRelationOp(st, rop, rng, vocab, eventsLog) {
     const target = rop.state;
     const legal = (vocab.relationStateFlow || {})[r.state] || [];
     if (legal.includes(target) || target === r.state) {
-      // 好感度门槛：数值照常变化，但交情不够时不推进到亲密状态。
-      if (target !== r.state && favorGateBlocks(target, st)) return;
+      // 推进门槛：数值照常变化，但交情 / 关系数值不够时不推进到亲密状态。
+      if (target !== r.state && relationGateBlocks(target, st, vocab, false)) return;
       r.state = target;
       if (target === '低迷') st.sawLow = true;
       else if (target === '恢复') st.sawRecover = true;

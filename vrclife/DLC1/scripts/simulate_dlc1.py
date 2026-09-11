@@ -103,19 +103,50 @@ MAX_EVENTS_PER_RUN = 72
 MAX_TURNS = 400
 SPAWN_COOLDOWN_HOURS = 120
 
-# 进入亲密关系所需的最低好感度：交情不够时关系不推进到暧昧 / 砂糖 / 稳定。
-# 与前端 frontend/src/vrclife/engine/relation.js 的 FAVOR_MIN_FOR_STATE 保持一致。
-FAVOR_MIN_FOR_STATE = {"暧昧": 30, "砂糖": 40, "稳定": 50}
+# 关系推进门槛（数据源：vocab.relationGate，见 PRD §4.3）。
+# 与前端 frontend/src/vrclife/engine/relation.js 的 DEFAULT_RELATION_GATE 保持一致，
+# 权威值在 vrclife/data/vocab.json 的 relationGate。
+DEFAULT_RELATION_GATE = {
+    "暧昧": {"minFavor": 30, "minIntimacy": 50, "minFreshness": 40},
+    "砂糖": {"minFavor": 40, "minIntimacy": 65, "minTrust": 50},
+    "稳定": {"minFavor": 50, "minIntimacy": 80, "maxRealPressure": 40},
+}
+MIN_GATE_FIELDS = (
+    ("minIntimacy", "intimacy"),
+    ("minTrust", "trust"),
+    ("minFreshness", "freshness"),
+    ("minDependence", "dependence"),
+    ("minRealPressure", "realPressure"),
+)
 
 
-def favor_gate_blocks(state, st):
-    """目标状态是否被好感度门槛拦住；未设门槛、或无 favor 字段时一律放行。"""
-    if state not in FAVOR_MIN_FOR_STATE:
+def relation_gate_for(state):
+    """取目标状态的推进门槛；返回 None 表示该状态不受限。"""
+    table = VOCAB.get("relationGate") or DEFAULT_RELATION_GATE
+    gate = table.get(state)
+    return gate if isinstance(gate, dict) else None
+
+
+def relation_gate_blocks(state, st, is_spawn=False):
+    """该次状态推进是否被门槛拒绝；创建新关系（is_spawn）时只校验 favor。"""
+    gate = relation_gate_for(state)
+    if not gate:
         return False
     favor = st.get("favor")
-    if not isinstance(favor, (int, float)):
+    if isinstance(favor, (int, float)):
+        if "minFavor" in gate and favor < gate["minFavor"]:
+            return True
+        if "maxFavor" in gate and favor > gate["maxFavor"]:
+            return True
+    rel = None if is_spawn else st.get("relation")
+    if not isinstance(rel, dict):
         return False
-    return favor < FAVOR_MIN_FOR_STATE[state]
+    for key, field in MIN_GATE_FIELDS:
+        if key in gate and (rel.get(field) or 0) < gate[key]:
+            return True
+    if "maxRealPressure" in gate and (rel.get("realPressure") or 0) > gate["maxRealPressure"]:
+        return True
+    return False
 
 STAGE_STATS = defaultdict(lambda: {"events": 0, "mood": [], "favor": []})
 
@@ -337,8 +368,9 @@ def apply_relation_op(st, rop, log):
     if t == "spawn":
         if st["hours"] < st["spawnBlockUntil"] and not rop.get("force"):
             return
-        # 好感度门槛：交情不够时，即使直接 spawn 也不开这段亲密关系。
-        if favor_gate_blocks(rop.get("state"), st):
+        # 推进门槛：交情（favor）不够时，即使直接 spawn 也不开这段亲密关系。
+        # spawn 时还没有关系数值，只校验 favor。
+        if relation_gate_blocks(rop.get("state"), st, is_spawn=True):
             return
         if not r or r["state"] in INACTIVE_REL_STATES:
             new_relation(st, rop.get("state") or "认识")
@@ -356,7 +388,8 @@ def apply_relation_op(st, rop, log):
         if r and r["state"] in INACTIVE_REL_STATES and rop["state"] not in INACTIVE_REL_STATES:
             if st["hours"] < st["spawnBlockUntil"] and not rop.get("force"):
                 return
-            if favor_gate_blocks(rop["state"], st):
+            # 由「已结束」重新开始，同样按新关系处理：只校验 favor。
+            if relation_gate_blocks(rop["state"], st, is_spawn=True):
                 return
             new_relation(st, rop["state"])
     if not st["relation"]:
@@ -373,8 +406,8 @@ def apply_relation_op(st, rop, log):
         target = rop["state"]
         legal = REL_FLOW.get(r["state"], [])
         if target in legal or target == r["state"]:
-            # 好感度门槛：数值照常变化，但交情不够时不推进到亲密状态。
-            if target != r["state"] and favor_gate_blocks(target, st):
+            # 推进门槛：数值照常变化，但交情 / 关系数值不够时不推进到亲密状态。
+            if target != r["state"] and relation_gate_blocks(target, st):
                 return
             r["state"] = target
             if target == "低迷":
