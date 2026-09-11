@@ -158,6 +158,7 @@ function pick(opt) {
 
 .opt-text {
   flex: 1 1 auto;
+  min-width: 0;
 }
 
 .opt-lock {
@@ -174,6 +175,55 @@ function pick(opt) {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* =============== 窄屏（≤900px） =============== */
+@media (max-width: 900px) {
+  .vr-event {
+    padding: 16px 14px 18px;
+    border-radius: 14px;
+  }
+
+  .evt-head {
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .evt-title {
+    font-size: 17px;
+    line-height: 1.4;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .evt-text {
+    font-size: 15px;
+    line-height: 1.75;
+    margin-bottom: 14px;
+  }
+
+  .evt-options {
+    gap: 8px;
+  }
+
+  .opt {
+    min-height: 48px;
+    padding: 12px 14px;
+    gap: 10px;
+    font-size: 15px;
+  }
+
+  .opt-num {
+    width: 24px;
+    height: 24px;
+    font-size: 13px;
+  }
+
+  .opt-lock {
+    flex-basis: 100%;
+    padding-left: 34px;
+    font-size: 11px;
   }
 }
 

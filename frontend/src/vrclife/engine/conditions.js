@@ -75,6 +75,11 @@ export function match(cond, st, rng) {
   if (cond.minAssets !== undefined && st.assets < cond.minAssets) return false;
   if (cond.minSugarCount !== undefined && st.sugarCount < cond.minSugarCount) return false;
   if (cond.minBreakupCount !== undefined && st.breakupCount < cond.minBreakupCount) return false;
+  // ---- DLC1 增量：好感度 / 圈子数量 ----
+  if (cond.minFavor !== undefined && st.favor < cond.minFavor) return false;
+  if (cond.maxFavor !== undefined && st.favor > cond.maxFavor) return false;
+  if (cond.minCircles !== undefined && (st.circles || []).length < cond.minCircles) return false;
+  // ---------------------------------------
   if (!tagsOk(cond, st)) return false;
   if (!flagsOk(cond, st)) return false;
 

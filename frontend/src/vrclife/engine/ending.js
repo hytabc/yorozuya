@@ -53,6 +53,7 @@ function varsFor(st) {
     assets: st.assets,
     sugarCount: st.sugarCount,
     breakupCount: st.breakupCount,
+    favor: st.favor,
     'skill.max': maxSkill,
     'circle.count': (st.circles || []).length,
     'tag.count': (st.tags || []).length,
@@ -178,6 +179,11 @@ export function evaluateEnding(st, vocab, endings) {
     if (c.maxFriends !== undefined && st.friends > c.maxFriends) return false;
     if (c.minSugarCount !== undefined && st.sugarCount < c.minSugarCount) return false;
     if (c.minBreakupCount !== undefined && st.breakupCount < c.minBreakupCount) return false;
+    // ---- DLC1 结局条件增量 ----
+    if (c.minFavor !== undefined && st.favor < c.minFavor) return false;
+    if (c.maxFavor !== undefined && st.favor > c.maxFavor) return false;
+    if (c.minCircles !== undefined && (st.circles || []).length < c.minCircles) return false;
+    // --------------------------
     const minSkills = c.minSkills;
     if (minSkills) {
       for (const k of Object.keys(minSkills)) {

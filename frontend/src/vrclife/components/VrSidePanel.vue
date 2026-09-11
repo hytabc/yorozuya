@@ -1,6 +1,6 @@
 <script setup>
 /**
- * 左侧属性面板：心态/声望、资源数字、情感关系、技能、标签云。
+ * 左侧属性面板：心态/声望/好感度、资源数字、情感关系、技能、标签云。
  */
 import { computed, ref, watch, onMounted } from 'vue';
 import { useVrclifeStore } from '../store/vrclifeStore.js';
@@ -31,6 +31,38 @@ const vocab = computed(() => store.vocab || {});
 
 const moodText = computed(() => moodTier(st.value.mood, vocab.value));
 const fameText = computed(() => fameTier(st.value.fame, vocab.value));
+
+/* ---- DLC1: 好感度 ---- */
+const favorTiers = computed(() => {
+  const tiers = vocab.value.favorTiers;
+  return Array.isArray(tiers) ? tiers : [];
+});
+
+// favor 不存在或 favorTiers 缺失时整块不渲染。
+const favorAvailable = computed(() => {
+  const v = st.value.favor;
+  if (typeof v !== 'number' || !Number.isFinite(v)) return false;
+  return favorTiers.value.length > 0;
+});
+
+const favorValue = computed(() => Math.round(Number(st.value.favor) || 0));
+
+const favorText = computed(() => {
+  const tiers = favorTiers.value;
+  if (!tiers.length) return '';
+  const v = Number(st.value.favor);
+  if (!Number.isFinite(v)) return '';
+  let hit = null;
+  for (const t of tiers) {
+    if (typeof t.min === 'number' && v < t.min) continue;
+    if (typeof t.max === 'number' && v > t.max) continue;
+    hit = t;
+  }
+  if (!hit) return '';
+  const label = hit.key !== undefined ? hit.key : hit.label;
+  return label === undefined || label === null ? '' : String(label);
+});
+/* ---------------------- */
 
 const REL_DIMS = [
   { key: 'intimacy', label: '亲密', color: '#ec4899' },
@@ -124,6 +156,17 @@ onMounted(() => {
       <div class="bar">
         <div class="bar-fill fame" :style="{ width: percent(st.fame) }"></div>
       </div>
+
+      <template v-if="favorAvailable">
+        <div class="stat-head">
+          <span class="stat-name">好感度</span>
+          <span class="stat-num">{{ favorValue }}</span>
+          <span class="stat-tier">{{ favorText }}</span>
+        </div>
+        <div class="bar">
+          <div class="bar-fill favor" :style="{ width: percent(favorValue) }"></div>
+        </div>
+      </template>
 
       <div class="nums">
         <div class="num-item">
@@ -264,6 +307,10 @@ onMounted(() => {
 
 .bar-fill.fame {
   background: linear-gradient(90deg, #06b6d4, #ec4899);
+}
+
+.bar-fill.favor {
+  background: linear-gradient(90deg, #ec4899, #7c3aed);
 }
 
 .nums {
@@ -469,6 +516,63 @@ onMounted(() => {
   100% {
     background: rgba(124, 58, 237, 0.12);
     border-color: rgba(124, 58, 237, 0.22);
+  }
+}
+
+/* =============== 窄屏（≤900px） =============== */
+@media (max-width: 900px) {
+  .vr-side {
+    overflow-y: visible;
+    padding-right: 0;
+    gap: 10px;
+  }
+
+  .panel {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .panel-title {
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+
+  .stat-name {
+    font-size: 13px;
+  }
+
+  .stat-num {
+    font-size: 17px;
+  }
+
+  .stat-tier {
+    min-width: 48px;
+    font-size: 11px;
+  }
+
+  .nums {
+    gap: 6px;
+    margin-top: 12px;
+    padding-top: 12px;
+  }
+
+  .num-value {
+    font-size: 15px;
+  }
+
+  .mini-row {
+    grid-template-columns: 30px 1fr 24px;
+    gap: 6px;
+  }
+
+  .skill-row {
+    grid-template-columns: 40px 1fr 36px;
+    gap: 6px;
+  }
+
+  .skill-name,
+  .skill-tier {
+    font-size: 12px;
   }
 }
 

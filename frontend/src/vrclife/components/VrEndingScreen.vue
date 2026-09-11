@@ -170,6 +170,7 @@ function doRestart() {
 <style scoped>
 .vr-ending {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   justify-content: center;
   padding: 48px 24px 64px;
@@ -264,6 +265,8 @@ function doRestart() {
   color: #e9e4f5;
   font-variant-numeric: tabular-nums;
   text-align: right;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .radar-box {
@@ -295,6 +298,7 @@ function doRestart() {
   background: rgba(124, 58, 237, 0.08);
   font-size: 14px;
   line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 .replay-hours {
@@ -312,6 +316,8 @@ function doRestart() {
 
 .replay-brief {
   color: #8b7fa8;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .ending-actions {
@@ -369,12 +375,15 @@ function doRestart() {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
   background: rgba(10, 6, 20, 0.66);
   backdrop-filter: blur(3px);
 }
 
 .confirm-box {
   width: 320px;
+  max-width: 100%;
   padding: 22px;
   border-radius: 14px;
   background: rgba(22, 15, 42, 0.98);
@@ -395,9 +404,97 @@ function doRestart() {
   gap: 10px;
 }
 
-@media (max-width: 860px) {
+/* =============== 窄屏（≤900px） =============== */
+@media (max-width: 900px) {
+  .vr-ending {
+    padding: 24px 12px 40px;
+  }
+
+  .ending-card {
+    padding: 24px 16px 22px;
+    border-radius: 14px;
+  }
+
+  .ending-title {
+    font-size: 28px;
+    line-height: 1.3;
+  }
+
+  .ending-desc {
+    font-size: 15px;
+    line-height: 1.8;
+  }
+
+  .ending-summary {
+    font-size: 15px;
+    line-height: 1.85;
+    padding: 14px 14px;
+    margin-bottom: 20px;
+  }
+
   .ending-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+    margin-bottom: 20px;
+  }
+
+  /* 关键数值：2 列网格 */
+  .stat-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+  }
+
+  .stat-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .stat-row dd {
+    text-align: left;
+    font-size: 14px;
+  }
+
+  .stat-row dt {
+    font-size: 12px;
+  }
+
+  .radar-box {
+    align-items: stretch;
+  }
+
+  .replay-item {
+    font-size: 13px;
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  .replay-brief {
+    flex-basis: 100%;
+  }
+
+  .ending-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .ending-actions .btn {
+    width: 100%;
+    min-height: 46px;
+  }
+
+  .share-wrap {
+    margin-top: 18px;
+  }
+
+  .confirm-actions {
+    flex-direction: column-reverse;
+  }
+
+  .confirm-actions .btn {
+    width: 100%;
+    min-height: 44px;
   }
 }
 

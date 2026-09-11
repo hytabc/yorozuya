@@ -119,6 +119,7 @@ function rarityClass(r) {
 <style scoped>
 .vr-start {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -187,6 +188,7 @@ function rarityClass(r) {
   margin: 0;
   font-size: 17px;
   color: #e9e4f5;
+  overflow-wrap: anywhere;
 }
 
 .resume-actions,
@@ -269,6 +271,7 @@ function rarityClass(r) {
   align-items: center;
   gap: 10px;
   margin-bottom: 6px;
+  flex-wrap: wrap;
 }
 
 .arch-name {
@@ -356,6 +359,73 @@ function rarityClass(r) {
   font-size: 13px;
   color: #8b7fa8;
   text-align: center;
+}
+
+/* =============== 窄屏（≤900px） =============== */
+@media (max-width: 900px) {
+  .vr-start {
+    align-items: flex-start;
+    padding: 24px 14px 40px;
+  }
+
+  .start-card {
+    padding: 24px 18px 22px;
+    border-radius: 14px;
+  }
+
+  .title {
+    font-size: 24px;
+  }
+
+  .subtitle {
+    font-size: 15px;
+    line-height: 1.75;
+    margin-bottom: 20px;
+  }
+
+  .newgame {
+    gap: 14px;
+  }
+
+  .seed-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .seed-row .input,
+  .seed-row .btn {
+    width: 100%;
+  }
+
+  .field .input,
+  .field .select {
+    width: 100%;
+  }
+
+  .input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .resume-actions,
+  .actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .resume-actions .btn,
+  .actions .btn {
+    width: 100%;
+    min-height: 46px;
+  }
+
+  .arch-name {
+    font-size: 16px;
+  }
+
+  .start-footer {
+    font-size: 12px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

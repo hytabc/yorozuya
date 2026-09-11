@@ -155,6 +155,8 @@ watch(
   font-size: 15px;
   font-weight: 600;
   color: #e9e4f5;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .tl-badge {
@@ -171,6 +173,7 @@ watch(
   font-size: 13px;
   line-height: 1.7;
   color: #8b7fa8;
+  overflow-wrap: anywhere;
 }
 
 .tl-choice em {
@@ -183,6 +186,7 @@ watch(
   font-size: 14px;
   line-height: 1.75;
   color: #b9aede;
+  overflow-wrap: anywhere;
 }
 
 .tl-more {
@@ -215,6 +219,42 @@ watch(
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* =============== 窄屏（≤900px） =============== */
+@media (max-width: 900px) {
+  .vr-timeline {
+    overflow-y: visible;
+    padding-right: 0;
+    gap: 8px;
+  }
+
+  .tl-item {
+    padding: 10px 12px;
+    border-radius: 12px;
+  }
+
+  .tl-head {
+    gap: 6px;
+  }
+
+  .tl-title {
+    font-size: 14px;
+    flex: 1 1 100%;
+  }
+
+  .tl-choice {
+    font-size: 12px;
+  }
+
+  .tl-outcome {
+    font-size: 13px;
+    line-height: 1.7;
+  }
+
+  .tl-more button {
+    min-height: 40px;
   }
 }
 

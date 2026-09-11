@@ -57,6 +57,9 @@ export function renderTemplate(text, st, rng, vocab) {
         const v = st[key];
         return String(typeof v === 'number' ? Math.round(v) : 0);
       }
+      // —— DLC1: 圈子数量 ——
+      case 'circle.count':
+        return String((st.circles || []).length);
       default:
         return full;
     }

@@ -2,7 +2,8 @@
 /**
  * 1000 局无头模拟（对齐 simulate.py 的报表与验收）。
  *
- * 用法: node frontend/scripts/simulate-vrclife.mjs [局数] [--seed N]
+ * 用法: node frontend/scripts/simulate-vrclife.mjs [局数] [--seed N] [--data 目录]
+ *   --data 默认 vrclife/data（本体），DLC 验收用 --data vrclife/DLC1/build
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,13 +15,13 @@ import { stageOf } from '../src/vrclife/engine/pool.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FRONTEND = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(FRONTEND, '..');
-const DATA_DIR = path.join(REPO_ROOT, 'vrclife', 'data');
+const DATA_DIR_DEFAULT = path.join(REPO_ROOT, 'vrclife', 'data');
 
-function loadData() {
-  const idx = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'events.index.json'), 'utf-8'));
-  const vocab = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'vocab.json'), 'utf-8'));
-  const endingsRaw = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'endings.json'), 'utf-8'));
-  const archetypesRaw = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'archetypes.json'), 'utf-8'));
+function loadData(dataDir) {
+  const idx = JSON.parse(fs.readFileSync(path.join(dataDir, 'events.index.json'), 'utf-8'));
+  const vocab = JSON.parse(fs.readFileSync(path.join(dataDir, 'vocab.json'), 'utf-8'));
+  const endingsRaw = JSON.parse(fs.readFileSync(path.join(dataDir, 'endings.json'), 'utf-8'));
+  const archetypesRaw = JSON.parse(fs.readFileSync(path.join(dataDir, 'archetypes.json'), 'utf-8'));
   return {
     events: idx.events || [],
     byId: idx.byId || {},
@@ -34,17 +35,20 @@ function loadData() {
 function parseArgs(argv) {
   let n = 300;
   let seed0 = 1;
+  let dataDir = DATA_DIR_DEFAULT;
   const args = argv.slice(2);
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--seed') {
       seed0 = parseInt(args[++i], 10);
+    } else if (args[i] === '--data') {
+      dataDir = path.resolve(REPO_ROOT, args[++i]);
     } else if (!args[i].startsWith('--')) {
       n = parseInt(args[i], 10);
     }
   }
   if (!Number.isFinite(n) || n <= 0) n = 300;
   if (!Number.isFinite(seed0)) seed0 = 1;
-  return { n, seed0 };
+  return { n, seed0, dataDir };
 }
 
 function playOne(data, seed, stageStats) {
@@ -82,16 +86,17 @@ function playOne(data, seed, stageStats) {
 }
 
 function main() {
-  const { n, seed0 } = parseArgs(process.argv);
-  const data = loadData();
+  const { n, seed0, dataDir } = parseArgs(process.argv);
+  const data = loadData(dataDir);
 
-  console.log(`运行 ${n} 局模拟…\n`);
+  console.log(`运行 ${n} 局模拟…（数据：${path.relative(REPO_ROOT, dataDir)}）\n`);
 
   const hit = new Map();
   const endings = new Map();
   const errors = new Map();
   const eventsPerRun = [];
   const hoursPerRun = [];
+  const favorEnd = [];
   const stageStats = {};
   let sugarLoops = 0;
   let illegalTotal = 0;
@@ -118,6 +123,7 @@ function main() {
     for (const eid of r.fired) hit.set(eid, (hit.get(eid) || 0) + 1);
     eventsPerRun.push(r.fired.length);
     hoursPerRun.push(st.hours);
+    if (typeof st.favor === 'number') favorEnd.push(st.favor);
     archUse.set(st.arch.name, (archUse.get(st.arch.name) || 0) + 1);
     illegalTotal += st.illegal;
 
@@ -149,6 +155,10 @@ function main() {
   console.log(`平均事件数/局 : ${avgEv.toFixed(1)}  (min ${Math.min(...eventsPerRun, 0)}, max ${Math.max(...eventsPerRun, 0)})`);
   console.log(`平均时长/局   : ${Math.round(sumHr / Math.max(1, total))}h  (min ${Math.min(...hoursPerRun, 0)}, max ${Math.max(...hoursPerRun, 0)})`);
   console.log(`非法状态转移  : ${illegalTotal}`);
+  if (favorEnd.length) {
+    const sumFav = favorEnd.reduce((a, b) => a + b, 0);
+    console.log(`终局好感度    : 均值 ${(sumFav / favorEnd.length).toFixed(1)}  (min ${Math.min(...favorEnd).toFixed(0)}, max ${Math.max(...favorEnd).toFixed(0)})`);
+  }
 
   console.log(`\n砂糖循环:`);
   console.log(`  至少 1 次砂糖并失恋 : ${sugarLoops}/${total} 局 (${(sugarLoops / Math.max(1, total) * 100).toFixed(1)}%)`);

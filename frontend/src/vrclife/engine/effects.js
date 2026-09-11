@@ -1,9 +1,9 @@
 /**
- * apply_effects + derive_tags 移植。
+ * apply_effects + derive_tags 移植（含 DLC1 好感度 favor）。
  */
 
 /**
- * 自动标签（PRD §3.5）。
+ * 自动标签（PRD §3.5 + DLC1 好感度/圈子）。
  * @param {object} st
  */
 export function deriveTags(st) {
@@ -14,6 +14,11 @@ export function deriveTags(st) {
   if (st.friends < 5 && st.hours > 100) add('独行侠');
   if (st.mood <= 14) add('退坑边缘');
   else if (st.mood >= 30) rm('退坑边缘');
+
+  // ---- DLC1 自动标签（注意是 elif 关系：80+ 加，<60 移除，60-80 保持现状）----
+  if (st.favor >= 80) add('挚友');
+  else if (st.favor < 60) rm('挚友');
+  if (st.circles.length >= 5) add('圈子浪人');
 }
 
 /**
@@ -40,6 +45,11 @@ export function applyEffects(st, fx) {
   st.sugarCount += fx.sugarCount || 0;
   st.breakupCount += fx.breakupCount || 0;
   st.hours += fx.hoursBonus || 0;
+
+  // ---- DLC1: 好感度（clamp 0-100，可为负增量）----
+  if (fx.favor !== undefined) {
+    st.favor = Math.max(0, Math.min(100, st.favor + fx.favor));
+  }
 
   const skills = fx.skills;
   if (skills) {

@@ -6,6 +6,7 @@
  *  1. onMounted 触发 store.init()（数据尚未加载时）；
  *  2. 按 store.phase 做界面路由：loading / error / start / opening / playing / ended；
  *  3. playing 阶段组装三栏布局（左：属性面板，中：事件卡，右：时间线）；
+ *     窄屏下事件卡置顶，属性面板与时间线分别收进可折叠区块（默认折叠）；
  *  4. 监听数字键 1-4，映射到当前可用选项（仅 playing 且无任何弹层时）；
  *  5. 承载「完整时间线」弹层（由顶部栏 / 结局页的 show-timeline 事件触发）。
  */
@@ -28,6 +29,10 @@ const store = useVrclifeStore();
 
 /** 完整时间线弹层开关 */
 const showTimeline = ref(false);
+
+/** 窄屏折叠区块状态（仅 UI 状态，不入存档） */
+const statsOpen = ref(false);
+const timelineOpen = ref(false);
 
 const phase = computed(() => store.phase);
 
@@ -144,20 +149,49 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <!-- ============ playing（三栏） ============ -->
+    <!-- ============ playing ============ -->
     <div v-else-if="phase === 'playing'" class="play-shell">
       <VrTopBar @show-timeline="showTimeline = true" />
 
       <div class="play-body">
-        <VrSidePanel class="col col-left" />
-
+        <!-- 事件卡：核心玩法，窄屏也排在最前 -->
         <VrEventCard
           class="col col-center"
           :current="store.currentEvent"
           @choose="onChoose"
         />
 
-        <VrTimeline class="col col-right" />
+        <!-- 属性面板：窄屏折叠 -->
+        <section class="col-collapse col-stats" :class="{ 'is-open': statsOpen }">
+          <button
+            type="button"
+            class="collapse-toggle"
+            :aria-expanded="statsOpen"
+            @click="statsOpen = !statsOpen"
+          >
+            <span class="collapse-label">角色属性</span>
+            <span class="collapse-chevron" aria-hidden="true">{{ statsOpen ? '▾' : '▸' }}</span>
+          </button>
+          <div class="collapse-content">
+            <VrSidePanel />
+          </div>
+        </section>
+
+        <!-- 时间线：窄屏折叠 -->
+        <section class="col-collapse col-timeline" :class="{ 'is-open': timelineOpen }">
+          <button
+            type="button"
+            class="collapse-toggle"
+            :aria-expanded="timelineOpen"
+            @click="timelineOpen = !timelineOpen"
+          >
+            <span class="collapse-label">时间线</span>
+            <span class="collapse-chevron" aria-hidden="true">{{ timelineOpen ? '▾' : '▸' }}</span>
+          </button>
+          <div class="collapse-content">
+            <VrTimeline />
+          </div>
+        </section>
       </div>
     </div>
 
@@ -197,6 +231,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .vr-life {
   min-height: 100vh;
+  min-height: 100dvh;
   color: #e9e4f5;
   background:
     radial-gradient(1100px 720px at 12% -8%, rgba(124, 58, 237, 0.26), transparent 60%),
@@ -209,6 +244,7 @@ onBeforeUnmount(() => {
 /* =============== 通用居中舞台（loading / error / opening） =============== */
 .phase-center {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -336,6 +372,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -352,7 +389,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-/* 三个列容器都需要 min-height:0，内部才能各自滚动 */
+/* 三个列容器都需要 min-width/min-height:0，内部才能各自滚动 */
 .col {
   min-width: 0;
   min-height: 0;
@@ -361,6 +398,32 @@ onBeforeUnmount(() => {
 /* 事件卡区域自身滚动（短内容时不受影响） */
 .col-center {
   overflow-y: auto;
+}
+
+/* 折叠区块：桌面端表现为普通列容器，控件隐藏 */
+.col-collapse {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.collapse-toggle {
+  display: none;
+}
+
+.collapse-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* 桌面端：显式网格定位，让 DOM 顺序（事件卡在前）不影响视觉顺序 */
+@media (min-width: 901px) {
+  .col-center { grid-column: 2; grid-row: 1; }
+  .col-stats { grid-column: 1; grid-row: 1; }
+  .col-timeline { grid-column: 3; grid-row: 1; }
 }
 
 /* =============== 通用按钮 =============== */
@@ -485,22 +548,128 @@ onBeforeUnmount(() => {
   }
 }
 
-/* =============== 响应式 =============== */
-@media (max-width: 1100px) {
+/* =============== 窄屏（≤900px） =============== */
+@media (max-width: 900px) {
+  .phase-center {
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 24px 16px;
+  }
+
+  .opening-card {
+    padding: 26px 20px 22px;
+  }
+
+  .opening-name {
+    font-size: 24px;
+  }
+
+  .opening-text {
+    font-size: 15px;
+    line-height: 1.85;
+  }
+
+  .error-card {
+    padding: 24px 20px 22px;
+  }
+
+  /* 单列纵向：事件卡 → 属性折叠 → 时间线折叠。整页可滚动 */
   .play-shell {
     height: auto;
     min-height: 100vh;
+    min-height: 100dvh;
     overflow: visible;
   }
 
   .play-body {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto;
+    gap: 12px;
+    padding: 12px 12px 24px;
     overflow: visible;
+  }
+
+  .col {
+    min-height: auto;
   }
 
   .col-center {
     overflow: visible;
+  }
+
+  /* 折叠区块外壳：融入深色霓虹主题 */
+  .col-collapse {
+    border-radius: 14px;
+    background: rgba(26, 16, 51, 0.55);
+    border: 1px solid rgba(124, 58, 237, 0.24);
+    box-shadow: 0 6px 22px rgba(124, 58, 237, 0.15);
+    backdrop-filter: blur(12px);
+  }
+
+  .collapse-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    min-height: 48px;
+    padding: 12px 16px;
+    background: rgba(124, 58, 237, 0.14);
+    border: none;
+    color: #e9e4f5;
+    font-family: inherit;
+    font-size: 15px;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.18s ease;
+  }
+
+  .collapse-toggle:hover {
+    background: rgba(124, 58, 237, 0.22);
+  }
+
+  .collapse-label {
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: #b9aede;
+  }
+
+  .collapse-chevron {
+    color: #a5f3fc;
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  .collapse-content {
+    padding: 12px;
+    overflow: visible;
+  }
+
+  .col-collapse:not(.is-open) .collapse-content {
+    display: none;
+  }
+
+  /* 完整时间线弹层：贴边、近全屏 */
+  .tl-modal {
+    padding: 12px;
+  }
+
+  .tl-modal-panel {
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+
+  .tl-modal-head {
+    padding: 12px 14px;
+  }
+
+  .tl-modal-close {
+    width: 44px;
+    height: 44px;
+  }
+
+  .tl-modal-body {
+    padding: 12px;
   }
 }
 

@@ -127,6 +127,8 @@ const labelPts = computed(() => {
 <style scoped>
 .vr-radar {
   display: block;
+  max-width: 100%;
+  height: auto;
 }
 
 .radar-label {
