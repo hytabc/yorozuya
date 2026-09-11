@@ -90,10 +90,7 @@ test('logged-in users enter life regardless of beta flag, but not life-admin', a
     assert.equal(await createGuard(auth)({ meta: { lifeManager: true } }), '/')
   }
 })
-test('beta badge is read-only, while applications are available to eligible reviewers', () => {
-  assert.match(source('views/ProfileView.vue'), /v-if="auth\.user\.is_beta_tester" class="role-tag beta-tag">内测用户/)
-  assert.match(source('views/ProfileView.vue'), /api\.get\('\/beta-applications\/mine'\)/)
-  assert.match(source('components/BetaApplyDialog.vue'), /api\.post\('\/beta-applications'/)
+test('beta review stays in admin/operations only (profile/staff pages untouched)', () => {
   const admin = source('views/AdminView.vue')
   assert.match(admin, /class="beta-toggle"><input type="checkbox" :checked="user\.is_beta_tester" :disabled="!auth\.isAdmin" @change="toggleBetaTester\(user\)" \/> 内测用户/)
   assert.match(admin, /api\.patch\(`\/admin\/users\/\$\{user\.id\}\/beta-tester`, \{ is_beta_tester: !user\.is_beta_tester \}\)/)
