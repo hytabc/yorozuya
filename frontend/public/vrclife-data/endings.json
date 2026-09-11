@@ -1,0 +1,424 @@
+{
+  "version": "1.0",
+  "note": "结局判定。所有结局按 priority 降序求值，第一个 condition 全满足的即命中。priority 相同时按 score 公式取值最高者。endingHint 累积分作为加分项。",
+  "scoring": {
+    "desc": "每个结局有一个 score 表达式，引擎解释执行（白名单函数 + 状态属性）。取最高分者作为最终结局，除非某结局的 `lock` 为 true 且条件满足（必中）。",
+    "vars": [
+      "hours",
+      "friends",
+      "mood",
+      "fame",
+      "avatars",
+      "assets",
+      "sugarCount",
+      "breakupCount",
+      "skill.modeling",
+      "skill.coding",
+      "skill.photo",
+      "skill.music",
+      "skill.dance",
+      "skill.language",
+      "skill.social",
+      "skill.meme",
+      "skill.max",
+      "circle.count",
+      "tag.count",
+      "hint.legend",
+      "hint.retire",
+      "hint.sugar_loop",
+      "hint.lonely",
+      "hint.leader",
+      "hint.creator",
+      "hint.forever_newbie",
+      "hint.zen",
+      "hint.burnout"
+    ]
+  },
+  "endings": [
+    {
+      "id": "end_burnout",
+      "title": "燃尽",
+      "priority": 100,
+      "lock": true,
+      "rarity": "special",
+      "condition": {
+        "maxMood": 0
+      },
+      "desc": "心态归零，你退坑了。",
+      "summaryTemplate": "你在 {hours} 小时之后关掉了 VRChat。好友列表里 {friends} 个人，你不会再点开他们了。你把头显收进柜子，就像当初拿出来那样。",
+      "keyStats": [
+        "hours",
+        "friends",
+        "mood"
+      ],
+      "color": "#8b5cf6",
+      "unlockCondition": "心态归零"
+    },
+    {
+      "id": "end_retire",
+      "title": "退坑，回到现实",
+      "priority": 90,
+      "lock": false,
+      "rarity": "common",
+      "condition": {
+        "minHours": 500,
+        "maxMood": 30
+      },
+      "score": "hint.retire * 6 + (mood < 20 ? 40 : 0) + hours / 200",
+      "desc": "你选择了现实。",
+      "summaryTemplate": "你在虚拟世界里待了 {hours} 小时，最后是一个普通的晚上，你没有登录。第二天也没有。你现实里的朋友说你最近看起来好多了。",
+      "keyStats": [
+        "hours",
+        "friends",
+        "mood",
+        "assets"
+      ],
+      "color": "#64748b"
+    },
+    {
+      "id": "end_legend",
+      "title": "VRChat 传奇",
+      "priority": 85,
+      "lock": false,
+      "rarity": "rare",
+      "condition": {
+        "minHours": 1000,
+        "minFame": 80
+      },
+      "score": "hint.legend * 6 + fame * 0.8 + hours / 100 + friends * 0.3",
+      "desc": "你的名字在这个社区里成了一个坐标。",
+      "summaryTemplate": "累计 {hours} 小时。{friends} 个好友。有人做视频讲你的故事，虽然细节全是错的。你成了某种都市传说——新人会问「那个人还在吗」，老玩家会说「在的，他每周三晚上都会来」。",
+      "keyStats": [
+        "hours",
+        "fame",
+        "friends",
+        "avatars"
+      ],
+      "color": "#f59e0b"
+    },
+    {
+      "id": "end_creator",
+      "title": "模型/世界大师",
+      "priority": 80,
+      "lock": false,
+      "rarity": "rare",
+      "condition": {
+        "minHours": 300,
+        "minSkills": {
+          "modeling": 36
+        }
+      },
+      "score": "hint.creator * 6 + skill.modeling * 1.2 + skill.coding * 0.8 + skill.photo * 0.5 + fame * 0.4",
+      "desc": "你留下的是作品，不是时长。",
+      "summaryTemplate": "你花了 {hours} 小时，其中大部分时间不在社交，而在 Blender 里。你的模型被 {N} 个人下载过，有人至今还在用。你大概不会知道这件事。",
+      "keyStats": [
+        "hours",
+        "skill.modeling",
+        "skill.coding",
+        "fame"
+      ],
+      "color": "#06b6d4"
+    },
+    {
+      "id": "end_leader",
+      "title": "社区领袖",
+      "priority": 78,
+      "lock": false,
+      "rarity": "rare",
+      "condition": {
+        "minHours": 400,
+        "minFriends": 60
+      },
+      "score": "hint.leader * 6 + friends * 0.9 + skill.social * 1.2 + fame * 0.5",
+      "desc": "你成就的不是自己，是很多人。",
+      "summaryTemplate": "你办了 {N} 场活动，调解过 {N} 次吵架，把 {N} 个新人从门口领了进来。你的好友列表有 {friends} 个人，其中一半你叫不出名字。但你记得他们的模型。",
+      "keyStats": [
+        "friends",
+        "skill.social",
+        "fame",
+        "hours"
+      ],
+      "color": "#10b981"
+    },
+    {
+      "id": "end_sugar_loop",
+      "title": "砂糖循环者",
+      "priority": 75,
+      "lock": false,
+      "rarity": "rare",
+      "condition": {
+        "minSugarCount": 2
+      },
+      "score": "hint.sugar_loop * 6 + sugarCount * 12 + breakupCount * 8",
+      "desc": "你爱过很多次，每次都很认真。",
+      "summaryTemplate": "你成为过 {sugarCount} 次砂糖，结束过 {breakupCount} 次。每一次你都以为这次不一样。也许确实不一样——只是结局相同。你还在等下一次。",
+      "keyStats": [
+        "sugarCount",
+        "breakupCount",
+        "hours",
+        "mood"
+      ],
+      "color": "#ec4899"
+    },
+    {
+      "id": "end_lonely",
+      "title": "孤独探索者",
+      "priority": 70,
+      "lock": false,
+      "rarity": "uncommon",
+      "condition": {
+        "minHours": 200,
+        "maxFriends": 25,
+        "minSkills": {
+          "photo": 20
+        }
+      },
+      "score": "hint.lonely * 6 + skill.photo * 1.2 + (friends < 5 ? 30 : 0) + hours / 150",
+      "desc": "你看了很多风景，但大多是一个人看的。",
+      "summaryTemplate": "{hours} 小时，{friends} 个好友。你的截图文件夹里有 {N} 张照片，几乎每一张都没有别人。你记得每一个世界的细节，只是没人可以讲。",
+      "keyStats": [
+        "hours",
+        "friends",
+        "skill.photo"
+      ],
+      "color": "#6366f1"
+    },
+    {
+      "id": "end_zen",
+      "title": "佛系养老",
+      "priority": 65,
+      "lock": false,
+      "rarity": "uncommon",
+      "condition": {
+        "minHours": 800,
+        "minMood": 50,
+        "maxMood": 80
+      },
+      "score": "hint.zen * 6 + (mood >= 55 && mood <= 75 ? 50 : 0) + hours / 120 - fame * 0.3",
+      "desc": "你不再追什么了，但你还是会来。",
+      "summaryTemplate": "你每周三晚上上线，去同一个房间，和同样几个人挂着，有时一句话都不说。{hours} 小时了。你已经不确定自己是喜欢这里，还是只是习惯了。可能是一回事。",
+      "keyStats": [
+        "hours",
+        "mood",
+        "friends"
+      ],
+      "color": "#14b8a6"
+    },
+    {
+      "id": "end_forever_newbie",
+      "title": "永远萌新",
+      "priority": 60,
+      "lock": false,
+      "rarity": "uncommon",
+      "condition": {
+        "minHours": 300,
+        "maxSkills": {
+          "all": 30
+        }
+      },
+      "score": "hint.forever_newbie * 6 + (skill.max < 20 ? 45 : 0) + hours / 100",
+      "desc": "你玩了很久，但什么都没学会，也什么都没损失。",
+      "summaryTemplate": "{hours} 小时。你不会建模，不会跳舞，不会写世界。你只是来玩的。有人问你玩了这么久怎么什么都不会，你说：我玩得挺开心的啊。",
+      "keyStats": [
+        "hours",
+        "mood",
+        "friends"
+      ],
+      "color": "#a3e635"
+    },
+    {
+      "id": "end_creator_burnout",
+      "title": "创作者倦怠",
+      "priority": 58,
+      "lock": false,
+      "rarity": "uncommon",
+      "condition": {
+        "minHours": 400,
+        "minSkills": {
+          "modeling": 30
+        },
+        "maxMood": 35
+      },
+      "score": "skill.modeling * 1.6 + (mood < 30 ? 55 : 25) + hint.burnout * 6",
+      "desc": "你把爱好变成了工作，然后不爱了。",
+      "summaryTemplate": "你接过的单子有 {N} 个，赚了 {assets} 块，也赔上了颈椎和 {hours} 小时。最后一次打开 Blender 时你盯着网格看了很久，然后关掉了它。不是崩溃，也不是报错。就是不想做了。",
+      "keyStats": [
+        "skill.modeling",
+        "assets",
+        "mood",
+        "hours"
+      ],
+      "color": "#f97316"
+    },
+    {
+      "id": "end_translator",
+      "title": "语言的桥",
+      "priority": 55,
+      "lock": false,
+      "rarity": "uncommon",
+      "condition": {
+        "minHours": 200,
+        "minSkills": {
+          "language": 36
+        }
+      },
+      "score": "skill.language * 1.3 + friends * 0.5 + hint.leader * 2",
+      "desc": "你让两群人听懂了彼此。",
+      "summaryTemplate": "你做过 {N} 次翻译，其中 {N} 次是吵架现场。你的好友列表横跨 {N} 个时区，有人至今不知道你现实里叫什么。你学会了一门语言，也学会了一件事：很多人不是不想说话，只是没人替他们翻译。",
+      "keyStats": [
+        "skill.language",
+        "friends",
+        "hours"
+      ],
+      "color": "#8b5cf6"
+    },
+    {
+      "id": "end_performer",
+      "title": "舞台上的那个人",
+      "priority": 53,
+      "lock": false,
+      "rarity": "uncommon",
+      "condition": {
+        "minHours": 250,
+        "minSkills": {
+          "dance": 36
+        }
+      },
+      "score": "skill.dance * 1.2 + skill.music * 0.8 + fame * 0.5",
+      "desc": "你在虚拟世界里学会了跳舞，这件事本身就很荒诞，但它是真的。",
+      "summaryTemplate": "你在舞房待了 {hours} 小时里的一大半。你编过 {N} 支舞，有人学会了，有人在台下看你。现实里你依然手脚不协调，但在这里，音乐一响你就知道该怎么动。",
+      "keyStats": [
+        "skill.dance",
+        "skill.music",
+        "fame"
+      ],
+      "color": "#f43f5e"
+    },
+    {
+      "id": "end_photographer",
+      "title": "取景框里的人",
+      "priority": 52,
+      "lock": false,
+      "rarity": "uncommon",
+      "condition": {
+        "minHours": 250,
+        "minSkills": {
+          "photo": 36
+        }
+      },
+      "score": "skill.photo * 1.3 + avatars * 0.6 + fame * 0.4",
+      "desc": "你记录了别人的青春。",
+      "summaryTemplate": "{N} 张照片，{N} 个世界。你拍过别人的告白、别人的婚礼、别人最后一次上线的样子。相册里没有几张是你自己。有人问你为什么不拍自己，你说：我在取景框后面啊。",
+      "keyStats": [
+        "skill.photo",
+        "avatars",
+        "hours"
+      ],
+      "color": "#0ea5e9"
+    },
+    {
+      "id": "end_irl_friends",
+      "title": "从虚拟走进现实",
+      "priority": 50,
+      "lock": false,
+      "rarity": "rare",
+      "condition": {
+        "minHours": 600,
+        "minFriends": 50,
+        "requireFlags": [
+          "met_offline"
+        ]
+      },
+      "score": "(hasFlag.met_offline ? 40 : 0) + friends * 0.7 + mood * 0.8",
+      "desc": "你在这里认识的人，最后成了现实里的朋友。",
+      "summaryTemplate": "你见过 {N} 个网友。有人在咖啡馆认错人，有人在机场举牌子接你，有人在饭桌上说你比头像瘦。{hours} 小时之后，你终于可以说：这些朋友是真的。",
+      "keyStats": [
+        "friends",
+        "mood",
+        "hours"
+      ],
+      "color": "#22c55e"
+    },
+    {
+      "id": "end_silent",
+      "title": "安静地不再来了",
+      "priority": 48,
+      "lock": false,
+      "rarity": "uncommon",
+      "condition": {
+        "minHours": 1000,
+        "excludeFlags": [
+          "had_farewell"
+        ],
+        "maxFame": 40
+      },
+      "score": "(hasFlag.had_farewell ? -50 : 20) + hours / 150 + (mood >= 40 && mood <= 60 ? 20 : 0)",
+      "desc": "没有告别，没有仪式，只是没再登录。",
+      "summaryTemplate": "你在 {hours} 小时之后的某一天，没有登录。那天很平常。没有人发现，因为你自己也没有发现。头像就那么一直灰着，一直灰着。",
+      "keyStats": [
+        "hours",
+        "friends",
+        "mood"
+      ],
+      "color": "#475569"
+    },
+    {
+      "id": "end_default",
+      "title": "普通玩家",
+      "priority": 0,
+      "lock": false,
+      "rarity": "common",
+      "condition": {},
+      "score": "0",
+      "desc": "兜底结局。你就是个普通玩家。",
+      "summaryTemplate": "你在 VRChat 里度过了 {hours} 小时，认识了 {friends} 个人，换过 {avatars} 个模型。没有什么值得写成故事的。但 {hours} 小时是真的，那些人也是真的。",
+      "keyStats": [
+        "hours",
+        "friends",
+        "avatars",
+        "mood"
+      ],
+      "color": "#94a3b8"
+    }
+  ],
+  "endingPaths": {
+    "desc": "endingHint.path 的合法取值，事件 outcome 通过 endingHint 累积倾向分。",
+    "paths": [
+      "legend",
+      "retire",
+      "sugar_loop",
+      "lonely",
+      "leader",
+      "creator",
+      "forever_newbie",
+      "zen",
+      "burnout"
+    ]
+  },
+  "display": {
+    "radarAxes": [
+      "社交",
+      "技能",
+      "声望",
+      "情感",
+      "心态",
+      "投入"
+    ],
+    "radarFormula": {
+      "社交": "clamp(friends, 0, 100)",
+      "技能": "clamp(skill.max, 0, 100)",
+      "声望": "clamp(fame, 0, 100)",
+      "情感": "clamp(sugarCount * 20 + breakupCount * 10, 0, 100)",
+      "心态": "clamp(mood, 0, 100)",
+      "投入": "clamp(hours / 10, 0, 100)"
+    },
+    "sections": [
+      "结局称号",
+      "人生总结",
+      "关键选择回放",
+      "属性雷达图",
+      "数据统计",
+      "分享卡片"
+    ]
+  }
+}
