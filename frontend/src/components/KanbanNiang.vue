@@ -1,5 +1,6 @@
 <script setup>
 import { nextTick, ref } from 'vue'
+import { getToken } from '../authStorage'
 
 const open = ref(true) // 默认展开,让看板娘更醒目(移动端仍隐藏)
 const busy = ref(false)
@@ -28,7 +29,7 @@ async function send() {
   scrollBottom()
 
   try {
-    const token = localStorage.getItem('wsw_token')
+    const token = await getToken()
     const headers = { 'content-type': 'application/json' }
     if (token) headers.authorization = `Bearer ${token}`
     const resp = await fetch('/api/mascot/chat', {

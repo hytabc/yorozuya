@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ArrowRight, Check, KeyRound, UserRound } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { errorMessage } from '../api'
+import CaptchaField from '../components/CaptchaField.vue'
 
 const props = defineProps({ initialMode: { type: String, default: 'login' } })
 const auth = useAuthStore()
@@ -12,6 +13,7 @@ const router = useRouter()
 const mode = ref(props.initialMode)
 const busy = ref(false)
 const error = ref('')
+const captchaField = ref(null)
 const form = reactive({ username: '', password: '', nickname: '' })
 const fieldErrors = reactive({ username: '', password: '', nickname: '' })
 const isRegister = computed(() => mode.value === 'register')
@@ -89,12 +91,19 @@ function safeRedirect(target) {
 async function submit() {
   error.value = ''
   if (isRegister.value ? !validateRegistration() : !validateLogin()) return
+  if (!captchaField.value?.isSatisfied()) {
+    error.value = '请先完成人机验证'
+    return
+  }
   busy.value = true
   try {
-    if (isRegister.value) await auth.register(form)
-    else await auth.login({ username: form.username, password: form.password })
+    const captcha = captchaField.value?.payload() || {}
+    if (isRegister.value) await auth.register({ ...form, ...captcha })
+    else await auth.login({ username: form.username, password: form.password, ...captcha })
     router.push(safeRedirect(route.query.redirect))
   } catch (err) {
+    // 验证码一次性：任何到达服务端的失败都可能已消耗，需重新挑战。
+    if (err.response) captchaField.value?.reset()
     if (!isRegister.value || !applyRegistrationApiErrors(err)) {
       error.value = errorMessage(err, isRegister.value ? '注册失败' : '登录失败')
     }
@@ -104,6 +113,7 @@ function switchMode(next) {
   mode.value = next
   error.value = ''
   Object.keys(fieldErrors).forEach((field) => { fieldErrors[field] = '' })
+  captchaField.value?.reset()
   router.replace(next === 'login' ? '/login' : '/register')
 }
 </script>
@@ -128,6 +138,7 @@ function switchMode(next) {
         <label v-if="isRegister">昵称<div class="input-with-icon" :class="{ invalid: fieldErrors.nickname }"><UserRound :size="18" /><input v-model="form.nickname" placeholder="别人如何称呼你" :aria-invalid="Boolean(fieldErrors.nickname)" :aria-describedby="fieldErrors.nickname ? 'nickname-error' : undefined" @blur="validateRegistrationField('nickname')" @input="updateInvalidField('nickname')" /></div><small v-if="fieldErrors.nickname" id="nickname-error" class="field-error" role="alert">{{ fieldErrors.nickname }}</small></label>
         <label>用户名<div class="input-with-icon" :class="{ invalid: fieldErrors.username }"><UserRound :size="18" /><input v-model="form.username" autocomplete="username" placeholder="字母、数字或下划线" :aria-invalid="Boolean(fieldErrors.username)" :aria-describedby="fieldErrors.username ? 'username-error' : undefined" @blur="validateRegistrationField('username')" @input="updateInvalidField('username')" /></div><small v-if="fieldErrors.username" id="username-error" class="field-error" role="alert">{{ fieldErrors.username }}</small></label>
         <label>密码<div class="input-with-icon" :class="{ invalid: fieldErrors.password }"><KeyRound :size="18" /><input v-model="form.password" type="password" :autocomplete="isRegister ? 'new-password' : 'current-password'" placeholder="至少 8 位" :aria-invalid="Boolean(fieldErrors.password)" :aria-describedby="fieldErrors.password ? 'password-error' : undefined" @blur="validateRegistrationField('password')" @input="updateInvalidField('password')" /></div><small v-if="fieldErrors.password" id="password-error" class="field-error" role="alert">{{ fieldErrors.password }}</small></label>
+        <CaptchaField ref="captchaField" />
         <p v-if="error" class="form-error" role="alert">{{ error }}</p>
         <button class="button wide" :disabled="busy">{{ busy ? '请稍候…' : isRegister ? '创建账号' : '登录' }}<ArrowRight :size="18" /></button>
       </form>

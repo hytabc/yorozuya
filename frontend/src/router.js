@@ -46,6 +46,8 @@ const SERVER_VERIFIED_META = ['lifeOnly', 'lifeManager', 'roleManager', 'moderat
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
+  // 凭证是加密存储的，先解密水合（幂等、不联网），之后 isLoggedIn 判定才准确。
+  await auth.hydrate()
   if (SERVER_VERIFIED_META.some((key) => to.meta[key])) {
     if (!auth.token) return '/'
     await auth.restore()

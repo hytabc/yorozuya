@@ -52,6 +52,30 @@ MASCOT_MODEL=kimi-k2.7-code-highspeed
 - 人设与开场白修改：后端 `backend/app/mascot.py` 的 `PERSONA`、前端 `frontend/src/components/KanbanNiang.vue`
 - 会向模型发送最近的 16 条消息；本功能**不读取数据库**，不会泄露任何委托/用户数据
 
+## 登录/注册人机验证
+
+登录与注册默认启用 **Cloudflare Turnstile**，用于拦截暴力破解与批量注册。所有配置都在项目根目录 `.env`：
+
+```env
+CAPTCHA_ENABLED=true
+CAPTCHA_PROVIDER=turnstile
+TURNSTILE_SITE_KEY=0x4AAAAAAEwPP7x-AwVA_SVE
+TURNSTILE_SECRET_KEY=你的secret
+```
+
+| 配置 | 含义 |
+|---|---|
+| `CAPTCHA_ENABLED` | `false` 则登录/注册不再要求验证码（不推荐生产环境关闭） |
+| `CAPTCHA_PROVIDER` | `turnstile`（Cloudflare，推荐）或 `builtin`（站内图形验证码，不依赖第三方） |
+| `TURNSTILE_SITE_KEY` | Turnstile 公开 Site Key（可入库） |
+| `TURNSTILE_SECRET_KEY` | Turnstile Secret Key，**只能放服务端**；必填，否则校验永远失败 |
+
+注意事项：
+
+- 在 Cloudflare Turnstile 控制台把实际访问域名加入 Widget 的 **Allowed domains**（本地开发记得加 `localhost`），否则组件会报域名不匹配。
+- 未配置 `TURNSTILE_SECRET_KEY` 时登录/注册会返回“人机验证未正确配置”；本地可用官方测试密钥 `1x0000000000000000000000000000000AA`（恒定通过）。
+- 选择 `builtin` 时无需第三方服务，后端用 Pillow 生成图形验证码；Turnstile token 为一次性，校验失败后前端会自动重新挑战。
+
 ## Docker Compose 部署
 
 默认部署会在构建镜像时将 Vue 前端编译为静态文件，并由 Nginx 提供服务及代理 `/api`。
@@ -186,12 +210,13 @@ start.bat test
 
 ## 安全说明
 
-- **会话令牌**：JWT 存于浏览器 localStorage，有效期 24 小时；修改密码会自增令牌版本，旧密码签发的所有登录立即失效。
+- **会话令牌**：JWT 有效期 24 小时；浏览器端以 Web Crypto AES-GCM 加密后存入 localStorage（键名 `wsw_auth`），密钥为不可导出的 `CryptoKey` 存于 IndexedDB，不再明文落盘；修改密码会自增令牌版本，旧密码签发的所有登录立即失效。
 - **密码**：PBKDF2-HMAC-SHA256（31 万次迭代）；自助改密必须验证当前密码；超级管理员重置密码后对方需重新登录。
 - **登录限流**：登录（按来源 IP 与账号双维度）、注册、带密码委托接取、看板娘对话、反馈提交均有滑动窗口限流，超限返回 429。
+- **人机验证**：登录/注册默认要求 Cloudflare Turnstile（可切换站内图形验证码），服务端通过 siteverify 兜底校验，失败一律拒绝；配置见「登录/注册人机验证」。
 - **权限校验**：前端所有权限标记（`auth.isAdmin`/`auth.role`/`canModerate` 等）都带 `verified` 前缀，
   只有服务端响应（登录/注册或 `/auth/me`）才能置为可信；路由与页面会先向服务端复核身份。
-  因此手工改写 localStorage 中的 `wsw_user` 也无法让界面误认为自己拥有管理员权限（后端对每个接口独立鉴权）。
+  因此即便手工改写本地缓存也无法让界面误认为自己拥有管理员权限（后端对每个接口独立鉴权）。
 - **拒绝越权字段**：请求模型启用 `extra="forbid"`，请求体夹带 `role`/`is_admin` 等额外字段会返回 422；
   `is_admin` 无法通过任何接口写入，只有超级管理员能通过 `PATCH /admin/users/{id}/role` 调整 `staff`/`mascot`/`disciplinarian`。
 - **上传与文件**：图片按文件头校验真实类型、由服务端生成 UUID 文件名，头像/实拍等需审核后才公开；

@@ -3,11 +3,13 @@
 // 保存时整体 PUT,后端 validate_pack_content 把关引用一致性。
 import { reactive, watch, nextTick } from 'vue'
 import axios from 'axios'
+import { getToken } from '../../authStorage'
 
-const ownerToken = localStorage.getItem('wsw_token')
-const api = axios.create({
-  baseURL: '/api', timeout: 20000,
-  headers: { Authorization: `Bearer ${ownerToken}` },
+const api = axios.create({ baseURL: '/api', timeout: 20000 })
+api.interceptors.request.use(async (config) => {
+  const token = await getToken()
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
 })
 
 export const adminState = reactive({

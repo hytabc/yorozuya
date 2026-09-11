@@ -2535,3 +2535,117 @@ def test_sliding_window_limiter_blocks_after_limit():
         limiter.hit(key, limit=3, window_seconds=60)
     assert excinfo.value.status_code == 429
     limiter._events.pop(key, None)
+
+
+def _enable_captcha(monkeypatch, provider="builtin"):
+    """测试用：强制开启验证码并按指定 provider 生效（生产由 CAPTCHA_* 配置控制）。"""
+    from app import captcha as captcha_module
+
+    # main.py 与 captcha.py 各持一份函数引用，需分别打补丁。
+    monkeypatch.setattr(captcha_module, "captcha_required", lambda: True)
+    monkeypatch.setattr(main_module, "captcha_required", lambda: True)
+    monkeypatch.setattr(settings, "captcha_provider", provider)
+    return captcha_module
+
+
+def test_image_captcha_consume_is_single_use():
+    from app import captcha as captcha_module
+
+    captcha_id, png = captcha_module.create_image_captcha()
+    assert png.startswith(b"\x89PNG")
+    answer = captcha_module.peek_answer(captcha_id)
+    assert answer and len(answer) == 4
+
+    # 大小写不敏感，且取出即作废（一次性）。
+    assert captcha_module.captcha_store.consume(captcha_id, answer.lower()) is True
+    assert captcha_module.captcha_store.consume(captcha_id, answer) is False
+    # 未知 id 一律不通过。
+    assert captcha_module.captcha_store.consume("not-a-real-id", answer) is False
+
+
+def test_builtin_captcha_guards_login_and_register(monkeypatch):
+    captcha_module = _enable_captcha(monkeypatch, "builtin")
+    with TestClient(app) as client:
+        challenge = client.get("/api/auth/captcha").json()
+        assert challenge["provider"] == "builtin"
+        assert challenge["captcha_id"]
+        assert challenge["image"].startswith("data:image/png;base64,")
+
+        # 错误验证码 → 400
+        wrong = client.post(
+            "/api/auth/login",
+            json={
+                "username": "admin",
+                "password": "Admin123!",
+                "captcha_id": challenge["captcha_id"],
+                "captcha_code": "ZZZZ",
+            },
+        )
+        assert wrong.status_code == 400
+
+        # 取新图并填入正确答案 → 200
+        challenge = client.get("/api/auth/captcha").json()
+        answer = captcha_module.peek_answer(challenge["captcha_id"])
+        ok = client.post(
+            "/api/auth/login",
+            json={
+                "username": "admin",
+                "password": "Admin123!",
+                "captcha_id": challenge["captcha_id"],
+                "captcha_code": answer,
+            },
+        )
+        assert ok.status_code == 200, ok.text
+
+        # 注册同样必须带验证码
+        missing = client.post(
+            "/api/auth/register",
+            json={"username": "captcha_user", "password": "Password123!", "nickname": "验证码用户"},
+        )
+        assert missing.status_code == 400
+
+        challenge = client.get("/api/auth/captcha").json()
+        answer = captcha_module.peek_answer(challenge["captcha_id"])
+        created = client.post(
+            "/api/auth/register",
+            json={
+                "username": "captcha_user",
+                "password": "Password123!",
+                "nickname": "验证码用户",
+                "captcha_id": challenge["captcha_id"],
+                "captcha_code": answer,
+            },
+        )
+        assert created.status_code == 201, created.text
+
+
+def test_turnstile_provider_delegates_to_siteverify(monkeypatch):
+    captcha_module = _enable_captcha(monkeypatch, "turnstile")
+    monkeypatch.setattr(settings, "turnstile_site_key", "test-site-key")
+    seen_tokens = []
+
+    async def fake_verify_turnstile(token, remote_ip):
+        seen_tokens.append(token)
+        if token != "good-token":
+            raise HTTPException(status_code=400, detail="人机验证未通过，请重试")
+
+    monkeypatch.setattr(captcha_module, "verify_turnstile", fake_verify_turnstile)
+
+    with TestClient(app) as client:
+        challenge = client.get("/api/auth/captcha").json()
+        assert challenge["provider"] == "turnstile"
+        assert challenge["site_key"] == "test-site-key"
+
+        bad = client.post(
+            "/api/auth/login",
+            json={"username": "admin", "password": "Admin123!", "captcha_code": "bad-token"},
+        )
+        assert bad.status_code == 400
+
+        good = client.post(
+            "/api/auth/login",
+            json={"username": "admin", "password": "Admin123!", "captcha_code": "good-token"},
+        )
+        assert good.status_code == 200, good.text
+
+    assert seen_tokens == ["bad-token", "good-token"]

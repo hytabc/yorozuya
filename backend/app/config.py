@@ -35,6 +35,16 @@ class Settings(BaseSettings):
     mascot_max_tokens: int = 1500
     mascot_timeout_seconds: int = 120
 
+    # 登录/注册人机验证：turnstile=Cloudflare Turnstile；builtin=站内图形验证码。
+    # 关闭 CAPTCHA_ENABLED 则登录/注册不再要求验证码（不推荐生产环境关闭）。
+    captcha_enabled: bool = True
+    captcha_provider: str = "turnstile"
+    # builtin 验证码有效期（秒）
+    captcha_ttl_seconds: int = 180
+    # Turnstile 公开 Site Key 可入库；Secret Key 只能放服务端 .env。
+    turnstile_site_key: str = "0x4AAAAAAEwPP7x-AwVA_SVE"
+    turnstile_secret_key: str = ""
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     def model_post_init(self, __context) -> None:

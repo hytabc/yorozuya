@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import logging
 import secrets
 import sys
@@ -20,6 +21,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from .config import INSECURE_DEFAULT_ADMIN_PASSWORD, settings
 from .backup import skip_next_snapshot
+from .captcha import captcha_required, create_image_captcha, verify_captcha
 from .database import Base, SessionLocal, engine, get_db
 from .ratelimit import client_ip, enforce
 from .dependencies import get_admin, get_beta_application_manager, get_content_moderator, get_current_user, get_operations_manager, get_optional_user, get_role_manager
@@ -70,6 +72,7 @@ from .schemas import (
     AdminUserOut,
     AdminUserRoleUpdate,
     AdminPhotoUpdate,
+    CaptchaChallenge,
     FeedbackCreate,
     FeedbackOut,
     FeedbackUpdate,
@@ -1246,9 +1249,27 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/api/auth/captcha", response_model=CaptchaChallenge)
+def get_captcha(request: Request):
+    # 进入登录/注册页时拉取一次；按 IP 限流防止被刷。
+    enforce("captcha-ip", client_ip(request), 60, 300)
+    if not captcha_required():
+        return CaptchaChallenge(provider="off")
+    if settings.captcha_provider == "turnstile" and settings.turnstile_site_key:
+        return CaptchaChallenge(provider="turnstile", site_key=settings.turnstile_site_key)
+    captcha_id, png = create_image_captcha()
+    return CaptchaChallenge(
+        provider="builtin",
+        captcha_id=captcha_id,
+        image="data:image/png;base64," + base64.b64encode(png).decode(),
+        expires_in=settings.captcha_ttl_seconds,
+    )
+
+
 @app.post("/api/auth/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-def register(payload: RegisterRequest, request: Request, db: Session = Depends(get_db)):
+async def register(payload: RegisterRequest, request: Request, db: Session = Depends(get_db)):
     enforce("register-ip", client_ip(request), 10, 3600)
+    await verify_captcha(request, payload.captcha_id, payload.captcha_code)
     if db.scalar(select(User).where(User.username == payload.username)):
         raise HTTPException(status_code=409, detail="用户名已被使用")
     user = User(
@@ -1266,10 +1287,12 @@ def register(payload: RegisterRequest, request: Request, db: Session = Depends(g
 
 
 @app.post("/api/auth/login", response_model=TokenResponse)
-def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
+async def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
     # 按来源 IP 与账号双维度限流，抵御暴力破解与撞库。
     enforce("login-ip", client_ip(request), 30, 300)
     enforce("login-user", payload.username, 10, 300)
+    # 验证码校验放在昂贵的 PBKDF2 校验之前，避免被撞库消耗 CPU。
+    await verify_captcha(request, payload.captcha_id, payload.captcha_code)
     user = db.scalar(select(User).where(User.username == payload.username))
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="用户名或密码错误")
