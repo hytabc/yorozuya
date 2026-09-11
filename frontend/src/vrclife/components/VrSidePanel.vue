@@ -519,6 +519,63 @@ onMounted(() => {
   }
 }
 
+/* =============== 窄屏（≤900px） =============== */
+@media (max-width: 900px) {
+  .vr-side {
+    overflow-y: visible;
+    padding-right: 0;
+    gap: 10px;
+  }
+
+  .panel {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .panel-title {
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+
+  .stat-name {
+    font-size: 13px;
+  }
+
+  .stat-num {
+    font-size: 17px;
+  }
+
+  .stat-tier {
+    min-width: 48px;
+    font-size: 11px;
+  }
+
+  .nums {
+    gap: 6px;
+    margin-top: 12px;
+    padding-top: 12px;
+  }
+
+  .num-value {
+    font-size: 15px;
+  }
+
+  .mini-row {
+    grid-template-columns: 30px 1fr 24px;
+    gap: 6px;
+  }
+
+  .skill-row {
+    grid-template-columns: 40px 1fr 36px;
+    gap: 6px;
+  }
+
+  .skill-name,
+  .skill-tier {
+    font-size: 12px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bar-fill,
   .mini-fill,

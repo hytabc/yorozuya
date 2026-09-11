@@ -14,7 +14,6 @@ import AnnouncementsView from './views/AnnouncementsView.vue'
 import OperationsView from './views/OperationsView.vue'
 import VersionsView from './views/VersionsView.vue'
 import { api } from './api'
-import { isLifeDesktop } from './lifeAccess'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -44,7 +43,7 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
   if (to.meta.lifeOnly || to.meta.lifeManager) {
-    if (!isLifeDesktop() || !auth.token) return '/'
+    if (!auth.token) return '/'
     // Check the server identity, not cached localStorage permission flags.
     await auth.restore()
     if (!auth.isLoggedIn) return '/'

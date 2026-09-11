@@ -368,6 +368,83 @@ onBeforeUnmount(() => {
   to { opacity: 1; }
 }
 
+/* =============== 窄屏（≤900px） =============== */
+@media (max-width: 900px) {
+  .vr-topbar {
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    min-height: 0;
+    padding: 10px 12px;
+  }
+
+  .tb-left {
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .hours-num {
+    font-size: 22px;
+  }
+
+  .hours-unit {
+    font-size: 12px;
+  }
+
+  .tb-stage {
+    font-size: 13px;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tb-right {
+    flex: 0 0 auto;
+    gap: 8px;
+  }
+
+  .seed-btn {
+    min-height: 40px;
+    max-width: 168px;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .seed-label {
+    display: none;
+  }
+
+  .seed-value {
+    min-width: 0;
+    max-width: 74px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .menu-btn {
+    min-height: 40px;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .menu-panel button {
+    min-height: 44px;
+  }
+
+  .tb-confirm {
+    left: 12px;
+    right: 12px;
+    width: auto;
+  }
+
+  .confirm-actions button {
+    min-height: 40px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .seed-copied {
     animation: none;

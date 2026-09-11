@@ -5,7 +5,7 @@ import vm from 'node:vm'
 
 const source = name => readFileSync(new URL('../src/' + name, import.meta.url), 'utf8')
 const route = source('router.js').split('router.beforeEach(async (to) => {')[1].split('\n})')[0]
-const createGuard = (auth, desktop = true) => vm.runInNewContext('(async (to) => {' + route + '})', { useAuthStore: () => auth, isLifeDesktop: () => desktop })
+const createGuard = auth => vm.runInNewContext('(async (to) => {' + route + '})', { useAuthStore: () => auth })
 function createAuth(user) {
   const store = source('stores/auth.js').replace(/^import .*$/gm, '').replace('export const useAuthStore', 'const useAuthStore')
   return vm.runInNewContext(store + '\nuseAuthStore()', {
@@ -26,14 +26,14 @@ function createAuth(user) {
   })
 }
 
-test('life navigation and page guards split player and manager permissions, retain desktop gate', () => {
+test('life navigation and page guards split player and manager permissions', () => {
   const nav = source('components/AppHeader.vue')
-  assert.match(nav, /auth\.ready && auth\.isLoggedIn && auth\.canPlayLife && lifeDesktop" to="\/life"/)
+  assert.match(nav, /auth\.ready && auth\.isLoggedIn && auth\.canPlayLife" to="\/life"/)
   const app = source('App.vue')
-  assert.match(app, /auth\.isLoggedIn && auth\.canPlayLife && lifeDesktop/)
-  assert.match(app, /route\.meta\.lifeOnly && \(!auth\.isLoggedIn \|\| !auth\.canPlayLife \|\| !lifeDesktop\.value\)/)
-  assert.match(app, /route\.meta\.lifeManager && \(!auth\.isLoggedIn \|\| !auth\.canManageRoles \|\| !lifeDesktop\.value\)/)
-  assert.match(app, /!route\.meta\.lifeManager \|\| \(auth\.isLoggedIn && auth\.canManageRoles && lifeDesktop\)/)
+  assert.match(app, /v-if="\(!route\.meta\.lifeOnly \|\| \(auth\.isLoggedIn && auth\.canPlayLife\)\) && \(!route\.meta\.lifeManager \|\| \(auth\.isLoggedIn && auth\.canManageRoles\)\)"/)
+  assert.match(app, /route\.meta\.lifeOnly && \(!auth\.isLoggedIn \|\| !auth\.canPlayLife\)/)
+  assert.match(app, /route\.meta\.lifeManager && \(!auth\.isLoggedIn \|\| !auth\.canManageRoles\)/)
+  assert.match(app, /!route\.meta\.lifeOnly && !route\.meta\.lifeManager/)
   assert.doesNotMatch(app, /auth\.isAdmin/)
 })
 test('life-admin route uses the separate lifeManager guard', () => {
@@ -41,9 +41,8 @@ test('life-admin route uses the separate lifeManager guard', () => {
   assert.match(router, /path: '\/life'.*meta: \{ lifeOnly: true \}/)
   assert.match(router, /path: '\/life-admin'.*meta: \{ lifeManager: true \}/)
   assert.match(source('views/LifeAdmin.vue'), /loadPacks/)
-  assert.match(source('views/LifeSimulator.vue'), /<button v-if="auth\.canManageRoles"[^>]*title="内容管理"/)
 })
-test('life routes refresh identity: any logged-in user may play, management stays staff-only, mobile blocked', async () => {
+test('life routes refresh identity: any logged-in user may play, management stays staff-only', async () => {
   for (const role of ['user', 'volunteer', 'staff']) {
     for (const superAdmin of [false, true]) {
       for (const meta of [{ lifeOnly: true }, { lifeManager: true }]) {
@@ -59,11 +58,13 @@ test('life routes refresh identity: any logged-in user may play, management stay
       }
     }
   }
-  for (const [desktop, token] of [[false, 'test'], [true, null]]) {
-    for (const meta of [{ lifeOnly: true }, { lifeManager: true }]) {
-      const guard = createGuard({ token, restore: () => assert.fail('must reject before identity fetch') }, desktop)
-      assert.equal(await guard({ meta }), '/')
-    }
+  for (const meta of [{ lifeOnly: true }, { lifeManager: true }]) {
+    const guard = createGuard({ token: null, isLoggedIn: false, canPlayLife: true, canManageRoles: true, restore: () => assert.fail('must reject before identity fetch') })
+    assert.equal(await guard({ meta }), '/')
+  }
+  for (const meta of [{ lifeOnly: true }, { lifeManager: true }]) {
+    const auth = { token: 'test', isLoggedIn: false, canPlayLife: true, canManageRoles: true, restore: async () => {} }
+    assert.equal(await createGuard(auth)({ meta }), '/')
   }
 })
 test('any logged-in user sees life navigation; beta flag is display-only and grants no management', () => {
@@ -75,8 +76,7 @@ test('any logged-in user sees life navigation; beta flag is display-only and gra
     assert.equal(auth.canManageRoles.value, false)
     const unwrapped = Object.fromEntries(Object.entries(auth).map(([key, value]) => [key, value?.value]))
     unwrapped.ready = true
-    assert.equal(vm.runInNewContext(condition, { auth: unwrapped, lifeDesktop: true }), true)
-    assert.equal(vm.runInNewContext(condition, { auth: unwrapped, lifeDesktop: false }), false)
+    assert.equal(vm.runInNewContext(condition, { auth: unwrapped }), true)
   }
 })
 test('logged-in users enter life regardless of beta flag, but not life-admin', async () => {

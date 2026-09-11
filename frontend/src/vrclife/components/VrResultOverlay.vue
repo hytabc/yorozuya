@@ -20,7 +20,9 @@ const outcomeText = computed(() => (props.result && props.result.outcomeText) ||
 
 const deltas = computed(() => {
   const arr = (props.result && props.result.deltas) || [];
-  return arr.filter((d) => d && d.diff !== 0);
+  return arr
+    .map((d) => ({ label: d && d.label, diff: Math.round(Number(d && d.diff) || 0) }))
+    .filter((d) => d.diff !== 0);
 });
 
 function close() {
@@ -198,6 +200,40 @@ onBeforeUnmount(() => { if (timer) clearTimeout(timer); });
   }
   50% {
     box-shadow: 0 0 44px rgba(236, 72, 153, 0.55), 0 8px 32px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* =============== 窄屏（≤900px）：近全屏浮层 =============== */
+@media (max-width: 900px) {
+  .vr-result {
+    padding: 12px;
+  }
+
+  .result-card {
+    max-width: 100%;
+    padding: 20px 18px 16px;
+    border-radius: 14px;
+  }
+
+  .result-text {
+    font-size: 15px;
+    line-height: 1.75;
+    margin-bottom: 14px;
+    overflow-wrap: anywhere;
+  }
+
+  .result-deltas {
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .delta {
+    font-size: 12px;
+    padding: 3px 9px;
+  }
+
+  .result-hint {
+    font-size: 11px;
   }
 }
 

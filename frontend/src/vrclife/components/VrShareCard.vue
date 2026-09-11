@@ -247,6 +247,7 @@ watch(
 <template>
   <div class="vr-share">
     <canvas ref="canvasRef" class="share-canvas"></canvas>
+    <img v-if="false" class="share-preview" alt="" />
     <button type="button" class="share-btn" :disabled="downloading" @click="download">
       {{ downloading ? '生成中…' : '下载图片' }}
     </button>
@@ -259,6 +260,7 @@ watch(
   flex-direction: column;
   align-items: center;
   gap: 14px;
+  width: 100%;
 }
 
 .share-canvas {
@@ -269,6 +271,13 @@ watch(
   border-radius: 16px;
   border: 1px solid rgba(124, 58, 237, 0.45);
   box-shadow: 0 8px 32px rgba(124, 58, 237, 0.25);
+}
+
+/* 若将来加入预览 img，自适应容器宽度 */
+.share-preview {
+  max-width: 100%;
+  height: auto;
+  display: block;
 }
 
 .share-btn {
@@ -290,6 +299,18 @@ watch(
 .share-btn:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+/* =============== 窄屏（≤900px） =============== */
+@media (max-width: 900px) {
+  .share-canvas {
+    max-width: 100%;
+  }
+
+  .share-btn {
+    width: 100%;
+    min-height: 46px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
