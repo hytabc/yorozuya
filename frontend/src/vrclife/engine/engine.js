@@ -6,7 +6,7 @@
  */
 import { createRng } from './rng.js';
 import { match } from './conditions.js';
-import { applyEffects } from './effects.js';
+import { applyEffects, deriveTags } from './effects.js';
 import { applyRelationOp, driftRelation } from './relation.js';
 import { pickEvent, stageOf } from './pool.js';
 import { stepHours } from './step.js';
@@ -16,6 +16,10 @@ import { renderTemplate } from './template.js';
 export const MAX_EVENTS_PER_RUN = 72;
 export const MAX_TURNS = 400;
 export const SPAWN_COOLDOWN_HOURS = 120;
+
+/** DLC1 好感度常量（与 simulate_dlc1.py 的 FAVOR_START / FAVOR_DRIFT 一致）。 */
+export const FAVOR_START = 50;
+export const FAVOR_DRIFT = -0.35;
 
 /**
  * @param {object[]} events
@@ -52,6 +56,7 @@ function initState(seed, arch, playerName, vocab) {
     assets: 0,
     sugarCount: 0,
     breakupCount: 0,
+    favor: FAVOR_START,
     skills,
     circles: [],
     tags: ['萌新'],
@@ -92,6 +97,7 @@ function snapshotBefore(st) {
     fame: st.fame,
     avatars: st.avatars,
     assets: st.assets,
+    favor: st.favor,
     skills: { ...st.skills },
     relation: st.relation ? { ...st.relation } : null,
     tags: [...st.tags],
@@ -109,6 +115,7 @@ function computeDeltas(before, st, vocab) {
   push('声望', before.fame, st.fame);
   push('模型', before.avatars, st.avatars);
   push('资产', before.assets, st.assets);
+  push('好感度', before.favor, st.favor);
   for (const s of vocab.skills || []) {
     push(s.name, before.skills[s.key] || 0, st.skills[s.key] || 0);
   }
@@ -140,6 +147,7 @@ function computeIsTurnPoint(before, st, ev, relationsBefore) {
 function assertRanges(st) {
   if (!(st.mood >= 0 && st.mood <= 100)) throw new Error(`mood 越界 ${st.mood}`);
   if (!(st.fame >= 0 && st.fame <= 100)) throw new Error(`fame 越界 ${st.fame}`);
+  if (!(st.favor >= 0 && st.favor <= 100)) throw new Error(`favor 越界 ${st.favor}`);
   if (st.friends < 0) throw new Error('friends 为负');
   if (st.avatars < 0) throw new Error('avatars 为负');
   for (const k of Object.keys(st.skills)) {
@@ -302,6 +310,11 @@ function makeGame(ctx) {
     st.hours += stepHours(st, rng, vocab);
     driftRelation(st, rng, st.scheduled);
 
+    // ---- DLC1: 好感度自然漂移，漂移后重新派生标签 ----
+    st.favor = Math.max(0, Math.min(100, st.favor + FAVOR_DRIFT));
+    deriveTags(st);
+    // -------------------------------------------------
+
     assertRanges(st);
 
     const outcomeText = renderTemplate(chosen.text || '', st, rng, vocab);
@@ -380,6 +393,7 @@ function serializeState(st, rng, fired, phase, ending, error, current, turnStart
     assets: st.assets,
     sugarCount: st.sugarCount,
     breakupCount: st.breakupCount,
+    favor: st.favor,
     skills: { ...st.skills },
     circles: [...st.circles],
     tags: [...st.tags],
@@ -426,6 +440,7 @@ function deserializeState(save) {
     assets: save.assets || 0,
     sugarCount: save.sugarCount || 0,
     breakupCount: save.breakupCount || 0,
+    favor: save.favor === undefined ? FAVOR_START : save.favor,
     skills,
     circles: [...(save.circles || [])],
     tags: [...(save.tags || [])],

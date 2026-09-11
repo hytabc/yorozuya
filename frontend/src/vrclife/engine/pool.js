@@ -1,7 +1,10 @@
 /**
- * 事件池与打分 —— pick_event + score 移植（含导演系统规则）。
+ * 事件池与打分 —— pick_event + score 移植（含导演系统规则 + DLC1 权重修正）。
  */
 import { match } from './conditions.js';
+
+/** DLC1：把「设备」事件上抬的装备标签白名单（schema.dlc1.json weightMods）。 */
+const DEV_TAGS = ['Pico党', 'Quest党', '串流党', '全身追踪', '设备党'];
 
 /**
  * 按 vocab.stages 的 [minHours, maxHours) 判定当前阶段，超出返回「传奇」。
@@ -51,6 +54,12 @@ export function score(e, st, rng, vocab) {
     if (has('孤独') || has('回忆')) w *= 3.0;
     if (has('正面')) w *= 0.4;
   }
+
+  // ---- DLC1 权重修正（schema.dlc1.json weightMods）----
+  if (has('设备') && DEV_TAGS.some((t) => st.tags.includes(t))) w *= 1.5;
+  if (st.tags.includes('挚友') && has('友情') && has('正面')) w *= 1.4;
+  if (st.favor < 30 && has('友情')) w *= 1.3;
+  // ---------------------------------------------------
 
   // 防连发
   for (let i = 0; i < tg.length; i++) {

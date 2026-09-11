@@ -1,144 +1,506 @@
 {
-  "version": "1.0",
-  "note": "开局出身。抽中后作为初始状态覆盖默认值；initialEvents 中的事件在对应小时数被强制优先触发。",
-  "archetypes": [
-    {
-      "id": "arch_001",
-      "name": "纯粹萌新",
-      "weight": 30,
-      "rarity": "common",
-      "desc": "你连 Avatar 是什么都不知道，是朋友拉你来的。",
-      "startText": "你戴上头显，看到的第一件事是自己的虚拟手。它看起来不像你的手。",
-      "init": { "mood": 75, "friends": 0, "avatars": 1, "assets": 0 },
-      "skills": { "modeling": 0, "coding": 0, "photo": 0, "music": 0, "dance": 0, "language": 0, "social": 0, "meme": 0 },
-      "tags": ["萌新"],
-      "flags": { "add": ["never_played_vr"] },
-      "hourStepMod": 1.0
-    },
-    {
-      "id": "arch_002",
-      "name": "VR 设备党",
-      "weight": 15,
-      "rarity": "common",
-      "desc": "你早就买了头显，一直没找到想玩的。",
-      "startText": "头显在柜子里躺了三个月。今天你终于打开了它。",
-      "init": { "mood": 70, "friends": 0, "avatars": 2, "assets": 500 },
-      "skills": { "modeling": 0, "coding": 5, "photo": 0, "music": 0, "dance": 0, "language": 0, "social": 0, "meme": 0 },
-      "tags": ["萌新", "设备党"],
-      "flags": { "add": ["owns_hardware"] },
-      "hourStepMod": 1.0
-    },
-    {
-      "id": "arch_003",
-      "name": "社恐患者",
-      "weight": 20,
-      "rarity": "common",
-      "desc": "你打字很快，但就是不敢按下那个开麦键。",
-      "startText": "你在中文吧门口站了很久。门是开着的，里面有笑声。",
-      "init": { "mood": 55, "friends": 0, "avatars": 1, "assets": 0 },
-      "skills": { "modeling": 0, "coding": 0, "photo": 0, "music": 0, "dance": 0, "language": 0, "social": 0, "meme": 0 },
-      "tags": ["萌新", "社恐", "开麦恐惧"],
-      "flags": { "add": ["never_spoken"] },
-      "hourStepMod": 0.8,
-      "specialRule": "直到首次开麦事件完成前，社交类事件权重 ×0.6，独处类事件权重 ×1.5"
-    },
-    {
-      "id": "arch_004",
-      "name": "朋友带入坑",
-      "weight": 15,
-      "rarity": "common",
-      "desc": "现实里的朋友说「你跟我来就懂了」。",
-      "startText": "他把你拉进一个房间，说：别怕，这里的人都挺好的。",
-      "init": { "mood": 80, "friends": 1, "avatars": 1, "assets": 0 },
-      "skills": { "modeling": 0, "coding": 0, "photo": 0, "music": 0, "dance": 0, "language": 0, "social": 5, "meme": 0 },
-      "tags": ["萌新"],
-      "flags": { "add": ["has_irl_friend"] },
-      "hourStepMod": 1.2,
-      "specialRule": "开局即 spawn 一个状态为「常一起玩」的关系；该关系退坑时会触发专属连锁事件"
-    },
-    {
-      "id": "arch_005",
-      "name": "二次元老宅",
-      "weight": 12,
-      "rarity": "uncommon",
-      "desc": "你看了三年 VRChat 视频，理论经验为零实践。",
-      "startText": "你早就知道砂糖是什么意思。你只是没想到自己会真的站在这里。",
-      "init": { "mood": 85, "friends": 0, "avatars": 3, "assets": 200 },
-      "skills": { "modeling": 5, "coding": 0, "photo": 5, "music": 0, "dance": 5, "language": 5, "social": 0, "meme": 5 },
-      "tags": ["萌新", "技术宅"],
-      "flags": { "add": ["knows_culture"] },
-      "hourStepMod": 1.1,
-      "specialRule": "开局 avatars=3（已有收藏）；首次见到砂糖场景时额外 +5 mood"
-    },
-    {
-      "id": "arch_006",
-      "name": "外语学习者",
-      "weight": 10,
-      "rarity": "uncommon",
-      "desc": "你是为了练语言来的。",
-      "startText": "你在语言交换世界的门口深吸一口气。",
-      "init": { "mood": 70, "friends": 0, "avatars": 1, "assets": 0 },
-      "skills": { "modeling": 0, "coding": 0, "photo": 0, "music": 0, "dance": 0, "language": 15, "social": 0, "meme": 0 },
-      "tags": ["萌新", "跨语言"],
-      "flags": { "add": ["goal_language"] },
-      "hourStepMod": 1.0,
-      "specialRule": "语言交换圈相关事件权重 ×2；「翻译」标签获得所需语言技能门槛 -10"
-    },
-    {
-      "id": "arch_007",
-      "name": "创作者",
-      "weight": 8,
-      "rarity": "rare",
-      "desc": "你会建模。你是为了看看别人的作品来的。",
-      "startText": "你打开 Blender 看了一眼，又关掉，戴上了头显。",
-      "init": { "mood": 70, "friends": 0, "avatars": 2, "assets": 300 },
-      "skills": { "modeling": 25, "coding": 10, "photo": 5, "music": 0, "dance": 0, "language": 0, "social": 0, "meme": 0 },
-      "tags": ["萌新", "技术宅", "审美在线"],
-      "flags": { "add": ["has_skill_headstart"] },
-      "hourStepMod": 1.0,
-      "specialRule": "模型圈事件权重 ×1.8；技能成长速度 ×1.3"
-    },
-    {
-      "id": "arch_008",
-      "name": "深夜失眠者",
-      "weight": 10,
-      "rarity": "uncommon",
-      "desc": "你只是睡不着，想找个人说话。",
-      "startText": "凌晨三点。你很清醒，房间很安静。",
-      "init": { "mood": 45, "friends": 0, "avatars": 1, "assets": 0 },
-      "skills": { "modeling": 0, "coding": 0, "photo": 0, "music": 5, "dance": 0, "language": 0, "social": 0, "meme": 0 },
-      "tags": ["萌新", "夜猫子", "emo"],
-      "flags": { "add": ["night_owl_start"] },
-      "hourStepMod": 1.4,
-      "specialRule": "所有「深夜/凌晨」主题事件权重 ×1.6；初始 mood 上限为 80"
-    },
-    {
-      "id": "arch_009",
-      "name": "被安利来的",
-      "weight": 8,
-      "rarity": "uncommon",
-      "desc": "你在短视频上刷到「VRChat 里的爱情」，决定来看看。",
-      "startText": "视频里那对情侣在樱花树下拍照。你想知道那是真的吗。",
-      "init": { "mood": 90, "friends": 0, "avatars": 1, "assets": 0 },
-      "skills": { "modeling": 0, "coding": 0, "photo": 0, "music": 0, "dance": 0, "language": 0, "social": 0, "meme": 0 },
-      "tags": ["萌新", "元气"],
-      "flags": { "add": ["here_for_love"] },
-      "hourStepMod": 1.2,
-      "specialRule": "砂糖线事件权重 ×1.5；但每次失恋额外 -5 mood（期望越高摔得越重）"
-    },
-    {
-      "id": "arch_010",
-      "name": "沉默观察者",
-      "weight": 5,
-      "rarity": "rare",
-      "desc": "你不打算交朋友。你只是想看看这个世界。",
-      "startText": "你打开世界列表，没有进任何一个热门房间。",
-      "init": { "mood": 60, "friends": 0, "avatars": 1, "assets": 0 },
-      "skills": { "modeling": 0, "coding": 0, "photo": 10, "music": 0, "dance": 0, "language": 0, "social": 0, "meme": 0 },
-      "tags": ["萌新", "独行侠", "自闭"],
-      "flags": { "add": ["observer_start"] },
-      "hourStepMod": 0.85,
-      "specialRule": "好友增长事件权重 ×0.5；风景/摄影/独处事件权重 ×2；结局倾向自动偏向「孤独探索者」+3"
-    }
-  ]
+ "version": "1.0",
+ "note": "开局出身。抽中后作为初始状态覆盖默认值；initialEvents 中的事件在对应小时数被强制优先触发。",
+ "archetypes": [
+  {
+   "id": "arch_001",
+   "name": "纯粹萌新",
+   "weight": 30,
+   "rarity": "common",
+   "desc": "你连 Avatar 是什么都不知道，是朋友拉你来的。",
+   "startText": "你戴上头显，看到的第一件事是自己的虚拟手。它看起来不像你的手。",
+   "init": {
+    "mood": 75,
+    "friends": 0,
+    "avatars": 1,
+    "assets": 0
+   },
+   "skills": {
+    "modeling": 0,
+    "coding": 0,
+    "photo": 0,
+    "music": 0,
+    "dance": 0,
+    "language": 0,
+    "social": 0,
+    "meme": 0
+   },
+   "tags": [
+    "萌新"
+   ],
+   "flags": {
+    "add": [
+     "never_played_vr"
+    ]
+   },
+   "hourStepMod": 1.0
+  },
+  {
+   "id": "arch_002",
+   "name": "VR 设备党",
+   "weight": 15,
+   "rarity": "common",
+   "desc": "你早就买了头显，一直没找到想玩的。",
+   "startText": "头显在柜子里躺了三个月。今天你终于打开了它。",
+   "init": {
+    "mood": 70,
+    "friends": 0,
+    "avatars": 2,
+    "assets": 500
+   },
+   "skills": {
+    "modeling": 0,
+    "coding": 5,
+    "photo": 0,
+    "music": 0,
+    "dance": 0,
+    "language": 0,
+    "social": 0,
+    "meme": 0
+   },
+   "tags": [
+    "萌新",
+    "设备党"
+   ],
+   "flags": {
+    "add": [
+     "owns_hardware"
+    ]
+   },
+   "hourStepMod": 1.0
+  },
+  {
+   "id": "arch_003",
+   "name": "社恐患者",
+   "weight": 20,
+   "rarity": "common",
+   "desc": "你打字很快，但就是不敢按下那个开麦键。",
+   "startText": "你在中文吧门口站了很久。门是开着的，里面有笑声。",
+   "init": {
+    "mood": 55,
+    "friends": 0,
+    "avatars": 1,
+    "assets": 0
+   },
+   "skills": {
+    "modeling": 0,
+    "coding": 0,
+    "photo": 0,
+    "music": 0,
+    "dance": 0,
+    "language": 0,
+    "social": 0,
+    "meme": 0
+   },
+   "tags": [
+    "萌新",
+    "社恐",
+    "开麦恐惧"
+   ],
+   "flags": {
+    "add": [
+     "never_spoken"
+    ]
+   },
+   "hourStepMod": 0.8,
+   "specialRule": "直到首次开麦事件完成前，社交类事件权重 ×0.6，独处类事件权重 ×1.5"
+  },
+  {
+   "id": "arch_004",
+   "name": "朋友带入坑",
+   "weight": 15,
+   "rarity": "common",
+   "desc": "现实里的朋友说「你跟我来就懂了」。",
+   "startText": "他把你拉进一个房间，说：别怕，这里的人都挺好的。",
+   "init": {
+    "mood": 80,
+    "friends": 1,
+    "avatars": 1,
+    "assets": 0
+   },
+   "skills": {
+    "modeling": 0,
+    "coding": 0,
+    "photo": 0,
+    "music": 0,
+    "dance": 0,
+    "language": 0,
+    "social": 5,
+    "meme": 0
+   },
+   "tags": [
+    "萌新"
+   ],
+   "flags": {
+    "add": [
+     "has_irl_friend"
+    ]
+   },
+   "hourStepMod": 1.2,
+   "specialRule": "开局即 spawn 一个状态为「常一起玩」的关系；该关系退坑时会触发专属连锁事件"
+  },
+  {
+   "id": "arch_005",
+   "name": "二次元老宅",
+   "weight": 12,
+   "rarity": "uncommon",
+   "desc": "你看了三年 VRChat 视频，理论经验为零实践。",
+   "startText": "你早就知道砂糖是什么意思。你只是没想到自己会真的站在这里。",
+   "init": {
+    "mood": 85,
+    "friends": 0,
+    "avatars": 3,
+    "assets": 200
+   },
+   "skills": {
+    "modeling": 5,
+    "coding": 0,
+    "photo": 5,
+    "music": 0,
+    "dance": 5,
+    "language": 5,
+    "social": 0,
+    "meme": 5
+   },
+   "tags": [
+    "萌新",
+    "技术宅"
+   ],
+   "flags": {
+    "add": [
+     "knows_culture"
+    ]
+   },
+   "hourStepMod": 1.1,
+   "specialRule": "开局 avatars=3（已有收藏）；首次见到砂糖场景时额外 +5 mood"
+  },
+  {
+   "id": "arch_006",
+   "name": "外语学习者",
+   "weight": 10,
+   "rarity": "uncommon",
+   "desc": "你是为了练语言来的。",
+   "startText": "你在语言交换世界的门口深吸一口气。",
+   "init": {
+    "mood": 70,
+    "friends": 0,
+    "avatars": 1,
+    "assets": 0
+   },
+   "skills": {
+    "modeling": 0,
+    "coding": 0,
+    "photo": 0,
+    "music": 0,
+    "dance": 0,
+    "language": 15,
+    "social": 0,
+    "meme": 0
+   },
+   "tags": [
+    "萌新",
+    "跨语言"
+   ],
+   "flags": {
+    "add": [
+     "goal_language"
+    ]
+   },
+   "hourStepMod": 1.0,
+   "specialRule": "语言交换圈相关事件权重 ×2；「翻译」标签获得所需语言技能门槛 -10"
+  },
+  {
+   "id": "arch_007",
+   "name": "创作者",
+   "weight": 8,
+   "rarity": "rare",
+   "desc": "你会建模。你是为了看看别人的作品来的。",
+   "startText": "你打开 Blender 看了一眼，又关掉，戴上了头显。",
+   "init": {
+    "mood": 70,
+    "friends": 0,
+    "avatars": 2,
+    "assets": 300
+   },
+   "skills": {
+    "modeling": 25,
+    "coding": 10,
+    "photo": 5,
+    "music": 0,
+    "dance": 0,
+    "language": 0,
+    "social": 0,
+    "meme": 0
+   },
+   "tags": [
+    "萌新",
+    "技术宅",
+    "审美在线"
+   ],
+   "flags": {
+    "add": [
+     "has_skill_headstart"
+    ]
+   },
+   "hourStepMod": 1.0,
+   "specialRule": "模型圈事件权重 ×1.8；技能成长速度 ×1.3"
+  },
+  {
+   "id": "arch_008",
+   "name": "深夜失眠者",
+   "weight": 10,
+   "rarity": "uncommon",
+   "desc": "你只是睡不着，想找个人说话。",
+   "startText": "凌晨三点。你很清醒，房间很安静。",
+   "init": {
+    "mood": 45,
+    "friends": 0,
+    "avatars": 1,
+    "assets": 0
+   },
+   "skills": {
+    "modeling": 0,
+    "coding": 0,
+    "photo": 0,
+    "music": 5,
+    "dance": 0,
+    "language": 0,
+    "social": 0,
+    "meme": 0
+   },
+   "tags": [
+    "萌新",
+    "夜猫子",
+    "emo"
+   ],
+   "flags": {
+    "add": [
+     "night_owl_start"
+    ]
+   },
+   "hourStepMod": 1.4,
+   "specialRule": "所有「深夜/凌晨」主题事件权重 ×1.6；初始 mood 上限为 80"
+  },
+  {
+   "id": "arch_009",
+   "name": "被安利来的",
+   "weight": 8,
+   "rarity": "uncommon",
+   "desc": "你在短视频上刷到「VRChat 里的爱情」，决定来看看。",
+   "startText": "视频里那对情侣在樱花树下拍照。你想知道那是真的吗。",
+   "init": {
+    "mood": 90,
+    "friends": 0,
+    "avatars": 1,
+    "assets": 0
+   },
+   "skills": {
+    "modeling": 0,
+    "coding": 0,
+    "photo": 0,
+    "music": 0,
+    "dance": 0,
+    "language": 0,
+    "social": 0,
+    "meme": 0
+   },
+   "tags": [
+    "萌新",
+    "元气"
+   ],
+   "flags": {
+    "add": [
+     "here_for_love"
+    ]
+   },
+   "hourStepMod": 1.2,
+   "specialRule": "砂糖线事件权重 ×1.5；但每次失恋额外 -5 mood（期望越高摔得越重）"
+  },
+  {
+   "id": "arch_010",
+   "name": "沉默观察者",
+   "weight": 5,
+   "rarity": "rare",
+   "desc": "你不打算交朋友。你只是想看看这个世界。",
+   "startText": "你打开世界列表，没有进任何一个热门房间。",
+   "init": {
+    "mood": 60,
+    "friends": 0,
+    "avatars": 1,
+    "assets": 0
+   },
+   "skills": {
+    "modeling": 0,
+    "coding": 0,
+    "photo": 10,
+    "music": 0,
+    "dance": 0,
+    "language": 0,
+    "social": 0,
+    "meme": 0
+   },
+   "tags": [
+    "萌新",
+    "独行侠",
+    "自闭"
+   ],
+   "flags": {
+    "add": [
+     "observer_start"
+    ]
+   },
+   "hourStepMod": 0.85,
+   "specialRule": "好友增长事件权重 ×0.5；风景/摄影/独处事件权重 ×2；结局倾向自动偏向「孤独探索者」+3"
+  },
+  {
+   "id": "arch_011",
+   "name": "Pico 一体机党",
+   "weight": 8,
+   "rarity": "uncommon",
+   "desc": "你没有 PC，只有一台 Pico。别人聊的串流参数，你一个都看不懂。",
+   "startText": "盒子里只有一台一体机，和一根充电线。你把它戴上，世界就亮了。",
+   "init": {
+    "mood": 72,
+    "friends": 0,
+    "avatars": 1,
+    "assets": 150,
+    "favor": 50
+   },
+   "skills": {
+    "modeling": 0,
+    "coding": 5,
+    "photo": 0,
+    "music": 0,
+    "dance": 0,
+    "language": 0,
+    "social": 0,
+    "meme": 5
+   },
+   "tags": [
+    "萌新",
+    "Pico党",
+    "设备党"
+   ],
+   "flags": {
+    "add": [
+     "has_device",
+     "pico_player"
+    ]
+   },
+   "hourStepMod": 1.0,
+   "specialRule": "「串流/画质妥协」类事件权重 ×2；资产增长较慢，但心态更稳定（负面设备事件 -2 mood 减半）"
+  },
+  {
+   "id": "arch_012",
+   "name": "全身追踪狂热者",
+   "weight": 6,
+   "rarity": "rare",
+   "desc": "你买追踪器的时候就想过：我要用脚跳舞。",
+   "startText": "你把追踪器一个一个绑好，站起来，第一次在虚拟世界里看见了自己的脚。",
+   "init": {
+    "mood": 68,
+    "friends": 0,
+    "avatars": 2,
+    "assets": 400,
+    "favor": 50
+   },
+   "skills": {
+    "modeling": 0,
+    "coding": 5,
+    "photo": 0,
+    "music": 0,
+    "dance": 15,
+    "language": 0,
+    "social": 0,
+    "meme": 0
+   },
+   "tags": [
+    "萌新",
+    "全身追踪",
+    "设备党"
+   ],
+   "flags": {
+    "add": [
+     "has_device",
+     "owns_fbt"
+    ]
+   },
+   "hourStepMod": 1.1,
+   "specialRule": "开局拥有全身追踪；「掉追/校准」事件权重 ×1.8；舞蹈成长更快"
+  },
+  {
+   "id": "arch_013",
+   "name": "硬件折腾党",
+   "weight": 7,
+   "rarity": "rare",
+   "desc": "你玩游戏的时间，可能还没有调设备的时间长。",
+   "startText": "你坐在一地线材中间，看着跑分曲线，比看任何风景都专注。",
+   "init": {
+    "mood": 70,
+    "friends": 0,
+    "avatars": 3,
+    "assets": 600,
+    "favor": 50
+   },
+   "skills": {
+    "modeling": 0,
+    "coding": 20,
+    "photo": 0,
+    "music": 0,
+    "dance": 0,
+    "language": 0,
+    "social": 0,
+    "meme": 0
+   },
+   "tags": [
+    "萌新",
+    "设备党",
+    "技术宅"
+   ],
+   "flags": {
+    "add": [
+     "has_device",
+     "gearhead"
+    ]
+   },
+   "hourStepMod": 1.0,
+   "specialRule": "设备线事件权重 ×2；编程成长更快；mood 上限 85"
+  },
+  {
+   "id": "arch_014",
+   "name": "圈子调和者",
+   "weight": 7,
+   "rarity": "uncommon",
+   "desc": "你天生就是那个被拉去劝架的人。",
+   "startText": "两个群同时 @ 你，一边说另一边的坏话。你打字打了半天，一个字都没发出去。",
+   "init": {
+    "mood": 75,
+    "friends": 2,
+    "avatars": 1,
+    "assets": 100,
+    "favor": 65
+   },
+   "skills": {
+    "modeling": 0,
+    "coding": 0,
+    "photo": 0,
+    "music": 0,
+    "dance": 0,
+    "language": 0,
+    "social": 15,
+    "meme": 0
+   },
+   "tags": [
+    "萌新",
+    "社牛"
+   ],
+   "flags": {
+    "add": [
+     "mediator_start"
+    ]
+   },
+   "hourStepMod": 1.0,
+   "specialRule": "调解类选项的技能门槛 -10；初始好感度 65；调解成功额外 +1 计数器"
+  }
+ ]
 }

@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * 把仓库根 vrclife/data/*.json 拷到 frontend/public/vrclife-data/。
+ * 把 vrclife 数据拷到 frontend/public/vrclife-data/。
+ * 默认拷本体 vrclife/data/；加 --dlc 拷 DLC1 合并产物 vrclife/DLC1/build/
+ * （需先运行 python vrclife/DLC1/scripts/merge_dlc1.py）。
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,7 +11,10 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FRONTEND = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(FRONTEND, '..');
-const SRC = path.join(REPO_ROOT, 'vrclife', 'data');
+const useDlc = process.argv.includes('--dlc');
+const SRC = useDlc
+  ? path.join(REPO_ROOT, 'vrclife', 'DLC1', 'build')
+  : path.join(REPO_ROOT, 'vrclife', 'data');
 const DEST = path.join(FRONTEND, 'public', 'vrclife-data');
 
 const FILES = ['events.index.json', 'vocab.json', 'endings.json', 'archetypes.json'];
