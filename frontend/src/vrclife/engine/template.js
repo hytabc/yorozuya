@@ -45,6 +45,18 @@ export function renderTemplate(text, st, rng, vocab) {
       }
       case 'N':
         return String(rng.randint(1, 99));
+      // —— 结局总结模板用的数值变量（endings.json 的 summaryTemplate）——
+      case 'hours':
+      case 'friends':
+      case 'mood':
+      case 'fame':
+      case 'avatars':
+      case 'assets':
+      case 'sugarCount':
+      case 'breakupCount': {
+        const v = st[key];
+        return String(typeof v === 'number' ? Math.round(v) : 0);
+      }
       default:
         return full;
     }
