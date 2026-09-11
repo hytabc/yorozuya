@@ -52,7 +52,8 @@ export const useAuthStore = defineStore('auth', () => {
   const canManageRoles = computed(() => isAdmin.value || isStaff.value)
   const canOperate = computed(() => isAdmin.value || isMascot.value)
   const isBetaTester = computed(() => Boolean(user.value?.is_beta_tester))
-  const canPlayLife = computed(() => isAdmin.value || isStaff.value || isBetaTester.value)
+  // 虚拟人生对所有登录用户开放（内测标记仅作身份展示，不再门控）
+  const canPlayLife = computed(() => isLoggedIn.value)
 
   function persist(payload) {
     token.value = payload.access_token

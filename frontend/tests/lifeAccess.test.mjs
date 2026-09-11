@@ -43,16 +43,18 @@ test('life-admin route uses the separate lifeManager guard', () => {
   assert.match(source('views/LifeAdmin.vue'), /loadPacks/)
   assert.match(source('views/LifeSimulator.vue'), /<button v-if="auth\.canManageRoles"[^>]*title="内容管理"/)
 })
-test('life routes refresh identity and allow staff or superadmin, not other roles or mobile', async () => {
+test('life routes refresh identity: any logged-in user may play, management stays staff-only, mobile blocked', async () => {
   for (const role of ['user', 'volunteer', 'staff']) {
     for (const superAdmin of [false, true]) {
       for (const meta of [{ lifeOnly: true }, { lifeManager: true }]) {
         let restored = false
         const auth = { token: 'test', isLoggedIn: true, canManageRoles: false, canPlayLife: false, restore: async () => {
           restored = true
-          auth.canManageRoles = auth.canPlayLife = superAdmin || role === 'staff'
+          auth.canManageRoles = superAdmin || role === 'staff'
+          auth.canPlayLife = true // 登录即可玩
         } }
-        assert.equal(await createGuard(auth)({ meta }), superAdmin || role === 'staff' ? undefined : '/')
+        const expected = meta.lifeOnly ? undefined : (superAdmin || role === 'staff' ? undefined : '/')
+        assert.equal(await createGuard(auth)({ meta }), expected)
         assert.equal(restored, true)
       }
     }
@@ -64,27 +66,27 @@ test('life routes refresh identity and allow staff or superadmin, not other role
     }
   }
 })
-test('beta identity exposes life navigation without granting management', () => {
+test('any logged-in user sees life navigation; beta flag is display-only and grants no management', () => {
   const condition = source('components/AppHeader.vue').match(/v-if="([^"]+)" to="\/life"/)[1]
   for (const beta of [false, true]) {
     const auth = createAuth({ role: 'user', is_admin: false, is_beta_tester: beta })
     assert.equal(auth.isBetaTester.value, beta)
-    assert.equal(auth.canPlayLife.value, beta)
+    assert.equal(auth.canPlayLife.value, true)
     assert.equal(auth.canManageRoles.value, false)
     const unwrapped = Object.fromEntries(Object.entries(auth).map(([key, value]) => [key, value?.value]))
     unwrapped.ready = true
-    assert.equal(vm.runInNewContext(condition, { auth: unwrapped, lifeDesktop: true }), beta)
+    assert.equal(vm.runInNewContext(condition, { auth: unwrapped, lifeDesktop: true }), true)
     assert.equal(vm.runInNewContext(condition, { auth: unwrapped, lifeDesktop: false }), false)
   }
 })
-test('beta users may enter life but not life-admin, and revoked cached access is rejected', async () => {
+test('logged-in users enter life regardless of beta flag, but not life-admin', async () => {
   for (const beta of [false, true]) {
     const auth = { token: 'test', isLoggedIn: true, canManageRoles: true, canPlayLife: true, restore: async () => {
       const store = createAuth({ role: 'user', is_beta_tester: beta })
       auth.canManageRoles = store.canManageRoles.value
       auth.canPlayLife = store.canPlayLife.value
     } }
-    assert.equal(await createGuard(auth)({ meta: { lifeOnly: true } }), beta ? undefined : '/')
+    assert.equal(await createGuard(auth)({ meta: { lifeOnly: true } }), undefined)
     assert.equal(await createGuard(auth)({ meta: { lifeManager: true } }), '/')
   }
 })
