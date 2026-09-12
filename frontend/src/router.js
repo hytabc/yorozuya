@@ -27,6 +27,7 @@ const router = createRouter({
     { path: '/staff', component: StaffView, meta: { analyticsKey: 'staff' } },
     { path: '/board', component: BoardView, meta: { analyticsKey: 'board' } },
     { path: '/maps', component: VrMaps, meta: { analyticsKey: 'maps' } },
+    { path: '/stories', component: () => import('./views/StoryHall.vue'), meta: { auth: true, analyticsKey: 'stories' } },
     { path: '/friends', component: FriendHall, meta: { auth: true, analyticsKey: 'friends' } },
     { path: '/sugar', component: SugarClub, meta: { auth: true, analyticsKey: 'sugar' } },
     { path: '/announcements', component: AnnouncementsView, meta: { analyticsKey: 'announcements' } },

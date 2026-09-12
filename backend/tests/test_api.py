@@ -2619,6 +2619,145 @@ def test_builtin_captcha_guards_login_and_register(monkeypatch):
         assert created.status_code == 201, created.text
 
 
+def test_story_flow():
+    with TestClient(app) as client:
+        alice = auth(client, "story_alice")
+        bob = auth(client, "story_bob")
+        carol = auth(client, "story_carol")
+        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+
+        # 未登录不能浏览故事会
+        assert client.get("/api/stories").status_code == 401
+
+        # 正文过短 → 422
+        short = client.post("/api/stories", headers=alice, json={"title": "标题", "content": "太短"})
+        assert short.status_code == 422
+
+        # alice 发布公开故事
+        created = client.post(
+            "/api/stories",
+            headers=alice,
+            json={"title": "海边的一天", "content": "今天和朋友去了海边，风很大，但玩得很开心。", "is_anonymous": False},
+        )
+        assert created.status_code == 201, created.text
+        story_id = created.json()["id"]
+        assert created.json()["author"]["nickname"] == "用户story_alice"
+        assert created.json()["can_delete"] is True
+        assert created.json()["comments"] == []
+
+        # 列表可见，含摘录与评论数，无关用户没有删除权限
+        cards = client.get("/api/stories", headers=bob).json()
+        assert len(cards) == 1 and cards[0]["id"] == story_id
+        assert cards[0]["comment_count"] == 0
+        assert cards[0]["can_delete"] is False
+        assert cards[0]["author"]["nickname"] == "用户story_alice"
+
+        # 详情可见
+        detail = client.get(f"/api/stories/{story_id}", headers=bob)
+        assert detail.status_code == 200
+        assert detail.json()["content"] == "今天和朋友去了海边，风很大，但玩得很开心。"
+
+        # bob 评论；评论作者与故事作者都能删
+        commented = client.post(f"/api/stories/{story_id}/comments", headers=bob, json={"content": "看起来很不错！"})
+        assert commented.status_code == 201, commented.text
+        comment_id = commented.json()["comments"][0]["id"]
+        assert commented.json()["comments"][0]["user"]["nickname"] == "用户story_bob"
+        assert commented.json()["comments"][0]["can_delete"] is True
+        assert client.get(f"/api/stories/{story_id}", headers=alice).json()["comments"][0]["can_delete"] is True
+        assert client.get(f"/api/stories/{story_id}", headers=carol).json()["comments"][0]["can_delete"] is False
+
+        # 无关用户不能删评论；评论作者自己可以
+        assert client.delete(f"/api/stories/comments/{comment_id}", headers=carol).status_code == 403
+        assert client.delete(f"/api/stories/comments/{comment_id}", headers=bob).status_code == 204
+        assert client.get(f"/api/stories/{story_id}", headers=bob).json()["comments"] == []
+
+        # 无关用户不能删故事
+        assert client.delete(f"/api/stories/{story_id}", headers=carol).status_code == 403
+
+        # 匿名故事：作者本人可见真实昵称，其他人只看到匿名哨兵，管理员可见真实作者
+        anon = client.post(
+            "/api/stories",
+            headers=alice,
+            json={"title": "匿名的心事", "content": "这是一段不想被人认出的心路历程。", "is_anonymous": True},
+        )
+        assert anon.status_code == 201, anon.text
+        anon_id = anon.json()["id"]
+        assert anon.json()["author"]["nickname"] == "用户story_alice"
+        other_view = client.get(f"/api/stories/{anon_id}", headers=bob).json()
+        assert other_view["author"]["nickname"] == "匿名作者"
+        assert other_view["author"]["id"] == 0
+        assert client.get(f"/api/stories/{anon_id}", headers=admin).json()["author"]["nickname"] == "用户story_alice"
+
+        # 管理员组（staff）可以删除他人故事
+        staff_user = auth(client, "story_mod")
+        staff_id = client.get("/api/auth/me", headers=staff_user).json()["id"]
+        assert client.patch(f"/api/admin/users/{staff_id}/role", headers=admin, json={"role": "staff"}).status_code == 200
+        staff = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'story_mod', 'password': 'Password123!'}).json()['access_token']}"}
+        assert client.delete(f"/api/stories/{anon_id}", headers=staff).status_code == 204
+        assert client.get(f"/api/stories/{anon_id}", headers=staff).status_code == 404
+
+        # 作者删除自己的故事，评论级联消失
+        client.post(f"/api/stories/{story_id}/comments", headers=bob, json={"content": "再评一条"})
+        assert client.delete(f"/api/stories/{story_id}", headers=alice).status_code == 204
+        assert client.get("/api/stories", headers=bob).json() == []
+        # 删除后重复删除 → 404
+        assert client.delete(f"/api/stories/{story_id}", headers=alice).status_code == 404
+
+
+def test_story_photos_upload_and_moderation(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "sugar_upload_dir", str(tmp_path / "uploads"))
+    with TestClient(app) as client:
+        alice = auth(client, "story_pic")
+        bob = auth(client, "story_viewer")
+        admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
+
+        created = client.post(
+            "/api/stories",
+            headers=alice,
+            data={"title": "带图故事", "content": "这是一篇配有图片的故事，图片需要通过审核。", "is_anonymous": "false"},
+            files=[("photos", ("one.png", TINY_PNG, "image/png")), ("photos", ("two.png", TINY_PNG, "image/png"))],
+        )
+        assert created.status_code == 201, created.text
+        story_id = created.json()["id"]
+        assert len(created.json()["photos"]) == 2
+        assert all(photo["is_visible"] is False for photo in created.json()["photos"])
+        assert list((tmp_path / "uploads" / "stories" / str(story_id)).iterdir())
+
+        # 未过审的图片不出现在列表封面
+        assert client.get("/api/stories", headers=bob).json()[0]["cover_url"] is None
+
+        # 作者本人能看到待审图片，其他用户看不到
+        assert len(client.get(f"/api/stories/{story_id}", headers=alice).json()["photos"]) == 2
+        assert client.get(f"/api/stories/{story_id}", headers=bob).json()["photos"] == []
+
+        # 非审核员不能访问审核接口
+        assert client.get("/api/admin/story-photos", headers=bob).status_code == 403
+
+        # 管理员审核通过一张
+        pending = client.get("/api/admin/story-photos", headers=admin).json()
+        assert len(pending) == 2 and all(item["moderated"] is False for item in pending)
+        approved = client.patch(f"/api/admin/story-photos/{pending[0]['id']}", headers=admin, json={"is_visible": True})
+        assert approved.status_code == 200, approved.text
+        assert approved.json()["is_visible"] is True and approved.json()["moderated"] is True
+
+        # 通过后其他用户可见，列表封面出现
+        assert len(client.get(f"/api/stories/{story_id}", headers=bob).json()["photos"]) == 1
+        assert client.get("/api/stories", headers=bob).json()[0]["cover_url"].startswith("/uploads/stories/")
+
+        # 超过 3 张 → 422
+        too_many = client.post(
+            "/api/stories",
+            headers=alice,
+            data={"title": "太多图", "content": "这篇故事试图一次上传超过三张配图。", "is_anonymous": "false"},
+            files=[("photos", (f"{index}.png", TINY_PNG, "image/png")) for index in range(4)],
+        )
+        assert too_many.status_code == 422
+
+        # 删除故事清理磁盘文件
+        assert client.delete(f"/api/stories/{story_id}", headers=alice).status_code == 204
+        assert list((tmp_path / "uploads" / "stories" / str(story_id)).iterdir()) == []
+
+
 def test_turnstile_provider_delegates_to_siteverify(monkeypatch):
     captcha_module = _enable_captcha(monkeypatch, "turnstile")
     monkeypatch.setattr(settings, "turnstile_site_key", "test-site-key")

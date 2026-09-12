@@ -643,3 +643,66 @@ class BoardMessageOut(ApiModel):
     user: UserPublic
     comments: list[BoardCommentOut] = []
     can_delete: bool = False
+
+
+class StoryCreate(RequestModel):
+    title: str = Field(min_length=1, max_length=80)
+    content: str = Field(min_length=10, max_length=5000)
+    is_anonymous: bool = False
+
+
+class StoryCommentCreate(RequestModel):
+    content: str = Field(min_length=1, max_length=500)
+
+
+class StoryPhotoOut(ApiModel):
+    id: int
+    image_url: str
+    # is_visible=False 的照片仅作者本人和管理员组会收到；moderated 为 False 表示审核中
+    is_visible: bool = False
+    moderated: bool = False
+    uploaded_by_me: bool = False
+
+
+class StoryCommentOut(ApiModel):
+    id: int
+    content: str
+    created_at: datetime
+    user: UserPublic
+    can_delete: bool = False
+
+
+class StoryCardOut(ApiModel):
+    id: int
+    title: str
+    excerpt: str = ''
+    author: UserPublic
+    is_anonymous: bool = False
+    cover_url: str | None = None
+    photo_count: int = 0
+    comment_count: int = 0
+    created_at: datetime
+    can_delete: bool = False
+
+
+class StoryDetailOut(ApiModel):
+    id: int
+    title: str
+    content: str
+    author: UserPublic
+    is_anonymous: bool = False
+    photos: list[StoryPhotoOut] = []
+    comments: list[StoryCommentOut] = []
+    created_at: datetime
+    can_delete: bool = False
+
+
+class StoryPhotoAdminOut(ApiModel):
+    id: int
+    image_url: str
+    is_visible: bool
+    moderated: bool
+    story_id: int
+    story_title: str
+    user: UserPublic
+    created_at: datetime
