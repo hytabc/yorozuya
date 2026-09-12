@@ -45,6 +45,9 @@ from .models import (
     SugarPairStatus,
     SugarPhoto,
     SugarProfile,
+    Story,
+    StoryComment,
+    StoryPhoto,
     Task,
     TaskMember,
     TaskMemberResponse,
@@ -116,6 +119,13 @@ from .schemas import (
     BoardCommentOut,
     BoardMessageOut,
     BoardPostCreate,
+    StoryCardOut,
+    StoryCommentCreate,
+    StoryCommentOut,
+    StoryCreate,
+    StoryDetailOut,
+    StoryPhotoAdminOut,
+    StoryPhotoOut,
     BetaApplicationAdminOut,
     BetaApplicationCreate,
     BetaApplicationOut,
@@ -721,6 +731,11 @@ MAP_CATEGORIES = ("游戏", "休闲", "恐怖", "风景", "解谜", "社交", "�
 
 MAX_FRIEND_PHOTOS = 5
 
+# 故事会配图：仅 PNG/JPG，单张最大 10 MB，每篇故事最多 3 张，需管理员审核
+MAX_STORY_PHOTOS = 3
+MAX_STORY_PHOTO_BYTES = 10 * 1024 * 1024
+MAX_STORY_UPLOAD_TOTAL_BYTES = 30 * 1024 * 1024
+
 
 def sugar_profile_query():
     return select(SugarProfile).options(joinedload(SugarProfile.user), joinedload(SugarProfile.photos))
@@ -1299,8 +1314,9 @@ async def login(payload: LoginRequest, request: Request, db: Session = Depends(g
     if not user.is_active:
         raise HTTPException(status_code=403, detail="账号已停用")
     return TokenResponse(
-        access_token=create_access_token(user.id, user.token_version),
+        access_token=create_access_token(user.id, user.token_version, remember=payload.remember),
         user=UserSelf.model_validate(user),
+        remember=payload.remember,
     )
 
 
@@ -2143,6 +2159,327 @@ def delete_board_comment(
     db.delete(comment)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ---- 故事会 ----
+
+
+ANONYMOUS_STORY_AUTHOR = UserPublic(id=0, nickname="匿名作者", bio=None, photos=[])
+
+
+def story_author(story: Story, viewer: User | None) -> UserPublic:
+    """匿名故事的作者对本人与管理员组可见，其他人只看到匿名哨兵。"""
+    if story.is_anonymous and not (viewer is not None and (viewer.id == story.author_id or can_moderate(viewer))):
+        return ANONYMOUS_STORY_AUTHOR
+    return present_user_public(story.author, viewer)
+
+
+def can_delete_story(story: Story, viewer: User | None) -> bool:
+    return viewer is not None and (can_moderate(viewer) or viewer.id == story.author_id)
+
+
+def present_story_photo(photo: StoryPhoto, viewer: User | None) -> StoryPhotoOut:
+    return StoryPhotoOut(
+        id=photo.id,
+        image_url=f"/uploads/{photo.file_path}",
+        is_visible=photo.is_visible,
+        moderated=photo.moderated_at is not None,
+        uploaded_by_me=viewer is not None and viewer.id == photo.user_id,
+    )
+
+
+def visible_story_photos(story: Story, viewer: User | None) -> list[StoryPhotoOut]:
+    """待审/被驳回的配图仅作者本人和管理员组可见。"""
+    return [
+        present_story_photo(photo, viewer)
+        for photo in story.photos
+        if photo.is_visible or (viewer is not None and (viewer.id == photo.user_id or can_review_content(viewer)))
+    ]
+
+
+def present_story_comment(story: Story, comment: StoryComment, viewer: User | None) -> StoryCommentOut:
+    can_delete = viewer is not None and (
+        can_moderate(viewer) or viewer.id in (comment.user_id, story.author_id)
+    )
+    return StoryCommentOut(
+        id=comment.id,
+        content=comment.content,
+        created_at=comment.created_at,
+        user=present_user_public(comment.user, viewer),
+        can_delete=can_delete,
+    )
+
+
+def present_story_card(story: Story, viewer: User | None, comment_count: int) -> StoryCardOut:
+    visible = [photo for photo in story.photos if photo.is_visible]
+    return StoryCardOut(
+        id=story.id,
+        title=story.title,
+        excerpt=story.content[:120],
+        author=story_author(story, viewer),
+        is_anonymous=story.is_anonymous,
+        cover_url=f"/uploads/{visible[0].file_path}" if visible else None,
+        photo_count=len(visible),
+        comment_count=comment_count,
+        created_at=story.created_at,
+        can_delete=can_delete_story(story, viewer),
+    )
+
+
+def present_story_detail(story: Story, viewer: User | None) -> StoryDetailOut:
+    return StoryDetailOut(
+        id=story.id,
+        title=story.title,
+        content=story.content,
+        author=story_author(story, viewer),
+        is_anonymous=story.is_anonymous,
+        photos=visible_story_photos(story, viewer),
+        comments=[present_story_comment(story, comment, viewer) for comment in story.comments],
+        created_at=story.created_at,
+        can_delete=can_delete_story(story, viewer),
+    )
+
+
+def get_story_or_404(db: Session, story_id: int) -> Story:
+    story = db.get(Story, story_id)
+    if story is None:
+        raise HTTPException(status_code=404, detail="故事不存在或已被删除")
+    return story
+
+
+def remove_story_file(file_path: str) -> None:
+    """Best-effort cleanup for a file stored below the configured upload root."""
+    root = settings.sugar_upload_path.resolve()
+    destination = (root / file_path).resolve()
+    if not destination.is_relative_to(root):
+        return
+    try:
+        destination.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+async def save_story_photos(photos: list[UploadFile], story_id: int, user_id: int) -> list[StoryPhoto]:
+    """先完整校验全部文件，再落盘；总量限制防止多文件绕过单图上限。"""
+    contents: list[tuple[bytes, str]] = []
+    total_bytes = 0
+    for photo in photos:
+        content = await photo.read(MAX_STORY_PHOTO_BYTES + 1)
+        if not content:
+            raise HTTPException(status_code=422, detail="请选择要上传的照片")
+        if len(content) > MAX_STORY_PHOTO_BYTES:
+            raise HTTPException(status_code=422, detail="故事配图不能超过 10 MB")
+        total_bytes += len(content)
+        if total_bytes > MAX_STORY_UPLOAD_TOTAL_BYTES:
+            raise HTTPException(status_code=422, detail="本次故事图片总大小不能超过 30 MB")
+        extension = avatar_extension(content)
+        if extension is None:
+            raise HTTPException(status_code=422, detail="故事配图仅支持 PNG 或 JPG 格式")
+        contents.append((content, extension))
+    settings.ensure_storage_directory()
+    stored: list[tuple[str, Path]] = []
+    try:
+        for content, extension in contents:
+            file_path = f"stories/{story_id}/{uuid4().hex}{extension}"
+            destination = settings.sugar_upload_path / file_path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(content)
+            stored.append((file_path, destination))
+    except OSError as error:
+        for _, destination in stored:
+            destination.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
+    return [StoryPhoto(story_id=story_id, user_id=user_id, file_path=file_path) for file_path, _ in stored]
+
+
+@app.get("/api/stories", response_model=list[StoryCardOut])
+def list_stories(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """故事会列表：最新 200 篇，附带评论数；仅登录用户可见。"""
+    stories = db.scalars(
+        select(Story)
+        .options(joinedload(Story.author), joinedload(Story.photos))
+        .order_by(Story.created_at.desc(), Story.id.desc())
+        .limit(200)
+    ).unique().all()
+    ids = [story.id for story in stories]
+    counts = dict(
+        db.execute(
+            select(StoryComment.story_id, func.count())
+            .where(StoryComment.story_id.in_(ids))
+            .group_by(StoryComment.story_id)
+        ).all()
+    ) if ids else {}
+    return [present_story_card(story, user, counts.get(story.id, 0)) for story in stories]
+
+
+@app.get("/api/stories/{story_id}", response_model=StoryDetailOut)
+def story_detail(
+    story_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    story = db.scalars(
+        select(Story)
+        .options(
+            joinedload(Story.author),
+            joinedload(Story.photos),
+            joinedload(Story.comments).joinedload(StoryComment.user),
+        )
+        .where(Story.id == story_id)
+    ).unique().one_or_none()
+    if story is None:
+        raise HTTPException(status_code=404, detail="故事不存在或已被删除")
+    return present_story_detail(story, user)
+
+
+@app.post("/api/stories", response_model=StoryDetailOut, status_code=status.HTTP_201_CREATED)
+async def create_story(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """发布故事（可匿名），可选配图（最多 3 张，需审核）。支持 multipart 或 JSON。"""
+    enforce("story-create", str(user.id), 5, 3600)
+    try:
+        if request.headers.get("content-type", "").startswith("multipart/form-data"):
+            form = await request.form()
+            payload = StoryCreate(
+                title=str(form.get("title") or ""),
+                content=str(form.get("content") or ""),
+                is_anonymous=str(form.get("is_anonymous") or "false").lower() in ("true", "1", "yes", "on"),
+            )
+            photos = [item for item in form.getlist("photos") if getattr(item, "filename", None) is not None]
+        else:
+            payload = StoryCreate.model_validate(await request.json())
+            photos = []
+    except (ValidationError, ValueError):
+        raise HTTPException(status_code=422, detail="故事信息格式不正确")
+    if len(photos) > MAX_STORY_PHOTOS:
+        raise HTTPException(status_code=422, detail="每篇故事最多上传 3 张图片")
+    story = Story(
+        title=payload.title.strip(),
+        content=payload.content.strip(),
+        author_id=user.id,
+        is_anonymous=payload.is_anonymous,
+    )
+    db.add(story)
+    db.flush()
+    if photos:
+        db.add_all(await save_story_photos(photos, story.id, user.id))
+    db.commit()
+    db.refresh(story)
+    return present_story_detail(story, user)
+
+
+@app.delete("/api/stories/{story_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_story(
+    story_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """作者本人或管理员组删除故事，级联删除评论与配图并清理磁盘文件。"""
+    story = get_story_or_404(db, story_id)
+    if story.author_id != user.id and not can_moderate(user):
+        raise HTTPException(status_code=403, detail="只能删除自己发布的故事")
+    photo_paths = [photo.file_path for photo in story.photos]
+    db.delete(story)
+    db.commit()
+    for file_path in photo_paths:
+        remove_story_file(file_path)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.post("/api/stories/{story_id}/comments", response_model=StoryDetailOut, status_code=status.HTTP_201_CREATED)
+def create_story_comment(
+    story_id: int,
+    payload: StoryCommentCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    enforce("story-comment", str(user.id), 30, 600)
+    story = get_story_or_404(db, story_id)
+    story.comments.append(StoryComment(user_id=user.id, content=payload.content.strip()))
+    db.commit()
+    db.refresh(story)
+    return present_story_detail(story, user)
+
+
+@app.delete("/api/stories/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_story_comment(
+    comment_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """评论作者、故事作者或管理员组可删除评论。"""
+    comment = db.get(StoryComment, comment_id)
+    if comment is None:
+        raise HTTPException(status_code=404, detail="评论不存在或已被删除")
+    story = db.get(Story, comment.story_id)
+    allowed = can_moderate(user) or user.id in (comment.user_id, story.author_id)
+    if not allowed:
+        raise HTTPException(status_code=403, detail="只能删除自己的评论")
+    db.delete(comment)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.get("/api/admin/story-photos", response_model=list[StoryPhotoAdminOut])
+def admin_story_photos(
+    manager: User = Depends(get_content_moderator), db: Session = Depends(get_db)
+):
+    photos = db.scalars(
+        select(StoryPhoto)
+        .options(
+            joinedload(StoryPhoto.user).joinedload(User.photos),
+            joinedload(StoryPhoto.story),
+        )
+        .order_by(StoryPhoto.created_at.desc(), StoryPhoto.id.desc())
+        .limit(500)
+    ).unique().all()
+    return [
+        StoryPhotoAdminOut(
+            id=photo.id,
+            image_url=f"/uploads/{photo.file_path}",
+            is_visible=photo.is_visible,
+            moderated=photo.moderated_at is not None,
+            story_id=photo.story_id,
+            story_title=photo.story.title,
+            user=present_user_public(photo.user, manager),
+            created_at=photo.created_at,
+        )
+        for photo in photos
+    ]
+
+
+@app.patch("/api/admin/story-photos/{photo_id}", response_model=StoryPhotoAdminOut)
+def moderate_story_photo(
+    photo_id: int,
+    payload: AdminPhotoUpdate,
+    manager: User = Depends(get_content_moderator),
+    db: Session = Depends(get_db),
+):
+    """审核故事配图：通过后公开展示，驳回则仅作者本人可见。"""
+    photo = db.get(StoryPhoto, photo_id)
+    if photo is None:
+        raise HTTPException(status_code=404, detail="照片不存在")
+    photo.is_visible = payload.is_visible
+    photo.moderated_by_id = manager.id
+    photo.moderated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(photo)
+    return StoryPhotoAdminOut(
+        id=photo.id,
+        image_url=f"/uploads/{photo.file_path}",
+        is_visible=photo.is_visible,
+        moderated=photo.moderated_at is not None,
+        story_id=photo.story_id,
+        story_title=photo.story.title,
+        user=present_user_public(photo.user, manager),
+        created_at=photo.created_at,
+    )
 
 
 # ---- VRChat 地图推荐 ----

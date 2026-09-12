@@ -16,6 +16,8 @@ from .config import settings
 
 
 SESSION_MAX_AGE_SECONDS = 24 * 60 * 60
+# “自动登录”令牌的绝对有效期上限：无论配置多大都不超过 7 天。
+REMEMBER_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
 
 
 @dataclass(frozen=True)
@@ -51,20 +53,24 @@ def _b64decode(data: str) -> bytes:
     return base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))
 
 
-def create_access_token(user_id: int, token_version: int = 0) -> str:
+def _token_lifetime(remember: bool) -> int:
+    if not remember:
+        return min(settings.access_token_minutes * 60, SESSION_MAX_AGE_SECONDS)
+    return min(settings.remember_token_days * 24 * 60 * 60, REMEMBER_MAX_AGE_SECONDS)
+
+
+def create_access_token(user_id: int, token_version: int = 0, remember: bool = False) -> str:
     issued_at = int(time.time())
+    payload_data = {
+        "sub": str(user_id),
+        "ver": token_version,
+        "iat": issued_at,
+        "exp": issued_at + _token_lifetime(remember),
+    }
+    if remember:
+        payload_data["rm"] = True
     header = _b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}, separators=(",", ":")).encode())
-    payload = _b64encode(
-        json.dumps(
-            {
-                "sub": str(user_id),
-                "ver": token_version,
-                "iat": issued_at,
-                "exp": issued_at + min(settings.access_token_minutes * 60, SESSION_MAX_AGE_SECONDS),
-            },
-            separators=(",", ":"),
-        ).encode()
-    )
+    payload = _b64encode(json.dumps(payload_data, separators=(",", ":")).encode())
     signature = _b64encode(hmac.new(settings.secret_key.encode(), f"{header}.{payload}".encode(), hashlib.sha256).digest())
     return f"{header}.{payload}.{signature}"
 
@@ -85,7 +91,9 @@ def decode_access_token(token: str) -> TokenPayload:
         data: dict[str, Any] = json.loads(_b64decode(payload))
         now = int(time.time())
         issued_at = int(data["iat"])
-        if issued_at > now or now - issued_at >= SESSION_MAX_AGE_SECONDS or int(data["exp"]) <= now:
+        # “自动登录”令牌（rm）允许 7 天，其余令牌维持 24 小时上限。
+        ceiling = REMEMBER_MAX_AGE_SECONDS if data.get("rm") else SESSION_MAX_AGE_SECONDS
+        if issued_at > now or now - issued_at >= ceiling or int(data["exp"]) <= now:
             raise credentials_error
         # 旧格式令牌没有 ver 字段，视为 0，与历史账号的 token_version 默认值一致。
         return TokenPayload(user_id=int(data["sub"]), token_version=int(data.get("ver", 0)))

@@ -21,9 +21,11 @@ const sugarPhotos = ref([])
 const friendPhotos = ref([])
 const vrMapReports = ref([])
 const vrMapPhotos = ref([])
+const storyPhotos = ref([])
 const moderatingSugarId = ref(null)
 const moderatingFriendId = ref(null)
 const moderatingVrPhotoId = ref(null)
+const moderatingStoryPhotoId = ref(null)
 const resolvingVrReportId = ref(null)
 const reports = ref([])
 const reportLimit = ref(2)
@@ -50,6 +52,7 @@ const pendingApplications = computed(() => applications.value.filter((item) => i
 const pendingBetaApplications = computed(() => betaApplications.value.filter((item) => item.status === 'pending').length)
 const pendingVrMapReports = computed(() => vrMapReports.value.filter((item) => item.status === 'pending').length)
 const pendingVrMapPhotos = computed(() => vrMapPhotos.value.filter((item) => !item.moderated).length)
+const pendingStoryPhotos = computed(() => storyPhotos.value.filter((item) => !item.moderated).length)
 const pendingReports = computed(() => reports.value.filter((item) => item.status === 'pending').length)
 const sortedReports = computed(() => [...reports.value].sort((a, b) => (a.status === 'pending' ? -1 : 1) - (b.status === 'pending' ? -1 : 1)))
 const statItems = computed(() => [
@@ -64,19 +67,20 @@ async function load() {
     const friendPhotoRes = await api.get('/admin/friends/photos')
     friendPhotos.value = friendPhotoRes.data
     if (auth.isDisciplinarian) {
-      const [photoRes, reportRes, sugarPhotoRes, vrReportRes, vrPhotoRes] = await Promise.all([
+      const [photoRes, reportRes, sugarPhotoRes, vrReportRes, vrPhotoRes, storyPhotoRes] = await Promise.all([
         api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/sugar/photos'),
-        api.get('/admin/vr-map-reports'), api.get('/admin/vr-map-photos'),
+        api.get('/admin/vr-map-reports'), api.get('/admin/vr-map-photos'), api.get('/admin/story-photos'),
       ])
       photoUsers.value = photoRes.data
       reports.value = reportRes.data
       sugarPhotos.value = sugarPhotoRes.data
       vrMapReports.value = vrReportRes.data
       vrMapPhotos.value = vrPhotoRes.data
+      storyPhotos.value = storyPhotoRes.data
       return
     }
     if (!auth.isAdmin) {
-      const [taskRes, userRes, photoRes, reportRes, limitRes, feedbackRes, applicationRes, betaApplicationRes, sugarPhotoRes, vrReportRes, vrPhotoRes] = await Promise.all([api.get('/admin/tasks'), api.get('/admin/users'), api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/settings/report-limit'), api.get('/admin/feedback'), api.get('/admin/volunteer-applications'), api.get('/admin/beta-applications'), api.get('/admin/sugar/photos'), api.get('/admin/vr-map-reports'), api.get('/admin/vr-map-photos')])
+      const [taskRes, userRes, photoRes, reportRes, limitRes, feedbackRes, applicationRes, betaApplicationRes, sugarPhotoRes, vrReportRes, vrPhotoRes, storyPhotoRes] = await Promise.all([api.get('/admin/tasks'), api.get('/admin/users'), api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/settings/report-limit'), api.get('/admin/feedback'), api.get('/admin/volunteer-applications'), api.get('/admin/beta-applications'), api.get('/admin/sugar/photos'), api.get('/admin/vr-map-reports'), api.get('/admin/vr-map-photos'), api.get('/admin/story-photos')])
       tasks.value = taskRes.data
       stats.value.hidden = tasks.value.filter((task) => !task.is_visible).length
       users.value = userRes.data
@@ -90,9 +94,10 @@ async function load() {
       sugarPhotos.value = sugarPhotoRes.data
       vrMapReports.value = vrReportRes.data
       vrMapPhotos.value = vrPhotoRes.data
+      storyPhotos.value = storyPhotoRes.data
       return
     }
-    const [taskRes, userRes, statRes, feedbackRes, photoRes, reportRes, limitRes, applicationRes, betaApplicationRes, sugarPhotoRes, vrReportRes, vrPhotoRes] = await Promise.all([
+    const [taskRes, userRes, statRes, feedbackRes, photoRes, reportRes, limitRes, applicationRes, betaApplicationRes, sugarPhotoRes, vrReportRes, vrPhotoRes, storyPhotoRes] = await Promise.all([
       api.get('/admin/tasks'),
       api.get('/admin/users'),
       api.get('/admin/stats'),
@@ -105,6 +110,7 @@ async function load() {
       api.get('/admin/sugar/photos'),
       api.get('/admin/vr-map-reports'),
       api.get('/admin/vr-map-photos'),
+      api.get('/admin/story-photos'),
     ])
     tasks.value = taskRes.data
     users.value = userRes.data
@@ -117,6 +123,7 @@ async function load() {
     sugarPhotos.value = sugarPhotoRes.data
     vrMapReports.value = vrReportRes.data
     vrMapPhotos.value = vrPhotoRes.data
+    storyPhotos.value = storyPhotoRes.data
     reportLimit.value = limitRes.data.daily_limit
     reportLimitInput.value = limitRes.data.daily_limit
     users.value.forEach((user) => { userLimits[user.id] = user.max_concurrent_tasks })
@@ -335,6 +342,14 @@ async function moderateVrMapPhoto(photo, isVisible) {
     toast.success(isVisible ? '照片已通过审核' : '照片已驳回')
   } catch (error) { toast.error(errorMessage(error)) } finally { moderatingVrPhotoId.value = null }
 }
+async function moderateStoryPhoto(photo, isVisible) {
+  moderatingStoryPhotoId.value = photo.id
+  try {
+    const { data } = await api.patch(`/admin/story-photos/${photo.id}`, { is_visible: isVisible })
+    storyPhotos.value[storyPhotos.value.findIndex((item) => item.id === photo.id)] = data
+    toast.success(isVisible ? '故事配图已通过审核' : '故事配图已驳回')
+  } catch (error) { toast.error(errorMessage(error)) } finally { moderatingStoryPhotoId.value = null }
+}
 
 async function saveReportLimit() {
   const value = Number(reportLimitInput.value)
@@ -370,7 +385,7 @@ onMounted(async () => {
       <button v-if="!auth.isDisciplinarian" :class="{ active: activeTab === 'beta-applications' }" role="tab" :aria-selected="activeTab === 'beta-applications'" @click="activeTab = 'beta-applications'">内测申请<span v-if="pendingBetaApplications">{{ pendingBetaApplications }}</span></button>
       <button :class="{ active: activeTab === 'vrmaps' }" role="tab" :aria-selected="activeTab === 'vrmaps'" @click="activeTab = 'vrmaps'">地图推荐<span v-if="pendingVrMapReports + pendingVrMapPhotos">{{ pendingVrMapReports + pendingVrMapPhotos }}</span></button>
       <button v-if="!auth.isDisciplinarian" :class="{ active: activeTab === 'users' }" role="tab" :aria-selected="activeTab === 'users'" @click="activeTab = 'users'">用户与权限</button>
-      <button :class="{ active: activeTab === 'photos' }" role="tab" :aria-selected="activeTab === 'photos'" @click="activeTab = 'photos'">图片管理</button>
+      <button :class="{ active: activeTab === 'photos' }" role="tab" :aria-selected="activeTab === 'photos'" @click="activeTab = 'photos'">图片管理<span v-if="pendingStoryPhotos">{{ pendingStoryPhotos }}</span></button>
       <button v-if="!auth.isDisciplinarian" :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
     </div>
 
@@ -593,6 +608,21 @@ onMounted(async () => {
           </figure>
         </div>
         <div v-else class="feedback-admin-empty"><ImageIcon :size="28" />暂无交友厅照片</div>
+
+        <div class="admin-toolbar sugar-photos-toolbar"><div><h2>故事配图</h2><span>待审核 {{ pendingStoryPhotos }} 张 · 通过后才会在故事会公开展示</span></div></div>
+        <div v-if="storyPhotos.length" class="moderation-photo-grid sugar-photos">
+          <figure v-for="photo in storyPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
+            <img :src="photo.image_url" :alt="`${photo.story_title} 的故事配图`" />
+            <span v-if="!photo.moderated" class="photo-blocked sugar-blocked"><Clock3 :size="14" />审核中</span>
+            <span v-else-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />已驳回</span>
+            <div class="sugar-photo-actions">
+              <button v-if="!photo.is_visible" class="button secondary small" type="button" :disabled="moderatingStoryPhotoId === photo.id" @click="moderateStoryPhoto(photo, true)"><Check :size="15" />通过</button>
+              <button v-else class="button secondary small" type="button" :disabled="moderatingStoryPhotoId === photo.id" @click="moderateStoryPhoto(photo, false)"><EyeOff :size="15" />驳回</button>
+            </div>
+            <figcaption class="muted">{{ photo.story_title }} · {{ photo.user.nickname }}</figcaption>
+          </figure>
+        </div>
+        <div v-else class="feedback-admin-empty"><ImageIcon :size="28" />暂无故事配图</div>
       </template>
     </section>
 

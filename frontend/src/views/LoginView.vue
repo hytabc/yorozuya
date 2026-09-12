@@ -14,7 +14,7 @@ const mode = ref(props.initialMode)
 const busy = ref(false)
 const error = ref('')
 const captchaField = ref(null)
-const form = reactive({ username: '', password: '', nickname: '' })
+const form = reactive({ username: '', password: '', nickname: '', remember: true })
 const fieldErrors = reactive({ username: '', password: '', nickname: '' })
 const isRegister = computed(() => mode.value === 'register')
 
@@ -98,8 +98,12 @@ async function submit() {
   busy.value = true
   try {
     const captcha = captchaField.value?.payload() || {}
-    if (isRegister.value) await auth.register({ ...form, ...captcha })
-    else await auth.login({ username: form.username, password: form.password, ...captcha })
+    if (isRegister.value) {
+      // 注册接口不接受 remember（RequestModel 为 extra="forbid"），因此显式挑选字段。
+      await auth.register({ username: form.username, password: form.password, nickname: form.nickname, ...captcha })
+    } else {
+      await auth.login({ username: form.username, password: form.password, remember: form.remember, ...captcha })
+    }
     router.push(safeRedirect(route.query.redirect))
   } catch (err) {
     // 验证码一次性：任何到达服务端的失败都可能已消耗，需重新挑战。
@@ -139,9 +143,17 @@ function switchMode(next) {
         <label>用户名<div class="input-with-icon" :class="{ invalid: fieldErrors.username }"><UserRound :size="18" /><input v-model="form.username" autocomplete="username" placeholder="字母、数字或下划线" :aria-invalid="Boolean(fieldErrors.username)" :aria-describedby="fieldErrors.username ? 'username-error' : undefined" @blur="validateRegistrationField('username')" @input="updateInvalidField('username')" /></div><small v-if="fieldErrors.username" id="username-error" class="field-error" role="alert">{{ fieldErrors.username }}</small></label>
         <label>密码<div class="input-with-icon" :class="{ invalid: fieldErrors.password }"><KeyRound :size="18" /><input v-model="form.password" type="password" :autocomplete="isRegister ? 'new-password' : 'current-password'" placeholder="至少 8 位" :aria-invalid="Boolean(fieldErrors.password)" :aria-describedby="fieldErrors.password ? 'password-error' : undefined" @blur="validateRegistrationField('password')" @input="updateInvalidField('password')" /></div><small v-if="fieldErrors.password" id="password-error" class="field-error" role="alert">{{ fieldErrors.password }}</small></label>
         <CaptchaField ref="captchaField" />
+        <div v-if="!isRegister" class="remember-field">
+          <label class="checkbox-inline"><input v-model="form.remember" type="checkbox" /><span>自动登录</span></label>
+          <small class="field-hint">勾选后 7 天内免登录；在公共电脑上请取消勾选。</small>
+        </div>
         <p v-if="error" class="form-error" role="alert">{{ error }}</p>
         <button class="button wide" :disabled="busy">{{ busy ? '请稍候…' : isRegister ? '创建账号' : '登录' }}<ArrowRight :size="18" /></button>
       </form>
     </section>
   </div>
 </template>
+
+<style scoped>
+.remember-field { display: flex; flex-direction: column; gap: 6px; }
+</style>

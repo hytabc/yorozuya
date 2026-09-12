@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     secret_key: str = INSECURE_DEFAULT_SECRET
     # 登录会话最多持续 24 小时，超时后必须重新验证密码。
     access_token_minutes: int = 60 * 24
+    # “自动登录”令牌有效期（天）。硬上限 7 天，配置更大也不会超过。
+    remember_token_days: int = 7
     # 每次数据库写入后自动快照，保留的最近备份份数
     db_backup_keep: int = 100
     admin_username: str = "admin"

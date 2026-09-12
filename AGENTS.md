@@ -39,8 +39,8 @@ frontend/src/
   constants.js   # 角色显示名 ROLE_LABELS / ROLE_HINTS / roleLabel()（⚠️ 改角色文案先看这里）
   stores/auth.js # Pinia：凭证经 authStorage.js 加密存于 localStorage/IndexedDB；isAdmin / isStaff / canManageRoles
   router.js      # 路由守卫（auth / guestOnly / roleManager）
-  views/         # TaskHall(大厅) AdminView(后台) OperationsView(运营台) AnnouncementsView(公告) 等
-  components/    # TaskDialog(委托详情+接取) CreateTaskDialog ReportDialog FeedbackDialog
+  views/         # TaskHall(大厅) AdminView(后台) OperationsView(运营台) AnnouncementsView(公告) StoryHall(故事会) 等
+  components/    # TaskDialog(委托详情+接取) CreateTaskDialog ReportDialog FeedbackDialog StoryDetailDialog(故事会详情)
                  # UserProfileCard StatusBadge KanbanNiang(AI看板娘) AppHeader ToastHost TaskCard
   frost/         # 糖霜世界(/frost) 因果解谜游戏：engine/(纯函数判定引擎，移植自 vrcWill)
                  # data/(12 关 JSON) + useFrostGame.js + frostSave.js + components/
@@ -55,7 +55,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - `Announcement`：网站/活动公告，支持草稿、置顶和起止展示时间；`PageView` 保存隐私化页面访问事件（180 天留存）。
 - `Task`：`status`（published→accepted→awaiting→completed；另有 cancelling/expired/cancelled）、`accept_password_hash`（只存哈希，便捷属性 `requires_password`）、`is_designated`（指定委托，designated_user_ids）、`is_anonymous`、`required_takers`、`is_visible/admin_note`（后台屏蔽）、`expires_at`（查询时惰性过期 `expire_due_tasks`）。
 - `TaskMember`：接单人及 `response_status`（pending/accepted/declined）+ 完成确认 `confirmed_at` + 取消确认。
-- 其余：`TaskReport`（举报）、`Feedback`（反馈）、`SugarProfile`/`SugarPair`（砂糖社）、用户图片等。
+- 其余：`TaskReport`（举报）、`Feedback`（反馈）、`SugarProfile`/`SugarPair`（砂糖社）、`Story`/`StoryComment`/`StoryPhoto`（故事会：`Story.is_anonymous`；`StoryPhoto.is_visible` 默认 `False` 表示上传即待审，评论不匿名）、用户图片等。
 
 ## 权限体系（⚠️ 命名有历史包袱）
 
@@ -89,10 +89,12 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 12. **首页公告弹窗**：游客每次进入首页都需确认当前公告；登录用户按账号在浏览器记录各公告的 `updated_at`，仅首次看到或公告更新后再次确认。
 13. **地图实拍**：推荐地图时可附 3 张图片；此后每位用户可为同一地图上传最多 5 张实拍，单张最大 10 MB，审核通过后公开展示。
 14. **糖霜世界**（`/frost`，任意登录用户可玩）：纯前端因果解谜游戏，12 关 / 45 设计结局 + 5 全局结局；进度按用户存于 `sugar_frost_saves`（`GET/PUT /api/sugar-frost/save`，revision CAS，409 表示其他页面已更新）。关卡数据/文案在 `frontend/src/frost/data/`，判定逻辑在 `frontend/src/frost/engine/`；改数据后跑 `node frontend/scripts/verify-frost.mjs` 校验可达性。
+15. **故事会**（`/stories`，需登录）：用户可发布匿名或公开的故事（`Story.is_anonymous`，同一人可发多篇），可附最多 3 张配图（单张 ≤10 MB，需审核后才公开）；其他登录用户可评论（评论不匿名），评论可由评论作者、故事作者或管理员组（超管/`staff`）删除；故事可由作者本人或管理员组删除，删除时级联清理评论与磁盘图片。接口在 `/api/stories*`，配图审核在监管台「图片管理 → 故事配图」（`/api/admin/story-photos*`）。
 
 ## 安全加固（2026-09 起）
 
 - **令牌版本**：`User.token_version`（JWT 载荷 `ver`）；`dependencies.py` 比对令牌与用户字段，不匹配即 401。改密/管理员重置密码时 `token_version += 1`，旧令牌立即失效。新增列需在 `migrate_schema()` 补 `ALTER TABLE users ADD COLUMN token_version`。
+- **自动登录令牌**：登录勾选「自动登录」时签发 7 天有效令牌（载荷含 `rm` 声明，`exp` 由 `remember_token_days` 决定，硬上限 7 天）；未勾选维持 24 小时。`security.py` 的 `decode_access_token` 按 `rm` 选择绝对上限（`REMEMBER_MAX_AGE_SECONDS` 7 天 / `SESSION_MAX_AGE_SECONDS` 24 小时）。**前端 `stores/auth.js` 的本地有效期窗口必须与之同步**（`REMEMBER_MAX_AGE_MS` / `LOGIN_MAX_AGE_MS`），否则会出现前端提前登出或后端拒绝。`token_version` 机制不变：7 天令牌在改密/重置后同样立即失效。
 - **自助改密**必须带 `current_password`（`UserPasswordUpdate`）；管理员重置用 `AdminPasswordReset`（无此要求）。
 - **限流**：`backend/app/ratelimit.py` 进程内滑动窗口，`enforce(bucket, key, limit, window)`；已用于登录（IP+账号）、注册、带密码接取、看板娘 `/mascot/chat`、反馈。`BEHIND_PROXY=true` 时按 `X-Real-IP/X-Forwarded-For` 取真实 IP（compose 已设）。**pytest 下自动跳过**（否则测试会互相触发 429）。
 - **默认值防护**：`config.py` 不再直接使用 `change-this-secret-in-production`/`Admin123!`；未配置 `SECRET_KEY` 时启动随机生成，首次创建管理员随机密码并打印日志，已存在且仍用默认密码的管理员会被自动轮换（pytest 下跳过以免动到真实库）。`SUGAR_UPLOAD_DIR` 不得指向数据库目录，否则启动报错。

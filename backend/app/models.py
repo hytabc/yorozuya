@@ -411,6 +411,66 @@ class BoardComment(Base):
     user: Mapped[User] = relationship(foreign_keys=[user_id])
 
 
+class Story(Base):
+    """故事会：登录用户发布，可匿名；作者本人或管理员组可删除（级联删评论与配图）。"""
+
+    __tablename__ = "stories"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(80), index=True)
+    content: Mapped[str] = mapped_column(Text)
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    is_anonymous: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    author: Mapped[User] = relationship(foreign_keys=[author_id])
+    comments: Mapped[list["StoryComment"]] = relationship(
+        back_populates="story",
+        cascade="all, delete-orphan",
+        order_by="(StoryComment.created_at, StoryComment.id)",
+    )
+    photos: Mapped[list["StoryPhoto"]] = relationship(
+        back_populates="story",
+        cascade="all, delete-orphan",
+        order_by="StoryPhoto.created_at",
+    )
+
+
+class StoryComment(Base):
+    """故事评论：始终显示昵称；评论作者、故事作者或管理员组可删除。"""
+
+    __tablename__ = "story_comments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    story_id: Mapped[int] = mapped_column(ForeignKey("stories.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    story: Mapped[Story] = relationship(back_populates="comments")
+    user: Mapped[User] = relationship(foreign_keys=[user_id])
+
+
+class StoryPhoto(Base):
+    """故事配图：仅 PNG/JPG，需管理员审核后才公开展示。"""
+
+    __tablename__ = "story_photos"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    story_id: Mapped[int] = mapped_column(ForeignKey("stories.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    # 仅存相对上传目录的路径，文件本体由服务端本地磁盘保存。
+    file_path: Mapped[str] = mapped_column(String(255), unique=True)
+    is_visible: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    moderated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    moderated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    story: Mapped[Story] = relationship(back_populates="photos")
+    user: Mapped[User] = relationship(foreign_keys=[user_id])
+    moderated_by: Mapped[User | None] = relationship(foreign_keys=[moderated_by_id])
+
+
 class VrMap(Base):
     """VRChat 地图推荐：用户提交，按点赞数排序；被举报待审/被屏蔽时不公开。"""
 
