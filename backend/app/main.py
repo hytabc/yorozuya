@@ -1314,8 +1314,9 @@ async def login(payload: LoginRequest, request: Request, db: Session = Depends(g
     if not user.is_active:
         raise HTTPException(status_code=403, detail="账号已停用")
     return TokenResponse(
-        access_token=create_access_token(user.id, user.token_version),
+        access_token=create_access_token(user.id, user.token_version, remember=payload.remember),
         user=UserSelf.model_validate(user),
+        remember=payload.remember,
     )
 
 

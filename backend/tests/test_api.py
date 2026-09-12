@@ -2497,6 +2497,48 @@ def test_admin_password_reset_revokes_target_tokens():
         assert client.get("/api/auth/me", headers=headers).status_code == 401
 
 
+def test_login_accepts_remember_flag():
+    with TestClient(app) as client:
+        auth(client, "remember_user")
+
+        remember_login = client.post(
+            "/api/auth/login",
+            json={"username": "remember_user", "password": "Password123!", "remember": True},
+        )
+        assert remember_login.status_code == 200, remember_login.text
+        assert remember_login.json()["remember"] is True
+        assert client.get("/api/auth/me", headers={"Authorization": f"Bearer {remember_login.json()['access_token']}"}).status_code == 200
+
+        plain_login = client.post(
+            "/api/auth/login", json={"username": "remember_user", "password": "Password123!"}
+        )
+        assert plain_login.status_code == 200
+        assert plain_login.json()["remember"] is False
+
+
+def test_remember_token_has_seven_day_cap(monkeypatch):
+    from app import security
+
+    base = 1_700_000_000
+    monkeypatch.setattr(security.time, "time", lambda: base)
+    remember_token = security.create_access_token(1, 0, remember=True)
+    normal_token = security.create_access_token(1, 0)
+
+    # 第 6 天：自动登录令牌仍有效
+    monkeypatch.setattr(security.time, "time", lambda: base + 6 * 86400)
+    assert security.decode_access_token(remember_token).user_id == 1
+
+    # 第 7 天之后：自动登录令牌失效（硬上限 7 天）
+    monkeypatch.setattr(security.time, "time", lambda: base + 7 * 86400 + 1)
+    with pytest.raises(HTTPException):
+        security.decode_access_token(remember_token)
+
+    # 普通令牌 24 小时后即失效
+    monkeypatch.setattr(security.time, "time", lambda: base + 86400 + 1)
+    with pytest.raises(HTTPException):
+        security.decode_access_token(normal_token)
+
+
 def test_privilege_fields_in_request_body_are_rejected():
     """普通用户不能通过请求体夹带 role/is_admin 提权。"""
     with TestClient(app) as client:

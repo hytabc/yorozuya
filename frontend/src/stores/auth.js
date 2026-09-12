@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { api } from '../api'
-import { AUTH_CACHE_VERSION, LOGIN_MAX_AGE_MS, clearAuth, loadAuth, saveAuth } from '../authStorage'
+import { AUTH_CACHE_VERSION, LOGIN_MAX_AGE_MS, REMEMBER_MAX_AGE_MS, clearAuth, loadAuth, saveAuth } from '../authStorage'
 
 export const useAuthStore = defineStore('auth', () => {
   // 凭证以加密形式存放，需异步解密（hydrate）后才能拿到，故初始为空。
@@ -12,6 +12,8 @@ export const useAuthStore = defineStore('auth', () => {
   const verified = ref(false)
   const ready = ref(false)
   let loginAt = 0
+  // 本地缓存的「自动登录」标记：true 时有效期窗口为 7 天，否则 24 小时。
+  let remember = false
   let hydratePromise = null
 
   const isLoggedIn = computed(() => Boolean(token.value && user.value))
@@ -36,6 +38,7 @@ export const useAuthStore = defineStore('auth', () => {
             token.value = cached.token
             user.value = cached.user
             loginAt = Number(cached.loginAt) || 0
+            remember = Boolean(cached.remember)
           }
         })
         .catch(() => {
@@ -43,6 +46,7 @@ export const useAuthStore = defineStore('auth', () => {
           token.value = null
           user.value = null
           loginAt = 0
+          remember = false
         })
     }
     return hydratePromise
@@ -54,7 +58,8 @@ export const useAuthStore = defineStore('auth', () => {
     // 登录/注册响应由服务端签发，可据此信任身份。
     verified.value = true
     loginAt = Date.now()
-    await saveAuth({ token: token.value, user: user.value, loginAt, version: AUTH_CACHE_VERSION })
+    remember = Boolean(payload.remember)
+    await saveAuth({ token: token.value, user: user.value, loginAt, remember, version: AUTH_CACHE_VERSION })
   }
 
   async function login(credentials) {
@@ -69,12 +74,14 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function restore() {
     await hydrate()
+    // “自动登录”缓存在 7 天内有效，普通缓存在 24 小时内有效。
+    const maxAge = remember ? REMEMBER_MAX_AGE_MS : LOGIN_MAX_AGE_MS
     const age = Date.now() - loginAt
     const valid = Boolean(
-      token.value && user.value && Number.isFinite(loginAt) && loginAt > 0 && age >= 0 && age < LOGIN_MAX_AGE_MS,
+      token.value && user.value && Number.isFinite(loginAt) && loginAt > 0 && age >= 0 && age < maxAge,
     )
     if (!valid) {
-      // 本地缺少有效凭证（或已超 24 小时），需要重新登录。
+      // 本地缺少有效凭证（或已超过有效期），需要重新登录。
       await logout()
       ready.value = true
       return
@@ -84,7 +91,7 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = data
       // 以服务端返回为准确认身份，之后权限判断才可信。
       verified.value = true
-      await saveAuth({ token: token.value, user: data, loginAt, version: AUTH_CACHE_VERSION })
+      await saveAuth({ token: token.value, user: data, loginAt, remember, version: AUTH_CACHE_VERSION })
     } catch {
       await logout()
     } finally {
@@ -95,7 +102,7 @@ export const useAuthStore = defineStore('auth', () => {
   function updateUser(data) {
     user.value = data
     if (!token.value) return Promise.resolve()
-    return saveAuth({ token: token.value, user: data, loginAt, version: AUTH_CACHE_VERSION })
+    return saveAuth({ token: token.value, user: data, loginAt, remember, version: AUTH_CACHE_VERSION })
   }
 
   async function logout() {
@@ -103,6 +110,7 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
     verified.value = false
     loginAt = 0
+    remember = false
     await clearAuth()
   }
 

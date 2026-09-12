@@ -8,10 +8,14 @@
 // 绝不回退为明文存储。
 
 // 缓存结构版本：改动 localStorage 中保存的字段时递增，旧缓存会被清理并要求重新登录。
+// 注意：本次新增的 remember 是可选字段，旧缓存缺省即 false（= 24 小时，行为仍正确），
+// 因此刻意不递增版本号——递增会强制所有已登录用户重新登录，与“自动登录”的目标相悖。
 export const AUTH_CACHE_VERSION = '6'
 // 上一个（明文）缓存版本，用于把旧缓存无感迁移成加密存储。
 const LEGACY_CACHE_VERSION = '5'
 export const LOGIN_MAX_AGE_MS = 24 * 60 * 60 * 1000
+// “自动登录”缓存的本地有效期：7 天（与服务端令牌的硬上限一致）。
+export const REMEMBER_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 
 const SW_AUTH_KEY = 'wsw_auth'
 const SW_AUTH_FORMAT_KEY = 'wsw_auth_format'
@@ -145,6 +149,7 @@ function readLegacy() {
       token,
       user,
       loginAt: Number.isFinite(loginAt) && loginAt > 0 ? loginAt : Date.now(),
+      remember: false,
       version: AUTH_CACHE_VERSION,
     }
   } catch {
@@ -196,11 +201,12 @@ export async function loadAuth() {
   return cache
 }
 
-export async function saveAuth({ token, user, loginAt, version }) {
+export async function saveAuth({ token, user, loginAt, remember, version }) {
   cache = {
     token: token ?? null,
     user: user ?? null,
     loginAt: loginAt ?? Date.now(),
+    remember: Boolean(remember),
     version: version ?? AUTH_CACHE_VERSION,
   }
   hydrated = true

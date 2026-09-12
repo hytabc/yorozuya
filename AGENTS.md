@@ -94,6 +94,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 ## 安全加固（2026-09 起）
 
 - **令牌版本**：`User.token_version`（JWT 载荷 `ver`）；`dependencies.py` 比对令牌与用户字段，不匹配即 401。改密/管理员重置密码时 `token_version += 1`，旧令牌立即失效。新增列需在 `migrate_schema()` 补 `ALTER TABLE users ADD COLUMN token_version`。
+- **自动登录令牌**：登录勾选「自动登录」时签发 7 天有效令牌（载荷含 `rm` 声明，`exp` 由 `remember_token_days` 决定，硬上限 7 天）；未勾选维持 24 小时。`security.py` 的 `decode_access_token` 按 `rm` 选择绝对上限（`REMEMBER_MAX_AGE_SECONDS` 7 天 / `SESSION_MAX_AGE_SECONDS` 24 小时）。**前端 `stores/auth.js` 的本地有效期窗口必须与之同步**（`REMEMBER_MAX_AGE_MS` / `LOGIN_MAX_AGE_MS`），否则会出现前端提前登出或后端拒绝。`token_version` 机制不变：7 天令牌在改密/重置后同样立即失效。
 - **自助改密**必须带 `current_password`（`UserPasswordUpdate`）；管理员重置用 `AdminPasswordReset`（无此要求）。
 - **限流**：`backend/app/ratelimit.py` 进程内滑动窗口，`enforce(bucket, key, limit, window)`；已用于登录（IP+账号）、注册、带密码接取、看板娘 `/mascot/chat`、反馈。`BEHIND_PROXY=true` 时按 `X-Real-IP/X-Forwarded-For` 取真实 IP（compose 已设）。**pytest 下自动跳过**（否则测试会互相触发 429）。
 - **默认值防护**：`config.py` 不再直接使用 `change-this-secret-in-production`/`Admin123!`；未配置 `SECRET_KEY` 时启动随机生成，首次创建管理员随机密码并打印日志，已存在且仍用默认密码的管理员会被自动轮换（pytest 下跳过以免动到真实库）。`SUGAR_UPLOAD_DIR` 不得指向数据库目录，否则启动报错。

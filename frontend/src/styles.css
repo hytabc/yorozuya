@@ -44,6 +44,14 @@ main { min-height: calc(100vh - 72px); }
 .desktop-nav a { position: relative; display: grid; place-items: center; height: 100%; color: #56615c; font-size: 14px; }
 .desktop-nav a:hover, .desktop-nav a.router-link-active { color: var(--ink); }
 .desktop-nav a.router-link-active::after { content: ""; position: absolute; bottom: -1px; width: 22px; height: 2px; background: var(--green); }
+.desktop-nav .nav-more-wrap { position: relative; display: flex; align-items: center; height: 100%; }
+.desktop-nav .nav-more { position: relative; display: inline-flex; align-items: center; gap: 3px; height: 100%; padding: 0; border: 0; color: #56615c; background: transparent; font-size: 14px; cursor: pointer; }
+.desktop-nav .nav-more:hover, .desktop-nav .nav-more.active { color: var(--ink); }
+.desktop-nav .nav-more.active::after { content: ""; position: absolute; bottom: -1px; width: 22px; height: 2px; background: var(--green); }
+.desktop-nav .nav-more-menu { position: absolute; top: calc(100% - 8px); right: 0; min-width: 148px; display: grid; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); box-shadow: var(--shadow); z-index: 40; }
+.desktop-nav .nav-more-menu a { display: flex; align-items: center; height: auto; padding: 9px 12px; border-radius: 5px; color: #3e4843; font-size: 13px; }
+.desktop-nav .nav-more-menu a:hover, .desktop-nav .nav-more-menu a.router-link-active { color: var(--ink); background: #f1f3f1; }
+.desktop-nav .nav-more-menu a.router-link-active::after { content: none; }
 .header-actions { display: flex; align-items: center; gap: 13px; margin-left: auto; }
 .user-chip { display: flex; align-items: center; gap: 9px; padding: 5px 9px 5px 5px; border-radius: 4px; font-size: 13px; }
 .user-chip:hover { background: #e9ece9; }

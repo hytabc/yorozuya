@@ -69,6 +69,8 @@ class LoginRequest(RequestModel):
     # 限制长度，避免超长输入拖垮 PBKDF2 校验（CPU 消耗型拒绝服务）。
     username: str = Field(min_length=1, max_length=64)
     password: str = Field(min_length=1, max_length=128)
+    # 勾选“自动登录”后签发 7 天有效令牌，否则维持 24 小时会话。
+    remember: bool = False
     captcha_id: str = Field(default="", max_length=128)
     captcha_code: str = Field(default="", max_length=4096)
 
@@ -134,6 +136,8 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserSelf
+    # 是否签发了“自动登录”（7 天）令牌，前端据此决定本地缓存的有效期窗口。
+    remember: bool = False
 
 
 class CaptchaChallenge(ApiModel):
