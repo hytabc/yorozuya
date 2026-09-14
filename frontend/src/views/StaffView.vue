@@ -5,6 +5,7 @@ import { api, errorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
 import UserProfileCard from '../components/UserProfileCard.vue'
 import UserAvatar from '../components/UserAvatar.vue'
+import UserTitleTag from '../components/UserTitleTag.vue'
 import VolunteerApplyDialog from '../components/VolunteerApplyDialog.vue'
 
 const auth = useAuthStore()
@@ -85,7 +86,7 @@ onMounted(async () => {
           <button v-for="member in section.members" :key="member.id" class="staff-card" :class="section.cardClass" type="button" @click="selectedUser = member">
             <header>
               <UserAvatar :user="member" :size="50" />
-              <div><h3>{{ member.nickname }}</h3><span class="role-tag" :class="`role-${member.role}`"><component :is="section.icon" :size="13" />{{ section.label }}</span></div>
+              <div><h3>{{ member.nickname }}<UserTitleTag :title="member.title" /></h3><span class="role-tag" :class="`role-${member.role}`"><component :is="section.icon" :size="13" />{{ section.label }}</span></div>
             </header>
             <p class="staff-bio">{{ member.bio || `这位${section.label}还没有填写个人简介。` }}</p>
             <footer>

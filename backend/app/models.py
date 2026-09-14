@@ -84,6 +84,8 @@ class User(Base):
     qq: Mapped[str | None] = mapped_column(String(20), nullable=True)
     qq_public: Mapped[bool] = mapped_column(Boolean, default=False)
     bio: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    # 自定义称号：由超级管理员/管理员设置，仅展示用途，不参与权限判定。
+    title: Mapped[str | None] = mapped_column(String(32), nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     role: Mapped[UserRole] = mapped_column(

@@ -74,6 +74,7 @@ from .schemas import (
     AdminUserBetaUpdate,
     AdminUserOut,
     AdminUserRoleUpdate,
+    AdminUserTitleUpdate,
     AdminPhotoUpdate,
     CaptchaChallenge,
     FeedbackCreate,
@@ -232,6 +233,8 @@ def migrate_schema() -> None:
                 connection.execute(text("ALTER TABLE users ADD COLUMN is_beta_tester BOOLEAN NOT NULL DEFAULT 0"))
             if "token_version" not in user_columns:
                 connection.execute(text("ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0"))
+            if "title" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN title VARCHAR(32)"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_users_is_beta_tester ON users (is_beta_tester)"))
         if not inspector.has_table("tasks"):
             return
@@ -460,7 +463,8 @@ def visible_avatar(user: User, viewer: User | None = None) -> str | None:
 
 def present_user_public(user: User, viewer: User | None = None) -> UserPublic:
     return UserPublic(
-        id=user.id, nickname=user.nickname, bio=user.bio, photos=visible_user_photos(user, viewer),
+        id=user.id, nickname=user.nickname, title=user.title, bio=user.bio,
+        photos=visible_user_photos(user, viewer),
         avatar_url=visible_avatar(user, viewer), avatar_visible=user.avatar_visible,
         is_beta_tester=user.is_beta_tester,
     )
@@ -471,7 +475,7 @@ ANONYMOUS_PUBLISHER = UserPublic(id=0, nickname="匿名委托人", bio=None, pho
 
 def present_user_profile(user: User, viewer: User | None = None) -> UserProfileOut:
     return UserProfileOut(
-        id=user.id, nickname=user.nickname, bio=user.bio, qq=user.qq, qq_public=user.qq_public,
+        id=user.id, nickname=user.nickname, title=user.title, bio=user.bio, qq=user.qq, qq_public=user.qq_public,
         is_admin=user.is_admin,
         role=user.role, created_at=user.created_at, photos=visible_user_photos(user, viewer),
         avatar_url=visible_avatar(user, viewer), avatar_visible=user.avatar_visible, is_beta_tester=user.is_beta_tester,
@@ -3807,6 +3811,27 @@ def update_user_role(
     if payload.role == UserRole.VOLUNTEER and user.role != UserRole.VOLUNTEER:
         user.qq_public = False
     user.role = payload.role
+    db.commit()
+    db.refresh(user)
+    return AdminUserOut.model_validate(user).model_copy(
+        update={"active_task_count": active_task_count(db, user.id)}
+    )
+
+
+@app.patch("/api/admin/users/{user_id}/title", response_model=AdminUserOut)
+def update_user_title(
+    user_id: int,
+    payload: AdminUserTitleUpdate,
+    manager: User = Depends(get_role_manager),
+    db: Session = Depends(get_db),
+):
+    """设置用户自定义称号；管理员只能设置非超级管理员账号的称号。"""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    if user.is_admin and not manager.is_admin:
+        raise HTTPException(status_code=403, detail="只有超级管理员可以设置管理员的称号")
+    user.title = payload.title
     db.commit()
     db.refresh(user)
     return AdminUserOut.model_validate(user).model_copy(

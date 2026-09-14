@@ -4,6 +4,7 @@ import { Snowflake } from 'lucide-vue-next'
 import '../frost/frost.css'
 import { useFrostGame } from '../frost/useFrostGame.js'
 import { useAuthStore } from '../stores/auth'
+import UserTitleTag from '../components/UserTitleTag.vue'
 import FrostChapterList from '../frost/components/FrostChapterList.vue'
 import FrostBoard from '../frost/components/FrostBoard.vue'
 import FrostMeters from '../frost/components/FrostMeters.vue'
@@ -137,7 +138,7 @@ const headerNote = computed(() => {
         <button type="button" class="frost-tab" @click="settingsVisible = true">设置</button>
       </div>
       <div class="frost-savebar">
-        <span>{{ auth.user?.nickname || '登录用户' }}</span>
+        <span>{{ auth.user?.nickname || '登录用户' }}</span><UserTitleTag :title="auth.user?.title" />
         <span :class="{ 'is-warn': saveError || saveConflict }">{{ headerNote }}</span>
         <span v-if="saveDirty || saveError || saveConflict">
           <button type="button" class="frost-tab" @click="reloadSave()">重新载入</button>

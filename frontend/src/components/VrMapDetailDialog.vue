@@ -6,6 +6,7 @@ import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import UserAvatar from './UserAvatar.vue'
+import UserTitleTag from './UserTitleTag.vue'
 import ImageDropzone from './ImageDropzone.vue'
 
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024
@@ -145,7 +146,7 @@ function loginToUpload() {
       <div class="dialog-heading">
         <span class="eyebrow"><MapIcon :size="14" /> VRCHAT MAP</span>
         <h2>{{ map.name }}</h2>
-        <p><span class="role-tag">{{ map.category }}</span> 推荐人：<UserAvatar :user="map.uploader" :size="20" />{{ map.uploader.nickname }}</p>
+        <p><span class="role-tag">{{ map.category }}</span> 推荐人：<UserAvatar :user="map.uploader" :size="20" />{{ map.uploader.nickname }}<UserTitleTag :title="map.uploader.title" /></p>
       </div>
 
       <div v-if="!map.is_visible" class="map-notice blocked"><EyeOff :size="16" />该地图已被管理员屏蔽{{ map.admin_note ? `：${map.admin_note}` : '' }}，仅你与管理员可见。</div>

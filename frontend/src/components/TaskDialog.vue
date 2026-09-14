@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import ReportDialog from './ReportDialog.vue'
 import StatusBadge from './StatusBadge.vue'
 import UserProfileCard from './UserProfileCard.vue'
+import UserTitleTag from './UserTitleTag.vue'
 
 const props = defineProps({ task: { type: Object, required: true }, busy: Boolean })
 const emit = defineEmits(['close', 'action', 'reported'])
@@ -104,7 +105,7 @@ function resetPassword() {
       </div>
       <p class="task-description">{{ task.description }}</p>
       <dl class="task-detail-grid">
-        <div><dt><UserRound :size="16" />委托人</dt><dd><button v-if="task.publisher.id > 0" class="name-link" type="button" @click="openProfile(task.publisher.id)">{{ task.publisher.nickname }}</button><span v-else class="muted">匿名委托人</span></dd></div>
+        <div><dt><UserRound :size="16" />委托人</dt><dd><button v-if="task.publisher.id > 0" class="name-link" type="button" @click="openProfile(task.publisher.id)">{{ task.publisher.nickname }}<UserTitleTag :title="task.publisher.title" /></button><span v-else class="muted">匿名委托人</span></dd></div>
         <div><dt><CalendarClock :size="16" />有效期至</dt><dd>{{ format(task.expires_at) }}</dd></div>
         <div><dt><UsersRound :size="16" />需要接取人数</dt><dd>{{ requiredText }}<span v-if="!anonymousView" class="muted">（已响应 {{ joinedCount }} 人<template v-if="pendingCount">，待响应 {{ pendingCount }} 人</template>）</span></dd></div>
         <div><dt><component :is="designated ? UsersRound : (requiresPassword ? KeyRound : LockOpen)" :size="16" />接取方式</dt><dd>{{ designated ? '指定人员响应' : (requiresPassword ? '凭密码接取' : '无需密码，直接接取') }}</dd></div>
@@ -120,11 +121,11 @@ function resetPassword() {
         <h4>协作成员（{{ totalPeople }} 人<template v-if="canSeeProgress">，完成需全员确认</template>）</h4>
         <ul class="crew-list">
           <li :class="{ confirmed: canSeeProgress && task.publisher_confirmed_at }">
-            <span class="crew-tag role-owner">委</span><button v-if="task.publisher.id > 0" class="name-link" type="button" @click="openProfile(task.publisher.id)">{{ task.publisher.nickname }}</button><span v-else class="muted">匿名委托人</span><em v-if="canSeeProgress && task.publisher_confirmed_at">已确认</em>
+            <span class="crew-tag role-owner">委</span><button v-if="task.publisher.id > 0" class="name-link" type="button" @click="openProfile(task.publisher.id)">{{ task.publisher.nickname }}<UserTitleTag :title="task.publisher.title" /></button><span v-else class="muted">匿名委托人</span><em v-if="canSeeProgress && task.publisher_confirmed_at">已确认</em>
           </li>
           <li v-for="m in task.members" :key="m.user.id" :class="{ confirmed: canSeeProgress && m.confirmed_at, declined: m.response_status === 'declined', pending: m.response_status === 'pending' }">
             <span class="crew-tag">{{ m.user.id === auth.user?.id ? '我' : '接' }}</span>
-            <button class="name-link" type="button" @click="openProfile(m.user.id)">{{ m.user.nickname }}</button><span v-if="m.qq && canSeeProgress" class="crew-qq muted">QQ {{ m.qq }}</span><em v-if="m.response_status === 'pending'">待响应</em><em v-else-if="m.response_status === 'declined'">已拒绝</em><em v-else-if="canSeeProgress && m.confirmed_at">已确认</em>
+            <button class="name-link" type="button" @click="openProfile(m.user.id)">{{ m.user.nickname }}</button><UserTitleTag :title="m.user.title" /><span v-if="m.qq && canSeeProgress" class="crew-qq muted">QQ {{ m.qq }}</span><em v-if="m.response_status === 'pending'">待响应</em><em v-else-if="m.response_status === 'declined'">已拒绝</em><em v-else-if="canSeeProgress && m.confirmed_at">已确认</em>
           </li>
         </ul>
         <p v-if="canSeeProgress && (working || finished)" class="crew-progress muted">确认进度 {{ confirmedCount }} / {{ totalPeople }}<template v-if="!everyoneConfirmed"> · 还差 {{ totalPeople - confirmedCount }} 人确认</template></p>

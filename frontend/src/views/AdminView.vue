@@ -6,6 +6,7 @@ import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
 import { useAuthStore } from '../stores/auth'
 import StatusBadge from '../components/StatusBadge.vue'
+import UserTitleTag from '../components/UserTitleTag.vue'
 import { roleLabel } from '../constants'
 
 const toast = useToast()
@@ -33,6 +34,8 @@ const reportLimitInput = ref(2)
 const savingReportLimit = ref(false)
 const savingReportId = ref(null)
 const userLimits = reactive({})
+const userTitles = reactive({})
+const savingTitleId = ref(null)
 const stats = ref({ users: 0, tasks: 0, processing: 0, completed: 0, hidden: 0 })
 const activeTab = ref(auth.isDisciplinarian ? 'reports' : 'tasks')
 const taskSearch = ref('')
@@ -126,7 +129,7 @@ async function load() {
     storyPhotos.value = storyPhotoRes.data
     reportLimit.value = limitRes.data.daily_limit
     reportLimitInput.value = limitRes.data.daily_limit
-    users.value.forEach((user) => { userLimits[user.id] = user.max_concurrent_tasks })
+    users.value.forEach((user) => { userLimits[user.id] = user.max_concurrent_tasks; userTitles[user.id] = user.title || '' })
   } catch (error) {
     toast.error(errorMessage(error))
   } finally {
@@ -162,6 +165,21 @@ async function saveUserLimit(user) {
     toast.error(errorMessage(error))
   } finally {
     savingUserId.value = null
+  }
+}
+
+async function saveUserTitle(user) {
+  savingTitleId.value = user.id
+  try {
+    const { data } = await api.patch(`/admin/users/${user.id}/title`, { title: userTitles[user.id] || null })
+    users.value[users.value.findIndex((item) => item.id === user.id)] = data
+    userTitles[user.id] = data.title || ''
+    toast.success(data.title ? `已更新 ${data.nickname} 的称号` : `已清空 ${data.nickname} 的称号`)
+  } catch (error) {
+    userTitles[user.id] = user.title || ''
+    toast.error(errorMessage(error))
+  } finally {
+    savingTitleId.value = null
   }
 }
 
@@ -520,14 +538,15 @@ onMounted(async () => {
       <div class="admin-toolbar"><div><h2>用户管理</h2><span>共 {{ users.length }} 人</span></div><label class="search-field"><Search :size="17" /><input v-model="userSearch" placeholder="搜索账号或昵称" /></label></div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>用户</th><th>权限等级</th><th v-if="auth.isAdmin">当前接单</th><th v-if="auth.isAdmin">接单上限</th><th><span class="sr-only">操作</span></th></tr></thead>
+          <thead><tr><th>用户</th><th>权限等级</th><th v-if="auth.isAdmin">当前接单</th><th v-if="auth.isAdmin">接单上限</th><th v-if="auth.canManageRoles">称号</th><th><span class="sr-only">操作</span></th></tr></thead>
           <tbody>
-            <tr v-if="loading"><td :colspan="auth.isAdmin ? 5 : 3" class="table-loading">正在加载…</td></tr>
+            <tr v-if="loading"><td :colspan="auth.isAdmin ? 6 : 4" class="table-loading">正在加载…</td></tr>
             <tr v-for="user in filteredUsers" v-else :key="user.id">
-              <td><strong>{{ user.nickname }}</strong><small>@{{ user.username }} · #{{ user.id }}</small><label class="beta-toggle"><input type="checkbox" :checked="user.is_beta_tester" :disabled="!auth.isAdmin" @change="toggleBetaTester(user)" /> 内测用户</label></td>
+              <td><strong>{{ user.nickname }}</strong><UserTitleTag :title="user.title" /><small>@{{ user.username }} · #{{ user.id }}</small><label class="beta-toggle"><input type="checkbox" :checked="user.is_beta_tester" :disabled="!auth.isAdmin" @change="toggleBetaTester(user)" /> 内测用户</label></td>
               <td><span v-if="user.is_admin" class="admin-tag"><ShieldCheck :size="13" />超级管理员</span><span v-else class="role-tag" :class="`role-${user.role}`"><Store v-if="user.role === 'staff'" :size="13" />{{ roleLabel(user) }}</span></td>
               <td v-if="auth.isAdmin"><span class="limit-usage" :class="{ full: user.active_task_count >= user.max_concurrent_tasks }">{{ user.active_task_count }} / {{ user.max_concurrent_tasks }}</span></td>
               <td v-if="auth.isAdmin"><input v-model.number="userLimits[user.id]" class="limit-input" type="number" min="0" max="999" :aria-label="`${user.nickname} 的接单上限`" /></td>
+              <td v-if="auth.canManageRoles"><div class="user-row-actions"><input v-model.trim="userTitles[user.id]" class="title-input" maxlength="16" placeholder="未设置" :aria-label="`${user.nickname} 的称号`" :disabled="user.is_admin && !auth.isAdmin" @keyup.enter="saveUserTitle(user)" /><button class="button secondary small" :class="{ 'is-saving': savingTitleId === user.id }" :title="savingTitleId === user.id ? '保存中…' : '保存称号'" aria-label="保存称号" :disabled="savingTitleId === user.id || (userTitles[user.id] || '') === (user.title || '')" @click="saveUserTitle(user)">{{ savingTitleId === user.id ? '…' : '' }}<Save :size="15" /></button></div></td>
               <td>
                 <div class="user-row-actions">
                   <button v-if="auth.isAdmin" class="button secondary small" :class="{ 'is-saving': savingUserId === user.id }" :title="savingUserId === user.id ? '保存中…' : '保存接单上限'" aria-label="保存接单上限" :disabled="savingUserId === user.id || userLimits[user.id] === user.max_concurrent_tasks" @click="saveUserLimit(user)">{{ savingUserId === user.id ? '…' : '' }}<Save :size="15" /></button>

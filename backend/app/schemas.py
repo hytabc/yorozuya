@@ -84,6 +84,7 @@ class UserPhotoOut(ApiModel):
 class UserPublic(ApiModel):
     id: int
     nickname: str
+    title: str | None = None
     bio: str | None = None
     photos: list[UserPhotoOut] = []
     # avatar_url 仅在查看者有权看到时由后端填充；未过审头像仅本人和管理员组可见
@@ -96,6 +97,7 @@ class UserProfileOut(ApiModel):
     """用户资料；QQ 按名录公开偏好及协作关系控制可见性。"""
     id: int
     nickname: str
+    title: str | None = None
     bio: str | None = None
     qq: str | None = None
     qq_public: bool = False
@@ -242,6 +244,7 @@ class AdminUserOut(ApiModel):
     id: int
     username: str
     nickname: str
+    title: str | None = None
     is_admin: bool
     is_active: bool
     role: UserRole = UserRole.USER
@@ -273,6 +276,17 @@ class StaffDirectoryOut(BaseModel):
 
 class AdminUserLimitUpdate(RequestModel):
     max_concurrent_tasks: int = Field(ge=0, le=999)
+
+
+class AdminUserTitleUpdate(RequestModel):
+    """管理员为用户设置自定义称号；空串表示清空。"""
+
+    title: str | None = Field(default=None, max_length=16)
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def empty_to_none(cls, value):
+        return value or None
 
 
 class FeedbackCreate(RequestModel):
