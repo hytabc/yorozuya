@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { BarChart3, BookOpen, BriefcaseBusiness, ChevronDown, HeartHandshake, History, LogOut, Map, Megaphone, Menu, MessagesSquare, ShieldCheck, Snowflake, Sparkles, Store, UserPlus, UserRound, X } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import UserAvatar from './UserAvatar.vue'
+import UserTitleTag from './UserTitleTag.vue'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -75,7 +76,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeMore))
         <template v-if="auth.isLoggedIn">
           <RouterLink to="/profile" class="user-chip">
             <UserAvatar :user="auth.user" :size="30" />
-            <span>{{ auth.user?.nickname }}</span>
+            <span>{{ auth.user?.nickname }}</span><UserTitleTag :title="auth.user?.title" />
           </RouterLink>
           <button class="icon-button desktop-only" title="退出登录" aria-label="退出登录" @click="logout">
             <LogOut :size="19" />

@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { CalendarClock, Coins, EyeOff, Ghost, LockOpen, UserRound, UsersRound } from 'lucide-vue-next'
 import StatusBadge from './StatusBadge.vue'
+import UserTitleTag from './UserTitleTag.vue'
 import { useAuthStore } from '../stores/auth'
 
 const props = defineProps({ task: { type: Object, required: true }, showRole: Boolean, hint: String })
@@ -42,7 +43,7 @@ const joined = computed(() => props.task.members?.filter((m) => m.response_statu
     <h3>{{ task.title }}</h3>
     <p class="task-summary">{{ task.description }}</p>
     <div class="task-meta">
-      <span><UserRound :size="15" />{{ task.publisher.nickname }}</span>
+      <span><UserRound :size="15" />{{ task.publisher.nickname }}<UserTitleTag :title="task.publisher.title" /></span>
       <span><CalendarClock :size="15" />{{ deadline }}</span>
       <span v-if="(!task.is_anonymous || task.publisher.id > 0) && (task.members?.length || task.required_takers != null)"><UsersRound :size="15" />已 {{ joined }}/需 {{ requiredText }} 人</span>
       <span v-if="task.reward"><Coins :size="15" />{{ task.reward }}</span>

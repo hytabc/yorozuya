@@ -4,6 +4,7 @@ import { BookOpen, EyeOff, MessageCircle, Send, Trash2, UserRound, X } from 'luc
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
 import UserAvatar from './UserAvatar.vue'
+import UserTitleTag from './UserTitleTag.vue'
 import UserProfileCard from './UserProfileCard.vue'
 
 const props = defineProps({ storyId: { type: Number, required: true } })
@@ -97,7 +98,7 @@ onBeforeUnmount(() => { document.body.classList.remove('modal-open'); window.rem
           <h2>{{ story.title }}</h2>
           <p class="story-meta">
             <button v-if="story.author.id" class="story-author-btn" type="button" @click="profileUser = story.author">
-              <UserAvatar :user="story.author" :size="22" /><strong>{{ story.author.nickname }}</strong>
+              <UserAvatar :user="story.author" :size="22" /><strong>{{ story.author.nickname }}</strong><UserTitleTag :title="story.author.title" />
             </button>
             <span v-else class="story-author-btn static"><UserAvatar :user="story.author" :size="22" /><strong>{{ story.author.nickname }}</strong></span>
             <span v-if="story.is_anonymous" class="role-tag"><UserRound :size="12" />匿名</span>
@@ -131,7 +132,7 @@ onBeforeUnmount(() => { document.body.classList.remove('modal-open'); window.rem
               <UserAvatar :user="comment.user" :size="28" />
               <div class="comment-body">
                 <div class="comment-head">
-                  <button class="comment-user" type="button" @click="profileUser = comment.user"><strong>{{ comment.user.nickname }}</strong></button>
+                  <button class="comment-user" type="button" @click="profileUser = comment.user"><strong>{{ comment.user.nickname }}</strong><UserTitleTag :title="comment.user.title" /></button>
                   <time class="muted">{{ time(comment.created_at) }}</time>
                   <button v-if="comment.can_delete" class="icon-button tiny" type="button" title="删除评论" aria-label="删除评论" :disabled="deletingCommentId === comment.id" @click="deleteComment(comment)"><Trash2 :size="14" /></button>
                 </div>

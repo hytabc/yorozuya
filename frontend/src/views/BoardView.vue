@@ -5,6 +5,7 @@ import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
 import { useAuthStore } from '../stores/auth'
 import UserAvatar from '../components/UserAvatar.vue'
+import UserTitleTag from '../components/UserTitleTag.vue'
 import UserProfileCard from '../components/UserProfileCard.vue'
 
 const toast = useToast()
@@ -129,7 +130,7 @@ onMounted(load)
         <header class="board-head">
           <button class="board-user" type="button" title="查看资料" @click="openProfile(message.user)">
             <UserAvatar :user="message.user" :size="36" />
-            <strong>{{ message.user.nickname }}</strong>
+            <strong>{{ message.user.nickname }}</strong><UserTitleTag :title="message.user.title" />
           </button>
           <time class="muted">{{ time(message.created_at) }}</time>
           <button v-if="message.can_delete" class="icon-button" :disabled="deletingId === message.id" title="删除留言" aria-label="删除留言" @click="deleteMessage(message)"><Trash2 :size="17" /></button>
@@ -139,7 +140,7 @@ onMounted(load)
           <div v-for="comment in message.comments" :key="comment.id" class="board-comment">
             <button class="board-user" type="button" title="查看资料" @click="openProfile(comment.user)">
               <UserAvatar :user="comment.user" :size="28" />
-              <strong class="comment-name">{{ comment.user.nickname }}</strong>
+              <strong class="comment-name">{{ comment.user.nickname }}</strong><UserTitleTag :title="comment.user.title" />
             </button>
             <div class="comment-body">
               <div class="board-meta"><time class="muted">{{ time(comment.created_at) }}</time><button v-if="comment.can_delete" class="icon-button tiny" :disabled="deletingId === comment.id" title="删除评论" aria-label="删除评论" @click="deleteComment(message, comment)"><Trash2 :size="14" /></button></div>

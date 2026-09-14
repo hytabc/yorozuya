@@ -4,6 +4,7 @@ import { CalendarDays, EyeOff, Heart, KeyRound, MessageCircle, ShieldCheck, Stor
 import { api, errorMessage } from '../api'
 import { roleLabel } from '../constants'
 import UserAvatar from './UserAvatar.vue'
+import UserTitleTag from './UserTitleTag.vue'
 
 const props = defineProps({
   userId: { type: Number, default: null },
@@ -42,7 +43,7 @@ onMounted(async () => {
       <div class="user-card-head">
         <UserAvatar :user="user" :size="54" />
         <div>
-          <h4>{{ user.nickname }}<span v-if="user.is_admin" class="admin-tag"><ShieldCheck :size="13" />管理员</span><span v-else class="role-tag" :class="`role-${user.role}`"><Store v-if="user.role === 'staff'" :size="13" /><Heart v-else-if="user.role === 'volunteer'" :size="13" /><UserRound v-else :size="13" />{{ roleLabel(user) }}</span></h4>
+          <h4>{{ user.nickname }}<UserTitleTag :title="user.title" /><span v-if="user.is_admin" class="admin-tag"><ShieldCheck :size="13" />管理员</span><span v-else class="role-tag" :class="`role-${user.role}`"><Store v-if="user.role === 'staff'" :size="13" /><Heart v-else-if="user.role === 'volunteer'" :size="13" /><UserRound v-else :size="13" />{{ roleLabel(user) }}</span></h4>
           <span class="user-card-since muted"><CalendarDays :size="14" />{{ joined(user.created_at) }} 加入</span>
         </div>
       </div>

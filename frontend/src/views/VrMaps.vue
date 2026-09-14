@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import { MAP_CATEGORIES } from '../constants'
 import UserAvatar from '../components/UserAvatar.vue'
+import UserTitleTag from '../components/UserTitleTag.vue'
 import VrMapDetailDialog from '../components/VrMapDetailDialog.vue'
 import ImageDropzone from '../components/ImageDropzone.vue'
 
@@ -112,7 +113,7 @@ onMounted(load)
           <h3>{{ item.name }}<span class="role-tag">{{ item.category }}</span></h3>
           <p>{{ item.description }}</p>
           <footer>
-            <span class="maps-uploader"><UserAvatar :user="item.uploader" :size="20" />{{ item.uploader.nickname }}</span>
+            <span class="maps-uploader"><UserAvatar :user="item.uploader" :size="20" />{{ item.uploader.nickname }}<UserTitleTag :title="item.uploader.title" /></span>
             <span class="maps-likes" :class="{ mine: item.liked_by_me }"><Heart :size="15" />{{ item.like_count }}</span>
           </footer>
         </div>

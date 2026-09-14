@@ -6,6 +6,7 @@ import { api, errorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import { CATEGORIES } from '../constants'
+import UserTitleTag from './UserTitleTag.vue'
 
 const emit = defineEmits(['close', 'created'])
 const auth = useAuthStore()
@@ -105,7 +106,7 @@ onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeE
           <div v-if="designated" class="designated-list">
             <label v-for="person in designatedUsers" :key="person.id" class="designated-option">
               <input v-model="designatedIds" type="checkbox" :value="person.id" />
-              <span>{{ person.nickname }}</span><small>{{ person.role === 'staff' ? '管理员' : '志愿者' }}</small><Check v-if="designatedIds.includes(person.id)" :size="15" />
+              <span>{{ person.nickname }}</span><UserTitleTag :title="person.title" /><small>{{ person.role === 'staff' ? '管理员' : '志愿者' }}</small><Check v-if="designatedIds.includes(person.id)" :size="15" />
             </label>
             <p v-if="!designatedUsers.length" class="field-hint">当前没有可指定的管理员或志愿者。</p>
             <p v-if="designated && !designatedIds.length" class="field-error">请至少指定一名管理员或志愿者</p>

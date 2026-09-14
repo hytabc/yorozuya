@@ -4,6 +4,7 @@ import { Camera, Check, Crown, EyeOff, ImagePlus, MessageCircle, Pencil, Save, T
 import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { useToast } from '../composables/toast'
 import { useAuthStore } from '../stores/auth'
+import UserTitleTag from '../components/UserTitleTag.vue'
 
 const MAX_PHOTOS = 5
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
@@ -179,7 +180,7 @@ onBeforeUnmount(clearPendingPhotos)
           <span class="pair-rank">0{{ index + 1 }}</span><Crown v-if="index === 0" :size="18" />
           <img v-if="item.photo" :src="item.photo.image_url" :alt="`${item.user.nickname} 的照片`" />
           <UserRound v-else class="friend-rank-placeholder" :size="32" />
-          <h3>{{ item.user.nickname }}</h3><p>{{ item.friend_count }} 位好友</p>
+          <h3>{{ item.user.nickname }}<UserTitleTag :title="item.user.title" /></h3><p>{{ item.friend_count }} 位好友</p>
         </article>
       </div>
       <div v-else class="sugar-empty"><Crown :size="24" /><span>还没有好友榜记录</span></div>
@@ -189,12 +190,12 @@ onBeforeUnmount(clearPendingPhotos)
       <div class="section-heading compact"><div><span class="section-index">02</span><h2>好友申请</h2><p>处理想认识你的用户</p></div></div>
       <div class="friend-request-list">
         <div v-for="request in incomingRequests" :key="request.id" class="friend-request-row">
-          <UserRound :size="20" /><div><strong>{{ request.requester.nickname }}</strong><span>想添加你为好友</span></div>
+          <UserRound :size="20" /><div><strong>{{ request.requester.nickname }}</strong><UserTitleTag :title="request.requester.title" /><span>想添加你为好友</span></div>
           <button class="button small" @click="resolveRequest(request, 'accept')"><Check :size="15" />同意</button>
           <button class="button secondary small" @click="resolveRequest(request, 'reject')">拒绝</button>
         </div>
         <div v-for="request in outgoingRequests" :key="request.id" class="friend-request-row outgoing">
-          <UserPlus :size="20" /><div><strong>{{ request.target.nickname }}</strong><span>等待对方处理你的申请</span></div>
+          <UserPlus :size="20" /><div><strong>{{ request.target.nickname }}</strong><UserTitleTag :title="request.target.title" /><span>等待对方处理你的申请</span></div>
           <button class="button secondary small" @click="cancelRequest(request)">取消申请</button>
         </div>
       </div>
@@ -207,7 +208,7 @@ onBeforeUnmount(clearPendingPhotos)
         <button v-for="profile in profiles" :key="profile.id" class="sugar-card" type="button" @click="openDetail(profile.user.id)">
           <img v-if="profile.photos[0]" :src="profile.photos[0].image_url" :alt="`${profile.user.nickname} 的照片`" />
           <div v-else class="friend-card-placeholder"><UserRound :size="38" /></div>
-          <span class="sugar-card-body"><strong>{{ profile.user.nickname }}</strong><small>{{ profile.about }}</small><em><UsersRound :size="13" />{{ profile.friend_count }} 位好友</em></span>
+          <span class="sugar-card-body"><strong>{{ profile.user.nickname }}</strong><UserTitleTag :title="profile.user.title" /><small>{{ profile.about }}</small><em><UsersRound :size="13" />{{ profile.friend_count }} 位好友</em></span>
           <span v-if="profile.user.id === auth.user.id" class="mine-tag">我的资料</span>
         </button>
       </div>
@@ -237,7 +238,7 @@ onBeforeUnmount(clearPendingPhotos)
         <button class="icon-button dialog-close" title="关闭" aria-label="关闭" @click="detail = null"><X :size="18" /></button>
         <p v-if="detailLoading" class="muted">正在加载资料…</p>
         <template v-else-if="detail">
-          <div class="dialog-heading"><span class="eyebrow">FRIEND PROFILE</span><h2>{{ detail.user.nickname }}</h2><p>{{ detail.friend_count }} 位好友</p></div>
+          <div class="dialog-heading"><span class="eyebrow">FRIEND PROFILE</span><h2>{{ detail.user.nickname }}<UserTitleTag :title="detail.user.title" /></h2><p>{{ detail.friend_count }} 位好友</p></div>
           <div class="photo-grid detail"><figure v-for="photo in detail.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }"><img :src="photo.image_url" :alt="`${detail.user.nickname} 的照片`" /><span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.admin_note || '审核中' }}</span></figure><div v-if="!detail.photos.length" class="friend-detail-placeholder"><UserRound :size="38" /><span>暂未公开照片</span></div></div>
           <p class="sugar-about">{{ detail.about }}</p>
           <div v-if="detail.qq !== null || detail.user.id === auth.user.id" class="sugar-qq"><MessageCircle :size="17" /><span><small>QQ</small><strong>{{ detail.qq || '暂未填写' }}</strong></span></div>

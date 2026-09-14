@@ -51,7 +51,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 
 ## 领域模型速查（models.py）
 
-- `User`：`role`（枚举值 `'user'|'volunteer'|'staff'|'mascot'`，SqlEnum 存字符串）+ `is_admin`（独立的更高级监管账号）+ `qq_public` + `max_concurrent_tasks`（并发接单上限）。
+- `User`：`role`（枚举值 `'user'|'volunteer'|'staff'|'mascot'`，SqlEnum 存字符串）+ `is_admin`（独立的更高级监管账号）+ `qq_public` + `max_concurrent_tasks`（并发接单上限）+ `title`（自定义称号，超管/管理员设置，纯展示）。
 - `Announcement`：网站/活动公告，支持草稿、置顶和起止展示时间；`PageView` 保存隐私化页面访问事件（180 天留存）。
 - `Task`：`status`（published→accepted→awaiting→completed；另有 cancelling/expired/cancelled）、`accept_password_hash`（只存哈希，便捷属性 `requires_password`）、`is_designated`（指定委托，designated_user_ids）、`is_anonymous`、`required_takers`、`is_visible/admin_note`（后台屏蔽）、`expires_at`（查询时惰性过期 `expire_due_tasks`）。
 - `TaskMember`：接单人及 `response_status`（pending/accepted/declined）+ 完成确认 `confirmed_at` + 取消确认。
@@ -82,6 +82,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 5. **委托密码**：委托人可 `PATCH /api/tasks/{id}/password` 设置/重设（4-32 位），无密码委托设密后转为凭密码接取。
 6. **可见性**：普通用户大厅只看 published；staff/admin 看全部状态；被举报委托对非相关人隐藏；匿名委托隐藏发布人。
 7. **名录** `GET /api/staff`：公开管理员、风纪委员、看板娘与志愿者资料；管理员 QQ 对游客公开，志愿者仅在主动开启时公开，风纪委员与看板娘 QQ 不公开。
+7.1 **称号**：`PATCH /api/admin/users/{id}/title`（`get_role_manager`：超管 + 管理员），自定义称号 ≤16 字、空串清空，非超管不能设置超管账号称号；用户本人不能自改（不在 `UserUpdate`）。字段随 `UserPublic/UserProfileOut/UserSelf/AdminUserOut` 下发，前端 `UserTitleTag.vue` 展示在成员名录、资料弹窗及全站昵称旁。
 8. **反馈**：游客可提交（需联系方式）；`GET/PATCH /api/admin/feedback` 用 `get_role_manager`（staff 可处理）。
 9. **举报**：有每日上限设置（`/api/admin/settings/report-limit`）；处理动作 close/hide/restore。
 10. **砂糖社**：公开档案（照片存 `sugar_upload_path`）→ 互相 confirm 成 pair → 任一方 end；展示维持最久前三对。
@@ -93,7 +94,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 
 ## 安全加固（2026-09 起）
 
-- **令牌版本**：`User.token_version`（JWT 载荷 `ver`）；`dependencies.py` 比对令牌与用户字段，不匹配即 401。改密/管理员重置密码时 `token_version += 1`，旧令牌立即失效。新增列需在 `migrate_schema()` 补 `ALTER TABLE users ADD COLUMN token_version`。
+- **令牌版本**：`User.token_version`（JWT 载荷 `ver`）；`dependencies.py` 比对令牌与用户字段，不匹配即 401。改密/管理员重置密码时 `token_version += 1`，旧令牌立即失效。新增列需在 `migrate_schema()` 补 `ALTER TABLE users ADD COLUMN token_version`（`title` 列同理）。
 - **自动登录令牌**：登录勾选「自动登录」时签发 7 天有效令牌（载荷含 `rm` 声明，`exp` 由 `remember_token_days` 决定，硬上限 7 天）；未勾选维持 24 小时。`security.py` 的 `decode_access_token` 按 `rm` 选择绝对上限（`REMEMBER_MAX_AGE_SECONDS` 7 天 / `SESSION_MAX_AGE_SECONDS` 24 小时）。**前端 `stores/auth.js` 的本地有效期窗口必须与之同步**（`REMEMBER_MAX_AGE_MS` / `LOGIN_MAX_AGE_MS`），否则会出现前端提前登出或后端拒绝。`token_version` 机制不变：7 天令牌在改密/重置后同样立即失效。
 - **自助改密**必须带 `current_password`（`UserPasswordUpdate`）；管理员重置用 `AdminPasswordReset`（无此要求）。
 - **限流**：`backend/app/ratelimit.py` 进程内滑动窗口，`enforce(bucket, key, limit, window)`；已用于登录（IP+账号）、注册、带密码接取、看板娘 `/mascot/chat`、反馈。`BEHIND_PROXY=true` 时按 `X-Real-IP/X-Forwarded-For` 取真实 IP（compose 已设）。**pytest 下自动跳过**（否则测试会互相触发 429）。

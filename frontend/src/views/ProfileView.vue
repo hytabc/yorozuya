@@ -6,6 +6,7 @@ import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import { roleLabel, ROLE_HINTS } from '../constants'
 import UserAvatar from '../components/UserAvatar.vue'
+import UserTitleTag from '../components/UserTitleTag.vue'
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
 const AVATAR_TYPES = new Set(['image/jpeg', 'image/png'])
@@ -125,6 +126,7 @@ async function deleteAvatar() {
             <Heart v-else-if="auth.role === 'volunteer'" :size="15" />
             <UserRound v-else :size="15" />{{ roleLabel({ is_admin: auth.isAdmin, role: auth.role }) }}
           </span>
+          <UserTitleTag :title="auth.user.title" />
           <span v-if="auth.isBetaTester" class="role-tag beta-tag">内测用户</span>
         </div>
         <p v-if="!auth.isAdmin" class="role-hint muted">{{ ROLE_HINTS[auth.role] }}</p>

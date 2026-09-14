@@ -1545,6 +1545,97 @@ def test_admin_task_limit_validation():
         assert too_large.status_code == 422
 
 
+def test_user_title_management_and_display():
+    with TestClient(app) as client:
+        admin_login = client.post(
+            "/api/auth/login",
+            json={"username": "admin", "password": "Admin123!"},
+        )
+        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+        admin_id = client.get("/api/auth/me", headers=admin).json()["id"]
+
+        member = auth(client, "title_member", role="volunteer")
+        member_me = client.get("/api/auth/me", headers=member).json()
+        member_id = member_me["id"]
+        assert member_me["title"] is None
+
+        # 普通用户不能设置称号
+        denied = client.patch(
+            f"/api/admin/users/{member_id}/title",
+            headers=member,
+            json={"title": "自封称号"},
+        )
+        assert denied.status_code == 403
+
+        # 超级管理员可以设置称号
+        updated = client.patch(
+            f"/api/admin/users/{member_id}/title",
+            headers=admin,
+            json={"title": "万事屋首领"},
+        )
+        assert updated.status_code == 200
+        assert updated.json()["title"] == "万事屋首领"
+
+        # 称号随成员名录、公开资料与个人资料一同下发
+        directory = client.get("/api/staff")
+        assert directory.status_code == 200
+        listed = next(user for user in directory.json()["volunteers"] if user["id"] == member_id)
+        assert listed["title"] == "万事屋首领"
+
+        profile = client.get(f"/api/users/{member_id}", headers=member)
+        assert profile.status_code == 200
+        assert profile.json()["title"] == "万事屋首领"
+
+        assert client.get("/api/auth/me", headers=member).json()["title"] == "万事屋首领"
+
+        # 用户本人不能修改自己的称号（请求体多字段被拒绝）
+        self_edit = client.patch(
+            "/api/users/me",
+            headers=member,
+            json={"nickname": member_me["nickname"], "title": "自封称号"},
+        )
+        assert self_edit.status_code == 422
+
+        # 管理员（staff）可以给非超级管理员账号设置称号
+        staff_headers = auth(client, "title_staff")
+        staff_id = client.get("/api/auth/me", headers=staff_headers).json()["id"]
+        assert client.patch(
+            f"/api/admin/users/{staff_id}/role", headers=admin, json={"role": "staff"}
+        ).status_code == 200
+
+        staff_set = client.patch(
+            f"/api/admin/users/{member_id}/title",
+            headers=staff_headers,
+            json={"title": "热心市民"},
+        )
+        assert staff_set.status_code == 200
+        assert staff_set.json()["title"] == "热心市民"
+
+        # 管理员不能设置超级管理员的称号
+        cannot_title_admin = client.patch(
+            f"/api/admin/users/{admin_id}/title",
+            headers=staff_headers,
+            json={"title": "越权"},
+        )
+        assert cannot_title_admin.status_code == 403
+
+        # 超长被拒绝，空串表示清空
+        too_long = client.patch(
+            f"/api/admin/users/{member_id}/title",
+            headers=admin,
+            json={"title": "字" * 17},
+        )
+        assert too_long.status_code == 422
+
+        cleared = client.patch(
+            f"/api/admin/users/{member_id}/title",
+            headers=admin,
+            json={"title": ""},
+        )
+        assert cleared.status_code == 200
+        assert cleared.json()["title"] is None
+
+
 def test_mutual_cancel_flow_after_start():
     with TestClient(app) as client:
         pub = auth(client, "cancel_pub")

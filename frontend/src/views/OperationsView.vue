@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
 import { useAuthStore } from '../stores/auth'
+import UserTitleTag from '../components/UserTitleTag.vue'
 
 const toast = useToast()
 const auth = useAuthStore()
@@ -178,7 +179,7 @@ onMounted(async () => {
       <div class="admin-toolbar"><div><h2>虚拟人生内测申请</h2><span>待审核 {{ pendingBetaApplications }} 条</span></div><span>通过后自动开通内测资格</span></div>
       <ul v-if="betaApplications.length" class="feedback-admin-list">
         <li v-for="item in betaApplications" :key="item.id" :class="{ handled: item.status !== 'pending' }">
-          <div class="fb-head"><span class="fb-state" :class="`state-${item.status}`">{{ item.status === 'pending' ? '待审核' : item.status === 'approved' ? '已通过' : '已拒绝' }}</span><strong>{{ item.user.nickname }}</strong><time class="muted">{{ formatDate(item.created_at) }}</time></div>
+          <div class="fb-head"><span class="fb-state" :class="`state-${item.status}`">{{ item.status === 'pending' ? '待审核' : item.status === 'approved' ? '已通过' : '已拒绝' }}</span><strong>{{ item.user.nickname }}</strong><UserTitleTag :title="item.user.title" /><time class="muted">{{ formatDate(item.created_at) }}</time></div>
           <p class="fb-content">{{ item.reason }}</p>
           <div class="fb-actions">
             <span v-if="item.status !== 'pending' && item.review_note" class="fb-reply-admin">审核说明：{{ item.review_note }}</span>

@@ -154,6 +154,7 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .role-tag.role-disciplinarian { color: #87452f; background: #f8ece7; }
 .role-tag.role-user { color: #52605a; background: #eef0ee; }
 .role-tag.anon-tag { color: #4a3a6b; background: #ece7f5; }
+.title-tag { display: inline-flex; align-items: center; gap: 4px; min-height: 20px; padding: 0 7px; border: 1px solid #ecd9a6; border-radius: 3px; color: #7a5a1e; background: #fbf3e0; font-size: 11px; font-weight: 700; white-space: nowrap; vertical-align: middle; }
 .open-access-tag { color: #286c86; background: var(--blue-soft); }
 .profile-role-tags { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 5px; flex-wrap: wrap; }
 .profile-role-tags .role-tag, .profile-role-tags .admin-tag { border-radius: 4px; padding: 6px 10px; font-size: 12px; }
@@ -335,6 +336,7 @@ td small { margin-top: 5px; color: var(--muted); }
 tr.dimmed td { color: #89918d; background: #fafafa; }
 .visibility { display: inline-flex; align-items: center; gap: 6px; }
 .limit-input { width: 92px; height: 38px; }
+.title-input { width: 130px; height: 38px; }
 .limit-usage { display: inline-flex; min-width: 54px; color: var(--green); font-weight: 700; }
 .limit-usage.full { color: var(--red); }
 .user-row-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

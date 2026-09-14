@@ -4,6 +4,7 @@ import { Camera, Crown, HeartHandshake, ImagePlus, EyeOff, MessageCircle, Pencil
 import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
+import UserTitleTag from '../components/UserTitleTag.vue'
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 const MAX_PHOTOS = 6
@@ -183,8 +184,8 @@ onBeforeUnmount(clearPendingPhotos)
 
     <section v-if="activePair || pendingPairs.length" class="sugar-status" :class="{ active: activePair }">
       <HeartHandshake :size="22" />
-      <div v-if="activePair"><small>当前砂糖</small><strong>{{ partner(activePair).nickname }}</strong><span>已维持 {{ duration(activePair.duration_seconds) }}</span></div>
-      <div v-else class="pending-sugar-list"><small>待确认砂糖</small><div v-for="pair in pendingPairs" :key="pair.id" class="pending-sugar-row"><strong>{{ partner(pair).nickname }}</strong><span>{{ pair.initiated_by_id === auth.user.id ? '等待对方确认' : '等待你的确认' }}</span><button class="button secondary small" @click="openDetail(partner(pair).id)">查看</button></div></div>
+      <div v-if="activePair"><small>当前砂糖</small><strong>{{ partner(activePair).nickname }}</strong><UserTitleTag :title="partner(activePair).title" /><span>已维持 {{ duration(activePair.duration_seconds) }}</span></div>
+      <div v-else class="pending-sugar-list"><small>待确认砂糖</small><div v-for="pair in pendingPairs" :key="pair.id" class="pending-sugar-row"><strong>{{ partner(pair).nickname }}</strong><UserTitleTag :title="partner(pair).title" /><span>{{ pair.initiated_by_id === auth.user.id ? '等待对方确认' : '等待你的确认' }}</span><button class="button secondary small" @click="openDetail(partner(pair).id)">查看</button></div></div>
       <button v-if="activePair" class="button secondary small" @click="endPair(activePair)">结束关系</button>
     </section>
 
@@ -194,7 +195,7 @@ onBeforeUnmount(clearPendingPhotos)
         <article v-for="(pair, index) in topPairs" :key="pair.id" class="pair-card">
           <span class="pair-rank">0{{ index + 1 }}</span>
           <Crown v-if="index === 0" :size="18" />
-          <h3>{{ pair.first_user.nickname }} <span>&amp;</span> {{ pair.second_user.nickname }}</h3>
+          <h3>{{ pair.first_user.nickname }}<UserTitleTag :title="pair.first_user.title" /> <span>&amp;</span> {{ pair.second_user.nickname }}<UserTitleTag :title="pair.second_user.title" /></h3>
           <p>{{ duration(pair.duration_seconds) }}</p>
           <small :class="pair.status">{{ pair.status === 'active' ? '仍在维持' : '已结束' }}</small>
         </article>
@@ -208,7 +209,7 @@ onBeforeUnmount(clearPendingPhotos)
       <div v-else-if="profiles.length" class="sugar-card-grid">
         <button v-for="profile in profiles" :key="profile.id" class="sugar-card" type="button" @click="openDetail(profile.user.id)">
           <img :src="profile.photos[0]?.image_url" :alt="`${profile.user.nickname} 的照片`" />
-          <span class="sugar-card-body"><strong>{{ profile.user.nickname }}</strong><small>{{ profile.about }}</small></span>
+          <span class="sugar-card-body"><strong>{{ profile.user.nickname }}</strong><UserTitleTag :title="profile.user.title" /><small>{{ profile.about }}</small></span>
           <span v-if="profile.user.id === auth.user.id" class="mine-tag">我的档案</span>
         </button>
       </div>
@@ -238,7 +239,7 @@ onBeforeUnmount(clearPendingPhotos)
         <button class="icon-button dialog-close" title="关闭" aria-label="关闭" @click="detail = null"><X :size="18" /></button>
         <p v-if="detailLoading" class="muted">正在加载资料…</p>
         <template v-else-if="detail">
-          <div class="dialog-heading"><span class="eyebrow">SUGAR PROFILE</span><h2>{{ detail.user.nickname }}</h2></div>
+          <div class="dialog-heading"><span class="eyebrow">SUGAR PROFILE</span><h2>{{ detail.user.nickname }}<UserTitleTag :title="detail.user.title" /></h2></div>
           <div class="photo-grid detail">
             <figure v-for="photo in detail.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
               <img :src="photo.image_url" :alt="`${detail.user.nickname} 的照片`" />

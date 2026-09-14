@@ -4,6 +4,7 @@ import { BookOpen, MessageCircle, PenLine, Plus, UserRound, X } from 'lucide-vue
 import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { useToast } from '../composables/toast'
 import UserAvatar from '../components/UserAvatar.vue'
+import UserTitleTag from '../components/UserTitleTag.vue'
 import StoryDetailDialog from '../components/StoryDetailDialog.vue'
 import ImageDropzone from '../components/ImageDropzone.vue'
 
@@ -96,7 +97,7 @@ onMounted(load)
           <h3>{{ story.title }}</h3>
           <p>{{ story.excerpt }}</p>
           <footer>
-            <span class="story-author"><UserAvatar :user="story.author" :size="20" />{{ story.author.nickname }}</span>
+            <span class="story-author"><UserAvatar :user="story.author" :size="20" />{{ story.author.nickname }}<UserTitleTag :title="story.author.title" /></span>
             <span class="story-comments"><MessageCircle :size="15" />{{ story.comment_count }}</span>
           </footer>
         </div>

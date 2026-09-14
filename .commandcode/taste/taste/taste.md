@@ -8,3 +8,4 @@
 - Prefers user/game progress persisted server-side as a per-user record (mirroring existing similar features) over browser localStorage. Confidence: 0.6
 - Communicates in Chinese and expects code comments, docs (README/AGENTS), and UI copy written in Chinese. Confidence: 0.7
 - Prefers a compact, deliberately ordered top navigation: highest-priority entry first, least-used last, with secondary and admin-only entries tucked into a "更多"/overflow dropdown so the bar doesn't grow too long. Confidence: 0.6
+- Optimizes for site-wide consistency over minimal blast radius: preference is to surface a new user-facing attribute everywhere the user/nickname already appears (rosters, dialogs, cards, all hall/board views) rather than only the pages named in the request. Confidence: 0.5
