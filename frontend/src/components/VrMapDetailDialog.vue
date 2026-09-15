@@ -8,6 +8,7 @@ import { useToast } from '../composables/toast'
 import UserAvatar from './UserAvatar.vue'
 import UserTitleTag from './UserTitleTag.vue'
 import ImageDropzone from './ImageDropzone.vue'
+import ImageLightbox from './ImageLightbox.vue'
 
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024
 const props = defineProps({ map: { type: Object, required: true } })
@@ -24,6 +25,13 @@ const deletingMap = ref(false)
 const showReport = ref(false)
 const reportReason = ref('')
 const pendingPhotos = ref([])
+const viewerSrc = ref('')
+const viewerAlt = ref('')
+
+function openViewer(photo) {
+  viewerSrc.value = photo.image_url
+  viewerAlt.value = `${props.map.name} 实拍照片`
+}
 
 const UPLOAD_PROMPT = '你也来过这里吗？把镜头里的光影、朋友和难忘瞬间留在这里，让每一次到访都成为这张地图共同的回忆。照片审核通过后公开展示。'
 
@@ -156,7 +164,7 @@ function loginToUpload() {
 
       <div v-if="publicPhotos.length" class="map-photos">
         <figure v-for="photo in publicPhotos" :key="photo.id">
-          <img :src="photo.image_url" :alt="`${map.name} 实拍照片`" />
+          <img class="zoomable" :src="photo.image_url" :alt="`${map.name} 实拍照片`" @click="openViewer(photo)" />
           <div v-if="auth.isLoggedIn && photo.uploaded_by_me" class="photo-actions">
             <label class="icon-button" title="更新图片" aria-label="更新图片" :class="{ disabled: changingPhotoId === photo.id || deletingPhotoId === photo.id }">
               <Pencil :size="15" /><input type="file" accept="image/png,image/jpeg" :disabled="changingPhotoId === photo.id || deletingPhotoId === photo.id" @change="replacePhoto(photo, $event)" />
@@ -213,6 +221,8 @@ function loginToUpload() {
         <button v-else class="button secondary" type="button" @click="loginToUpload"><LogIn :size="16" />登录后分享照片</button>
       </div>
     </section>
+
+    <ImageLightbox v-if="viewerSrc" :src="viewerSrc" :alt="viewerAlt" @close="viewerSrc = ''" />
   </div>
 </template>
 
@@ -300,6 +310,8 @@ function loginToUpload() {
   object-fit: cover;
   display: block;
 }
+
+.map-photos img.zoomable { cursor: zoom-in; }
 
 .map-actions {
   display: flex;

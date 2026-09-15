@@ -7,6 +7,7 @@ import { useToast } from '../composables/toast'
 import { roleLabel, ROLE_HINTS } from '../constants'
 import UserAvatar from '../components/UserAvatar.vue'
 import UserTitleTag from '../components/UserTitleTag.vue'
+import ImageLightbox from '../components/ImageLightbox.vue'
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
 const AVATAR_TYPES = new Set(['image/jpeg', 'image/png'])
@@ -18,6 +19,13 @@ const passwordBusy = ref(false)
 const photoBusy = ref(false)
 const avatarBusy = ref(false)
 const photos = ref(auth.user.photos || [])
+const viewerSrc = ref('')
+const viewerAlt = ref('')
+
+function openViewer(photo) {
+  viewerSrc.value = photo.image_url
+  viewerAlt.value = '个人介绍图片'
+}
 const remaining = computed(() => Math.max(0, 3 - photos.value.length))
 const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
 const form = reactive({
@@ -155,7 +163,7 @@ async function deleteAvatar() {
           <div class="section-heading compact"><div><span class="section-index">03</span><h2>介绍图片</h2><p>最多 3 张，单张不超过 5 MiB</p></div></div>
           <div class="photo-grid profile-photo-grid">
             <figure v-for="photo in photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
-              <img :src="photo.image_url" alt="个人介绍图片" />
+              <img class="zoomable" :src="photo.image_url" alt="个人介绍图片" @click="openViewer(photo)" />
               <span v-if="!photo.is_visible" class="photo-blocked"><EyeOff :size="14" />已屏蔽</span>
               <button class="icon-button photo-delete" type="button" title="删除图片" aria-label="删除图片" :disabled="photoBusy" @click="deletePhoto(photo)"><Trash2 :size="16" /></button>
             </figure>
@@ -167,10 +175,16 @@ async function deleteAvatar() {
         </div>
       </section>
     </div>
+
+    <ImageLightbox v-if="viewerSrc" :src="viewerSrc" :alt="viewerAlt" @close="viewerSrc = ''" />
   </div>
 </template>
 
 <style scoped>
+.zoomable {
+  cursor: zoom-in;
+}
+
 .profile-summary .u-avatar {
   display: flex;
   margin: 0 auto 12px;

@@ -39,9 +39,11 @@ frontend/src/
   constants.js   # 角色显示名 ROLE_LABELS / ROLE_HINTS / roleLabel()（⚠️ 改角色文案先看这里）
   stores/auth.js # Pinia：凭证经 authStorage.js 加密存于 localStorage/IndexedDB；isAdmin / isStaff / canManageRoles
   router.js      # 路由守卫（auth / guestOnly / roleManager）
-  views/         # TaskHall(大厅) AdminView(后台) OperationsView(运营台) AnnouncementsView(公告) StoryHall(故事会) 等
+  views/         # TaskHall(大厅) AdminView(后台) OperationsView(运营台) AnnouncementsView(公告) StoryHall(故事会)
+                 # SugarClub(砂糖社) FriendHall(交友厅) VrMaps(地图推荐) 等
   components/    # TaskDialog(委托详情+接取) CreateTaskDialog ReportDialog FeedbackDialog StoryDetailDialog(故事会详情)
                  # UserProfileCard StatusBadge KanbanNiang(AI看板娘) AppHeader ToastHost TaskCard
+                 # VrMapDetailDialog(地图详情) ImageLightbox(全屏图片放大，支持滚轮/双指缩放)
   frost/         # 糖霜世界(/frost) 因果解谜游戏：engine/(纯函数判定引擎，移植自 vrcWill)
                  # data/(12 关 JSON) + useFrostGame.js + frostSave.js + components/
   life/          # 虚拟人生(/life) 游戏内容与组件
@@ -85,7 +87,9 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 7.1 **称号**：`PATCH /api/admin/users/{id}/title`（`get_role_manager`：超管 + 管理员），自定义称号 ≤16 字、空串清空，非超管不能设置超管账号称号；用户本人不能自改（不在 `UserUpdate`）。字段随 `UserPublic/UserProfileOut/UserSelf/AdminUserOut` 下发，前端 `UserTitleTag.vue` 展示在成员名录、资料弹窗及全站昵称旁。
 8. **反馈**：游客可提交（需联系方式）；`GET/PATCH /api/admin/feedback` 用 `get_role_manager`（staff 可处理）。
 9. **举报**：有每日上限设置（`/api/admin/settings/report-limit`）；处理动作 close/hide/restore。
-10. **砂糖社**：公开档案（照片存 `sugar_upload_path`）→ 互相 confirm 成 pair → 任一方 end；展示维持最久前三对。
+10. **砂糖社**：公开档案（照片存 `sugar_upload_path`）→ 互相 confirm 成 pair → 任一方 end；**砂糖榜只展示进行中（`active`）的关系**，已结束的 pair 仅保留在库中用于历史时长、不再出现在 `GET /api/sugar/pairs/top`，榜上取维持最久前三对。
+10.1 **交友厅**（`/friends`，需登录）：每人一份 `FriendProfile`，登记**必填**「VRChat 中的昵称」（`vrc_nickname`，1-64 字，新增列已在 `migrate_schema()` 追加）与介绍，可传最多 5 张照片（审核后公开）；好友申请 `pending→accepted/rejected`，`accepted` 即互为好友。接口在 `/api/friends*`，照片审核在监管台「图片管理 → 交友照片」（`/api/admin/friends/photos*`）。
+10.2 **大图放大**：砂糖社/交友厅/地图详情的照片、个人资料弹窗与「个人设置」的介绍图片，点击后用 `frontend/src/components/ImageLightbox.vue` 全屏放大（带缩放动效，支持滚轮/按钮/双击/双指缩放与拖动平移）；卡片封面点击行为不变。
 11. **看板娘**：站内 AI 助手，走 Moonshot API（`mascot_*` 配置，未配 key 优雅降级）。
 12. **首页公告弹窗**：游客每次进入首页都需确认当前公告；登录用户按账号在浏览器记录各公告的 `updated_at`，仅首次看到或公告更新后再次确认。
 13. **地图实拍**：推荐地图时可附 3 张图片；此后每位用户可为同一地图上传最多 5 张实拍，单张最大 10 MB，审核通过后公开展示。

@@ -329,6 +329,14 @@ def migrate_schema() -> None:
                 connection.execute(text("ALTER TABLE sugar_photos ADD COLUMN moderated_by_id INTEGER"))
             if "moderated_at" not in sugar_photo_columns:
                 connection.execute(text("ALTER TABLE sugar_photos ADD COLUMN moderated_at DATETIME"))
+        if inspector.has_table("friend_profiles"):
+            friend_columns = {column["name"] for column in inspector.get_columns("friend_profiles")}
+            if "vrc_nickname" not in friend_columns:
+                connection.execute(
+                    text(
+                        "ALTER TABLE friend_profiles ADD COLUMN vrc_nickname VARCHAR(64) NOT NULL DEFAULT ''"
+                    )
+                )
         # 旧版本为地图照片建立了 (map_id, user_id) 唯一索引，重建表以支持同一用户上传多张。
         if inspector.has_table("vr_map_photos"):
             unique_constraints = inspector.get_unique_constraints("vr_map_photos")
@@ -963,6 +971,7 @@ def present_friend_profile(
     data = {
         "id": profile.id,
         "user": present_user_public(profile.user),
+        "vrc_nickname": profile.vrc_nickname,
         "about": profile.about,
         "photos": present_friend_photos(profile, viewer),
         "friend_count": friend_count(db, profile.user_id),
@@ -1061,6 +1070,7 @@ def top_friend_users(user: User = Depends(get_current_user), db: Session = Depen
 @app.post("/api/friends/profile", response_model=FriendProfileDetailOut)
 async def save_friend_profile(
     response: Response,
+    vrc_nickname: Annotated[str, Form(...)],
     about: Annotated[str, Form(...)],
     photos: list[UploadFile] = File(default=[]),
     user: User = Depends(get_current_user),
@@ -1068,6 +1078,9 @@ async def save_friend_profile(
 ):
     if user.is_admin:
         raise HTTPException(status_code=403, detail="管理员账号不能登记交友厅资料")
+    vrc_nickname = vrc_nickname.strip()
+    if not 1 <= len(vrc_nickname) <= 64:
+        raise HTTPException(status_code=422, detail="VRChat 昵称需要 1 至 64 个字符")
     about = about.strip()
     if not 1 <= len(about) <= 1000:
         raise HTTPException(status_code=422, detail="交友厅介绍需要 1 至 1000 个字符")
@@ -1079,12 +1092,13 @@ async def save_friend_profile(
     if profile is None:
         if not images:
             raise HTTPException(status_code=422, detail="首次登记请至少上传一张照片")
-        profile = FriendProfile(user_id=user.id, about=about)
+        profile = FriendProfile(user_id=user.id, vrc_nickname=vrc_nickname, about=about)
         db.add(profile)
         db.flush()
     else:
         if len(profile.photos) + len(images) > MAX_FRIEND_PHOTOS:
             raise HTTPException(status_code=422, detail=f"每个档案最多保存 {MAX_FRIEND_PHOTOS} 张照片")
+        profile.vrc_nickname = vrc_nickname
         profile.about = about
         profile.updated_at = datetime.utcnow()
     records = store_friend_images(profile, images)
@@ -1728,7 +1742,7 @@ def my_sugar_pairs(user: User = Depends(get_current_user), db: Session = Depends
 def top_sugar_pairs(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     pairs = db.scalars(
         sugar_pair_query()
-        .where(SugarPair.status.in_([SugarPairStatus.ACTIVE, SugarPairStatus.ENDED]))
+        .where(SugarPair.status == SugarPairStatus.ACTIVE)
         .order_by(SugarPair.activated_at.asc())
         .limit(1000)
     ).all()

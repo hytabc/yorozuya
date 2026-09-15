@@ -620,6 +620,7 @@ class FriendRequestOut(ApiModel):
 class FriendProfileCardOut(ApiModel):
     id: int
     user: UserPublic
+    vrc_nickname: str = ""
     about: str
     photos: list[FriendPhotoOut] = []
     friend_count: int = 0

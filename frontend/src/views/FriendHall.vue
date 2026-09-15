@@ -1,10 +1,11 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { Camera, Check, Crown, EyeOff, ImagePlus, MessageCircle, Pencil, Save, Trash2, UserPlus, UserRound, UsersRound, X } from 'lucide-vue-next'
+import { Camera, Check, Crown, EyeOff, Gamepad2, ImagePlus, MessageCircle, Pencil, Save, Trash2, UserPlus, UserRound, UsersRound, X } from 'lucide-vue-next'
 import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { useToast } from '../composables/toast'
 import { useAuthStore } from '../stores/auth'
 import UserTitleTag from '../components/UserTitleTag.vue'
+import ImageLightbox from '../components/ImageLightbox.vue'
 
 const MAX_PHOTOS = 5
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
@@ -21,7 +22,14 @@ const detail = ref(null)
 const detailLoading = ref(false)
 const saving = ref(false)
 const pendingPhotos = ref([])
-const form = reactive({ about: '' })
+const form = reactive({ vrc_nickname: '', about: '' })
+const viewerSrc = ref('')
+const viewerAlt = ref('')
+
+function openViewer(photo, name) {
+  viewerSrc.value = photo.image_url
+  viewerAlt.value = `${name} 的照片`
+}
 
 const ownProfile = computed(() => profiles.value.find((profile) => profile.user.id === auth.user?.id) || null)
 const incomingRequests = computed(() => requests.value.filter((item) => item.requester_id !== auth.user?.id))
@@ -34,6 +42,7 @@ function clearPendingPhotos() {
 }
 
 function setEditor(profile = ownProfile.value) {
+  form.vrc_nickname = profile?.vrc_nickname || ''
   form.about = profile?.about || ''
   clearPendingPhotos()
   editorOpen.value = true
@@ -83,11 +92,13 @@ async function load() {
 }
 
 async function saveProfile() {
+  if (!form.vrc_nickname.trim()) return toast.error('请填写 VRChat 中的昵称')
   if (!form.about.trim()) return toast.error('请填写介绍')
   if (!ownProfile.value && !pendingPhotos.value.length) return toast.error('首次登记请上传至少一张照片')
   saving.value = true
   try {
     const body = new FormData()
+    body.append('vrc_nickname', form.vrc_nickname.trim())
     body.append('about', form.about.trim())
     pendingPhotos.value.forEach(({ file }) => body.append('photos', file))
     await api.post('/friends/profile', body)
@@ -208,7 +219,7 @@ onBeforeUnmount(clearPendingPhotos)
         <button v-for="profile in profiles" :key="profile.id" class="sugar-card" type="button" @click="openDetail(profile.user.id)">
           <img v-if="profile.photos[0]" :src="profile.photos[0].image_url" :alt="`${profile.user.nickname} 的照片`" />
           <div v-else class="friend-card-placeholder"><UserRound :size="38" /></div>
-          <span class="sugar-card-body"><strong>{{ profile.user.nickname }}</strong><UserTitleTag :title="profile.user.title" /><small>{{ profile.about }}</small><em><UsersRound :size="13" />{{ profile.friend_count }} 位好友</em></span>
+          <span class="sugar-card-body"><strong>{{ profile.user.nickname }}</strong><UserTitleTag :title="profile.user.title" /><small class="vrc-nickname">VRChat：{{ profile.vrc_nickname }}</small><small>{{ profile.about }}</small><em><UsersRound :size="13" />{{ profile.friend_count }} 位好友</em></span>
           <span v-if="profile.user.id === auth.user.id" class="mine-tag">我的资料</span>
         </button>
       </div>
@@ -220,6 +231,7 @@ onBeforeUnmount(clearPendingPhotos)
         <button class="icon-button dialog-close" title="关闭" aria-label="关闭" @click="editorOpen = false"><X :size="18" /></button>
         <div class="dialog-heading"><span class="eyebrow">FRIEND PROFILE</span><h2>{{ ownProfile ? '编辑我的资料' : '登记我的资料' }}</h2></div>
         <form class="form-stack" @submit.prevent="saveProfile">
+          <label>VRChat 中的昵称<input v-model.trim="form.vrc_nickname" required maxlength="64" placeholder="你在 VRChat 里的昵称" /><small>{{ form.vrc_nickname.length }}/64</small></label>
           <label>介绍<textarea v-model="form.about" rows="5" maxlength="1000" placeholder="写下兴趣、常去的世界或想认识的朋友类型" /><small>{{ form.about.length }}/1000</small></label>
           <div class="photo-field"><span>照片 <small>单张不超过 5 MiB，最多 {{ MAX_PHOTOS }} 张，新照片需审核</small></span>
             <div class="photo-grid edit">
@@ -239,7 +251,8 @@ onBeforeUnmount(clearPendingPhotos)
         <p v-if="detailLoading" class="muted">正在加载资料…</p>
         <template v-else-if="detail">
           <div class="dialog-heading"><span class="eyebrow">FRIEND PROFILE</span><h2>{{ detail.user.nickname }}<UserTitleTag :title="detail.user.title" /></h2><p>{{ detail.friend_count }} 位好友</p></div>
-          <div class="photo-grid detail"><figure v-for="photo in detail.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }"><img :src="photo.image_url" :alt="`${detail.user.nickname} 的照片`" /><span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.admin_note || '审核中' }}</span></figure><div v-if="!detail.photos.length" class="friend-detail-placeholder"><UserRound :size="38" /><span>暂未公开照片</span></div></div>
+          <div class="sugar-qq"><Gamepad2 :size="17" /><span><small>VRChat 中的昵称</small><strong>{{ detail.vrc_nickname }}</strong></span></div>
+          <div class="photo-grid detail"><figure v-for="photo in detail.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }"><img class="zoomable" :src="photo.image_url" :alt="`${detail.user.nickname} 的照片`" @click="openViewer(photo, detail.user.nickname)" /><span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.admin_note || '审核中' }}</span></figure><div v-if="!detail.photos.length" class="friend-detail-placeholder"><UserRound :size="38" /><span>暂未公开照片</span></div></div>
           <p class="sugar-about">{{ detail.about }}</p>
           <div v-if="detail.qq !== null || detail.user.id === auth.user.id" class="sugar-qq"><MessageCircle :size="17" /><span><small>QQ</small><strong>{{ detail.qq || '暂未填写' }}</strong></span></div>
           <div v-if="detail.user.id !== auth.user.id" class="dialog-footer sugar-detail-actions">
@@ -251,6 +264,8 @@ onBeforeUnmount(clearPendingPhotos)
         </template>
       </section>
     </div>
+
+    <ImageLightbox v-if="viewerSrc" :src="viewerSrc" :alt="viewerAlt" @close="viewerSrc = ''" />
   </div>
 </template>
 
@@ -268,6 +283,8 @@ onBeforeUnmount(clearPendingPhotos)
 .friend-request-row span { color: var(--muted); font-size: 12px; }
 .friend-card-placeholder { display: grid; place-items: center; height: 225px; color: #a7657d; background: #f4eaf0; }
 .sugar-card-body em { display: flex; align-items: center; gap: 4px; color: #a7657d; font-size: 11px; font-style: normal; }
+.sugar-card-body .vrc-nickname { color: #a7657d; }
+.zoomable { cursor: zoom-in; }
 .friend-detail-placeholder { display: grid; place-items: center; min-height: 150px; gap: 8px; color: var(--muted); }
 @media (max-width: 680px) {
   .friend-request-row { align-items: flex-start; flex-wrap: wrap; }
