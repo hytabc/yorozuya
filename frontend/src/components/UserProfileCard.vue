@@ -5,6 +5,7 @@ import { api, errorMessage } from '../api'
 import { roleLabel } from '../constants'
 import UserAvatar from './UserAvatar.vue'
 import UserTitleTag from './UserTitleTag.vue'
+import ImageLightbox from './ImageLightbox.vue'
 
 const props = defineProps({
   userId: { type: Number, default: null },
@@ -16,6 +17,13 @@ const emit = defineEmits(['close'])
 const loading = ref(!props.initialUser)
 const error = ref('')
 const user = ref(props.initialUser)
+const viewerSrc = ref('')
+const viewerAlt = ref('')
+
+function openViewer(photo) {
+  viewerSrc.value = photo.image_url
+  viewerAlt.value = `${user.value?.nickname || '用户'} 的介绍图片`
+}
 
 const joined = (value) =>
   value
@@ -51,7 +59,7 @@ onMounted(async () => {
       <p v-else class="user-card-bio muted">这个人还没有填写简介。</p>
       <div v-if="user.photos?.length" class="user-profile-photos">
         <figure v-for="photo in user.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
-          <img :src="photo.image_url" :alt="`${user.nickname} 的介绍图片`" />
+          <img class="zoomable" :src="photo.image_url" :alt="`${user.nickname} 的介绍图片`" @click="openViewer(photo)" />
           <span v-if="!photo.is_visible"><EyeOff :size="13" />已屏蔽</span>
         </figure>
       </div>
@@ -60,4 +68,11 @@ onMounted(async () => {
       <p v-else class="user-card-privacy muted"><MessageCircle :size="15" />联系方式不在公开资料中展示</p>
     </template>
   </section>
+  <ImageLightbox v-if="viewerSrc" :src="viewerSrc" :alt="viewerAlt" @close="viewerSrc = ''" />
 </template>
+
+<style scoped>
+.zoomable {
+  cursor: zoom-in;
+}
+</style>

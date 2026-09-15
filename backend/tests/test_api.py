@@ -211,11 +211,11 @@ def register_sugar_profile(client, headers, about="喜欢在周末散步"):
     return response.json()
 
 
-def register_friend_profile(client, headers, about="喜欢一起探索 VRChat 世界"):
+def register_friend_profile(client, headers, about="喜欢一起探索 VRChat 世界", vrc_nickname="VRC 昵称"):
     response = client.post(
         "/api/friends/profile",
         headers=headers,
-        data={"about": about},
+        data={"vrc_nickname": vrc_nickname, "about": about},
         files=[("photos", ("portrait.png", TINY_PNG, "image/png"))],
     )
     assert response.status_code == 201, response.text
@@ -556,12 +556,16 @@ def test_sugar_club_profiles_pairing_and_ranking(tmp_path, monkeypatch):
         assert active.json()["status"] == "active"
         pair_id = active.json()["id"]
 
+        # 进行中的关系会出现在砂糖榜；关系结束后不再展示。
+        leaderboard = client.get("/api/sugar/pairs/top", headers=bob).json()
+        assert leaderboard[0]["id"] == pair_id
+        assert leaderboard[0]["status"] == "active"
+
         ended = client.post(f"/api/sugar/pairs/{pair_id}/end", headers=alice)
         assert ended.status_code == 200
         assert ended.json()["status"] == "ended"
-        leaderboard = client.get("/api/sugar/pairs/top", headers=bob).json()
-        assert leaderboard[0]["id"] == pair_id
-        assert leaderboard[0]["status"] == "ended"
+        after_end = client.get("/api/sugar/pairs/top", headers=bob).json()
+        assert after_end == []
 
 
 def test_friend_hall_profiles_moderation_requests_and_ranking(tmp_path, monkeypatch):
@@ -579,6 +583,7 @@ def test_friend_hall_profiles_moderation_requests_and_ranking(tmp_path, monkeypa
         # 新照片默认为待审核：主人可见，其他用户列表隐藏。
         own_cards = client.get("/api/friends/profiles", headers=alice).json()
         own_card = next(card for card in own_cards if card["user"]["id"] == alice_id)
+        assert own_card["vrc_nickname"] == "VRC 昵称"
         assert own_card["photos"][0]["is_visible"] is False
         other_cards = client.get("/api/friends/profiles", headers=bob).json()
         alice_card = next(card for card in other_cards if card["user"]["id"] == alice_id)
@@ -608,6 +613,7 @@ def test_friend_hall_profiles_moderation_requests_and_ranking(tmp_path, monkeypa
 
         detail = client.get(f"/api/friends/profiles/{bob_id}", headers=alice).json()
         assert detail["relationship"]["status"] == "accepted"
+        assert detail["vrc_nickname"] == "VRC 昵称"
         assert detail["qq"] == "2222222222"
         leaderboard = client.get("/api/friends/top", headers=alice).json()
         assert {item["user"]["id"] for item in leaderboard} == {alice_id, bob_id}
@@ -617,10 +623,19 @@ def test_friend_hall_profiles_moderation_requests_and_ranking(tmp_path, monkeypa
         too_many = client.post(
             "/api/friends/profile",
             headers=alice,
-            data={"about": "更新介绍"},
+            data={"vrc_nickname": "VRC 昵称", "about": "更新介绍"},
             files=six_photos,
         )
         assert too_many.status_code == 422
+
+        # VRChat 昵称为必填项。
+        missing_nickname = client.post(
+            "/api/friends/profile",
+            headers=alice,
+            data={"about": "缺少昵称"},
+            files=[("photos", ("portrait.png", TINY_PNG, "image/png"))],
+        )
+        assert missing_nickname.status_code == 422
 
 
 def test_feedback_flow():

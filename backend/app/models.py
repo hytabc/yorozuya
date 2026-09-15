@@ -603,6 +603,8 @@ class FriendProfile(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, index=True)
+    # VRChat 中的昵称：登记必填，便于其他成员在游戏内认出本人。
+    vrc_nickname: Mapped[str] = mapped_column(String(64), default="")
     about: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

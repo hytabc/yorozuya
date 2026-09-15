@@ -5,6 +5,7 @@ import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import UserTitleTag from '../components/UserTitleTag.vue'
+import ImageLightbox from '../components/ImageLightbox.vue'
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 const MAX_PHOTOS = 6
@@ -21,6 +22,13 @@ const editorOpen = ref(false)
 const saving = ref(false)
 const pendingPhotos = ref([])
 const form = reactive({ about: '' })
+const viewerSrc = ref('')
+const viewerAlt = ref('')
+
+function openViewer(photo, name) {
+  viewerSrc.value = photo.image_url
+  viewerAlt.value = `${name} 的照片`
+}
 
 const ownProfile = computed(() => profiles.value.find((profile) => profile.user.id === auth.user.id) || null)
 const activePair = computed(() => myPairs.value.find((pair) => pair.status === 'active') || null)
@@ -197,7 +205,7 @@ onBeforeUnmount(clearPendingPhotos)
           <Crown v-if="index === 0" :size="18" />
           <h3>{{ pair.first_user.nickname }}<UserTitleTag :title="pair.first_user.title" /> <span>&amp;</span> {{ pair.second_user.nickname }}<UserTitleTag :title="pair.second_user.title" /></h3>
           <p>{{ duration(pair.duration_seconds) }}</p>
-          <small :class="pair.status">{{ pair.status === 'active' ? '仍在维持' : '已结束' }}</small>
+          <small class="active">仍在维持</small>
         </article>
       </div>
       <div v-else class="sugar-empty"><Crown :size="24" /><span>还没有已确认的砂糖</span></div>
@@ -242,7 +250,7 @@ onBeforeUnmount(clearPendingPhotos)
           <div class="dialog-heading"><span class="eyebrow">SUGAR PROFILE</span><h2>{{ detail.user.nickname }}<UserTitleTag :title="detail.user.title" /></h2></div>
           <div class="photo-grid detail">
             <figure v-for="photo in detail.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
-              <img :src="photo.image_url" :alt="`${detail.user.nickname} 的照片`" />
+              <img class="zoomable" :src="photo.image_url" :alt="`${detail.user.nickname} 的照片`" @click="openViewer(photo, detail.user.nickname)" />
               <span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />已屏蔽：{{ photo.admin_note || '未说明理由' }}</span>
             </figure>
           </div>
@@ -257,6 +265,8 @@ onBeforeUnmount(clearPendingPhotos)
         </template>
       </section>
     </div>
+
+    <ImageLightbox v-if="viewerSrc" :src="viewerSrc" :alt="viewerAlt" @close="viewerSrc = ''" />
   </div>
 </template>
 
@@ -266,5 +276,9 @@ onBeforeUnmount(clearPendingPhotos)
   max-width: 85%;
   white-space: normal;
   line-height: 1.5;
+}
+
+.zoomable {
+  cursor: zoom-in;
 }
 </style>

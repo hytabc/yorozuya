@@ -9,3 +9,6 @@
 - Communicates in Chinese and expects code comments, docs (README/AGENTS), and UI copy written in Chinese. Confidence: 0.7
 - Prefers a compact, deliberately ordered top navigation: highest-priority entry first, least-used last, with secondary and admin-only entries tucked into a "更多"/overflow dropdown so the bar doesn't grow too long. Confidence: 0.6
 - Optimizes for site-wide consistency over minimal blast radius: preference is to surface a new user-facing attribute everywhere the user/nickname already appears (rosters, dialogs, cards, all hall/board views) rather than only the pages named in the request. Confidence: 0.5
+- Expects user-facing UI to be interactive rather than static: when requesting that big images be "viewable", explicitly asks for click-to-enlarge plus a zoom in/out animation, and chooses the richer interaction (further wheel/pinch/button zoom) over a minimal non-animated viewer. Confidence: 0.6
+- When adding a new profile/registration field, prefers it to be required (mandatory on save) with a sensible max length rather than optional. Confidence: 0.4
+- States requirements as terse, bulleted Chinese feature lists ("新增需求：…") that bundle several product-area changes into one message, and expects the agent to explore the existing code/PRD and raise clarifying questions with concrete options before committing to a plan. Confidence: 0.5
