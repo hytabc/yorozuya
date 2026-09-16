@@ -8,9 +8,9 @@
 // 绝不回退为明文存储。
 
 // 缓存结构版本：改动 localStorage 中保存的字段时递增，旧缓存会被清理并要求重新登录。
-// 注意：本次新增的 remember 是可选字段，旧缓存缺省即 false（= 24 小时，行为仍正确），
-// 因此刻意不递增版本号——递增会强制所有已登录用户重新登录，与“自动登录”的目标相悖。
-export const AUTH_CACHE_VERSION = '6'
+// 本次递增到 7：user 结构新增 email / email_verified / pending_email / notify_email，
+// 更重要的是登录改为「必须邮箱验证」，旧缓存缺少这些字段会造成误判，因此强制重新登录。
+export const AUTH_CACHE_VERSION = '7'
 // 上一个（明文）缓存版本，用于把旧缓存无感迁移成加密存储。
 const LEGACY_CACHE_VERSION = '5'
 export const LOGIN_MAX_AGE_MS = 24 * 60 * 60 * 1000

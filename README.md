@@ -135,6 +135,13 @@ TURNSTILE_SECRET_KEY=你的secret
 
    - 数据持久化：数据库通过绑定挂载保存在宿主机 `backend/data/wsw.db`，用户资料及砂糖社图片保存在同目录的 `backend/data/uploads/`
      （该目录已被 `.gitignore` 忽略）。详情见下方「数据存储与备份」；
+   - **后端容器以非 root 用户（UID 10001）运行**，因此首次部署（以及从旧版本升级）时需要在宿主机执行一次：
+
+     ```bash
+     chown -R 10001:10001 backend/data
+     ```
+
+     否则启动日志会提示「数据库目录不可写」。之后新增的上传文件由容器内该用户创建，无需再改权限；
    - 部署代码更新后，运行 `docker compose up -d --build` 重新生成静态文件和镜像；
    - 证书已存在时可直接用 `docker compose up -d --build` 启动或更新，无需再跑初始化脚本；
    - 前端入口不缓存，带内容哈希的 JS/CSS 长期缓存，更新部署后浏览器会加载新版本。
@@ -259,12 +266,93 @@ start.bat test
   因此即便手工改写本地缓存也无法让界面误认为自己拥有管理员权限（后端对每个接口独立鉴权）。
 - **拒绝越权字段**：请求模型启用 `extra="forbid"`，请求体夹带 `role`/`is_admin` 等额外字段会返回 422；
   `is_admin` 无法通过任何接口写入，只有超级管理员能通过 `PATCH /admin/users/{id}/role` 调整 `staff`/`mascot`/`disciplinarian`。
-- **上传与文件**：图片按文件头校验真实类型、由服务端生成 UUID 文件名，头像/实拍等需审核后才公开；
+- **上传与文件**：图片会先按文件头校验真实类型，再用 Pillow **真正解码**一次后重新编码：
+  按拍摄方向摆正、剥离 EXIF/GPS 等全部元数据、限制单张像素（约 25 MP，先看文件头再解码，挡下压缩炸弹）
+  与长边（2560 px）、动图只保留首帧；文件名由服务端生成 UUID。
   上传目录与数据库目录强制隔离，避免 `wsw.db` 与备份被静态托管下载。
-- **响应头**：Nginx 统一附加 `X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`。
+- **待审媒体受控访问**：媒体分两个区 —— 已过审的文件在公开区 `backend/data/uploads/`，由 `/uploads` 静态托管；
+  待审与被屏蔽的文件落在**公开目录之外**的 `backend/data/private_media/`，只能通过短时签名地址
+  `/api/media/<key>?exp=&sig=` 访问（`<img>` 带不了 Bearer 令牌，所以签名即访问控制，默认有效期 6 小时）。
+  审核通过时文件搬进公开区，驳回/屏蔽时搬回私有区，因此**撤回后旧公开地址立即失效**。
+  升级到本版本时后端会在启动阶段做一次对账，把历史遗留的"已屏蔽但仍在公开区"的文件搬进私有区。
+- **响应头**：Nginx 统一附加 `X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`，
+  并下发 `Content-Security-Policy`（`default-src 'self'`，仅额外放行 Cloudflare Turnstile）；
+  `/uploads/` 与 `/api/media/` 额外带 `default-src 'none'; sandbox`，使任何被直接打开的上传文件都无法作为页面执行。
 - **传输加密**：对外入口 `edge` 已内置 HTTPS（Let's Encrypt 自动续期）、HTTP 强制跳转与 HSTS，
   令牌与密码不再明文过网。部署时务必按上文配置 `DOMAIN` 与证书，不要绕过 `edge` 直接把前端/后端暴露到公网。
+- **运行面加固**：`backend` 容器以非 root（UID 10001）运行，根文件系统只读、`/tmp` 为内存盘、丢弃全部 Linux
+  capability 并禁止提权；`frontend`/`edge` 为只读根文件系统 + 内存临时目录（`edge` 的 `/etc/nginx/conf.d`
+  必须挂 tmpfs，entrypoint 要写入渲染后的配置）。开发覆盖文件 `docker-compose.dev.yml` 会显式取消只读，
+  仅用于本机且不可用于公网。
 - **生产建议**：务必在 `.env` 设置足够随机的 `SECRET_KEY` 与强 `ADMIN_PASSWORD`。
+
+## 邮箱验证与邮件通知
+
+本站用邮箱做账号体系的一部分：注册必须验证邮箱、存量账号登录后强制补充绑定、可以用邮箱找回密码与换绑邮箱，
+并且登录时还要再输入一次邮件验证码（二次验证）。邮件通过 **Brevo SMTP 中继** 发送。
+
+### 功能一览
+
+| 场景 | 行为 |
+|---|---|
+| 注册 | 必须填邮箱；注册成功后**不会直接登录**，需点击邮件里的验证链接 |
+| 登录 | 登录名支持「用户名」或「邮箱」；已绑定并验证邮箱的账号，密码通过后还要输入邮件里的 6 位验证码 |
+| 存量账号 | 旧账号没有邮箱，登录后会被强制要求绑定并验证；未完成前除「绑定邮箱 / 改密码 / 浏览」外的写操作都会被拒绝 |
+| 忘记密码 | 用用户名或邮箱申请重置链接（30 分钟有效、一次性）；重置后所有旧登录立即失效 |
+| 换绑邮箱 | 先向新地址发确认链接，确认后才生效；旧邮箱会收到变更提醒 |
+| 事件通知 | 委托被接取/开始/完成/取消、委托被隐藏、反馈收到回复、志愿者与内测申请审核结果 |
+
+通知邮件只发给「已验证邮箱 + 未关闭通知开关」的账号，正文不含 QQ 等联系方式。
+公告类**不做群发**（会按用户数消耗 Brevo 配额且有滥用风险）。
+
+### 配置（Brevo）
+
+1. 在 Brevo 后台 → **SMTP & API → SMTP** 获取登录账号（形如 `xxxx@smtp-brevo.com`）并生成 SMTP key。
+2. 在 Brevo 后台 → **Senders 验证一个发件地址**（或验证你的域名）。
+   ⚠️ `EMAIL_FROM_ADDRESS` 必须是**已验证的发件地址**，否则中继会返回 554/550 拒收。
+3. 把凭据写进根目录 `.env`（**该文件已被 `.gitignore` 忽略，密钥绝不要写进任何入库文件**）：
+
+   ```bash
+   EMAIL_DELIVERY=smtp
+   SMTP_HOST=smtp-relay.brevo.com
+   SMTP_PORT=587
+   SMTP_USERNAME=xxxx@smtp-brevo.com
+   SMTP_PASSWORD=你的-SMTP-key
+   EMAIL_FROM_ADDRESS=no-reply@你的域名
+   EMAIL_FROM_NAME=万事屋委托站
+   SITE_BASE_URL=https://你的域名   # 邮件里链接的前缀，建议显式填写
+   ```
+
+4. `docker compose up -d --build` 重启后端使配置生效。
+
+本地开发不想配 SMTP 时，设 `EMAIL_DELIVERY=log`：邮件不会真的发出，而是打印到后端日志里（可直接复制验证链接）。
+
+### 策略开关
+
+| 变量 | 默认 | 说明 |
+|---|---|---|
+| `LOGIN_CODE_REQUIRED` | `true` | 登录是否要求邮箱验证码。**关掉可让登录只靠密码+人机验证** |
+| `REQUIRE_EMAIL_VERIFICATION` | `true` | 未验证邮箱是否封锁写操作 |
+| `NOTIFY_EMAIL_ENABLED` | `true` | 事件通知邮件总开关 |
+| `EMAIL_VERIFICATION_TTL_HOURS` | `24` | 验证/换绑链接有效期 |
+| `PASSWORD_RESET_TTL_MINUTES` | `30` | 重置密码链接有效期 |
+| `LOGIN_CODE_TTL_MINUTES` | `10` | 登录验证码有效期（连错 5 次作废） |
+| `EMAIL_SEND_COOLDOWN_SECONDS` | `60` | 同一账号同一用途的最小发信间隔 |
+
+### ⚠️ 被锁住时的救援步骤
+
+邮件服务出问题时（密钥失效、Brevo 拒收发件地址、配额用尽），会影响注册、验证、找回密码与登录验证码。
+**超级管理员（`is_admin`）不受验证闸门限制**，可在后台处理日常事务；若连登录验证码都收不到，按下面顺序恢复：
+
+1. 在 `.env` 里把 `LOGIN_CODE_REQUIRED=false`（先能登录）→ `docker compose up -d` 重启后端；
+2. 修好邮件配置后，再把它改回 `true`；
+3. 若大量存量用户被卡在验证上，可临时 `REQUIRE_EMAIL_VERIFICATION=false` 放行写操作，恢复后改回 `true`。
+
+### 相关约定
+
+- 邮件里的链接令牌**只以哈希入库**（`email_tokens` 表），一次性、限时，用后作废；
+- 重置密码等同确认了邮箱控制权，因此会把该邮箱标记为已验证，并使全部旧会话失效；
+- 「账号是否存在」不会被泄露：重发验证信与申请重置密码接口对不存在的账号同样返回成功。
 
 ## 数据存储与备份
 

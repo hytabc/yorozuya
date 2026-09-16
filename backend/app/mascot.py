@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from .config import settings
@@ -29,6 +29,9 @@ class MascotMessage(BaseModel):
 
 
 class MascotChatRequest(BaseModel):
+    # 与主站请求模型一致：拒绝多余字段，避免请求体被夹带未知参数。
+    model_config = ConfigDict(extra="forbid")
+
     messages: list[MascotMessage] = Field(min_length=1, max_length=MAX_HISTORY)
 
 

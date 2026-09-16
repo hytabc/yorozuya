@@ -18,10 +18,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Boolean, Integer, String, Text, select
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
-from .config import settings
 from .database import Base, get_db
 from .dependencies import get_life_player, get_role_manager
+from .images import normalize_image
+from .media import storage_file, write_media
 from .models import User
+from .ratelimit import enforce
 
 SEED_DIR = Path(__file__).resolve().parent / 'life_packs'
 DEFAULT_PACK_ID = 'wsw-default-life'
@@ -588,41 +590,23 @@ def delete_pack(pack_id: str, user: User = Depends(get_role_manager), db: Sessio
 
 
 # ==== 素材上传(世界背景图/NPC 立绘,阶段 4d) ====
-# 与主站照片上传同一套约束:魔数嗅探、5 MiB 上限,落在 uploads 挂载目录的
-# life/ 子目录,经 /uploads 静态挂载对外提供。
+# 与主站照片上传同一套约束:解码校验、像素上限、剥元数据、5 MiB 上限。
+# 素材由管理员上传且恒为公开内容,因此固定落在公开区 uploads/life/,经 /uploads 静态挂载对外提供。
 MAX_LIFE_IMAGE_BYTES = 5 * 1024 * 1024
-LIFE_IMAGE_SIGNATURES = (
-    (b"\xff\xd8\xff", ".jpg"),
-    (b"\x89PNG\r\n\x1a\n", ".png"),
-    (b"GIF87a", ".gif"),
-    (b"GIF89a", ".gif"),
-)
-
-
-def _life_image_extension(content: bytes):
-    for signature, extension in LIFE_IMAGE_SIGNATURES:
-        if content.startswith(signature):
-            return extension
-    if content.startswith(b"RIFF") and content[8:12] == b"WEBP":
-        return ".webp"
-    return None
 
 
 @router.post('/assets', status_code=201)
 async def upload_life_asset(file: UploadFile = File(...), user: User = Depends(get_role_manager)):
+    enforce('upload', str(user.id), 30, 3600)
     content = await file.read(MAX_LIFE_IMAGE_BYTES + 1)
     if not content:
         raise HTTPException(422, '上传的图片不能为空')
     if len(content) > MAX_LIFE_IMAGE_BYTES:
         raise HTTPException(422, '单张图片不能超过 5 MiB')
-    extension = _life_image_extension(content)
-    if extension is None:
-        raise HTTPException(422, '仅支持 JPEG、PNG、GIF 或 WebP 图片')
+    extension, content = normalize_image(content)
     file_path = f"life/{uuid4().hex}{extension}"
-    destination = settings.sugar_upload_path / file_path
     try:
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes(content)
+        write_media(file_path, content, public=True)
     except OSError as error:
         raise HTTPException(500, '图片保存失败，请稍后重试') from error
     return {'url': f'/uploads/{file_path}'}
@@ -708,7 +692,7 @@ def _validate_npc_bundle(bundle: dict) -> tuple[str, dict, dict]:
 
 
 def _write_imported_images(images: dict, created_files: list[Path]) -> dict[str, str]:
-    """把 base64 图片写入 uploads/life/,返回旧路径 -> 新路径映射。"""
+    """把 base64 图片净化后写入 uploads/life/,返回旧路径 -> 新路径映射。"""
     mapping: dict[str, str] = {}
     for old_path, encoded in images.items():
         if not isinstance(old_path, str) or not isinstance(encoded, str):
@@ -721,17 +705,15 @@ def _write_imported_images(images: dict, created_files: list[Path]) -> dict[str,
             raise HTTPException(422, f'图片 {old_path} 为空')
         if len(content) > MAX_LIFE_IMAGE_BYTES:
             raise HTTPException(422, f'图片 {old_path} 超过 5 MiB')
-        extension = _life_image_extension(content)
-        if extension is None:
-            raise HTTPException(422, f'图片 {old_path} 不是支持的图片格式')
-        relative = f'life/{uuid4().hex}{extension}'
-        destination = settings.sugar_upload_path / relative
         try:
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(content)
+            extension, content = normalize_image(content)
+        except HTTPException as error:
+            raise HTTPException(422, f'图片 {old_path} 不是支持的图片格式') from error
+        relative = f'life/{uuid4().hex}{extension}'
+        try:
+            created_files.append(write_media(relative, content, public=True))
         except OSError as error:
             raise HTTPException(500, '图片保存失败，请稍后重试') from error
-        created_files.append(destination)
         mapping[old_path] = f'/uploads/{relative}'
     return mapping
 
@@ -834,8 +816,12 @@ def export_npc(pack_id: str, npc_id: str, user: User = Depends(get_role_manager)
         if path in images or path in missing_images:
             continue
         relative = path.removeprefix('/uploads/')
-        file_path = settings.sugar_upload_path / relative
+        # storage_file 会做越界校验：即便内容包里的路径被写成 ../../etc/passwd，
+        # 也只能在上传目录内解析，读不到目录外的文件。
+        file_path = storage_file(relative, public=True)
         try:
+            if file_path is None:
+                raise FileNotFoundError(relative)
             binary = file_path.read_bytes()
         except OSError:
             missing_images.append(path)

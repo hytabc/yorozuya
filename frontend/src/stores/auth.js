@@ -26,6 +26,10 @@ export const useAuthStore = defineStore('auth', () => {
   const canManageRoles = computed(() => isAdmin.value || isStaff.value)
   const canOperate = computed(() => isAdmin.value || isMascot.value)
   const isBetaTester = computed(() => verified.value && Boolean(user.value?.is_beta_tester))
+  // 邮箱验证状态：只有服务端确认过身份（verified）后才可信。
+  // emailGateRequired 由后端下发（它知道 require_email_verification 策略），前端不自作判断。
+  const emailVerified = computed(() => verified.value && Boolean(user.value?.email_verified))
+  const emailGateRequired = computed(() => verified.value && Boolean(user.value?.email_gate_required))
   // 虚拟人生对所有登录用户开放（内测标记仅作身份展示，不再门控）
   const canPlayLife = computed(() => isLoggedIn.value)
 
@@ -64,12 +68,26 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(credentials) {
     const { data } = await api.post('/auth/login', credentials)
+    // 两步登录：服务端可能返回「邮箱验证码」挑战，此时还没有登录态。
+    if (data.email_code_required) return data
+    await persist(data)
+    return null
+  }
+
+  // 登录第二步：提交邮箱验证码换取令牌。
+  async function loginWithEmailCode({ challengeId, code, remember }) {
+    const { data } = await api.post('/auth/login/email-code', {
+      challenge_id: challengeId,
+      code,
+      remember,
+    })
     await persist(data)
   }
 
   async function register(payload) {
     const { data } = await api.post('/auth/register', payload)
-    await persist(data)
+    // 注册不再直接登录：必须先点邮件里的验证链接，这里把受理结果交给视图展示。
+    return data
   }
 
   async function restore() {
@@ -115,5 +133,5 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   window.addEventListener('auth-expired', logout)
-  return { token, user, verified, ready, isLoggedIn, isAdmin, isStaff, isMascot, isDisciplinarian, role, canModerate, canManageRoles, canOperate, isBetaTester, canPlayLife, login, register, restore, updateUser, logout, hydrate }
+  return { token, user, verified, ready, isLoggedIn, isAdmin, isStaff, isMascot, isDisciplinarian, role, canModerate, canManageRoles, canOperate, isBetaTester, emailVerified, emailGateRequired, canPlayLife, login, loginWithEmailCode, register, restore, updateUser, logout, hydrate }
 })

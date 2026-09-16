@@ -84,6 +84,14 @@ class User(Base):
     qq: Mapped[str | None] = mapped_column(String(20), nullable=True)
     qq_public: Mapped[bool] = mapped_column(Boolean, default=False)
     bio: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    # 邮箱：注册必填，统一转小写存储；email_verified 为真才算完成邮箱验证。
+    # SQLite 的唯一索引允许多个 NULL（存量账号在被强制补充绑定前就是 NULL）。
+    email: Mapped[str | None] = mapped_column(String(254), unique=True, nullable=True, index=True)
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # 换绑邮箱：新地址先写这里，点邮件链接确认后才覆盖 email。
+    pending_email: Mapped[str | None] = mapped_column(String(254), nullable=True)
+    # 事件通知邮件开关（委托进度、审核结果等；不含账号安全类邮件）。
+    notify_email: Mapped[bool] = mapped_column(Boolean, default=True)
     # 自定义称号：由超级管理员/管理员设置，仅展示用途，不参与权限判定。
     title: Mapped[str | None] = mapped_column(String(32), nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -103,9 +111,9 @@ class User(Base):
     avatar_visible: Mapped[bool] = mapped_column(Boolean, default=False)
     avatar_moderated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
-    @property
-    def avatar_url(self) -> str | None:
-        return f"/uploads/{self.avatar_path}" if self.avatar_path else None
+    # 注意：这里刻意不提供 avatar_url 属性。UserPublic 用 from_attributes 序列化，
+    # 一旦 ORM 上有同名属性，任何直接塞入 ORM 对象的端点都会绕过 avatar_visible
+    # 把未过审头像的 URL 泄露出去。URL 只能由 present_user_public / visible_avatar 生成。
 
     published_tasks: Mapped[list["Task"]] = relationship(
         foreign_keys="Task.publisher_id", back_populates="publisher"
@@ -137,9 +145,8 @@ class UserPhoto(Base):
     user: Mapped[User] = relationship(foreign_keys=[user_id], back_populates="photos")
     moderated_by: Mapped[User | None] = relationship(foreign_keys=[moderated_by_id])
 
-    @property
-    def image_url(self) -> str:
-        return f"/uploads/{self.file_path}"
+    # 同 User：不提供 image_url 属性，URL 只能由 visible_user_photos 按 is_visible 生成，
+    # 否则把 ORM 对象直接塞进 UserPhotoOut 就会泄露待审/被屏蔽图片的地址。
 
 
 class Task(Base):
@@ -675,3 +682,29 @@ class SugarPair(Base):
 
     first_user: Mapped[User] = relationship(foreign_keys=[first_user_id])
     second_user: Mapped[User] = relationship(foreign_keys=[second_user_id])
+
+
+class EmailToken(Base):
+    """一次性邮箱令牌：邮箱验证/换绑/重置密码的链接令牌，以及登录邮箱验证码。
+
+    刻意只存 ``sha256(salt + secret)``：明文只在邮件正文里出现一次，
+    即使数据库泄露也无法拿着令牌去改别人的密码。用后置 ``used_at`` 作废。
+    """
+
+    __tablename__ = "email_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    # verify_email / change_email / reset_password / login_code
+    purpose: Mapped[str] = mapped_column(String(24), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), index=True)
+    salt: Mapped[str] = mapped_column(String(32))
+    # 换绑邮箱时记录目标地址：该令牌只对这一地址有效，避免被拿去改绑别的邮箱。
+    new_email: Mapped[str | None] = mapped_column(String(254), nullable=True)
+    # 6 位验证码的尝试次数，超过上限直接作废，避免被在线爆破。
+    attempts: Mapped[int] = mapped_column(default=0)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    user: Mapped[User] = relationship(foreign_keys=[user_id])

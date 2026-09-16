@@ -1,6 +1,6 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
-import { CalendarDays, EyeOff, Heart, ImagePlus, KeyRound, Save, ShieldCheck, Store, Trash2, UserRound } from 'lucide-vue-next'
+import { CalendarDays, EyeOff, Heart, ImagePlus, KeyRound, Mail, Save, ShieldCheck, Store, Trash2, UserRound } from 'lucide-vue-next'
 import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
@@ -36,7 +36,42 @@ const form = reactive({
   bio: auth.user.bio || '',
 })
 const passwordForm = reactive({ current: '', password: '', confirm: '' })
+const emailForm = reactive({ email: '' })
+const emailBusy = ref(false)
+const notifyBusy = ref(false)
 const joined = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' }).format(new Date(auth.user.created_at))
+async function bindEmail() {
+  const address = emailForm.email.trim()
+  if (!address) return toast.error('请输入邮箱地址')
+  if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(address)) return toast.error('邮箱格式不正确')
+  emailBusy.value = true
+  try {
+    await api.post('/users/me/email', { email: address })
+    // 拉一次最新状态：pending_email 与验证进度都以后端为准
+    const { data } = await api.get('/auth/me')
+    auth.updateUser(data)
+    emailForm.email = ''
+    toast.success('验证邮件已发送，请到邮箱里点击链接完成验证')
+  } catch (error) {
+    toast.error(errorMessage(error))
+  } finally {
+    emailBusy.value = false
+  }
+}
+
+async function toggleNotify() {
+  notifyBusy.value = true
+  try {
+    const { data } = await api.patch('/users/me/email-notify', { notify_email: !auth.user.notify_email })
+    auth.updateUser(data)
+    toast.success(data.notify_email ? '已开启邮件通知' : '已关闭邮件通知')
+  } catch (error) {
+    toast.error(errorMessage(error))
+  } finally {
+    notifyBusy.value = false
+  }
+}
+
 async function save() {
   busy.value = true
   try { const { data } = await api.patch('/users/me', form); auth.updateUser(data); toast.success('个人资料已保存') }
@@ -151,8 +186,25 @@ async function deleteAvatar() {
           <label>个人简介<textarea v-model.trim="form.bio" maxlength="300" rows="6" placeholder="简单介绍你擅长的事情、空闲时间等"></textarea><small>{{ form.bio.length }}/300</small></label>
           <div><button class="button" :disabled="busy"><Save :size="17" />{{ busy ? '保存中…' : '保存更改' }}</button></div>
         </form>
+        <div class="profile-email-section">
+          <div class="section-heading compact"><div><span class="section-index">02</span><h2>邮箱</h2><p>用于接收委托进展通知，也是忘记密码时找回账号的唯一途径</p></div></div>
+          <div class="email-status">
+            <span v-if="auth.user.email_verified" class="email-badge verified"><ShieldCheck :size="15" />已验证</span>
+            <span v-else class="email-badge pending">未验证</span>
+            <span class="email-value">{{ auth.user.email || '尚未绑定邮箱' }}</span>
+          </div>
+          <p v-if="auth.user.pending_email" class="email-pending">待确认的新邮箱：<strong>{{ auth.user.pending_email }}</strong>，请到该邮箱点击验证链接；确认前当前邮箱仍然有效。</p>
+          <form class="form-stack" @submit.prevent="bindEmail">
+            <label>{{ auth.user.email_verified ? '更换邮箱' : '绑定邮箱' }}<input v-model.trim="emailForm.email" type="email" autocomplete="email" placeholder="example@example.com" /><small>我们会先向该地址发送确认链接，验证通过后才会生效。</small></label>
+            <div><button class="button" :disabled="emailBusy"><Mail :size="17" />{{ emailBusy ? '发送中…' : '发送验证邮件' }}</button></div>
+          </form>
+          <label class="checkbox-inline email-notify-toggle">
+            <input :checked="Boolean(auth.user.notify_email)" type="checkbox" :disabled="notifyBusy" @change="toggleNotify" />
+            <span>接收委托进度、审核结果等邮件通知（账号安全类邮件不受此开关影响）</span>
+          </label>
+        </div>
         <div class="profile-password-section">
-          <div class="section-heading compact"><div><span class="section-index">02</span><h2>重置密码</h2><p>先验证当前密码，再设置至少 8 位的新密码</p></div></div>
+          <div class="section-heading compact"><div><span class="section-index">03</span><h2>重置密码</h2><p>先验证当前密码，再设置至少 8 位的新密码</p></div></div>
           <form class="form-stack" @submit.prevent="changePassword">
             <label>当前密码<input v-model="passwordForm.current" type="password" required maxlength="128" autocomplete="current-password" placeholder="请输入当前密码" /></label>
             <label>新密码<input v-model="passwordForm.password" type="password" required minlength="8" maxlength="72" autocomplete="new-password" placeholder="至少 8 位" /></label>
@@ -161,7 +213,7 @@ async function deleteAvatar() {
           </form>
         </div>
         <div class="profile-photo-section">
-          <div class="section-heading compact"><div><span class="section-index">03</span><h2>介绍图片</h2><p>最多 3 张，单张不超过 5 MiB</p></div></div>
+          <div class="section-heading compact"><div><span class="section-index">04</span><h2>介绍图片</h2><p>最多 3 张，单张不超过 5 MiB</p></div></div>
           <div class="photo-grid profile-photo-grid">
             <figure v-for="photo in photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
               <LazyImage class="zoomable" :src="photo.image_url" alt="个人介绍图片" @click="openViewer(photo)" />
@@ -226,5 +278,51 @@ async function deleteAvatar() {
 .role-tag.beta-tag {
   color: var(--green);
   background: var(--green-soft);
+}
+
+.email-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.email-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.email-badge.verified {
+  color: var(--green);
+  background: var(--green-soft);
+}
+
+.email-badge.pending {
+  color: #9a6412;
+  background: #fdf3e2;
+}
+
+.email-value {
+  font-size: 14px;
+  color: var(--ink);
+  word-break: break-all;
+}
+
+.email-pending {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fdf3e2;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.email-notify-toggle {
+  margin-top: 12px;
 }
 </style>

@@ -13,7 +13,7 @@
 | 后端 | Python 3.12 + FastAPI + SQLAlchemy 2.0（ORM）+ Pydantic v2 + pydantic-settings，默认 SQLite（`data/wsw.db`），JWT（HTTPBearer）认证 |
 | 前端 | Vue 3（`<script setup>`）+ Pinia + Vue Router + Vite + axios + lucide-vue-next 图标 |
 | 部署 | Docker Compose（`docker-compose.yml`，prod/dev 两套）+ 边缘 Nginx 终止 HTTPS + certbot 自动续期（`deploy/nginx/`、`deploy/certbot/`、`deploy/init-letsencrypt.sh`）；根目录 `start.sh` / `start.bat` 一键启动 |
-| 测试 | 后端 pytest（`backend/tests/test_api.py`，TestClient + 内存库，约 34 个用例） |
+| 测试 | 后端 pytest（`backend/tests/test_api.py` + `test_security_media.py` + `test_email_flow.py` 等，TestClient + 内存库，约 145 个用例） |
 
 命令：
 - 后端测试：`cd backend && python -m pytest tests -q`
@@ -30,9 +30,13 @@ backend/app/
   schemas.py     # Pydantic 请求/响应模型（role 用 Literal["user","volunteer","staff","mascot"] 校验）
   dependencies.py# 权限收口：登录、监管权限与运营权限依赖
   security.py    # PBKDF2 密码哈希 + JWT 签发/校验（24h 会话）
-  config.py      # pydantic-settings，读根目录 .env；含数据库备份、砂糖上传目录、看板娘配置
+  config.py      # pydantic-settings，读根目录 .env；含数据库备份、上传目录/私有媒体目录、看板娘配置
   database.py    # engine/SessionLocal；AppSession 挂自动快照（backup.py，每次写库后备份）
   backup.py      # 数据库自动快照，保留最近 db_backup_keep 份
+  media.py       # 媒体分区（公开区 /uploads + 私有区 private_media）与短时签名 URL
+  images.py      # 上传图片净化：解码校验、像素上限、剥 EXIF、统一静态重编码
+  mailer.py      # 邮件发送（Brevo SMTP / 本地 OUTBOX）+ 中文邮件模板
+  email_flow.py  # 邮箱令牌发放/消费、邮件链接、发信冷却与 fail-closed 投递
   virtual_life*.py # 虚拟人生（/life）存档与内容包
   sugar_frost.py # 糖霜世界（/frost）存档：GET/PUT /api/sugar-frost/save，per-user 乐观锁
 frontend/src/
@@ -48,13 +52,14 @@ frontend/src/
   frost/         # 糖霜世界(/frost) 因果解谜游戏：engine/(纯函数判定引擎，移植自 vrcWill)
                  # data/(12 关 JSON) + useFrostGame.js + frostSave.js + components/
   life/          # 虚拟人生(/life) 游戏内容与组件
-backend/tests/   # pytest：test_api.py + test_virtual_life*.py
+backend/tests/   # pytest：test_api.py + test_security_media.py（安全回归）+ test_virtual_life*.py
 frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node frontend/scripts/verify-frost.mjs）
 ```
 
 ## 领域模型速查（models.py）
 
-- `User`：`role`（枚举值 `'user'|'volunteer'|'staff'|'mascot'`，SqlEnum 存字符串）+ `is_admin`（独立的更高级监管账号）+ `qq_public` + `max_concurrent_tasks`（并发接单上限）+ `title`（自定义称号，超管/管理员设置，纯展示）。
+- `User`：`role`（枚举值 `'user'|'volunteer'|'staff'|'mascot'`，SqlEnum 存字符串）+ `is_admin`（独立的更高级监管账号）+ `qq_public` + `max_concurrent_tasks`（并发接单上限）+ `title`（自定义称号，超管/管理员设置，纯展示）+ **邮箱四件套**：`email`（小写存储、唯一索引）、`email_verified`、`pending_email`（换绑待确认）、`notify_email`（事件通知开关）。新增列需在 `migrate_schema()` 补 ALTER（唯一索引单独 `CREATE UNIQUE INDEX`）。
+- `EmailToken`：一次性邮箱令牌（`verify_email` / `change_email` / `reset_password` / `login_code`）。**只存 `sha256`**：链接令牌存 `sha256(secret)` 便于按索引定位，6 位登录验证码另加随机 salt 且只能按主键 `challenge_id` 定位 + 最多错 5 次；用后置 `used_at` 保证一次性。
 - `Announcement`：网站/活动公告，支持草稿、置顶和起止展示时间；`PageView` 保存隐私化页面访问事件（180 天留存）。
 - `Task`：`status`（published→accepted→awaiting→completed；另有 cancelling/expired/cancelled）、`accept_password_hash`（只存哈希，便捷属性 `requires_password`）、`is_designated`（指定委托，designated_user_ids）、`is_anonymous`、`required_takers`、`is_visible/admin_note`（后台屏蔽）、`expires_at`（查询时惰性过期 `expire_due_tasks`）。
 - `TaskMember`：接单人及 `response_status`（pending/accepted/declined）+ 完成确认 `confirmed_at` + 取消确认。
@@ -85,7 +90,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 5. **委托密码**：委托人可 `PATCH /api/tasks/{id}/password` 设置/重设（4-32 位），无密码委托设密后转为凭密码接取。
 6. **可见性**：普通用户大厅只看 published；staff/admin 看全部状态；被举报委托对非相关人隐藏；匿名委托隐藏发布人。
 7. **名录** `GET /api/staff`：公开管理员、风纪委员、看板娘与志愿者资料；管理员 QQ 对游客公开，志愿者仅在主动开启时公开，风纪委员与看板娘 QQ 不公开。
-7.1 **称号**：`PATCH /api/admin/users/{id}/title`（`get_role_manager`：超管 + 管理员），自定义称号 ≤16 字、空串清空，非超管不能设置超管账号称号；用户本人不能自改（不在 `UserUpdate`）。字段随 `UserPublic/UserProfileOut/UserSelf/AdminUserOut` 下发，前端 `UserTitleTag.vue` 展示在成员名录、资料弹窗及全站昵称旁。
+7.1 **称号**：`PATCH /api/admin/users/{id}/title`（`get_role_manager`：超管 + 管理员），自定义称号 ≤16 字、空串清空；**管理员只能设置普通用户/志愿者的称号**，超管、管理员、看板娘、风纪委员的称号仅超管可设置；用户本人不能自改（不在 `UserUpdate`）。字段随 `UserPublic/UserProfileOut/UserSelf/AdminUserOut` 下发，前端 `UserTitleTag.vue` 展示在成员名录、资料弹窗及全站昵称旁。
 8. **反馈**：游客可提交（需联系方式）；`GET/PATCH /api/admin/feedback` 用 `get_role_manager`（staff 可处理）。
 9. **举报**：有每日上限设置（`/api/admin/settings/report-limit`）；处理动作 close/hide/restore。
 10. **砂糖社**：公开档案（照片存 `sugar_upload_path`）→ 互相 confirm 成 pair → 任一方 end；**砂糖榜只展示进行中（`active`）的关系**，已结束的 pair 仅保留在库中用于历史时长、不再出现在 `GET /api/sugar/pairs/top`，榜上取维持最久前三对。
@@ -108,7 +113,26 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - **令牌版本**：`User.token_version`（JWT 载荷 `ver`）；`dependencies.py` 比对令牌与用户字段，不匹配即 401。改密/管理员重置密码时 `token_version += 1`，旧令牌立即失效。新增列需在 `migrate_schema()` 补 `ALTER TABLE users ADD COLUMN token_version`（`title` 列同理）。
 - **自动登录令牌**：登录勾选「自动登录」时签发 7 天有效令牌（载荷含 `rm` 声明，`exp` 由 `remember_token_days` 决定，硬上限 7 天）；未勾选维持 24 小时。`security.py` 的 `decode_access_token` 按 `rm` 选择绝对上限（`REMEMBER_MAX_AGE_SECONDS` 7 天 / `SESSION_MAX_AGE_SECONDS` 24 小时）。**前端 `stores/auth.js` 的本地有效期窗口必须与之同步**（`REMEMBER_MAX_AGE_MS` / `LOGIN_MAX_AGE_MS`），否则会出现前端提前登出或后端拒绝。`token_version` 机制不变：7 天令牌在改密/重置后同样立即失效。
 - **自助改密**必须带 `current_password`（`UserPasswordUpdate`）；管理员重置用 `AdminPasswordReset`（无此要求）。
-- **限流**：`backend/app/ratelimit.py` 进程内滑动窗口，`enforce(bucket, key, limit, window)`；已用于登录（IP+账号）、注册、带密码接取、看板娘 `/mascot/chat`、反馈。`BEHIND_PROXY=true` 时按 `X-Real-IP/X-Forwarded-For` 取真实 IP（compose 已设）。**pytest 下自动跳过**（否则测试会互相触发 429）。
+- **限流**：`backend/app/ratelimit.py` 进程内滑动窗口，`enforce(bucket, key, limit, window)`；已用于登录（IP+账号）、注册、带密码接取、看板娘 `/mascot/chat`、反馈，以及 2026-09 补的 `page-view-ip`（IP，120/60s）、`upload`（用户，30/3600s，覆盖全部上传入口）、`board-post`（用户，20/600s）、`password-change`（用户，10/300s）、`email-send-ip`/`email-send-user`/`password-reset-ip`/`login-code`（邮件相关）。`BEHIND_PROXY=true` 时按 `X-Real-IP/X-Forwarded-For` 取真实 IP（compose 已设）。**pytest 下自动跳过**（否则测试会互相触发 429）。
+- **媒体分区与签名访问**（`backend/app/media.py`，2026-09）：
+  - 已过审的媒体在**公开区** `SUGAR_UPLOAD_DIR`（`/uploads` 静态托管）；待审/被屏蔽的媒体在**私有区** `MEDIA_PRIVATE_DIR`（默认上传目录同级 `private_media`，**不在任何静态挂载内**），只能通过 `GET /api/media/{key}?exp=&sig=` 校验 HMAC 签名后读取（`<img>` 带不了 Bearer 令牌，故签名即访问控制，TTL 见 `MEDIA_TOKEN_TTL_SECONDS`，默认 6h）。
+  - `file_path` 列永远只存逻辑 key（如 `sugar/x.jpg`），**所在区由可见性推导**：URL 一律经 `media.media_url(key, public=...)` 生成，落盘用 `media.write_media(key, content, public=...)`，删除用 `media.delete_media(key)`（两区都删），审核翻转用 `media.place_media(key, public=...)` 搬区 —— 因此"审核驳回后旧公开地址立即失效"。
+  - **新增上传/审核/删除路径必须走上面四个 helper**，不要手写 `settings.sugar_upload_path / path` 或 `unlink()`，否则会绕过分区与撤回语义。测试断言待审文件时用 `tmp_path / "private_media"`。
+  - 启动对账 `sync_media_zones()`（`lifespan` 内，pytest 下跳过）把历史遗留的"已屏蔽但仍在公开区"文件搬进私有区。
+  - `config.validate_storage_isolation()` 会拒绝把私有区放进公开区之内（否则等于没隔离），`validate_directories_writable()` 在启动时给出可执行的中文提示。
+- **图片净化**（`backend/app/images.py`，2026-09）：所有上传入口（头像/资料图/砂糖/交友/故事/地图/life 素材/NPC 导入）都必须经 `normalize_image()` —— 魔数白名单 → 先读文件头判像素（`MAX_IMAGE_PIXELS` 25MP，挡压缩炸弹）→ `exif_transpose` 摆正 → 剥全部元数据（不传 exif/icc_profile）→ 长边 `MAX_IMAGE_EDGE` 2560 等比缩小 → 有 alpha 出 PNG，否则出 JPEG；动图只取首帧。**因此测试里不能再传"魔数 + 填充"的假图片**，用 `test_api.py` 的 `make_png()/make_jpeg()`。
+- **⚠️ 不要给 ORM 模型加 `avatar_url` / `image_url` 属性**（`models.py` 已刻意移除）：`UserPublic`/`UserPhotoOut` 用 `from_attributes` 序列化，一旦 ORM 上有同名属性，任何"直接塞 ORM 对象进响应模型"的端点都会绕过 `avatar_visible`/`is_visible` 泄露未过审媒体地址（2026-09 已修 `present_sugar_profile`/`present_sugar_pair`/`present_feedback`）。新增相关端点必须走 `present_user_public()` / `visible_user_photos()` / `present_user_self()` / `present_admin_user()`。
+- **邮箱验证**（`backend/app/mailer.py` + `email_flow.py`，2026-09）：
+  - 传输用标准库 `smtplib`（587 + STARTTLS，线程池执行，**不引入新依赖**）。`EMAIL_DELIVERY=log` 或 pytest 运行中不联网，邮件写入 `mailer.OUTBOX` 并打印日志 —— **测试就靠它取验证链接与验证码**。
+  - **fail-closed**：注册、发验证码、发重置链接等「用户正在等结果」的操作，发信失败一律 503 且不提交事务（不会留下收不到信的半成品账号）；只有事件通知是 best-effort（`required=False`）。
+  - 令牌只存哈希：链接令牌 = `sha256(secret)`（可按索引 O(1) 查），登录验证码 = `sha256(salt+code)` 且按主键定位 + 最多错 5 次；`_mark_used` 用 `UPDATE ... WHERE used_at IS NULL` 的 rowcount 保证一次性。
+  - 邮件正文里的用户数据一律 `html.escape`，用户数据只进正文、不进邮件头（防头注入）。链接前缀优先 `SITE_BASE_URL`，为空时按请求 Host 推导（生产建议显式配置，防 Host 伪造）。
+  - 限流桶：`email-send-ip`、`email-send-user`、`password-reset-ip`、`login-code`；另有 `EMAIL_SEND_COOLDOWN_SECONDS` 控制同账号同用途的最小发信间隔。
+- **未验证邮箱闸门**（`dependencies.py`）：`get_current_user` = 登录 + 闸门（未验证 403），`get_authenticated_user` = 只要求登录（白名单：`/auth/me`、邮箱绑定与确认、改密）。**新增写接口默认挂 `get_current_user` 即可自动受闸门保护**；若某接口必须让未验证用户使用，才改成 `get_authenticated_user` 并在 README 里说明。公开浏览接口用 `get_optional_user`（不受闸门限制）。
+  - ⚠️ **`is_admin`（超管）豁免闸门**：存量账号都没有邮箱，而「已验证」只能靠收邮件达成，必须给运维账号留一条永远可用的通道（邮件配置坏了才进得去后台改回来）。`role='staff'` 不豁免。
+  - 救援开关：`REQUIRE_EMAIL_VERIFICATION=false`（放行写操作）、`LOGIN_CODE_REQUIRED=false`（登录不再要验证码），改完重启后端。
+- **登录流程是两段式**：`POST /api/auth/login` 可能返回 `TokenResponse`，也可能返回 `{email_code_required, challenge_id, email_masked}` 挑战（此时**没有** `access_token`），第二步走 `POST /api/auth/login/email-code`。改登录响应结构时前端 `stores/auth.js` 的 `login()` 要同步（它靠 `email_code_required` 分支）。
+- **注册接口不再下发登录令牌**：只返回 `{email_masked, verification_sent}`；前端注册成功后展示「去邮箱验证」面板（含带人机验证的重发）。
 - **默认值防护**：`config.py` 不再直接使用 `change-this-secret-in-production`/`Admin123!`；未配置 `SECRET_KEY` 时启动随机生成，首次创建管理员随机密码并打印日志，已存在且仍用默认密码的管理员会被自动轮换（pytest 下跳过以免动到真实库）。`SUGAR_UPLOAD_DIR` 不得指向数据库目录，否则启动报错。
 - **前端权限**：`router.js` 对 `moderator/operations/life*/roleManager` 路由先 `await auth.restore()`（走 `/api/auth/me`）再判权限；`AdminView/OperationsView` 在 `onMounted` 再复核一次。**localStorage 的 `wsw_user` 只是界面缓存，绝不可作为权限依据**。
 - **权限可信标记 `auth.verified`**：只有服务端响应（登录/注册或 `/auth/me`）才能把 `verified` 置为 true；`isAdmin/isStaff/isMascot/isDisciplinarian/role/canModerate/canManageRoles/canOperate/isBetaTester` 全部 `verified && ...`。组件里禁止直接读 `auth.user.role/is_admin`（用 `auth.role`/`auth.isAdmin`），这样改写 localStorage 也无法让界面误认为自己拥有权限。
@@ -117,11 +141,14 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - **登录/注册人机验证**：`backend/app/captcha.py`，`CAPTCHA_PROVIDER` 可选 `turnstile`（Cloudflare，推荐）或 `builtin`（Pillow 图形验证码）；前端 `composables/useCaptcha.js` + `components/CaptchaField.vue`。`login/register` 在校验密码前先 `verify_captcha`（fail-closed），pytest 下自动跳过。Turnstile Secret Key 只放 `.env`（`TURNSTILE_SECRET_KEY`），Site Key 公开。
 - **公网入口只有 `edge`**：`docker-compose.yml` 中 `edge` 独占宿主机 80/443（TLS 终止 + HTTP 301 跳转 + HSTS），`frontend`/`backend` 一律不发布宿主机端口（dev 覆盖文件才把 `WEB_PORT` 加回 `frontend`）。**不要给 frontend/backend 增加 `ports`**，否则会绕过 HTTPS 出现明文入口。
 - **真实客户端 IP**：`edge` 写入 `X-Real-IP`，`frontend/nginx.conf` 用 `real_ip` 模块（信任私网网段）还原后透传给后端，限流才按真实 IP 计数。改动代理层时务必保留这条链路，否则所有用户会被算作同一个来源。
+- **响应头与 CSP**：`frontend/nginx.conf` 除基础安全头外下发 `Content-Security-Policy`（`default-src 'self'`，仅额外放行 Cloudflare Turnstile 的 script/connect/frame；`style-src` 需 `'unsafe-inline'` 供 Vue 的 `:style` 绑定；`img-src` 需 `data:` 供内置验证码、`blob:` 供上传前预览）。`/uploads/` 与 `/api/media/` 额外带 `default-src 'none'; sandbox`，使被直开的上传文件无法作为页面执行。**⚠️ nginx 的 `add_header` 不跨层级合并**：在 location 里加任何一个 `add_header`，server 层的其余安全头就全部失效，必须原样重复。后端也有一层 HTTP 中间件兜底（直连后端/Vite 代理场景）。改动站点引入第三方资源（字体、CDN 脚本）时必须同步放宽 CSP，否则会被浏览器拦截。
+- **运行面加固**：`backend` 镜像以 `USER app`（UID 10001）运行，compose 里 `read_only: true` + `tmpfs: [/tmp]` + `cap_drop: [ALL]` + `no-new-privileges`；`frontend`/`edge` 只读根文件系统 + 内存临时目录（**`edge` 的 `/etc/nginx/conf.d` 必须挂 tmpfs**，entrypoint 要写入渲染后的配置）；`certbot` 保持可写但 `cap_drop: [ALL]`。因此宿主机 `backend/data` 必须对 UID 10001 可写：首次部署与旧版升级都要 `chown -R 10001:10001 backend/data`（`config.validate_directories_writable()` 会在启动时用中文提示这一点）。`docker-compose.dev.yml` 显式 `read_only: false`。
 - **证书续期**：`certbot` 容器每 12h `certbot renew`，`edge` 容器每 6h `nginx -s reload` 加载新证书（不依赖 docker socket）。证书在宿主机 `deploy/certbot/conf/`（已 gitignore，含私钥）。首次签发用 `./deploy/init-letsencrypt.sh`；改域名/换证书后需重新执行并 `nginx -s reload`。
 
 ## 启动行为（main.py 顶部）
 
 - 建表 + 若无管理员则按 `ADMIN_USERNAME/PASSWORD` bootstrap 创建；旧 SQLite 库自动 `ALTER TABLE` 补 `role` 列等轻量迁移（改枚举/加列时在此处追加）。
+- 启动自检：`validate_storage_isolation()`（公开区/私有区/数据库目录互相隔离）+ `validate_directories_writable()`（不可写时给出 chown 提示），随后 `sync_media_zones()` 对账媒体分区（pytest 下跳过）。
 - `GET /api/health` 健康检查；前端构建产物由后端静态托管（Docker 内）。
 
 ## 约定与坑
@@ -130,5 +157,8 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - 配置全部走根目录 `.env`（见 `.env.example`），pydantic-settings 自动读取，环境变量名 = 字段大写。
 - ⚠️ **私有信息（真实域名 `DOMAIN`、备案号 `SITE_ICP`、邮箱、密钥）只能写在根目录 `.env`**（已被 `.gitignore` 忽略）。**禁止**把真实值写进任何入库文件 —— 包括 `.env.example`、`docker-compose*.yml`、`README.md`、`AGENTS.md`、nginx 模板与源码；示例一律用 `example.com` 之类占位符。仓库要能公开。前端不保存这些值：页脚备案号通过 `GET /api/site-config` 运行时读取（`config.py` 的 `site_icp` / `site_icp_url`）。
 - 测试用内存库，不经 AppSession（无自动快照）；测试断言与业务文案强耦合（如断言 detail 含"接取密码不正确"），改文案记得改测试。
+- 多个测试模块共用同一个 FastAPI `app`，各自在 import 时设置 `get_db` 覆盖 —— **每个模块的 `setup_function` 里要重新指向自己的内存库**，否则会被别的模块抢走覆盖而报 "no such table"。
+- **注册接口不再返回令牌**（必须邮箱验证）：测试 helper 一律走 `test_api.py` 的 `register()/last_mail_token()` 那套「注册 → 从 `mailer.OUTBOX` 取信 → 点链接 → 登录」。pytest 下不发真邮件，`setup_function` 默认 `email_delivery=log`、`login_code_required=False`、`email_send_cooldown_seconds=0`；要测两步登录的用例自行打开开关（见 `test_email_flow.py`）。直接往库里塞用户时记得 `email_verified=True`，否则会被邮箱闸门挡成 403。
+- **发信失败是 fail-closed**：新增依赖邮件的写接口要沿用 `email_flow.deliver()`（未配置/失败 → 503 且不提交事务），只有事件通知用 `required=False` 的 best-effort 路径。
 - 本地若无 Python 3.12，用 3.14 跑测试需 SQLAlchemy>=2.0.44（2.0.38 与 3.14 不兼容）；生产 Docker 是 3.12，requirements.txt 版本锁定不要随意升级。
 - 前端登录缓存有版本号 `AUTH_CACHE_VERSION`（stores/auth.js），改 user 对象结构时递增可强制全员重新登录。

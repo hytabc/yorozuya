@@ -9,6 +9,9 @@ services:
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--reload"]
     volumes:
       - ./backend/app:/app/app
+    # 开发环境取消只读根文件系统：--reload 与源码 bind mount 的组合同样需要临时写入，
+    # 且本文件已明确不可用于公网，生产加固请以 docker-compose.yml 为准。
+    read_only: false
 
   frontend:
     build:
@@ -26,6 +29,7 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    read_only: false
 
   edge:
     # 未启用的 profile：开发时不启动（无证书，且会占用宿主机 80/443）。

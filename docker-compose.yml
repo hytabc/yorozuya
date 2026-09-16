@@ -15,11 +15,37 @@ services:
       ADMIN_NICKNAME: ${ADMIN_NICKNAME:-万事屋管理员}
       # 普通用户资料和砂糖社图片共用该持久化目录。
       SUGAR_UPLOAD_DIR: /data/uploads
+      # 待审/被屏蔽媒体的私有目录：不在 /uploads 静态托管范围内，只能凭签名地址访问。
+      MEDIA_PRIVATE_DIR: ${MEDIA_PRIVATE_DIR:-/data/private_media}
+      # 私有媒体签名地址的有效期（秒）；越短则审核驳回后旧链接越快失效。
+      MEDIA_TOKEN_TTL_SECONDS: ${MEDIA_TOKEN_TTL_SECONDS:-21600}
       # 站点同源访问，正常不触发 CORS；默认留空，需要跨域时再在 .env 指定。
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       # 页脚备案信息：留空则前端不展示（真实值只放 .env，不入库）。
       SITE_ICP: ${SITE_ICP:-}
       SITE_ICP_URL: ${SITE_ICP_URL:-https://beian.miit.gov.cn/}
+      # ── 邮箱验证与邮件通知（Brevo SMTP）──
+      # ⚠️ 真实凭据只写在根目录 .env（已 gitignore），这里仅做透传，仓库里不出现任何密钥。
+      # SMTP_PASSWORD 请在 Brevo 后台轮换后填入 .env。
+      EMAIL_DELIVERY: ${EMAIL_DELIVERY:-smtp}
+      SMTP_HOST: ${SMTP_HOST:-smtp-relay.brevo.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      # 发件地址必须是 Brevo 账号里已验证的 Sender，否则中继拒收。
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-万事屋委托站}
+      # 邮件链接前缀（如 https://example.com）；留空则按请求 Host 推导。
+      SITE_BASE_URL: ${SITE_BASE_URL:-}
+      EMAIL_VERIFICATION_TTL_HOURS: ${EMAIL_VERIFICATION_TTL_HOURS:-24}
+      PASSWORD_RESET_TTL_MINUTES: ${PASSWORD_RESET_TTL_MINUTES:-30}
+      LOGIN_CODE_TTL_MINUTES: ${LOGIN_CODE_TTL_MINUTES:-10}
+      EMAIL_SEND_COOLDOWN_SECONDS: ${EMAIL_SEND_COOLDOWN_SECONDS:-60}
+      # 登录邮箱二次验证 / 未验证闸门：邮件服务出问题时可在 .env 关掉以恢复使用。
+      LOGIN_CODE_REQUIRED: ${LOGIN_CODE_REQUIRED:-true}
+      REQUIRE_EMAIL_VERIFICATION: ${REQUIRE_EMAIL_VERIFICATION:-true}
+      NOTIFY_EMAIL_ENABLED: ${NOTIFY_EMAIL_ENABLED:-true}
       # 由 nginx 反向代理访问时按真实客户端 IP 限流。
       BEHIND_PROXY: "true"
       # 看板娘「小白」集中式大脑:值在项目根目录 .env 中设置(compose 只读取根目录 .env)
@@ -34,7 +60,17 @@ services:
       TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
     volumes:
       # 数据库与上传图片持久化：宿主机 backend/data 与容器 /data 一致。
+      # 容器以 UID 10001 运行，首次部署需在宿主机执行 chown -R 10001:10001 backend/data。
       - ./backend/data:/data
+    # 运行面加固：根文件系统只读，临时目录用内存盘，丢弃全部 Linux capability。
+    # 应用只写 /data（bind mount）与 /tmp，不需要任何特权。
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 15s
@@ -48,6 +84,15 @@ services:
     # 仅供 edge 在内网访问，不映射宿主机端口（开发直连见 docker-compose.dev.yml）。
     expose:
       - "80"
+    # 根文件系统只读 + 内存临时目录。nginx 需要 root master 才能 chown/setuid 到
+    # worker 用户并绑定 80 端口，因此这里不 cap_drop: ALL，只加 no-new-privileges。
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       backend:
         condition: service_healthy
@@ -71,6 +116,16 @@ services:
       # 证书目录与 ACME 挑战目录与 certbot 共享。
       - ./deploy/certbot/conf:/etc/letsencrypt
       - ./deploy/certbot/www:/var/www/certbot
+    # 根文件系统只读：entrypoint 会把渲染后的配置写进 conf.d，因此必须把该目录挂成 tmpfs，
+    # 否则 `mv` 会失败导致容器起不来。
+    read_only: true
+    tmpfs:
+      - /etc/nginx/conf.d
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       - frontend
 
@@ -83,3 +138,9 @@ services:
       - ./deploy/certbot/renew-loop.sh:/opt/renew-loop.sh:ro
       - ./deploy/certbot/conf:/etc/letsencrypt
       - ./deploy/certbot/www:/var/www/certbot
+    # 续期进程需要写 /etc/letsencrypt（bind mount）与 /var/log/letsencrypt，
+    # 因此保持可写，只禁止提权。
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

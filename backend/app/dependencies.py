@@ -4,6 +4,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from .config import settings
 from .database import get_db
 from .models import User, UserRole
 from .security import decode_access_token
@@ -11,10 +12,15 @@ from .security import decode_access_token
 bearer = HTTPBearer(auto_error=False)
 
 
-def get_current_user(
+def get_authenticated_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
     db: Session = Depends(get_db),
 ) -> User:
+    """只要求「已登录」：邮箱未验证也放行。
+
+    白名单接口用这个依赖：/auth/me、邮箱绑定与验证、修改密码。
+    其余需要完成的接口一律走 ``get_current_user``（带邮箱验证闸门）。
+    """
     if credentials is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录")
     payload = decode_access_token(credentials.credentials)
@@ -24,11 +30,36 @@ def get_current_user(
     return user
 
 
+def email_gate_required(user: User) -> bool:
+    """未完成邮箱验证时是否需要拦下该账号。
+
+    ⚠️ 超级管理员（``is_admin``）豁免：存量账号都没有邮箱，而「已验证」只能靠收邮件
+    达成，因此必须给运维账号留一条永远可用的通道 —— 否则邮件配置一出错，
+    就没人能进后台把配置改回来。``role='staff'`` 的管理员不豁免。
+    """
+    return bool(
+        settings.require_email_verification and not user.email_verified and not user.is_admin
+    )
+
+
+def get_current_user(user: User = Depends(get_authenticated_user)) -> User:
+    """登录 + 邮箱验证闸门：不满足时 403（前端已从 /auth/me 得知状态并弹强制绑定框）。"""
+    if email_gate_required(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="请先完成邮箱验证后再使用该功能",
+        )
+    return user
+
+
 def get_optional_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
     db: Session = Depends(get_db),
 ) -> User | None:
-    """登录可选：携带有效令牌时返回当前用户，否则返回 None（公开浏览接口用）。"""
+    """登录可选：携带有效令牌时返回当前用户，否则返回 None（公开浏览接口用）。
+
+    刻意不带邮箱验证闸门：未验证的存量用户仍然要能浏览大厅、名录与公告。
+    """
     if credentials is None:
         return None
     try:

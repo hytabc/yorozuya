@@ -38,8 +38,10 @@ class SaveTests(unittest.TestCase):
             roles = {1: UserRole.USER, 2: UserRole.USER, 3: UserRole.USER,
                      4: UserRole.STAFF, 5: UserRole.VOLUNTEER, 6: UserRole.STAFF}
             for i, role in roles.items():
+                # email_verified=True：测试用户直接入库，否则会被邮箱验证闸门挡住。
                 db.add(User(id=i, username=f'u{i}', password_hash='unused', nickname=f'u{i}',
-                            is_admin=i in (1, 2), role=role))
+                            is_admin=i in (1, 2), role=role,
+                            email=f'u{i}@example.com', email_verified=True))
             db.commit()
             seed_virtual_life_packs(db)
 

@@ -3,23 +3,34 @@ import json
 import tempfile
 import unittest
 from copy import deepcopy
+from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from PIL import Image
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.config import settings
 from app.database import Base, get_db
 from app.models import User, UserRole
 from app.security import create_access_token
 from app.virtual_life import router as save_router
 from app.virtual_life_packs import router as packs_router, seed_virtual_life_packs
-import app.virtual_life_packs as vlp
 
 
-PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+def make_png(size=(2, 2), color=(0, 0, 255, 255)) -> bytes:
+    """可解码的 PNG：NPC 导入会重新编码图片，魔数 + 填充的假图不再被接受。"""
+    buffer = BytesIO()
+    Image.new("RGBA", size, color).save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+PNG = make_png()
+NODE_PNG = make_png(color=(255, 255, 0, 255))
+REPLY_PNG = make_png(color=(0, 255, 0, 255))
 
 
 def day_script():
@@ -78,9 +89,12 @@ class NpcTransferTests(unittest.TestCase):
         self.client = TestClient(app)
         Base.metadata.create_all(self.engine)
         with self.sessions() as db:
+            # 测试用户直接入库：标为已验证邮箱，否则会被邮箱验证闸门挡住。
             db.add(User(id=1, username='boss', password_hash='unused', nickname='boss', is_admin=True, role=UserRole.USER))
-            db.add(User(id=2, username='staff', password_hash='unused', nickname='staff', is_admin=False, role=UserRole.STAFF))
-            db.add(User(id=3, username='plain', password_hash='unused', nickname='plain', is_admin=False, role=UserRole.USER))
+            db.add(User(id=2, username='staff', password_hash='unused', nickname='staff', is_admin=False,
+                        role=UserRole.STAFF, email='staff@example.com', email_verified=True))
+            db.add(User(id=3, username='plain', password_hash='unused', nickname='plain', is_admin=False,
+                        role=UserRole.USER, email='plain@example.com', email_verified=True))
             db.commit()
             seed_virtual_life_packs(db)
 
@@ -93,10 +107,9 @@ class NpcTransferTests(unittest.TestCase):
         return {'Authorization': 'Bearer ' + create_access_token(uid)}
 
     def upload_settings(self):
-        class FakeSettings:
-            sugar_upload_path = Path(self.temp.name) / 'uploads'
-
-        return patch.object(vlp, 'settings', FakeSettings)
+        # 直接改配置单例：/uploads 静态目录与私有区都由 settings 推导，
+        # 这样 media.py 里的路径解析也会跟着落到临时目录。
+        return patch.object(settings, 'sugar_upload_dir', str(Path(self.temp.name) / 'uploads'))
 
     def create_pack(self, pack_id, content, name='测试包'):
         response = self.client.post(
@@ -121,8 +134,8 @@ class NpcTransferTests(unittest.TestCase):
         content['dialogue']['mimi'][0]['nodes']['n1']['choices'][0]['replyImage'] = '/uploads/life/reply.png'
         self.create_pack(pack_id, content)
         self.write_upload('/uploads/life/mimi.png', PNG)
-        self.write_upload('/uploads/life/node.png', PNG + b'node')
-        self.write_upload('/uploads/life/reply.png', PNG + b'reply')
+        self.write_upload('/uploads/life/node.png', NODE_PNG)
+        self.write_upload('/uploads/life/reply.png', REPLY_PNG)
 
         with self.upload_settings():
             response = self.client.get(
@@ -153,8 +166,8 @@ class NpcTransferTests(unittest.TestCase):
         content['dialogue']['mimi'][0]['nodes']['n1']['choices'][0]['replyImage'] = '/uploads/life/reply.png'
         self.create_pack(pack_id, content)
         self.write_upload('/uploads/life/mimi.png', PNG)
-        self.write_upload('/uploads/life/node.png', PNG + b'node')
-        self.write_upload('/uploads/life/reply.png', PNG + b'reply')
+        self.write_upload('/uploads/life/node.png', NODE_PNG)
+        self.write_upload('/uploads/life/reply.png', REPLY_PNG)
 
         with self.upload_settings():
             export = self.client.get(
@@ -286,6 +299,27 @@ class NpcTransferTests(unittest.TestCase):
                 packs = self.client.get('/api/virtual-life/packs', headers=self.headers(1)).json()
                 self.assertFalse(any('-bak-' in p['id'] for p in packs))
                 self.assertEqual({p['id'] for p in packs}, before_packs)
+
+    def test_export_refuses_path_traversal_outside_uploads(self):
+        pack_id = 'wsw-npc-traversal'
+        content = mini_pack(['mimi'])
+        # 站内前缀合法，但用 .. 走出上传目录
+        content['portraits']['mimi'] = '/uploads/life/../../../secret.txt'
+        self.create_pack(pack_id, content)
+        secret = Path(self.temp.name) / 'secret.txt'
+        secret.write_bytes(b'TOP-SECRET')
+
+        with self.upload_settings():
+            response = self.client.get(
+                f'/api/virtual-life/packs/{pack_id}/npcs/mimi/export',
+                headers=self.headers(1),
+            )
+        self.assertEqual(response.status_code, 200, response.text)
+        bundle = response.json()
+        # 穿越路径不得被读取：既不进 images，也算作缺失文件
+        self.assertEqual(bundle['images'], {})
+        self.assertEqual(bundle['missingImages'], ['/uploads/life/../../../secret.txt'])
+        self.assertNotIn('TOP-SECRET', response.text)
 
     def test_import_creates_backup(self):
         pack_id = 'wsw-npc-backup'
