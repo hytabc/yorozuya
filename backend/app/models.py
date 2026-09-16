@@ -84,6 +84,14 @@ class User(Base):
     qq: Mapped[str | None] = mapped_column(String(20), nullable=True)
     qq_public: Mapped[bool] = mapped_column(Boolean, default=False)
     bio: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    # 邮箱：注册必填，统一转小写存储；email_verified 为真才算完成邮箱验证。
+    # SQLite 的唯一索引允许多个 NULL（存量账号在被强制补充绑定前就是 NULL）。
+    email: Mapped[str | None] = mapped_column(String(254), unique=True, nullable=True, index=True)
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # 换绑邮箱：新地址先写这里，点邮件链接确认后才覆盖 email。
+    pending_email: Mapped[str | None] = mapped_column(String(254), nullable=True)
+    # 事件通知邮件开关（委托进度、审核结果等；不含账号安全类邮件）。
+    notify_email: Mapped[bool] = mapped_column(Boolean, default=True)
     # 自定义称号：由超级管理员/管理员设置，仅展示用途，不参与权限判定。
     title: Mapped[str | None] = mapped_column(String(32), nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -674,3 +682,29 @@ class SugarPair(Base):
 
     first_user: Mapped[User] = relationship(foreign_keys=[first_user_id])
     second_user: Mapped[User] = relationship(foreign_keys=[second_user_id])
+
+
+class EmailToken(Base):
+    """一次性邮箱令牌：邮箱验证/换绑/重置密码的链接令牌，以及登录邮箱验证码。
+
+    刻意只存 ``sha256(salt + secret)``：明文只在邮件正文里出现一次，
+    即使数据库泄露也无法拿着令牌去改别人的密码。用后置 ``used_at`` 作废。
+    """
+
+    __tablename__ = "email_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    # verify_email / change_email / reset_password / login_code
+    purpose: Mapped[str] = mapped_column(String(24), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), index=True)
+    salt: Mapped[str] = mapped_column(String(32))
+    # 换绑邮箱时记录目标地址：该令牌只对这一地址有效，避免被拿去改绑别的邮箱。
+    new_email: Mapped[str | None] = mapped_column(String(254), nullable=True)
+    # 6 位验证码的尝试次数，超过上限直接作废，避免被在线爆破。
+    attempts: Mapped[int] = mapped_column(default=0)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    user: Mapped[User] = relationship(foreign_keys=[user_id])

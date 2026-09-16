@@ -10,6 +10,10 @@ const router = createRouter({
     { path: '/', component: () => import('./views/TaskHall.vue'), meta: { analyticsKey: 'hall' } },
     { path: '/login', component: () => import('./views/LoginView.vue'), meta: { guestOnly: true, analyticsKey: 'login' } },
     { path: '/register', component: () => import('./views/LoginView.vue'), props: { initialMode: 'register' }, meta: { guestOnly: true, analyticsKey: 'login' } },
+    // 邮箱相关：验证/重置链接可能从任意浏览器打开，因此都不要求登录态。
+    { path: '/verify-email', component: () => import('./views/VerifyEmailView.vue') },
+    { path: '/forgot-password', component: () => import('./views/ForgotPasswordView.vue') },
+    { path: '/reset-password', component: () => import('./views/ResetPasswordView.vue') },
     { path: '/mine', component: () => import('./views/MyTasks.vue'), meta: { auth: true, analyticsKey: 'mine' } },
     { path: '/profile', component: () => import('./views/ProfileView.vue'), meta: { auth: true, analyticsKey: 'profile' } },
     { path: '/staff', component: () => import('./views/StaffView.vue'), meta: { analyticsKey: 'staff' } },

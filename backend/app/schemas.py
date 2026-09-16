@@ -56,23 +56,86 @@ class RequestModel(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
 
+# 邮箱格式：不引入 email-validator 依赖，用够用的正则 + 长度上限；
+# 真正的可达性由「必须点验证链接」来证明，因此这里只做基本形状校验。
+EMAIL_PATTERN = r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$"
+
+
 class RegisterRequest(RequestModel):
     username: str = Field(min_length=3, max_length=32, pattern=r"^[a-zA-Z0-9_]+$")
     password: str = Field(min_length=8, max_length=72)
     nickname: str = Field(min_length=1, max_length=32)
+    # 邮箱为注册必填项；注册后必须点验证邮件里的链接才能登录。
+    email: str = Field(min_length=6, max_length=254, pattern=EMAIL_PATTERN)
     # 人机验证：builtin 用 captcha_id + captcha_code；turnstile 用 captcha_code 传 token。
     captcha_id: str = Field(default="", max_length=128)
     captcha_code: str = Field(default="", max_length=4096)
 
 
 class LoginRequest(RequestModel):
-    # 限制长度，避免超长输入拖垮 PBKDF2 校验（CPU 消耗型拒绝服务）。
-    username: str = Field(min_length=1, max_length=64)
+    # 兼容用户名与邮箱两种登录名，因此上限放宽到邮箱的最大长度。
+    # 同时限制长度，避免超长输入拖垮 PBKDF2 校验（CPU 消耗型拒绝服务）。
+    username: str = Field(min_length=1, max_length=254)
     password: str = Field(min_length=1, max_length=128)
     # 勾选“自动登录”后签发 7 天有效令牌，否则维持 24 小时会话。
     remember: bool = False
     captcha_id: str = Field(default="", max_length=128)
     captcha_code: str = Field(default="", max_length=4096)
+
+
+class EmailCodeLoginRequest(RequestModel):
+    """登录第二步：提交邮箱验证码（LOGIN_CODE_REQUIRED 开启时）。"""
+
+    challenge_id: int = Field(ge=1)
+    code: str = Field(min_length=6, max_length=6, pattern=r"^[0-9]{6}$")
+    remember: bool = False
+
+
+class EmailCodeChallengeOut(BaseModel):
+    """登录第二步的挑战信息；前端据此显示验证码输入框。"""
+
+    email_code_required: Literal[True] = True
+    challenge_id: int
+    email_masked: str
+    expires_in: int
+
+
+class ActionAckOut(BaseModel):
+    """通用「已受理」响应：刻意不透露内部细节（例如账号是否存在）。"""
+
+    ok: bool = True
+
+
+class RegisterPendingOut(BaseModel):
+    """注册成功但尚未验证：注册不再直接下发登录令牌。"""
+
+    email_masked: str
+    verification_sent: bool = True
+
+
+class AccountRequest(RequestModel):
+    """按用户名或邮箱定位账号（重发验证信 / 申请重置密码）。"""
+
+    account: str = Field(min_length=1, max_length=254)
+    captcha_id: str = Field(default="", max_length=128)
+    captcha_code: str = Field(default="", max_length=4096)
+
+
+class EmailVerifyRequest(RequestModel):
+    token: str = Field(min_length=8, max_length=256)
+
+
+class PasswordResetConfirm(RequestModel):
+    token: str = Field(min_length=8, max_length=256)
+    password: str = Field(min_length=8, max_length=72)
+
+
+class EmailChangeRequest(RequestModel):
+    email: str = Field(min_length=6, max_length=254, pattern=EMAIL_PATTERN)
+
+
+class NotifyEmailUpdate(RequestModel):
+    notify_email: bool
 
 
 class UserPhotoOut(ApiModel):
@@ -117,6 +180,15 @@ class UserSelf(UserPublic):
     username: str
     qq: str | None = None
     qq_public: bool = False
+    # 邮箱与验证状态：前端据此决定是否弹出「强制绑定验证」弹窗。
+    email: str | None = None
+    email_verified: bool = False
+    # 换绑待确认的新地址（有值时前端提示「待确认」）。
+    pending_email: str | None = None
+    notify_email: bool = True
+    # 服务端算好的「需要先完成邮箱验证」标记：前端据此弹强制绑定框，
+    # 避免把 require_email_verification 这类策略在前端重写一遍。
+    email_gate_required: bool = False
     is_admin: bool
     is_active: bool
     role: UserRole = UserRole.USER
@@ -248,6 +320,9 @@ class AdminUserOut(ApiModel):
     username: str
     nickname: str
     title: str | None = None
+    # 邮箱与验证状态：监管台据此找出「还没补充绑定邮箱」的存量账号并提供协助。
+    email: str | None = None
+    email_verified: bool = False
     is_admin: bool
     is_active: bool
     role: UserRole = UserRole.USER

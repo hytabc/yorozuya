@@ -86,9 +86,12 @@ class PackTests(unittest.TestCase):
         self.client = TestClient(app)
         Base.metadata.create_all(self.engine)
         with self.sessions() as db:
+            # 测试用户直接入库：标为已验证邮箱，否则会被邮箱验证闸门挡住。
             db.add(User(id=1, username='boss', password_hash='unused', nickname='boss', is_admin=True, role=UserRole.USER))
-            db.add(User(id=2, username='staff', password_hash='unused', nickname='staff', is_admin=False, role=UserRole.STAFF))
-            db.add(User(id=3, username='plain', password_hash='unused', nickname='plain', is_admin=False, role=UserRole.USER))
+            db.add(User(id=2, username='staff', password_hash='unused', nickname='staff', is_admin=False,
+                        role=UserRole.STAFF, email='staff@example.com', email_verified=True))
+            db.add(User(id=3, username='plain', password_hash='unused', nickname='plain', is_admin=False,
+                        role=UserRole.USER, email='plain@example.com', email_verified=True))
             db.commit()
             seed_virtual_life_packs(db)
 

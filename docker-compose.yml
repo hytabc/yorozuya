@@ -24,6 +24,28 @@ services:
       # 页脚备案信息：留空则前端不展示（真实值只放 .env，不入库）。
       SITE_ICP: ${SITE_ICP:-}
       SITE_ICP_URL: ${SITE_ICP_URL:-https://beian.miit.gov.cn/}
+      # ── 邮箱验证与邮件通知（Brevo SMTP）──
+      # ⚠️ 真实凭据只写在根目录 .env（已 gitignore），这里仅做透传，仓库里不出现任何密钥。
+      # SMTP_PASSWORD 请在 Brevo 后台轮换后填入 .env。
+      EMAIL_DELIVERY: ${EMAIL_DELIVERY:-smtp}
+      SMTP_HOST: ${SMTP_HOST:-smtp-relay.brevo.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      # 发件地址必须是 Brevo 账号里已验证的 Sender，否则中继拒收。
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-万事屋委托站}
+      # 邮件链接前缀（如 https://example.com）；留空则按请求 Host 推导。
+      SITE_BASE_URL: ${SITE_BASE_URL:-}
+      EMAIL_VERIFICATION_TTL_HOURS: ${EMAIL_VERIFICATION_TTL_HOURS:-24}
+      PASSWORD_RESET_TTL_MINUTES: ${PASSWORD_RESET_TTL_MINUTES:-30}
+      LOGIN_CODE_TTL_MINUTES: ${LOGIN_CODE_TTL_MINUTES:-10}
+      EMAIL_SEND_COOLDOWN_SECONDS: ${EMAIL_SEND_COOLDOWN_SECONDS:-60}
+      # 登录邮箱二次验证 / 未验证闸门：邮件服务出问题时可在 .env 关掉以恢复使用。
+      LOGIN_CODE_REQUIRED: ${LOGIN_CODE_REQUIRED:-true}
+      REQUIRE_EMAIL_VERIFICATION: ${REQUIRE_EMAIL_VERIFICATION:-true}
+      NOTIFY_EMAIL_ENABLED: ${NOTIFY_EMAIL_ENABLED:-true}
       # 由 nginx 反向代理访问时按真实客户端 IP 限流。
       BEHIND_PROXY: "true"
       # 看板娘「小白」集中式大脑:值在项目根目录 .env 中设置(compose 只读取根目录 .env)

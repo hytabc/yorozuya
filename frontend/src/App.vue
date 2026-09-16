@@ -6,6 +6,7 @@ import { useAuthStore } from './stores/auth'
 import AppHeader from './components/AppHeader.vue'
 import ToastHost from './components/ToastHost.vue'
 import KanbanNiang from './components/KanbanNiang.vue'
+import EmailVerificationGate from './components/EmailVerificationGate.vue'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -43,6 +44,8 @@ watch(
       </template>
     </footer>
     <ToastHost />
+    <!-- 未完成邮箱验证时的强制绑定浮层：/life、/life-admin 这类全屏页也要挡，故挂在根部 -->
+    <EmailVerificationGate />
     <KanbanNiang v-if="!route.meta.lifeOnly && !route.meta.lifeManager" />
   </div>
 </template>

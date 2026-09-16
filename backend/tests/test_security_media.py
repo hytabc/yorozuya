@@ -8,9 +8,11 @@
 - 称号等权限边界与备案链接协议校验。
 """
 
+import re
 import time
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import unquote
 
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
@@ -20,6 +22,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app import images as images_module
+from app import mailer
 from app.config import settings
 from app.database import Base, get_db
 from app.main import app, sync_media_zones
@@ -46,18 +49,38 @@ def setup_function():
     app.dependency_overrides[get_db] = override_db
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
+    # 邮箱相关：走本地信箱、关掉登录验证码与发信冷却，保持用例简短。
+    settings.email_delivery = "log"
+    settings.login_code_required = False
+    settings.email_send_cooldown_seconds = 0
+    mailer.OUTBOX.clear()
     with TestingSession() as db:
         db.add(User(username="admin", nickname="管理员", password_hash=hash_password("Admin123!"), is_admin=True))
         db.commit()
 
 
+def last_mail_token() -> str:
+    assert mailer.OUTBOX, "本地信箱里没有邮件"
+    match = re.search(r"[?&]token=([^&\s]+)", mailer.OUTBOX[-1]["text"])
+    assert match, f"邮件正文里没有找到令牌：{mailer.OUTBOX[-1]['text']}"
+    return unquote(match.group(1))
+
+
 def auth(client, username, password="Password123!"):
-    response = client.post(
+    """注册 + 完成邮箱验证 + 登录（注册不再直接返回令牌）。"""
+    assert client.post(
         "/api/auth/register",
-        json={"username": username, "password": password, "nickname": f"用户{username}"},
-    )
-    assert response.status_code == 201, response.text
-    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+        json={
+            "username": username,
+            "password": password,
+            "nickname": f"用户{username}",
+            "email": f"{username}@example.com",
+        },
+    ).status_code == 201
+    assert client.post("/api/auth/email/confirm", json={"token": last_mail_token()}).status_code == 200
+    login = client.post("/api/auth/login", json={"username": username, "password": password})
+    assert login.status_code == 200, login.text
+    return {"Authorization": f"Bearer {login.json()['access_token']}"}
 
 
 def admin_headers(client):

@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile, status
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -24,10 +24,43 @@ from .config import INSECURE_DEFAULT_ADMIN_PASSWORD, settings
 from .backup import skip_next_snapshot
 from .captcha import captcha_required, create_image_captcha, verify_captcha
 from .database import Base, SessionLocal, engine, get_db
+from .email_flow import (
+    CHANGE_EMAIL,
+    EMAIL_TAKEN_DETAIL,
+    INVALID_CODE_DETAIL,
+    INVALID_TOKEN_DETAIL,
+    RESET_PASSWORD,
+    VERIFY_EMAIL,
+    base_url,
+    cooldown_remaining,
+    consume_link_token,
+    consume_login_code,
+    deliver,
+    email_taken,
+    find_account,
+    hash_link_token,
+    issue_link_token,
+    issue_login_code,
+    notification_target,
+    notify_address,
+    reset_link,
+    verify_link,
+)
 from .images import AVATAR_SIGNATURES, normalize_image
+from .mailer import (
+    change_email_message,
+    email_changed_notice,
+    login_code_message,
+    mask_email,
+    new_email_pending_notice,
+    password_changed_notice,
+    reset_password_message,
+    send_email,
+    verification_message,
+)
 from .media import delete_media, media_url, place_media, storage_file, verify_media_signature, write_media
 from .ratelimit import client_ip, enforce
-from .dependencies import get_admin, get_beta_application_manager, get_content_moderator, get_current_user, get_operations_manager, get_optional_user, get_role_manager
+from .dependencies import email_gate_required, get_admin, get_authenticated_user, get_beta_application_manager, get_content_moderator, get_current_user, get_operations_manager, get_optional_user, get_role_manager
 from .models import (
     AppSetting,
     ApplicationStatus,
@@ -36,6 +69,7 @@ from .models import (
     BoardComment,
     BoardMessage,
     BetaApplication,
+    EmailToken,
     Feedback,
     FeedbackStatus,
     FriendPhoto,
@@ -67,6 +101,15 @@ from .models import (
 )
 from .schemas import (
     AcceptRequest,
+    AccountRequest,
+    ActionAckOut,
+    EmailChangeRequest,
+    EmailCodeChallengeOut,
+    EmailCodeLoginRequest,
+    EmailVerifyRequest,
+    NotifyEmailUpdate,
+    PasswordResetConfirm,
+    RegisterPendingOut,
     AnalyticsOut,
     AnnouncementOut,
     AnnouncementWrite,
@@ -241,6 +284,20 @@ def migrate_schema() -> None:
                 connection.execute(text("ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0"))
             if "title" not in user_columns:
                 connection.execute(text("ALTER TABLE users ADD COLUMN title VARCHAR(32)"))
+            if "email" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR(254)"))
+            if "email_verified" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT 0"))
+            if "pending_email" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN pending_email VARCHAR(254)"))
+            if "notify_email" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN notify_email BOOLEAN NOT NULL DEFAULT 1"))
+            # SQLite 的 ALTER 不能加唯一约束，因此单独建唯一索引；
+            # 唯一索引不限制 NULL，存量账号在被强制补充绑定前 email 为空，彼此不冲突。
+            connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (email)"))
+            connection.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_users_email_verified ON users (email_verified)")
+            )
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_users_is_beta_tester ON users (is_beta_tester)"))
         if not inspector.has_table("tasks"):
             return
@@ -548,6 +605,11 @@ def present_user_self(user: User) -> UserSelf:
         username=user.username,
         qq=user.qq,
         qq_public=user.qq_public,
+        email=user.email,
+        email_verified=user.email_verified,
+        pending_email=user.pending_email,
+        notify_email=user.notify_email,
+        email_gate_required=email_gate_required(user),
         is_admin=user.is_admin,
         is_active=user.is_active,
         role=user.role,
@@ -1400,47 +1462,201 @@ def get_captcha(request: Request):
     )
 
 
-@app.post("/api/auth/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@app.post("/api/auth/register", response_model=RegisterPendingOut, status_code=status.HTTP_201_CREATED)
 async def register(payload: RegisterRequest, request: Request, db: Session = Depends(get_db)):
+    """注册：创建待验证账号并发验证邮件。
+
+    注册**不再直接下发登录令牌** —— 必须点邮件里的链接完成验证后才能登录。
+    发信失败会返回 503 并回滚整个事务（fail-closed），不会留下「建好了却收不到信」的半成品账号。
+    """
     enforce("register-ip", client_ip(request), 10, 3600)
     await verify_captcha(request, payload.captcha_id, payload.captcha_code)
     if db.scalar(select(User).where(User.username == payload.username)):
         raise HTTPException(status_code=409, detail="用户名已被使用")
+    email = payload.email.lower()
+    if email_taken(db, email):
+        raise HTTPException(status_code=409, detail=EMAIL_TAKEN_DETAIL)
     user = User(
         username=payload.username,
         password_hash=hash_password(payload.password),
         nickname=payload.nickname,
+        email=email,
+        email_verified=False,
     )
     db.add(user)
+    db.flush()
+    await _send_verification_mail(db, user, request)
     db.commit()
-    db.refresh(user)
-    return TokenResponse(
-        access_token=create_access_token(user.id, user.token_version),
-        user=present_user_self(user),
+    return RegisterPendingOut(email_masked=mask_email(email))
+
+
+async def _send_verification_mail(db: Session, user: User, request: Request) -> None:
+    """发放验证令牌并发信；失败会抛 503（调用方不提交事务）。"""
+    ttl_hours = settings.email_verification_ttl_hours
+    token = issue_link_token(db, user, VERIFY_EMAIL, ttl_minutes=ttl_hours * 60)
+    subject, text, html_body = verification_message(verify_link(token, request), ttl_hours=ttl_hours)
+    await deliver(user.email, subject, text, html_body)
+
+
+@app.post("/api/auth/email/resend", response_model=ActionAckOut)
+async def resend_verification(payload: AccountRequest, request: Request, db: Session = Depends(get_db)):
+    """重发验证邮件。
+
+    账号不存在或已完成验证时同样返回成功：不把「这个邮箱注册过没有」暴露给调用方。
+    """
+    enforce("email-send-ip", client_ip(request), 20, 3600)
+    await verify_captcha(request, payload.captcha_id, payload.captcha_code)
+    user = find_account(db, payload.account)
+    if user is not None and user.email and not user.email_verified:
+        enforce("email-send-user", str(user.id), 5, 3600)
+        remaining = cooldown_remaining(db, user.id, VERIFY_EMAIL)
+        if remaining == 0:
+            await _send_verification_mail(db, user, request)
+            db.commit()
+    return ActionAckOut()
+
+
+@app.post("/api/auth/email/confirm", response_model=ActionAckOut)
+async def confirm_email_token(
+    payload: EmailVerifyRequest,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """统一确认入口：验证新注册账号的邮箱，或生效一次换绑。
+
+    令牌本身就是凭证（只发到被确认的那个邮箱），因此不需要登录态 ——
+    这样用户在其它浏览器/手机邮箱里点链接也能完成确认。
+    """
+    token = payload.token
+    row = db.scalar(
+        select(EmailToken).where(EmailToken.token_hash == hash_link_token(token))
     )
+    if row is None or row.purpose not in (VERIFY_EMAIL, CHANGE_EMAIL):
+        raise HTTPException(status_code=422, detail=INVALID_TOKEN_DETAIL)
+    user = db.get(User, row.user_id)
+    if user is None or not user.is_active or (row.purpose == VERIFY_EMAIL and not user.email):
+        raise HTTPException(status_code=422, detail=INVALID_TOKEN_DETAIL)
+    consume_link_token(db, row.purpose, token)
+    old_verified_email: str | None = None
+    if row.purpose == VERIFY_EMAIL:
+        user.email_verified = True
+    else:
+        address = row.new_email
+        if not address:
+            raise HTTPException(status_code=422, detail=INVALID_TOKEN_DETAIL)
+        if email_taken(db, address, exclude_user_id=user.id):
+            raise HTTPException(status_code=409, detail=EMAIL_TAKEN_DETAIL)
+        old_verified_email = user.email if user.email_verified else None
+        user.email = address
+        user.email_verified = True
+        user.pending_email = None
+    db.commit()
+    # 换绑完成后通知老邮箱（best-effort：变更已经生效，不能因为通知失败而报错）
+    if old_verified_email and old_verified_email != user.email:
+        subject, text, html_body = email_changed_notice(old_verified_email, user.email)
+        background.add_task(send_email, old_verified_email, subject, text, html_body, required=False)
+    return ActionAckOut()
 
 
-@app.post("/api/auth/login", response_model=TokenResponse)
+@app.post("/api/auth/login", response_model=TokenResponse | EmailCodeChallengeOut)
 async def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
     # 按来源 IP 与账号双维度限流，抵御暴力破解与撞库。
     enforce("login-ip", client_ip(request), 30, 300)
     enforce("login-user", payload.username, 10, 300)
     # 验证码校验放在昂贵的 PBKDF2 校验之前，避免被撞库消耗 CPU。
     await verify_captcha(request, payload.captcha_id, payload.captcha_code)
-    user = db.scalar(select(User).where(User.username == payload.username))
+    # 登录名既可以是用户名，也可以是邮箱。
+    user = find_account(db, payload.username)
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="用户名或密码错误")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="账号已停用")
+    # 注册即带邮箱但还没点验证链接：必须先验证。
+    # （存量账号没有邮箱，可以登录，但会被邮箱验证闸门限制到只剩「绑定邮箱」。）
+    if user.email and not user.email_verified:
+        raise HTTPException(status_code=403, detail="邮箱尚未验证，请先点击验证邮件里的链接")
+    if settings.login_code_required and user.email and user.email_verified:
+        challenge_id, code = issue_login_code(db, user, ttl_minutes=settings.login_code_ttl_minutes)
+        subject, text, html_body = login_code_message(code, ttl_minutes=settings.login_code_ttl_minutes)
+        # fail-closed：验证码发不出去就不放行，否则用户会卡在没有验证码的第二步。
+        await deliver(user.email, subject, text, html_body)
+        db.commit()
+        return EmailCodeChallengeOut(
+            challenge_id=challenge_id,
+            email_masked=mask_email(user.email),
+            expires_in=settings.login_code_ttl_minutes * 60,
+        )
+    return issue_login_response(user, payload.remember)
+
+
+def issue_login_response(user: User, remember: bool) -> TokenResponse:
     return TokenResponse(
-        access_token=create_access_token(user.id, user.token_version, remember=payload.remember),
+        access_token=create_access_token(user.id, user.token_version, remember=remember),
         user=present_user_self(user),
-        remember=payload.remember,
+        remember=remember,
     )
 
 
+@app.post("/api/auth/login/email-code", response_model=TokenResponse)
+async def login_with_email_code(payload: EmailCodeLoginRequest, request: Request, db: Session = Depends(get_db)):
+    """登录第二步：提交邮箱验证码换取登录令牌。"""
+    enforce("login-code", client_ip(request), 30, 600)
+    challenge = db.get(EmailToken, payload.challenge_id)
+    if challenge is None:
+        raise HTTPException(status_code=422, detail=INVALID_CODE_DETAIL)
+    user = db.get(User, challenge.user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=401, detail="账号不可用")
+    consume_login_code(db, user, payload.challenge_id, payload.code)
+    db.commit()
+    return issue_login_response(user, payload.remember)
+
+
+@app.post("/api/auth/password-reset/request", response_model=ActionAckOut)
+async def request_password_reset(payload: AccountRequest, request: Request, db: Session = Depends(get_db)):
+    """申请重置密码。
+
+    无论账号是否存在、是否绑定了已验证邮箱，都返回同样的成功结果：
+    否则这个接口就成了「某个邮箱/用户名是否注册过」的探测器。
+    """
+    enforce("password-reset-ip", client_ip(request), 10, 3600)
+    await verify_captcha(request, payload.captcha_id, payload.captcha_code)
+    user = find_account(db, payload.account)
+    if user is not None and user.is_active and user.email and user.email_verified:
+        enforce("email-send-user", str(user.id), 5, 3600)
+        remaining = cooldown_remaining(db, user.id, RESET_PASSWORD)
+        if remaining == 0:
+            ttl_minutes = settings.password_reset_ttl_minutes
+            token = issue_link_token(db, user, RESET_PASSWORD, ttl_minutes=ttl_minutes)
+            subject, text, html_body = reset_password_message(reset_link(token, request), ttl_minutes=ttl_minutes)
+            await deliver(user.email, subject, text, html_body)
+            db.commit()
+    return ActionAckOut()
+
+
+@app.post("/api/auth/password-reset/confirm", response_model=ActionAckOut)
+async def confirm_password_reset(payload: PasswordResetConfirm, db: Session = Depends(get_db)):
+    """用邮件链接设置新密码：令牌一次性，改密后所有旧会话立即失效。"""
+    row = consume_link_token(db, RESET_PASSWORD, payload.token)
+    user = db.get(User, row.user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=422, detail=INVALID_TOKEN_DETAIL)
+    user.password_hash = hash_password(payload.password)
+    # 自增令牌版本：所有已签发的会话作废（与自助改密一致）。
+    user.token_version = (user.token_version or 0) + 1
+    # 能点开重置链接就证明控制了该邮箱，顺带完成验证。
+    if user.email:
+        user.email_verified = True
+    db.commit()
+    if user.email:
+        subject, text, html_body = password_changed_notice()
+        await send_email(user.email, subject, text, html_body, required=False)
+    return ActionAckOut()
+
+
 @app.get("/api/auth/me", response_model=UserSelf)
-def me(user: User = Depends(get_current_user)):
+def me(user: User = Depends(get_authenticated_user)):
+    # 未验证也要能拿到自己的状态（前端据此弹强制绑定框），因此这里不走验证闸门。
     return present_user_self(user)
 
 
@@ -1458,7 +1674,7 @@ def update_profile(payload: UserUpdate, user: User = Depends(get_current_user), 
 @app.patch("/api/users/me/password", response_model=UserSelf)
 def update_my_password(
     payload: UserPasswordUpdate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_authenticated_user),
     db: Session = Depends(get_db),
 ):
     # 限流当前密码的尝试次数，避免令牌泄露后被用来爆破当前密码改号。
@@ -1468,6 +1684,59 @@ def update_my_password(
     user.password_hash = hash_password(payload.password)
     # 自增令牌版本：旧密码签发的所有会话立即失效，需用新密码重新登录。
     user.token_version = (user.token_version or 0) + 1
+    db.commit()
+    db.refresh(user)
+    return present_user_self(user)
+
+
+@app.post("/api/users/me/email", response_model=ActionAckOut)
+async def request_email_binding(
+    payload: EmailChangeRequest,
+    request: Request,
+    user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+):
+    """绑定或换绑邮箱：先向新地址发确认链接，确认前不生效。
+
+    这是未验证用户唯一能做的「正事」之一，因此不走验证闸门。
+    """
+    address = payload.email.lower()
+    if user.email_verified and user.email == address:
+        raise HTTPException(status_code=409, detail="该邮箱已是当前邮箱")
+    if email_taken(db, address, exclude_user_id=user.id):
+        raise HTTPException(status_code=409, detail=EMAIL_TAKEN_DETAIL)
+    enforce("email-send-user", str(user.id), 5, 3600)
+    remaining = cooldown_remaining(db, user.id, CHANGE_EMAIL)
+    if remaining:
+        raise HTTPException(status_code=429, detail=f"发送过于频繁，请 {remaining} 秒后再试")
+
+    ttl_hours = settings.email_verification_ttl_hours
+    # 换绑前的旧邮箱（只有已验证过才需要通知）
+    old_verified_email = user.email if user.email_verified else None
+    user.pending_email = address
+    token = issue_link_token(
+        db, user, CHANGE_EMAIL, ttl_minutes=ttl_hours * 60, new_email=address
+    )
+    subject, text, html_body = change_email_message(
+        verify_link(token, request), address, ttl_hours=ttl_hours
+    )
+    # fail-closed：确认信发不出去就不改 pending_email（事务不提交）
+    await deliver(address, subject, text, html_body)
+    if old_verified_email:
+        subject, text, html_body = new_email_pending_notice(address)
+        await send_email(old_verified_email, subject, text, html_body, required=False)
+    db.commit()
+    return ActionAckOut()
+
+
+@app.patch("/api/users/me/email-notify", response_model=UserSelf)
+def update_email_notify(
+    payload: NotifyEmailUpdate,
+    user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+):
+    """事件通知邮件开关（账号安全类邮件不受此开关影响）。"""
+    user.notify_email = payload.notify_email
     db.commit()
     db.refresh(user)
     return present_user_self(user)
@@ -1937,6 +2206,7 @@ def admin_feedback(_: User = Depends(get_role_manager), db: Session = Depends(ge
 def handle_feedback(
     feedback_id: int,
     payload: FeedbackUpdate,
+    background: BackgroundTasks,
     _: User = Depends(get_role_manager),
     db: Session = Depends(get_db),
 ):
@@ -1951,6 +2221,13 @@ def handle_feedback(
         feedback.reply = payload.reply.strip() or None
     feedback.handled_at = datetime.utcnow() if feedback.status == FeedbackStatus.HANDLED else feedback.handled_at
     db.commit()
+    if feedback.user_id is not None and feedback.reply:
+        queue_user_notification(
+            feedback.user,
+            background,
+            "你的反馈已收到回复",
+            ["你提交的反馈已由管理员回复，可登录站点查看处理结果。"],
+        )
     return present_feedback(feedback)
 
 
@@ -2022,6 +2299,7 @@ def admin_volunteer_applications(
 def review_volunteer_application(
     application_id: int,
     payload: VolunteerApplicationReview,
+    background: BackgroundTasks,
     manager: User = Depends(get_role_manager),
     db: Session = Depends(get_db),
 ):
@@ -2046,6 +2324,15 @@ def review_volunteer_application(
     application.handled_at = datetime.utcnow()
     db.commit()
     db.refresh(application)
+    queue_user_notification(
+        application.user,
+        background,
+        "志愿者申请审核结果",
+        [
+            f"你的志愿者申请已{'通过' if application.status == ApplicationStatus.APPROVED else '被驳回'}。",
+            f"审核备注：{application.review_note}" if application.review_note else "管理员未填写备注。",
+        ],
+    )
     return present_application(application, viewer=manager)
 
 
@@ -2118,6 +2405,7 @@ def beta_applications(
 def review_beta_application(
     application_id: int,
     payload: BetaApplicationReview,
+    background: BackgroundTasks,
     manager: User = Depends(get_beta_application_manager),
     db: Session = Depends(get_db),
 ):
@@ -2139,6 +2427,15 @@ def review_beta_application(
     application.handled_at = datetime.utcnow()
     db.commit()
     db.refresh(application)
+    queue_user_notification(
+        application.user,
+        background,
+        "内测申请审核结果",
+        [
+            f"你的内测申请已{'通过' if application.status == ApplicationStatus.APPROVED else '被驳回'}。",
+            f"审核备注：{application.review_note}" if application.review_note else "管理员未填写备注。",
+        ],
+    )
     return present_beta_application(application, viewer=manager)
 
 
@@ -3020,6 +3317,51 @@ def moderate_vr_map_photo(
     )
 
 
+def queue_task_notification(
+    task: Task,
+    background: BackgroundTasks,
+    title: str,
+    lines: list[str],
+    request: Request | None = None,
+    *,
+    include_publisher: bool = True,
+    exclude: User | None = None,
+) -> None:
+    """把委托相关的事件通知排进后台任务。
+
+    只有「已验证邮箱 + 没关通知开关」的账号会收到；``exclude`` 用来跳过动作发起人，
+    避免用户收到自己刚做的事件的邮件。收件地址在请求内取好
+    （ORM 对象随后会脱离会话），因此后台任务只拿到字符串。
+    """
+    link = f"{base_url(request)}/mine" if request is not None else None
+    recipients: list[User] = [task.publisher] if include_publisher else []
+    recipients.extend(
+        member.user for member in task.members if member.response_status == TaskMemberResponse.ACCEPTED
+    )
+    seen: set[int] = set()
+    for person in recipients:
+        if person.id in seen or (exclude is not None and person.id == exclude.id):
+            continue
+        seen.add(person.id)
+        address = notification_target(person)
+        if address:
+            background.add_task(notify_address, address, title, lines, link)
+
+
+def queue_user_notification(
+    user: User | None,
+    background: BackgroundTasks,
+    title: str,
+    lines: list[str],
+) -> None:
+    """给单个账号排一条事件通知（如申请审核结果、反馈回复）。"""
+    if user is None:
+        return
+    address = notification_target(user)
+    if address:
+        background.add_task(notify_address, address, title, lines)
+
+
 @app.get("/api/tasks", response_model=list[TaskOut])
 def list_tasks(
     search: str = Query(default="", max_length=80),
@@ -3258,6 +3600,7 @@ def accept_task(
     task_id: int,
     payload: AcceptRequest,
     request: Request,
+    background: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -3296,7 +3639,17 @@ def accept_task(
                 task.status = TaskStatus.CANCELLED
                 task.cancelled_at = datetime.utcnow()
         db.commit()
-        return present_task(get_task_or_404(db, task_id), user)
+        settled = get_task_or_404(db, task_id)
+        queue_task_notification(
+            settled,
+            background,
+            "指定委托已响应",
+            [f"《{settled.title}》的指定接单人已响应，当前状态：{settled.status.value}。"],
+            request,
+            include_publisher=True,
+            exclude=user,
+        )
+        return present_task(settled, user)
     if existing_member is not None:
         raise HTTPException(status_code=409, detail="你已经接取过该委托")
     if task.required_takers is not None:
@@ -3320,11 +3673,27 @@ def accept_task(
     task = get_task_or_404(db, task_id)
     start_if_ready(db, task)
     db.commit()
-    return present_task(get_task_or_404(db, task_id), user)
+    accepted = get_task_or_404(db, task_id)
+    queue_task_notification(
+        accepted,
+        background,
+        "有人接取了你的委托",
+        [f"《{accepted.title}》已被接取，当前状态：{accepted.status.value}。"],
+        request,
+        include_publisher=True,
+        exclude=user,
+    )
+    return present_task(accepted, user)
 
 
 @app.post("/api/tasks/{task_id}/start", response_model=TaskOut)
-def start_task(task_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def start_task(
+    task_id: int,
+    request: Request,
+    background: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """委托人手动开始委托任务（即使人数不足也可以开始）。"""
     expire_due_tasks(db)
     task = get_task_or_404(db, task_id)
@@ -3340,7 +3709,17 @@ def start_task(task_id: int, user: User = Depends(get_current_user), db: Session
     task.started_at = datetime.utcnow()
     task.updated_at = datetime.utcnow()
     db.commit()
-    return present_task(get_task_or_404(db, task_id), user)
+    started = get_task_or_404(db, task_id)
+    queue_task_notification(
+        started,
+        background,
+        "委托已开始",
+        [f"《{started.title}》已开始，请按约定推进。"],
+        request,
+        include_publisher=False,
+        exclude=user,
+    )
+    return present_task(started, user)
 
 
 @app.post("/api/tasks/{task_id}/leave", response_model=TaskOut)
@@ -3373,7 +3752,13 @@ def leave_task(task_id: int, user: User = Depends(get_current_user), db: Session
 
 
 @app.post("/api/tasks/{task_id}/confirm", response_model=TaskOut)
-def confirm_task(task_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def confirm_task(
+    task_id: int,
+    request: Request,
+    background: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """完成确认：委托人（发布人）与每一位接单人都需要确认；全部确认后委托才算完成。"""
     expire_due_tasks(db)
     task = get_task_or_404(db, task_id)
@@ -3401,7 +3786,17 @@ def confirm_task(task_id: int, user: User = Depends(get_current_user), db: Sessi
         task.status = TaskStatus.ACCEPTED
     task.updated_at = now
     db.commit()
-    return present_task(get_task_or_404(db, task_id), user)
+    confirmed = get_task_or_404(db, task_id)
+    if confirmed.status == TaskStatus.COMPLETED:
+        queue_task_notification(
+            confirmed,
+            background,
+            "委托已完成",
+            [f"《{confirmed.title}》已由委托人与全体接单人确认完成。"],
+            request,
+            exclude=user,
+        )
+    return present_task(confirmed, user)
 
 
 @app.patch("/api/tasks/{task_id}/password", response_model=TaskOut)
@@ -3463,7 +3858,13 @@ def request_cancel_task(task_id: int, user: User = Depends(get_current_user), db
 
 
 @app.post("/api/tasks/{task_id}/confirm-cancel", response_model=TaskOut)
-def confirm_cancel_task(task_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def confirm_cancel_task(
+    task_id: int,
+    request: Request,
+    background: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """同意取消：委托人或接单人各自确认，全部同意后委托才取消。"""
     expire_due_tasks(db)
     task = get_task_or_404(db, task_id)
@@ -3487,7 +3888,17 @@ def confirm_cancel_task(task_id: int, user: User = Depends(get_current_user), db
         task.cancelled_at = now
     task.updated_at = now
     db.commit()
-    return present_task(get_task_or_404(db, task_id), user)
+    settled = get_task_or_404(db, task_id)
+    if settled.status == TaskStatus.CANCELLED:
+        queue_task_notification(
+            settled,
+            background,
+            "委托已取消",
+            [f"《{settled.title}》经委托人与全体接单人同意后已取消。"],
+            request,
+            exclude=user,
+        )
+    return present_task(settled, user)
 
 
 @app.post("/api/tasks/{task_id}/cancel-continue", response_model=TaskOut)
@@ -3809,6 +4220,8 @@ def present_admin_user(db: Session, user: User, viewer: User) -> AdminUserOut:
         username=user.username,
         nickname=user.nickname,
         title=user.title,
+        email=user.email,
+        email_verified=user.email_verified,
         is_admin=user.is_admin,
         is_active=user.is_active,
         role=user.role,
@@ -4051,6 +4464,7 @@ def update_user_beta_tester(
 def moderate_task(
     task_id: int,
     payload: AdminTaskUpdate,
+    background: BackgroundTasks,
     admin: User = Depends(get_role_manager),
     db: Session = Depends(get_db),
 ):
@@ -4061,4 +4475,13 @@ def moderate_task(
     task.is_visible = payload.is_visible
     task.admin_note = note if not payload.is_visible else None
     db.commit()
-    return present_task(get_task_or_404(db, task_id), admin)
+    moderated = get_task_or_404(db, task_id)
+    if not moderated.is_visible:
+        queue_task_notification(
+            moderated,
+            background,
+            "你的委托已被管理员隐藏",
+            [f"《{moderated.title}》已被管理员隐藏，大厅中不再展示。", f"理由：{note}"],
+            include_publisher=True,
+        )
+    return present_task(moderated, admin)

@@ -2,6 +2,8 @@ from datetime import datetime, timedelta
 from errno import ENOSPC
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import unquote
+import re
 
 import pytest
 from fastapi import HTTPException
@@ -11,6 +13,7 @@ from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app import mailer
 from app.database import Base, get_db
 from app.config import settings
 from app.main import app
@@ -41,17 +44,48 @@ def setup_function():
     app.dependency_overrides[get_db] = override_db
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
+    # 邮箱相关：走本地信箱（不发真邮件）、关掉登录邮箱验证码、关掉发信冷却，
+    # 让绝大多数用例保持「注册即可登录」的节奏。
+    # 邮箱验证码那条链路由 test_email_flow.py 专门开着开关覆盖。
+    settings.email_delivery = "log"
+    settings.login_code_required = False
+    settings.email_send_cooldown_seconds = 0
+    mailer.OUTBOX.clear()
     with TestingSession() as db:
         db.add(User(username="admin", nickname="管理员", password_hash=hash_password("Admin123!"), is_admin=True))
         db.commit()
 
 
-def auth(client, username, password="Password123!", role="user"):
-    response = client.post(
-        "/api/auth/register",
-        json={"username": username, "password": password, "nickname": f"用户{username}"},
-    )
+def last_mail_token() -> str:
+    """从本地信箱取出最近一封邮件里的链接令牌。"""
+    assert mailer.OUTBOX, "本地信箱里没有邮件"
+    match = re.search(r"[?&]token=([^&\s]+)", mailer.OUTBOX[-1]["text"])
+    assert match, f"邮件正文里没有找到令牌：{mailer.OUTBOX[-1]['text']}"
+    return unquote(match.group(1))
+
+
+def register(client, username, password="Password123!", email=None):
+    """注册一个账号并完成邮箱验证。
+
+    注册接口不再直接下发登录令牌，因此这里模拟「注册 → 收信 → 点链接」的真实链路。
+    """
+    payload = {
+        "username": username,
+        "password": password,
+        "nickname": f"用户{username}",
+        "email": email or f"{username}@example.com",
+    }
+    response = client.post("/api/auth/register", json=payload)
     assert response.status_code == 201, response.text
+    confirmed = client.post("/api/auth/email/confirm", json={"token": last_mail_token()})
+    assert confirmed.status_code == 200, confirmed.text
+    return payload
+
+
+def auth(client, username, password="Password123!", role="user"):
+    register(client, username, password=password)
+    response = client.post("/api/auth/login", json={"username": username, "password": password})
+    assert response.status_code == 200, response.text
     headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
     if role == "volunteer":
         promote(client, headers)
@@ -2793,7 +2827,12 @@ def test_builtin_captcha_guards_login_and_register(monkeypatch):
         # 注册同样必须带验证码
         missing = client.post(
             "/api/auth/register",
-            json={"username": "captcha_user", "password": "Password123!", "nickname": "验证码用户"},
+            json={
+                "username": "captcha_user",
+                "password": "Password123!",
+                "nickname": "验证码用户",
+                "email": "captcha_user@example.com",
+            },
         )
         assert missing.status_code == 400
 
@@ -2805,11 +2844,14 @@ def test_builtin_captcha_guards_login_and_register(monkeypatch):
                 "username": "captcha_user",
                 "password": "Password123!",
                 "nickname": "验证码用户",
+                "email": "captcha_user@example.com",
                 "captcha_id": challenge["captcha_id"],
                 "captcha_code": answer,
             },
         )
         assert created.status_code == 201, created.text
+        # 注册后不再下发登录令牌，必须先完成邮箱验证
+        assert "access_token" not in created.json()
 
 
 def test_story_flow():
