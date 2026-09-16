@@ -59,18 +59,18 @@ class Settings(BaseSettings):
     # 备案号点击后跳转的官方查询地址（工信部备案系统，公开地址）。
     site_icp_url: str = "https://beian.miit.gov.cn/"
 
-    # ── 邮箱验证与邮件通知（Brevo SMTP）──
+    # ── 邮箱验证与邮件通知（SMTP，示例为 163 邮箱）──
     # smtp=真实发信；log=只打印到日志并写入 mailer.OUTBOX（本地开发与测试用）。
     email_delivery: str = "smtp"
-    smtp_host: str = "smtp-relay.brevo.com"
-    smtp_port: int = 587
-    # 587 端口用 STARTTLS（先明文连接再升级为 TLS）。
-    smtp_starttls: bool = True
+    smtp_host: str = "smtp.163.com"
+    smtp_port: int = 465
+    # 连接加密方式：ssl=直接 TLS（465，163/QQ 常用）；starttls=先明文再升级（587，Brevo 常用）；none=不加密。
+    smtp_encryption: str = "ssl"
     smtp_timeout_seconds: int = 15
     smtp_username: str = ""
-    # ⚠️ Brevo 的 SMTP key（相当于密码），只放 .env，绝不写进任何入库文件。
+    # ⚠️ 邮箱的「客户端授权码」（不是登录密码），只放 .env，绝不写进任何入库文件。
     smtp_password: str = ""
-    # ⚠️ 发件地址必须是 Brevo 账号里「已验证的 Sender」，否则中继会拒收（5xx）。
+    # ⚠️ 163 要求发件地址与登录账号一致，否则被拒收（553/554）。
     email_from_address: str = ""
     email_from_name: str = "万事屋委托站"
     # 邮件里链接的前缀，例如 https://example.com；留空则按请求的 Host 推导。
@@ -114,6 +114,11 @@ class Settings(BaseSettings):
                 f"EMAIL_DELIVERY 只能是 smtp 或 log（当前 {self.email_delivery!r}）："
                 "smtp 为真实发信，log 只把邮件打印到日志供本地开发使用。"
             )
+        if self.smtp_encryption not in ("ssl", "starttls", "none"):
+            raise RuntimeError(
+                f"SMTP_ENCRYPTION 只能是 ssl / starttls / none（当前 {self.smtp_encryption!r}）："
+                "163/QQ 邮箱用 465 + ssl，Brevo 等用 587 + starttls。"
+            )
 
     @property
     def admin_password_is_default(self) -> bool:
@@ -145,8 +150,8 @@ class Settings(BaseSettings):
         if self.email_delivery == "smtp" and self.email_from_address and self.smtp_username:
             if self.email_from_address.lower() != self.smtp_username.lower():
                 logger.info(
-                    "邮件发件地址为 %s（与 SMTP 登录账号不同时，请确认它已在 Brevo 中验证为 Sender，"
-                    "否则中继会拒收）。",
+                    "邮件发件地址为 %s（与 SMTP 登录账号不同时，请确认它已被服务商允许发信——"
+                    "163 要求两者完全一致，否则会被拒收 553/554）。",
                     self.email_from_address,
                 )
 

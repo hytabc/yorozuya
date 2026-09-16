@@ -299,7 +299,7 @@ start.bat test
 ## 邮箱验证与邮件通知
 
 本站用邮箱做账号体系的一部分：注册必须验证邮箱、存量账号登录后强制补充绑定、可以用邮箱找回密码与换绑邮箱，
-并且登录时还要再输入一次邮件验证码（二次验证）。邮件通过 **Brevo SMTP 中继** 发送。
+并且登录时还要再输入一次邮件验证码（二次验证）。邮件通过 **SMTP 服务商发送（示例配置为 163 邮箱）**。
 
 ### 功能一览
 
@@ -313,25 +313,28 @@ start.bat test
 | 事件通知 | 委托被接取/开始/完成/取消、委托被隐藏、反馈收到回复、志愿者与内测申请审核结果 |
 
 通知邮件只发给「已验证邮箱 + 未关闭通知开关」的账号，正文不含 QQ 等联系方式。
-公告类**不做群发**（会按用户数消耗 Brevo 配额且有滥用风险）。
+公告类**不做群发**（会按用户数消耗邮箱配额且有滥用风险）。
 
-### 配置（Brevo）
+### 配置（163 邮箱示例）
 
-1. 在 Brevo 后台 → **SMTP & API → SMTP** 获取登录账号（形如 `xxxx@smtp-brevo.com`）并生成 SMTP key。
-2. 在 Brevo 后台 → **Senders 验证一个发件地址**（或验证你的域名）。
-   ⚠️ `EMAIL_FROM_ADDRESS` 必须是**已验证的发件地址**，否则中继会返回 554/550 拒收。
+1. 登录 163 邮箱 → **设置 → POP3/SMTP/IMAP**，开启 **SMTP 服务**，并按提示生成**客户端授权码**。
+2. 163 的 SMTP 登录账号就是**完整邮箱地址**，密码填上一步的**授权码**（不是邮箱登录密码）。
+   ⚠️ **`EMAIL_FROM_ADDRESS` 必须与登录账号完全一致**，否则 163 会返回 553/554 拒收。
 3. 把凭据写进根目录 `.env`（**该文件已被 `.gitignore` 忽略，密钥绝不要写进任何入库文件**）：
 
    ```bash
    EMAIL_DELIVERY=smtp
-   SMTP_HOST=smtp-relay.brevo.com
-   SMTP_PORT=587
-   SMTP_USERNAME=xxxx@smtp-brevo.com
-   SMTP_PASSWORD=你的-SMTP-key
-   EMAIL_FROM_ADDRESS=no-reply@你的域名
+   SMTP_HOST=smtp.163.com
+   SMTP_PORT=465
+   SMTP_ENCRYPTION=ssl          # 163 用 465+ssl；若换用 587 的服务商（如 Brevo）改为 starttls
+   SMTP_USERNAME=your@163.com
+   SMTP_PASSWORD=你的-客户端授权码
+   EMAIL_FROM_ADDRESS=your@163.com
    EMAIL_FROM_NAME=万事屋委托站
    SITE_BASE_URL=https://你的域名   # 邮件里链接的前缀，建议显式填写
    ```
+
+   `SMTP_ENCRYPTION` 可选 `ssl`（465，直接 TLS）/ `starttls`（587，先明文再升级）/ `none`（不加密）。
 
 4. `docker compose up -d --build` 重启后端使配置生效。
 
@@ -351,7 +354,7 @@ start.bat test
 
 ### ⚠️ 被锁住时的救援步骤
 
-邮件服务出问题时（密钥失效、Brevo 拒收发件地址、配额用尽），会影响注册、验证、找回密码与登录验证码。
+邮件服务出问题时（授权码失效、发件地址被拒收、配额用尽），会影响注册、验证、找回密码与登录验证码。
 **超级管理员（`is_admin`）不受验证闸门限制**，可在后台处理日常事务；若连登录验证码都收不到，按下面顺序恢复：
 
 1. 在 `.env` 里把 `LOGIN_CODE_REQUIRED=false`（先能登录）→ `docker compose up -d` 重启后端；
