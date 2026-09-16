@@ -122,7 +122,9 @@ onMounted(load)
       <div class="notice-content"><MessagesSquare :size="18" /><span>登录后即可留言和评论，<RouterLink class="text-link" to="/login">去登录</RouterLink> 或 <RouterLink class="text-link" to="/register">注册账号</RouterLink>。</span></div>
     </div>
 
-    <div v-if="loading" class="board-empty">正在加载留言…</div>
+    <ul v-if="loading" class="board-list">
+      <li v-for="i in 3" :key="i" class="board-item skeleton" />
+    </ul>
     <div v-else-if="error" class="board-empty error-notice">{{ error }}</div>
     <div v-else-if="!messages.length" class="board-empty"><strong>还没有留言</strong><span>来抢第一个沙发吧。</span></div>
     <ul v-else class="board-list">
@@ -213,6 +215,11 @@ onMounted(load)
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--paper);
+}
+
+.board-item.skeleton {
+  min-height: 150px;
+  border-top-color: var(--line);
 }
 
 .board-head {

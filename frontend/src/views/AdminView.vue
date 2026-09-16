@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, Flag, HeartHandshake, Image as ImageIcon, KeyRound, Map as MapIcon, MessageCircle, RotateCcw, Save, Search, ShieldCheck, Sparkles, Store, UsersRound, X } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
@@ -7,6 +7,7 @@ import { useToast } from '../composables/toast'
 import { useAuthStore } from '../stores/auth'
 import StatusBadge from '../components/StatusBadge.vue'
 import UserTitleTag from '../components/UserTitleTag.vue'
+import LazyImage from '../components/LazyImage.vue'
 import { roleLabel } from '../constants'
 
 const toast = useToast()
@@ -40,7 +41,19 @@ const stats = ref({ users: 0, tasks: 0, processing: 0, completed: 0, hidden: 0 }
 const activeTab = ref(auth.isDisciplinarian ? 'reports' : 'tasks')
 const taskSearch = ref('')
 const userSearch = ref('')
-const loading = ref(true)
+// 按标签页懒加载：首屏只拉取当前标签的数据，其余标签首次切入时才请求，
+// 避免一次性并发 10+ 个列表接口（尤其是体积最大的图片审核列表）。
+const tabState = reactive({
+  tasks: { loaded: false, loading: false },
+  users: { loaded: false, loading: false },
+  reports: { loaded: false, loading: false },
+  applications: { loaded: false, loading: false },
+  'beta-applications': { loaded: false, loading: false },
+  vrmaps: { loaded: false, loading: false },
+  photos: { loaded: false, loading: false },
+  feedback: { loaded: false, loading: false },
+})
+const isFirstLoad = (tab) => !tabState[tab]?.loaded
 const savingUserId = ref(null)
 const savingRoleId = ref(null)
 const reviewAppId = ref(null)
@@ -50,13 +63,16 @@ const resetPasswordBusy = ref(false)
 const resetPasswordForm = reactive({ password: '', confirm: '' })
 const filteredTasks = computed(() => tasks.value.filter((task) => `${task.title}${task.publisher.nickname}`.toLowerCase().includes(taskSearch.value.toLowerCase())))
 const filteredUsers = computed(() => users.value.filter((user) => `${user.username}${user.nickname}`.toLowerCase().includes(userSearch.value.toLowerCase())))
-const pendingFeedbacks = computed(() => feedbacks.value.filter((item) => item.status === 'pending').length)
-const pendingApplications = computed(() => applications.value.filter((item) => item.status === 'pending').length)
-const pendingBetaApplications = computed(() => betaApplications.value.filter((item) => item.status === 'pending').length)
-const pendingVrMapReports = computed(() => vrMapReports.value.filter((item) => item.status === 'pending').length)
-const pendingVrMapPhotos = computed(() => vrMapPhotos.value.filter((item) => !item.moderated).length)
-const pendingStoryPhotos = computed(() => storyPhotos.value.filter((item) => !item.moderated).length)
-const pendingReports = computed(() => reports.value.filter((item) => item.status === 'pending').length)
+// 角标：标签页数据已加载时按列表实时统计（处理完会立即更新），
+// 未加载时退回 /admin/summary 的轻量计数，避免为了显示角标提前拉取整个列表。
+const loadedCount = (tab, list, predicate) => (tabState[tab].loaded ? list.value.filter(predicate).length : null)
+const pendingFeedbacks = computed(() => loadedCount('feedback', feedbacks, (item) => item.status === 'pending') ?? stats.value.pending_feedbacks ?? 0)
+const pendingApplications = computed(() => loadedCount('applications', applications, (item) => item.status === 'pending') ?? stats.value.pending_applications ?? 0)
+const pendingBetaApplications = computed(() => loadedCount('beta-applications', betaApplications, (item) => item.status === 'pending') ?? stats.value.pending_beta_applications ?? 0)
+const pendingVrMapReports = computed(() => loadedCount('vrmaps', vrMapReports, (item) => item.status === 'pending') ?? stats.value.pending_vr_map_reports ?? 0)
+const pendingVrMapPhotos = computed(() => loadedCount('vrmaps', vrMapPhotos, (item) => !item.moderated) ?? stats.value.pending_vr_map_photos ?? 0)
+const pendingStoryPhotos = computed(() => loadedCount('photos', storyPhotos, (item) => !item.moderated) ?? stats.value.pending_story_photos ?? 0)
+const pendingReports = computed(() => loadedCount('reports', reports, (item) => item.status === 'pending') ?? stats.value.pending_reports ?? 0)
 const sortedReports = computed(() => [...reports.value].sort((a, b) => (a.status === 'pending' ? -1 : 1) - (b.status === 'pending' ? -1 : 1)))
 const statItems = computed(() => [
   { label: '注册用户', value: stats.value.users, icon: UsersRound },
@@ -64,77 +80,66 @@ const statItems = computed(() => [
   { label: '处理中', value: stats.value.processing, icon: Clock3 },
   { label: '已完成', value: stats.value.completed, icon: CircleCheck },
 ])
-async function load() {
-  loading.value = true
+// 统计卡与标签角标的轻量汇总：一次 COUNT 接口，不拉取任何列表内容。
+async function loadSummary() {
   try {
-    const friendPhotoRes = await api.get('/admin/friends/photos')
-    friendPhotos.value = friendPhotoRes.data
-    if (auth.isDisciplinarian) {
-      const [photoRes, reportRes, sugarPhotoRes, vrReportRes, vrPhotoRes, storyPhotoRes] = await Promise.all([
-        api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/sugar/photos'),
-        api.get('/admin/vr-map-reports'), api.get('/admin/vr-map-photos'), api.get('/admin/story-photos'),
-      ])
-      photoUsers.value = photoRes.data
-      reports.value = reportRes.data
-      sugarPhotos.value = sugarPhotoRes.data
-      vrMapReports.value = vrReportRes.data
-      vrMapPhotos.value = vrPhotoRes.data
-      storyPhotos.value = storyPhotoRes.data
-      return
-    }
-    if (!auth.isAdmin) {
-      const [taskRes, userRes, photoRes, reportRes, limitRes, feedbackRes, applicationRes, betaApplicationRes, sugarPhotoRes, vrReportRes, vrPhotoRes, storyPhotoRes] = await Promise.all([api.get('/admin/tasks'), api.get('/admin/users'), api.get('/admin/photos'), api.get('/admin/reports'), api.get('/admin/settings/report-limit'), api.get('/admin/feedback'), api.get('/admin/volunteer-applications'), api.get('/admin/beta-applications'), api.get('/admin/sugar/photos'), api.get('/admin/vr-map-reports'), api.get('/admin/vr-map-photos'), api.get('/admin/story-photos')])
-      tasks.value = taskRes.data
-      stats.value.hidden = tasks.value.filter((task) => !task.is_visible).length
-      users.value = userRes.data
-      photoUsers.value = photoRes.data
-      reports.value = reportRes.data
-      reportLimit.value = limitRes.data.daily_limit
-      reportLimitInput.value = limitRes.data.daily_limit
-      feedbacks.value = feedbackRes.data
-      applications.value = applicationRes.data
-      betaApplications.value = betaApplicationRes.data
-      sugarPhotos.value = sugarPhotoRes.data
-      vrMapReports.value = vrReportRes.data
-      vrMapPhotos.value = vrPhotoRes.data
-      storyPhotos.value = storyPhotoRes.data
-      return
-    }
-    const [taskRes, userRes, statRes, feedbackRes, photoRes, reportRes, limitRes, applicationRes, betaApplicationRes, sugarPhotoRes, vrReportRes, vrPhotoRes, storyPhotoRes] = await Promise.all([
-      api.get('/admin/tasks'),
-      api.get('/admin/users'),
-      api.get('/admin/stats'),
-      api.get('/admin/feedback'),
-      api.get('/admin/photos'),
-      api.get('/admin/reports'),
-      api.get('/admin/settings/report-limit'),
-      api.get('/admin/volunteer-applications'),
-      api.get('/admin/beta-applications'),
-      api.get('/admin/sugar/photos'),
-      api.get('/admin/vr-map-reports'),
-      api.get('/admin/vr-map-photos'),
-      api.get('/admin/story-photos'),
-    ])
-    tasks.value = taskRes.data
-    users.value = userRes.data
-    stats.value = statRes.data
-    feedbacks.value = feedbackRes.data
-    photoUsers.value = photoRes.data
-    reports.value = reportRes.data
-    applications.value = applicationRes.data
-    betaApplications.value = betaApplicationRes.data
-    sugarPhotos.value = sugarPhotoRes.data
-    vrMapReports.value = vrReportRes.data
-    vrMapPhotos.value = vrPhotoRes.data
-    storyPhotos.value = storyPhotoRes.data
-    reportLimit.value = limitRes.data.daily_limit
-    reportLimitInput.value = limitRes.data.daily_limit
-    users.value.forEach((user) => { userLimits[user.id] = user.max_concurrent_tasks; userTitles[user.id] = user.title || '' })
+    stats.value = { ...stats.value, ...(await api.get('/admin/summary')).data }
   } catch (error) {
-    toast.error(errorMessage(error))
-  } finally {
-    loading.value = false
+    toast.error(errorMessage(error, '监管台统计加载失败'))
   }
+}
+
+const tabLoaders = {
+  tasks: () => api.get('/admin/tasks').then(({ data }) => {
+    tasks.value = data
+    stats.value.hidden = data.filter((task) => !task.is_visible).length
+  }),
+  users: () => api.get('/admin/users').then(({ data }) => {
+    users.value = data
+    data.forEach((user) => { userLimits[user.id] = user.max_concurrent_tasks; userTitles[user.id] = user.title || '' })
+  }),
+  reports: () => {
+    // 风纪委员看不到每日举报上限设置，也不必请求该接口。
+    const requests = [api.get('/admin/reports')]
+    if (!auth.isDisciplinarian) requests.push(api.get('/admin/settings/report-limit'))
+    return Promise.all(requests).then(([reportRes, limitRes]) => {
+      reports.value = reportRes.data
+      if (limitRes) {
+        reportLimit.value = limitRes.data.daily_limit
+        reportLimitInput.value = limitRes.data.daily_limit
+      }
+    })
+  },
+  applications: () => api.get('/admin/volunteer-applications').then(({ data }) => { applications.value = data }),
+  'beta-applications': () => api.get('/admin/beta-applications').then(({ data }) => { betaApplications.value = data }),
+  vrmaps: () => Promise.all([api.get('/admin/vr-map-reports'), api.get('/admin/vr-map-photos')])
+    .then(([reportRes, photoRes]) => {
+      vrMapReports.value = reportRes.data
+      vrMapPhotos.value = photoRes.data
+    }),
+  photos: () => Promise.all([
+    api.get('/admin/photos'),
+    api.get('/admin/sugar/photos'),
+    api.get('/admin/friends/photos'),
+    api.get('/admin/story-photos'),
+  ]).then(([photoRes, sugarRes, friendRes, storyRes]) => {
+    photoUsers.value = photoRes.data
+    sugarPhotos.value = sugarRes.data
+    friendPhotos.value = friendRes.data
+    storyPhotos.value = storyRes.data
+  }),
+  feedback: () => api.get('/admin/feedback').then(({ data }) => { feedbacks.value = data }),
+}
+
+function loadTab(tab) {
+  const state = tabState[tab]
+  const loader = tabLoaders[tab]
+  if (!state || !loader || state.loaded || state.loading) return
+  state.loading = true
+  loader()
+    .then(() => { state.loaded = true })
+    .catch((error) => toast.error(errorMessage(error)))
+    .finally(() => { state.loading = false })
 }
 async function togglePhoto(user, photo) {
   try {
@@ -387,8 +392,10 @@ onMounted(async () => {
   // 双保险：即使路由守卫被绕过，也先确认服务端身份再拉取任何管理数据。
   await auth.restore()
   if (!auth.canModerate) { router.replace('/'); return }
-  await load()
+  await loadSummary()
+  loadTab(activeTab.value)
 })
+watch(activeTab, (tab) => loadTab(tab))
 </script>
 
 <template>
@@ -411,7 +418,7 @@ onMounted(async () => {
       <div class="admin-toolbar"><div><h2>举报处理</h2><span>待处理 {{ pendingReports }} 条</span></div>
         <div v-if="!auth.isDisciplinarian" class="report-limit-box"><span>每日举报上限</span><input v-model.number="reportLimitInput" class="limit-input" type="number" min="1" max="100" aria-label="每日举报上限" /><button class="button secondary small" :disabled="savingReportLimit || reportLimitInput === reportLimit" @click="saveReportLimit"><Save :size="15" />{{ savingReportLimit ? '保存中…' : '保存' }}</button></div>
       </div>
-      <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
+      <div v-if="isFirstLoad('reports')" class="skeleton-list" aria-hidden="true"><div v-for="i in 4" :key="i" class="skeleton-block" /></div>
       <ul v-else-if="sortedReports.length" class="feedback-admin-list">
         <li v-for="item in sortedReports" :key="item.id" :class="{ handled: item.status === 'handled' }">
           <div class="fb-head">
@@ -434,7 +441,7 @@ onMounted(async () => {
 
     <section v-if="activeTab === 'applications'" class="admin-table-section">
       <div class="admin-toolbar"><div><h2>志愿者申请</h2><span>待审核 {{ pendingApplications }} 条</span></div><span class="muted"><HeartHandshake :size="15" /> 通过后申请人将升级为志愿者</span></div>
-      <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
+      <div v-if="isFirstLoad('applications')" class="skeleton-list" aria-hidden="true"><div v-for="i in 4" :key="i" class="skeleton-block" /></div>
       <ul v-else-if="applications.length" class="feedback-admin-list">
         <li v-for="item in applications" :key="item.id" :class="{ handled: item.status !== 'pending' }">
           <div class="fb-head">
@@ -457,7 +464,7 @@ onMounted(async () => {
 
     <section v-if="activeTab === 'beta-applications'" class="admin-table-section">
       <div class="admin-toolbar"><div><h2>虚拟人生内测申请</h2><span>待审核 {{ pendingBetaApplications }} 条</span></div><span class="muted"><Sparkles :size="15" /> 通过后自动开通虚拟人生</span></div>
-      <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
+      <div v-if="isFirstLoad('beta-applications')" class="skeleton-list" aria-hidden="true"><div v-for="i in 4" :key="i" class="skeleton-block" /></div>
       <ul v-else-if="betaApplications.length" class="feedback-admin-list">
         <li v-for="item in betaApplications" :key="item.id" :class="{ handled: item.status !== 'pending' }">
           <div class="fb-head">
@@ -480,7 +487,7 @@ onMounted(async () => {
 
     <section v-if="activeTab === 'vrmaps'" class="admin-table-section">
       <div class="admin-toolbar"><div><h2>地图举报</h2><span>待处理 {{ pendingVrMapReports }} 条</span></div><span class="muted"><MapIcon :size="15" /> 有待处理举报的地图已暂停公开展示</span></div>
-      <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
+      <div v-if="isFirstLoad('vrmaps')" class="skeleton-list" aria-hidden="true"><div v-for="i in 3" :key="i" class="skeleton-block" /></div>
       <ul v-else-if="vrMapReports.length" class="feedback-admin-list">
         <li v-for="item in vrMapReports" :key="item.id" :class="{ handled: item.status === 'handled' }">
           <div class="fb-head">
@@ -500,10 +507,10 @@ onMounted(async () => {
       <div v-else class="feedback-admin-empty"><MapIcon :size="28" />暂无地图举报</div>
 
       <div class="admin-toolbar vrmap-photo-toolbar"><div><h2>地图实拍照片审核</h2><span>待审核 {{ pendingVrMapPhotos }} 张</span></div><span class="muted">通过后照片会在地图详情页公开展示</span></div>
-      <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
+      <div v-if="isFirstLoad('vrmaps')" class="moderation-photo-grid vrmap-photo-grid" aria-hidden="true"><figure v-for="i in 6" :key="i" class="skeleton-block" /></div>
       <div v-else-if="vrMapPhotos.length" class="moderation-photo-grid vrmap-photo-grid">
         <figure v-for="photo in vrMapPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
-          <img :src="photo.image_url" :alt="`${photo.map_name} 的实拍照片`" />
+          <LazyImage :src="photo.image_url" :alt="`${photo.map_name} 的实拍照片`" />
           <span v-if="!photo.moderated" class="photo-blocked vrmap-photo-state"><Clock3 :size="14" />审核中</span>
           <span v-else-if="!photo.is_visible" class="photo-blocked vrmap-photo-state"><EyeOff :size="14" />已驳回</span>
           <div class="fb-actions vrmap-photo-actions">
@@ -522,7 +529,9 @@ onMounted(async () => {
         <table>
           <thead><tr><th>委托</th><th>发布人</th><th>状态</th><th>到期时间</th><th>可见性</th><th><span class="sr-only">操作</span></th></tr></thead>
           <tbody>
-            <tr v-if="loading"><td colspan="6" class="table-loading">正在加载…</td></tr>
+            <template v-if="isFirstLoad('tasks')">
+              <tr v-for="i in 5" :key="i" class="skeleton-row" aria-hidden="true"><td colspan="6"><div class="skeleton-line" /></td></tr>
+            </template>
             <tr v-for="task in filteredTasks" v-else :key="task.id" :class="{ dimmed: !task.is_visible }">
               <td><strong>{{ task.title }}<span v-if="task.is_anonymous" class="role-tag anon-tag">匿名</span></strong><small>#{{ task.id }} · {{ task.category }}</small></td>
               <td>{{ task.publisher.nickname }}</td><td><StatusBadge :status="task.status" /></td><td>{{ date(task.expires_at) }}</td>
@@ -540,7 +549,9 @@ onMounted(async () => {
         <table>
           <thead><tr><th>用户</th><th>权限等级</th><th v-if="auth.isAdmin">当前接单</th><th v-if="auth.isAdmin">接单上限</th><th v-if="auth.canManageRoles">称号</th><th><span class="sr-only">操作</span></th></tr></thead>
           <tbody>
-            <tr v-if="loading"><td :colspan="auth.isAdmin ? 6 : 4" class="table-loading">正在加载…</td></tr>
+            <template v-if="isFirstLoad('users')">
+              <tr v-for="i in 5" :key="i" class="skeleton-row" aria-hidden="true"><td :colspan="auth.isAdmin ? 6 : 4"><div class="skeleton-line" /></td></tr>
+            </template>
             <tr v-for="user in filteredUsers" v-else :key="user.id">
               <td><strong>{{ user.nickname }}</strong><UserTitleTag :title="user.title" /><small>@{{ user.username }} · #{{ user.id }}</small><label class="beta-toggle"><input type="checkbox" :checked="user.is_beta_tester" :disabled="!auth.isAdmin" @change="toggleBetaTester(user)" /> 内测用户</label></td>
               <td><span v-if="user.is_admin" class="admin-tag"><ShieldCheck :size="13" />超级管理员</span><span v-else class="role-tag" :class="`role-${user.role}`"><Store v-if="user.role === 'staff'" :size="13" />{{ roleLabel(user) }}</span></td>
@@ -568,14 +579,14 @@ onMounted(async () => {
 
     <section v-else-if="activeTab === 'photos'" class="admin-table-section">
       <div class="admin-toolbar"><div><h2>用户介绍图片</h2><span>不适合展示的图片可手动屏蔽</span></div></div>
-      <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
+      <div v-if="isFirstLoad('photos')" class="moderation-photo-grid sugar-photos" aria-hidden="true"><figure v-for="i in 6" :key="i" class="skeleton-block" /></div>
       <template v-else>
         <div v-if="photoUsers.length" class="moderation-users">
           <section v-for="user in photoUsers" :key="user.id" class="moderation-user">
             <header><strong>{{ user.nickname }}</strong><span>#{{ user.id }} · {{ roleLabel(user) }}</span></header>
             <div v-if="user.avatar_url" class="moderation-avatar-row">
               <figure class="moderation-avatar" :class="{ blocked: !user.avatar_visible }">
-                <img :src="user.avatar_url" :alt="`${user.nickname} 的头像`" />
+                <LazyImage :src="user.avatar_url" :alt="`${user.nickname} 的头像`" />
                 <span v-if="!user.avatar_visible" class="photo-blocked"><Clock3 :size="14" />审核中</span>
                 <button class="button secondary small" type="button" @click="moderateAvatar(user)">
                   <Check v-if="!user.avatar_visible" :size="15" /><EyeOff v-else :size="15" />{{ user.avatar_visible ? '驳回' : '通过' }}
@@ -585,7 +596,7 @@ onMounted(async () => {
             </div>
             <div v-if="user.photos.length" class="moderation-photo-grid">
               <figure v-for="photo in user.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
-                <img :src="photo.image_url" :alt="`${user.nickname} 的介绍图片`" />
+                <LazyImage :src="photo.image_url" :alt="`${user.nickname} 的介绍图片`" />
                 <button class="button secondary small" type="button" @click="togglePhoto(user, photo)">
                   <EyeOff v-if="photo.is_visible" :size="15" /><Eye v-else :size="15" />{{ photo.is_visible ? '屏蔽' : '恢复' }}
                 </button>
@@ -598,7 +609,7 @@ onMounted(async () => {
         <div class="admin-toolbar sugar-photos-toolbar"><div><h2>砂糖社照片</h2><span>屏蔽时需填写理由，理由会展示给照片主人</span></div></div>
         <div v-if="sugarPhotos.length" class="moderation-photo-grid sugar-photos">
           <figure v-for="photo in sugarPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
-            <img :src="photo.image_url" :alt="`${photo.user.nickname} 的砂糖社照片`" />
+            <LazyImage :src="photo.image_url" :alt="`${photo.user.nickname} 的砂糖社照片`" />
             <span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.admin_note }}</span>
             <div class="sugar-photo-actions">
               <button class="button secondary small" type="button" :disabled="moderatingSugarId === photo.id" @click="moderateSugarPhoto(photo, false)">
@@ -616,7 +627,7 @@ onMounted(async () => {
         <div class="admin-toolbar sugar-photos-toolbar"><div><h2>交友厅照片</h2><span>新上传照片需审核后才会公开展示</span></div></div>
         <div v-if="friendPhotos.length" class="moderation-photo-grid sugar-photos">
           <figure v-for="photo in friendPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
-            <img :src="photo.image_url" :alt="`${photo.user.nickname} 的交友厅照片`" />
+            <LazyImage :src="photo.image_url" :alt="`${photo.user.nickname} 的交友厅照片`" />
             <span v-if="!photo.moderated" class="photo-blocked sugar-blocked"><Clock3 :size="14" />审核中</span>
             <span v-else-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.admin_note }}</span>
             <div class="sugar-photo-actions">
@@ -631,7 +642,7 @@ onMounted(async () => {
         <div class="admin-toolbar sugar-photos-toolbar"><div><h2>故事配图</h2><span>待审核 {{ pendingStoryPhotos }} 张 · 通过后才会在故事会公开展示</span></div></div>
         <div v-if="storyPhotos.length" class="moderation-photo-grid sugar-photos">
           <figure v-for="photo in storyPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
-            <img :src="photo.image_url" :alt="`${photo.story_title} 的故事配图`" />
+            <LazyImage :src="photo.image_url" :alt="`${photo.story_title} 的故事配图`" />
             <span v-if="!photo.moderated" class="photo-blocked sugar-blocked"><Clock3 :size="14" />审核中</span>
             <span v-else-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />已驳回</span>
             <div class="sugar-photo-actions">
@@ -647,7 +658,7 @@ onMounted(async () => {
 
     <section v-else-if="activeTab === 'feedback'" class="admin-table-section">
       <div class="admin-toolbar"><div><h2>用户反馈</h2><span>待处理 {{ pendingFeedbacks }} 条</span></div><span class="muted"><MessageCircle :size="15" /> 提交者会收到处理状态与回复</span></div>
-      <div v-if="loading" class="feedback-admin-empty">正在加载…</div>
+      <div v-if="isFirstLoad('feedback')" class="skeleton-list" aria-hidden="true"><div v-for="i in 4" :key="i" class="skeleton-block" /></div>
       <ul v-else-if="feedbacks.length" class="feedback-admin-list">
         <li v-for="item in feedbacks" :key="item.id" :class="{ handled: item.status === 'handled' }">
           <div class="fb-head">
@@ -740,6 +751,13 @@ onMounted(async () => {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--paper);
+}
+
+/* 图片网格的骨架占位：真实图固定 120px 高，骨架需要同等高度才不会塌陷 */
+.sugar-photos figure.skeleton-block,
+.vrmap-photo-grid figure.skeleton-block {
+  min-height: 150px;
+  background: #f2f4f2;
 }
 
 .sugar-photos figure img {

@@ -95,6 +95,11 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 13. **地图实拍**：推荐地图时可附 3 张图片；此后每位用户可为同一地图上传最多 5 张实拍，单张最大 10 MB，审核通过后公开展示。
 14. **糖霜世界**（`/frost`，任意登录用户可玩）：纯前端因果解谜游戏，12 关 / 45 设计结局 + 5 全局结局；进度按用户存于 `sugar_frost_saves`（`GET/PUT /api/sugar-frost/save`，revision CAS，409 表示其他页面已更新）。关卡数据/文案在 `frontend/src/frost/data/`，判定逻辑在 `frontend/src/frost/engine/`；改数据后跑 `node frontend/scripts/verify-frost.mjs` 校验可达性。
 15. **故事会**（`/stories`，需登录）：用户可发布匿名或公开的故事（`Story.is_anonymous`，同一人可发多篇），可附最多 3 张配图（单张 ≤10 MB，需审核后才公开）；其他登录用户可评论（评论不匿名），评论可由评论作者、故事作者或管理员组（超管/`staff`）删除；故事可由作者本人或管理员组删除，删除时级联清理评论与磁盘图片。接口在 `/api/stories*`，配图审核在监管台「图片管理 → 故事配图」（`/api/admin/story-photos*`）。
+16. **加载性能约定**（图片懒加载 + 骨架屏 + 按需请求）：
+   - **图片**：所有展示后台内容图的 `<img>` 必须用 `frontend/src/components/LazyImage.vue`（IntersectionObserver 进入视口才请求 + shimmer 占位 + 淡入，单根 `<img>` 渲染以便 `.card > img` 等选择器继续生效）。**例外**（保持原生 `<img>`）：验证码、`ImageLightbox` 单张大图、`URL.createObjectURL` 的本地待上传预览、`life/**` 与 `vrclife/**` 游戏素材。
+   - **骨架屏**：全局工具类在 `frontend/src/styles.css`（`.skeleton` 卡片 / `.skeleton-block` / `.skeleton-line` / `.skeleton-list`），各页加载期一律渲染骨架，不再用「正在加载…」纯文字。
+   - **按需请求**：监管台 `/admin` 与运营台 `/operations` 均为**按标签页懒加载**（切换标签才请求，`loaded` 标记防重复）。监管台统计卡与各标签角标统一走 `GET /api/admin/summary`（`get_content_moderator`：超管 / `staff` / 风纪委员；仅超管返回用户与委托总量），它只做 COUNT 查询、不返回列表；运营台角标取自 `/api/operations/analytics` 的 `pending_beta_applications`。**注意 `/api/admin/stats` 仍是超管专属（`get_admin`），不要放宽**，测试已断言 `staff` 访问返回 403。
+   - **路由分包**：`frontend/src/router.js` 全部页面用 `() => import()` 动态导入，不要改回静态 import。
 
 ## 安全加固（2026-09 起）
 

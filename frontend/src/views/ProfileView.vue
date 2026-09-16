@@ -7,6 +7,7 @@ import { useToast } from '../composables/toast'
 import { roleLabel, ROLE_HINTS } from '../constants'
 import UserAvatar from '../components/UserAvatar.vue'
 import UserTitleTag from '../components/UserTitleTag.vue'
+import LazyImage from '../components/LazyImage.vue'
 import ImageLightbox from '../components/ImageLightbox.vue'
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
@@ -163,7 +164,7 @@ async function deleteAvatar() {
           <div class="section-heading compact"><div><span class="section-index">03</span><h2>介绍图片</h2><p>最多 3 张，单张不超过 5 MiB</p></div></div>
           <div class="photo-grid profile-photo-grid">
             <figure v-for="photo in photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
-              <img class="zoomable" :src="photo.image_url" alt="个人介绍图片" @click="openViewer(photo)" />
+              <LazyImage class="zoomable" :src="photo.image_url" alt="个人介绍图片" @click="openViewer(photo)" />
               <span v-if="!photo.is_visible" class="photo-blocked"><EyeOff :size="14" />已屏蔽</span>
               <button class="icon-button photo-delete" type="button" title="删除图片" aria-label="删除图片" :disabled="photoBusy" @click="deletePhoto(photo)"><Trash2 :size="16" /></button>
             </figure>

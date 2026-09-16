@@ -76,7 +76,9 @@ onMounted(async () => {
       </template>
     </section>
 
-    <div v-if="loading" class="staff-empty">正在加载成员信息…</div>
+    <div v-if="loading" class="staff-grid">
+      <div v-for="i in 6" :key="i" class="staff-card skeleton" />
+    </div>
     <div v-else-if="error" class="staff-empty error-notice">{{ error }}</div>
     <template v-else>
       <section v-for="section in directorySections" :key="section.id" class="directory-section" :aria-labelledby="`${section.id}-heading`">

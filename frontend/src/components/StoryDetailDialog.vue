@@ -5,6 +5,7 @@ import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
 import UserAvatar from './UserAvatar.vue'
 import UserTitleTag from './UserTitleTag.vue'
+import LazyImage from './LazyImage.vue'
 import UserProfileCard from './UserProfileCard.vue'
 
 const props = defineProps({ storyId: { type: Number, required: true } })
@@ -108,7 +109,7 @@ onBeforeUnmount(() => { document.body.classList.remove('modal-open'); window.rem
 
         <div v-if="publicPhotos.length || myPendingPhotos.length" class="story-photos">
           <figure v-for="photo in publicPhotos" :key="photo.id">
-            <img :src="photo.image_url" :alt="`${story.title} 的配图`" />
+            <LazyImage :src="photo.image_url" :alt="`${story.title} 的配图`" />
           </figure>
           <figure v-for="photo in myPendingPhotos" :key="photo.id" class="blocked">
             <img :src="photo.image_url" alt="我上传的待审核配图" />

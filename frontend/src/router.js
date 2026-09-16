@@ -1,42 +1,30 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from './stores/auth'
-import TaskHall from './views/TaskHall.vue'
-import LoginView from './views/LoginView.vue'
-import MyTasks from './views/MyTasks.vue'
-import ProfileView from './views/ProfileView.vue'
-import AdminView from './views/AdminView.vue'
-import StaffView from './views/StaffView.vue'
-import BoardView from './views/BoardView.vue'
-import VrMaps from './views/VrMaps.vue'
-import SugarClub from './views/SugarClub.vue'
-import FriendHall from './views/FriendHall.vue'
-import AnnouncementsView from './views/AnnouncementsView.vue'
-import OperationsView from './views/OperationsView.vue'
-import VersionsView from './views/VersionsView.vue'
 import { api } from './api'
 
 const router = createRouter({
   history: createWebHistory(),
   scrollBehavior: () => ({ top: 0 }),
   routes: [
-    { path: '/', component: TaskHall, meta: { analyticsKey: 'hall' } },
-    { path: '/login', component: LoginView, meta: { guestOnly: true, analyticsKey: 'login' } },
-    { path: '/register', component: LoginView, props: { initialMode: 'register' }, meta: { guestOnly: true, analyticsKey: 'login' } },
-    { path: '/mine', component: MyTasks, meta: { auth: true, analyticsKey: 'mine' } },
-    { path: '/profile', component: ProfileView, meta: { auth: true, analyticsKey: 'profile' } },
-    { path: '/staff', component: StaffView, meta: { analyticsKey: 'staff' } },
-    { path: '/board', component: BoardView, meta: { analyticsKey: 'board' } },
-    { path: '/maps', component: VrMaps, meta: { analyticsKey: 'maps' } },
+    // 全部页面按需动态导入：首屏只加载当前路由的 JS，减小首包体积。
+    { path: '/', component: () => import('./views/TaskHall.vue'), meta: { analyticsKey: 'hall' } },
+    { path: '/login', component: () => import('./views/LoginView.vue'), meta: { guestOnly: true, analyticsKey: 'login' } },
+    { path: '/register', component: () => import('./views/LoginView.vue'), props: { initialMode: 'register' }, meta: { guestOnly: true, analyticsKey: 'login' } },
+    { path: '/mine', component: () => import('./views/MyTasks.vue'), meta: { auth: true, analyticsKey: 'mine' } },
+    { path: '/profile', component: () => import('./views/ProfileView.vue'), meta: { auth: true, analyticsKey: 'profile' } },
+    { path: '/staff', component: () => import('./views/StaffView.vue'), meta: { analyticsKey: 'staff' } },
+    { path: '/board', component: () => import('./views/BoardView.vue'), meta: { analyticsKey: 'board' } },
+    { path: '/maps', component: () => import('./views/VrMaps.vue'), meta: { analyticsKey: 'maps' } },
     { path: '/stories', component: () => import('./views/StoryHall.vue'), meta: { auth: true, analyticsKey: 'stories' } },
-    { path: '/friends', component: FriendHall, meta: { auth: true, analyticsKey: 'friends' } },
-    { path: '/sugar', component: SugarClub, meta: { auth: true, analyticsKey: 'sugar' } },
-    { path: '/announcements', component: AnnouncementsView, meta: { analyticsKey: 'announcements' } },
-    { path: '/versions', component: VersionsView, meta: { analyticsKey: 'versions' } },
-    { path: '/operations', component: OperationsView, meta: { operations: true } },
+    { path: '/friends', component: () => import('./views/FriendHall.vue'), meta: { auth: true, analyticsKey: 'friends' } },
+    { path: '/sugar', component: () => import('./views/SugarClub.vue'), meta: { auth: true, analyticsKey: 'sugar' } },
+    { path: '/announcements', component: () => import('./views/AnnouncementsView.vue'), meta: { analyticsKey: 'announcements' } },
+    { path: '/versions', component: () => import('./views/VersionsView.vue'), meta: { analyticsKey: 'versions' } },
+    { path: '/operations', component: () => import('./views/OperationsView.vue'), meta: { operations: true } },
     { path: '/frost', component: () => import('./views/SugarFrost.vue'), meta: { auth: true, analyticsKey: 'frost' } },
     { path: '/life', component: () => import('./views/VrLife.vue'), meta: { lifeOnly: true } },
     { path: '/life-admin', component: () => import('./views/LifeAdmin.vue'), meta: { lifeManager: true } },
-    { path: '/admin', component: AdminView, meta: { moderator: true } },
+    { path: '/admin', component: () => import('./views/AdminView.vue'), meta: { moderator: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })

@@ -2936,3 +2936,78 @@ def test_turnstile_provider_delegates_to_siteverify(monkeypatch):
         assert good.status_code == 200, good.text
 
     assert seen_tokens == ["bad-token", "good-token"]
+
+
+def test_admin_summary_counts_and_permissions():
+    """监管台轻量汇总：统计卡数字 + 各标签页待处理角标，权限与内容审核台一致。
+
+    列表接口已改为按标签页懒加载，角标必须由该汇总接口提供，因此需要独立校验。
+    """
+    with TestClient(app) as client:
+        admin = {
+            "Authorization": "Bearer "
+            + client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"}).json()["access_token"]
+        }
+
+        # 制造各类待处理数据，验证角标计数。
+        reporter = auth(client, "summary_reporter")
+        publisher = auth(client, "summary_publisher")
+        task = create_task(client, publisher, password="summary-pass", required=1)
+        assert client.post(
+            f"/api/tasks/{task['id']}/report", headers=reporter, json={"reason": "内容与描述不符"}
+        ).status_code == 201
+        assert client.post(
+            "/api/feedback", json={"content": "希望增加深色模式", "contact": "QQ 12345"}
+        ).status_code == 201
+        assert client.post(
+            "/api/volunteer-applications", headers=reporter, json={"reason": "希望贡献翻译与资料整理"}
+        ).status_code == 201
+        assert client.post(
+            "/api/beta-applications", headers=reporter, json={"reason": "希望体验虚拟人生玩法"}
+        ).status_code == 201
+
+        staff_headers = auth(client, "summary_staff")
+        staff_id = client.get("/api/auth/me", headers=staff_headers).json()["id"]
+        assert client.patch(
+            f"/api/admin/users/{staff_id}/role", headers=admin, json={"role": "staff"}
+        ).status_code == 200
+
+        disciplinarian_headers = auth(client, "summary_disciplinarian")
+        disciplinarian_id = client.get("/api/auth/me", headers=disciplinarian_headers).json()["id"]
+        assert client.patch(
+            f"/api/admin/users/{disciplinarian_id}/role", headers=admin, json={"role": "disciplinarian"}
+        ).status_code == 200
+
+        mascot_headers = auth(client, "summary_mascot")
+        mascot_id = client.get("/api/auth/me", headers=mascot_headers).json()["id"]
+        assert client.patch(
+            f"/api/admin/users/{mascot_id}/role", headers=admin, json={"role": "mascot"}
+        ).status_code == 200
+
+        summary = client.get("/api/admin/summary", headers=admin)
+        assert summary.status_code == 200, summary.text
+        body = summary.json()
+        assert body["users"] >= 1
+        assert body["tasks"] >= 1
+        assert body["pending_reports"] == 1
+        assert body["pending_feedbacks"] == 1
+        assert body["pending_applications"] == 1
+        assert body["pending_beta_applications"] == 1
+        assert body["pending_vr_map_reports"] == 0
+        assert body["pending_vr_map_photos"] == 0
+        assert body["pending_story_photos"] == 0
+
+        # 管理员组与风纪委员可读角标，但不暴露用户/委托总量（统计卡仅超管可见）。
+        for headers in (staff_headers, disciplinarian_headers):
+            response = client.get("/api/admin/summary", headers=headers)
+            assert response.status_code == 200, response.text
+            data = response.json()
+            assert data["users"] == 0 and data["tasks"] == 0
+            assert data["pending_reports"] == 1
+
+        # 看板娘与普通用户无权访问；未登录返回 401。
+        assert client.get("/api/admin/summary", headers=mascot_headers).status_code == 403
+        assert client.get("/api/admin/summary", headers=reporter).status_code == 403
+        assert client.get("/api/admin/summary").status_code == 401
+        # /api/admin/stats 仍为超管专属，不因新增汇总接口而放宽。
+        assert client.get("/api/admin/stats", headers=staff_headers).status_code == 403

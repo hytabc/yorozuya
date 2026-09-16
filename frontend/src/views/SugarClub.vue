@@ -5,6 +5,7 @@ import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import UserTitleTag from '../components/UserTitleTag.vue'
+import LazyImage from '../components/LazyImage.vue'
 import ImageLightbox from '../components/ImageLightbox.vue'
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
@@ -190,7 +191,8 @@ onBeforeUnmount(clearPendingPhotos)
       <button class="button" @click="setEditor()"><Pencil :size="17" />{{ ownProfile ? '编辑档案' : '登记资料' }}</button>
     </div>
 
-    <section v-if="activePair || pendingPairs.length" class="sugar-status" :class="{ active: activePair }">
+    <div v-if="loading" class="sugar-status skeleton" aria-hidden="true" />
+    <section v-else-if="activePair || pendingPairs.length" class="sugar-status" :class="{ active: activePair }">
       <HeartHandshake :size="22" />
       <div v-if="activePair"><small>当前砂糖</small><strong>{{ partner(activePair).nickname }}</strong><UserTitleTag :title="partner(activePair).title" /><span>已维持 {{ duration(activePair.duration_seconds) }}</span></div>
       <div v-else class="pending-sugar-list"><small>待确认砂糖</small><div v-for="pair in pendingPairs" :key="pair.id" class="pending-sugar-row"><strong>{{ partner(pair).nickname }}</strong><UserTitleTag :title="partner(pair).title" /><span>{{ pair.initiated_by_id === auth.user.id ? '等待对方确认' : '等待你的确认' }}</span><button class="button secondary small" @click="openDetail(partner(pair).id)">查看</button></div></div>
@@ -199,7 +201,8 @@ onBeforeUnmount(clearPendingPhotos)
 
     <section class="sugar-ranking">
       <div class="section-heading compact"><div><span class="section-index">01</span><h2>砂糖榜</h2><p>维持时间最长的三对砂糖</p></div></div>
-      <div v-if="topPairs.length" class="pair-grid">
+      <div v-if="loading" class="pair-grid"><div v-for="i in 3" :key="i" class="pair-card skeleton" /></div>
+      <div v-else-if="topPairs.length" class="pair-grid">
         <article v-for="(pair, index) in topPairs" :key="pair.id" class="pair-card">
           <span class="pair-rank">0{{ index + 1 }}</span>
           <Crown v-if="index === 0" :size="18" />
@@ -216,7 +219,7 @@ onBeforeUnmount(clearPendingPhotos)
       <div v-if="loading" class="sugar-card-grid"><div v-for="i in 6" :key="i" class="sugar-card skeleton" /></div>
       <div v-else-if="profiles.length" class="sugar-card-grid">
         <button v-for="profile in profiles" :key="profile.id" class="sugar-card" type="button" @click="openDetail(profile.user.id)">
-          <img :src="profile.photos[0]?.image_url" :alt="`${profile.user.nickname} 的照片`" />
+          <LazyImage :src="profile.photos[0]?.image_url" :alt="`${profile.user.nickname} 的照片`" />
           <span class="sugar-card-body"><strong>{{ profile.user.nickname }}</strong><UserTitleTag :title="profile.user.title" /><small>{{ profile.about }}</small></span>
           <span v-if="profile.user.id === auth.user.id" class="mine-tag">我的档案</span>
         </button>
@@ -250,7 +253,7 @@ onBeforeUnmount(clearPendingPhotos)
           <div class="dialog-heading"><span class="eyebrow">SUGAR PROFILE</span><h2>{{ detail.user.nickname }}<UserTitleTag :title="detail.user.title" /></h2></div>
           <div class="photo-grid detail">
             <figure v-for="photo in detail.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
-              <img class="zoomable" :src="photo.image_url" :alt="`${detail.user.nickname} 的照片`" @click="openViewer(photo, detail.user.nickname)" />
+              <LazyImage class="zoomable" :src="photo.image_url" :alt="`${detail.user.nickname} 的照片`" @click="openViewer(photo, detail.user.nickname)" />
               <span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />已屏蔽：{{ photo.admin_note || '未说明理由' }}</span>
             </figure>
           </div>

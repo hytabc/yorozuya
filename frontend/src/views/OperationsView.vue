@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { BarChart3, Check, Edit3, Eye, EyeOff, Megaphone, Pin, Plus, Save, Sparkles, Trash2, UsersRound, X } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
@@ -11,7 +11,11 @@ const toast = useToast()
 const auth = useAuthStore()
 const router = useRouter()
 const activeTab = ref('analytics')
-const loading = ref(true)
+// 按标签页懒加载：只请求当前标签的数据，其余标签首次切入时才加载。
+const tabLoading = reactive({ analytics: false, announcements: false, 'beta-applications': false })
+const tabLoaded = reactive({ analytics: false, announcements: false, 'beta-applications': false })
+// 尚未加载完成即显示骨架（含「未开始」与「请求中」两种状态）。
+const isFirstLoad = (tab) => !tabLoaded[tab]
 const announcements = ref([])
 const betaApplications = ref([])
 const reviewBetaAppId = ref(null)
@@ -21,7 +25,8 @@ const editing = ref(false)
 const saving = ref(false)
 const form = reactive({ id: null, kind: 'site', title: '', content: '', is_published: false, is_pinned: false, starts_at: '', ends_at: '' })
 const maxDailyViews = computed(() => Math.max(1, ...analytics.value.daily.map((item) => item.views)))
-const pendingBetaApplications = computed(() => betaApplications.value.filter((item) => item.status === 'pending').length)
+// 徽标计数来自轻量分析接口，避免为了显示角标而提前拉取整个申请列表。
+const pendingBetaApplications = computed(() => analytics.value.pending_beta_applications || 0)
 
 function formatDate(value) {
   if (!value) return '长期有效'
@@ -50,23 +55,34 @@ function resetForm(item = null) {
 }
 
 async function loadAnnouncements() {
-  announcements.value = (await api.get('/operations/announcements')).data
+  tabLoading.announcements = true
+  try {
+    announcements.value = (await api.get('/operations/announcements')).data
+    tabLoaded.announcements = true
+  } finally { tabLoading.announcements = false }
 }
 async function loadAnalytics() {
-  analytics.value = (await api.get('/operations/analytics', { params: { days: rangeDays.value } })).data
+  tabLoading.analytics = true
+  try {
+    analytics.value = (await api.get('/operations/analytics', { params: { days: rangeDays.value } })).data
+    tabLoaded.analytics = true
+  } finally { tabLoading.analytics = false }
 }
 async function loadBetaApplications() {
-  betaApplications.value = (await api.get('/operations/beta-applications')).data
-}
-async function load() {
-  loading.value = true
+  tabLoading['beta-applications'] = true
   try {
-    await Promise.all([loadAnnouncements(), loadAnalytics(), loadBetaApplications()])
-  } catch (error) {
-    toast.error(errorMessage(error, '运营数据加载失败'))
-  } finally {
-    loading.value = false
+    betaApplications.value = (await api.get('/operations/beta-applications')).data
+    tabLoaded['beta-applications'] = true
+  } finally { tabLoading['beta-applications'] = false }
+}
+function loadTab(tab) {
+  if (tabLoaded[tab] || tabLoading[tab]) return
+  const loaders = {
+    analytics: loadAnalytics,
+    announcements: loadAnnouncements,
+    'beta-applications': loadBetaApplications,
   }
+  loaders[tab]?.().catch((error) => toast.error(errorMessage(error, '运营数据加载失败')))
 }
 async function changeRange() {
   try { await loadAnalytics() } catch (error) { toast.error(errorMessage(error)) }
@@ -120,8 +136,9 @@ onMounted(async () => {
   // 双保险：即使路由守卫被绕过，也先确认服务端身份再拉取运营数据。
   await auth.restore()
   if (!auth.canOperate) { router.replace('/'); return }
-  await load()
+  loadTab(activeTab.value)
 })
+watch(activeTab, (tab) => loadTab(tab))
 </script>
 
 <template>
@@ -137,8 +154,12 @@ onMounted(async () => {
       <button :class="{ active: activeTab === 'beta-applications' }" role="tab" @click="activeTab = 'beta-applications'"><Sparkles :size="16" />内测申请<span v-if="pendingBetaApplications">{{ pendingBetaApplications }}</span></button>
     </div>
 
-    <div v-if="loading" class="notice-empty">正在加载运营数据…</div>
-    <template v-else-if="activeTab === 'analytics'">
+    <template v-if="activeTab === 'analytics'">
+      <div v-if="isFirstLoad('analytics')" aria-hidden="true">
+        <section class="metric-grid"><div v-for="i in 4" :key="i" class="skeleton-block" /></section>
+        <div class="analytics-layout"><section class="analytics-panel skeleton" /><section class="analytics-panel skeleton" /></div>
+      </div>
+      <template v-else>
       <div class="analytics-toolbar"><div><h2>活跃概览</h2><span>按北京时间统计，访客按账号或匿名会话去重</span></div><select v-model.number="rangeDays" aria-label="统计周期" @change="changeRange"><option :value="7">近 7 天</option><option :value="30">近 30 天</option><option :value="90">近 90 天</option></select></div>
       <section class="metric-grid" aria-label="关键指标">
         <div><Eye :size="19" /><span>今日浏览</span><strong>{{ analytics.today_views }}</strong></div>
@@ -163,10 +184,14 @@ onMounted(async () => {
           </div>
         </section>
       </div>
+      </template>
     </template>
 
     <template v-else-if="activeTab === 'announcements'">
-      <div class="announcement-admin-list">
+      <div v-if="isFirstLoad('announcements')" class="announcement-admin-list" aria-hidden="true">
+        <div v-for="i in 3" :key="i" class="announcement-admin-row skeleton" />
+      </div>
+      <div v-else class="announcement-admin-list">
         <article v-for="item in announcements" :key="item.id" class="announcement-admin-row">
           <div class="announcement-admin-main"><span class="notice-kind" :class="item.kind">{{ item.kind === 'site' ? '网站公告' : '活动公告' }}</span><span v-if="item.is_pinned" class="pin-label"><Pin :size="12" />置顶</span><h2>{{ item.title }}</h2><p>{{ item.content }}</p></div>
           <div class="announcement-admin-meta"><span class="publish-state"><Eye v-if="statusOf(item) === '展示中'" :size="14" /><EyeOff v-else :size="14" />{{ statusOf(item) }}</span><small>{{ formatDate(item.starts_at || item.created_at) }}</small><div><button class="icon-button" title="编辑公告" aria-label="编辑公告" @click="resetForm(item)"><Edit3 :size="16" /></button><button class="icon-button danger-icon" title="删除公告" aria-label="删除公告" @click="removeAnnouncement(item)"><Trash2 :size="16" /></button></div></div>
@@ -177,7 +202,10 @@ onMounted(async () => {
 
     <section v-else class="admin-table-section">
       <div class="admin-toolbar"><div><h2>虚拟人生内测申请</h2><span>待审核 {{ pendingBetaApplications }} 条</span></div><span>通过后自动开通内测资格</span></div>
-      <ul v-if="betaApplications.length" class="feedback-admin-list">
+      <div v-if="isFirstLoad('beta-applications')" class="skeleton-list" aria-hidden="true">
+        <div v-for="i in 3" :key="i" class="skeleton-block" />
+      </div>
+      <ul v-else-if="betaApplications.length" class="feedback-admin-list">
         <li v-for="item in betaApplications" :key="item.id" :class="{ handled: item.status !== 'pending' }">
           <div class="fb-head"><span class="fb-state" :class="`state-${item.status}`">{{ item.status === 'pending' ? '待审核' : item.status === 'approved' ? '已通过' : '已拒绝' }}</span><strong>{{ item.user.nickname }}</strong><UserTitleTag :title="item.user.title" /><time class="muted">{{ formatDate(item.created_at) }}</time></div>
           <p class="fb-content">{{ item.reason }}</p>

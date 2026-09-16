@@ -1,4 +1,6 @@
 <script setup>
+import LazyImage from './LazyImage.vue'
+
 defineProps({
   user: { type: Object, required: true },
   size: { type: Number, default: 36 },
@@ -10,7 +12,7 @@ defineProps({
     class="u-avatar"
     :style="{ width: `${size}px`, height: `${size}px`, fontSize: `${Math.round(size * 0.42)}px` }"
   >
-    <img v-if="user.avatar_url" :src="user.avatar_url" :alt="`${user.nickname} 的头像`" />
+    <LazyImage v-if="user.avatar_url" :src="user.avatar_url" :alt="`${user.nickname} 的头像`" />
     <template v-else>{{ user.nickname?.slice(0, 1) || '?' }}</template>
     <span v-if="user.avatar_url && !user.avatar_visible" class="u-avatar-pending">审核中</span>
   </span>
