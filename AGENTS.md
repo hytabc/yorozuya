@@ -35,7 +35,7 @@ backend/app/
   backup.py      # 数据库自动快照，保留最近 db_backup_keep 份
   media.py       # 媒体分区（公开区 /uploads + 私有区 private_media）与短时签名 URL
   images.py      # 上传图片净化：解码校验、像素上限、剥 EXIF、统一静态重编码
-  mailer.py      # 邮件发送（SMTP：465 SSL / 587 STARTTLS 可配，现用 163 邮箱；本地 OUTBOX）+ 中文邮件模板
+  mailer.py      # 邮件发送（SMTP：465 SSL / 80 STARTTLS 可配，现用阿里云邮件推送；本地 OUTBOX）+ 中文邮件模板
   email_flow.py  # 邮箱令牌发放/消费、邮件链接、发信冷却与 fail-closed 投递
   virtual_life*.py # 虚拟人生（/life）存档与内容包
   sugar_frost.py # 糖霜世界（/frost）存档：GET/PUT /api/sugar-frost/save，per-user 乐观锁

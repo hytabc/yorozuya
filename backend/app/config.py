@@ -59,18 +59,18 @@ class Settings(BaseSettings):
     # 备案号点击后跳转的官方查询地址（工信部备案系统，公开地址）。
     site_icp_url: str = "https://beian.miit.gov.cn/"
 
-    # ── 邮箱验证与邮件通知（SMTP，示例为 163 邮箱）──
+    # ── 邮箱验证与邮件通知（SMTP，示例为阿里云邮件推送 DirectMail）──
     # smtp=真实发信；log=只打印到日志并写入 mailer.OUTBOX（本地开发与测试用）。
     email_delivery: str = "smtp"
-    smtp_host: str = "smtp.163.com"
+    smtp_host: str = "smtpdm.aliyun.com"
     smtp_port: int = 465
-    # 连接加密方式：ssl=直接 TLS（465，163/QQ 常用）；starttls=先明文再升级（587，Brevo 常用）；none=不加密。
+    # 连接加密方式：ssl=直接 TLS（465，阿里云/163/QQ 推荐）；starttls=先明文再升级（80/25）；none=不加密。
     smtp_encryption: str = "ssl"
     smtp_timeout_seconds: int = 15
     smtp_username: str = ""
-    # ⚠️ 邮箱的「客户端授权码」（不是登录密码），只放 .env，绝不写进任何入库文件。
+    # ⚠️ 服务商后台的「SMTP 密码」（阿里云邮件推送在发信地址处设置），只放 .env，绝不写进任何入库文件。
     smtp_password: str = ""
-    # ⚠️ 163 要求发件地址与登录账号一致，否则被拒收（553/554）。
+    # ⚠️ 必须是服务商后台已验证的发信地址（阿里云：发信域名需验证、发信地址需在控制台创建）。
     email_from_address: str = ""
     email_from_name: str = "万事屋委托站"
     # 邮件里链接的前缀，例如 https://example.com；留空则按请求的 Host 推导。
@@ -117,7 +117,7 @@ class Settings(BaseSettings):
         if self.smtp_encryption not in ("ssl", "starttls", "none"):
             raise RuntimeError(
                 f"SMTP_ENCRYPTION 只能是 ssl / starttls / none（当前 {self.smtp_encryption!r}）："
-                "163/QQ 邮箱用 465 + ssl，Brevo 等用 587 + starttls。"
+                "阿里云邮件推送用 465 + ssl，也可用 80/25 + starttls。"
             )
 
     @property
@@ -150,8 +150,8 @@ class Settings(BaseSettings):
         if self.email_delivery == "smtp" and self.email_from_address and self.smtp_username:
             if self.email_from_address.lower() != self.smtp_username.lower():
                 logger.info(
-                    "邮件发件地址为 %s（与 SMTP 登录账号不同时，请确认它已被服务商允许发信——"
-                    "163 要求两者完全一致，否则会被拒收 553/554）。",
+                    "邮件发件地址为 %s（与 SMTP 登录账号不同时，请确认它是服务商后台已验证的发信地址，"
+                    "否则会被拒收 553/554）。",
                     self.email_from_address,
                 )
 

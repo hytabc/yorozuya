@@ -299,7 +299,7 @@ start.bat test
 ## 邮箱验证与邮件通知
 
 本站用邮箱做账号体系的一部分：注册必须验证邮箱、存量账号登录后强制补充绑定、可以用邮箱找回密码与换绑邮箱，
-并且登录时还要再输入一次邮件验证码（二次验证）。邮件通过 **SMTP 服务商发送（示例配置为 163 邮箱）**。
+并且登录时还要再输入一次邮件验证码（二次验证）。邮件通过 **SMTP 服务商发送（示例配置为阿里云邮件推送）**。
 
 ### 功能一览
 
@@ -315,26 +315,26 @@ start.bat test
 通知邮件只发给「已验证邮箱 + 未关闭通知开关」的账号，正文不含 QQ 等联系方式。
 公告类**不做群发**（会按用户数消耗邮箱配额且有滥用风险）。
 
-### 配置（163 邮箱示例）
+### 配置（阿里云邮件推送示例）
 
-1. 登录 163 邮箱 → **设置 → POP3/SMTP/IMAP**，开启 **SMTP 服务**，并按提示生成**客户端授权码**。
-2. 163 的 SMTP 登录账号就是**完整邮箱地址**，密码填上一步的**授权码**（不是邮箱登录密码）。
-   ⚠️ **`EMAIL_FROM_ADDRESS` 必须与登录账号完全一致**，否则 163 会返回 553/554 拒收。
+1. 阿里云控制台 → **邮件推送 → 发信域名**：添加你的发信域名（如 `mail.example.com`），按其提示配置 DNS（TXT 所有权验证 + SPF）。
+2. **发信地址**：创建发信地址（如 `no-reply@mail.example.com`，类型选**触发邮件**），并设置该地址的 **SMTP 密码**。
 3. 把凭据写进根目录 `.env`（**该文件已被 `.gitignore` 忽略，密钥绝不要写进任何入库文件**）：
 
    ```bash
    EMAIL_DELIVERY=smtp
-   SMTP_HOST=smtp.163.com
+   SMTP_HOST=smtpdm.aliyun.com
    SMTP_PORT=465
-   SMTP_ENCRYPTION=ssl          # 163 用 465+ssl；若换用 587 的服务商（如 Brevo）改为 starttls
-   SMTP_USERNAME=your@163.com
-   SMTP_PASSWORD=你的-客户端授权码
-   EMAIL_FROM_ADDRESS=your@163.com
+   SMTP_ENCRYPTION=ssl          # 465 用 ssl；若改用 80/25 端口则设为 starttls 或 none
+   SMTP_USERNAME=no-reply@mail.example.com   # 阿里云的用户名就是发信地址
+   SMTP_PASSWORD=你的-SMTP密码
+   EMAIL_FROM_ADDRESS=no-reply@mail.example.com
    EMAIL_FROM_NAME=万事屋委托站
    SITE_BASE_URL=https://你的域名   # 邮件里链接的前缀，建议显式填写
    ```
 
-   `SMTP_ENCRYPTION` 可选 `ssl`（465，直接 TLS）/ `starttls`（587，先明文再升级）/ `none`（不加密）。
+   `SMTP_ENCRYPTION` 可选 `ssl`（465，直接 TLS）/ `starttls`（80/25，先明文再升级）/ `none`（不加密）。
+   阿里云 ECS 默认封禁 25 端口：**不加密用 80，加密用 465**。
 
 4. `docker compose up -d --build` 重启后端使配置生效。
 
