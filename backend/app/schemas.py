@@ -399,11 +399,40 @@ class AdminStats(BaseModel):
     hidden: int
 
 
+class AdminSummary(BaseModel):
+    """监管台轻量汇总：统计卡数字 + 各标签页待处理角标。
+
+    列表数据改为按标签页懒加载后，角标单独由该接口提供，避免首屏并发拉取全部列表。
+    """
+    users: int = 0
+    tasks: int = 0
+    processing: int = 0
+    completed: int = 0
+    hidden: int = 0
+    pending_reports: int = 0
+    pending_feedbacks: int = 0
+    pending_applications: int = 0
+    pending_beta_applications: int = 0
+    pending_vr_map_reports: int = 0
+    pending_vr_map_photos: int = 0
+    pending_story_photos: int = 0
+
+
 class TaskStats(BaseModel):
     """大厅顶部统计：仅返回数量，不含任何委托内容。"""
     published: int
     processing: int
     completed: int
+
+
+class SiteConfigOut(BaseModel):
+    """站点公开配置：目前只有页脚备案号。
+
+    备案号属于私有信息，值放在服务端 .env，前端运行时通过接口获取，
+    避免被提交进公开仓库或打进前端构建产物。留空时前端不展示该行。
+    """
+    icp: str = ""
+    icp_url: str = "https://beian.miit.gov.cn/"
 
 
 class AnnouncementWrite(RequestModel):
@@ -467,6 +496,8 @@ class AnalyticsOut(BaseModel):
     today_visitors: int
     pages: list[PageMetric]
     daily: list[DailyMetric]
+    # 供运营台「内测申请」标签角标使用，省去为了显示角标而提前拉取申请列表
+    pending_beta_applications: int = 0
 
 
 class SugarPhotoOut(BaseModel):

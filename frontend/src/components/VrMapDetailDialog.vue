@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import UserAvatar from './UserAvatar.vue'
 import UserTitleTag from './UserTitleTag.vue'
+import LazyImage from './LazyImage.vue'
 import ImageDropzone from './ImageDropzone.vue'
 import ImageLightbox from './ImageLightbox.vue'
 
@@ -164,7 +165,7 @@ function loginToUpload() {
 
       <div v-if="publicPhotos.length" class="map-photos">
         <figure v-for="photo in publicPhotos" :key="photo.id">
-          <img class="zoomable" :src="photo.image_url" :alt="`${map.name} 实拍照片`" @click="openViewer(photo)" />
+          <LazyImage class="zoomable" :src="photo.image_url" :alt="`${map.name} 实拍照片`" @click="openViewer(photo)" />
           <div v-if="auth.isLoggedIn && photo.uploaded_by_me" class="photo-actions">
             <label class="icon-button" title="更新图片" aria-label="更新图片" :class="{ disabled: changingPhotoId === photo.id || deletingPhotoId === photo.id }">
               <Pencil :size="15" /><input type="file" accept="image/png,image/jpeg" :disabled="changingPhotoId === photo.id || deletingPhotoId === photo.id" @change="replacePhoto(photo, $event)" />

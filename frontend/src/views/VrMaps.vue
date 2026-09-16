@@ -8,6 +8,7 @@ import { useToast } from '../composables/toast'
 import { MAP_CATEGORIES } from '../constants'
 import UserAvatar from '../components/UserAvatar.vue'
 import UserTitleTag from '../components/UserTitleTag.vue'
+import LazyImage from '../components/LazyImage.vue'
 import VrMapDetailDialog from '../components/VrMapDetailDialog.vue'
 import ImageDropzone from '../components/ImageDropzone.vue'
 
@@ -105,7 +106,7 @@ onMounted(load)
     <div v-else class="maps-grid">
       <button v-for="item in maps" :key="item.id" class="maps-card" type="button" @click="selected = item">
         <figure class="maps-cover">
-          <img v-if="cover(item)" :src="cover(item)" :alt="`${item.name} 的照片`" />
+          <LazyImage v-if="cover(item)" :src="cover(item)" :alt="`${item.name} 的照片`" />
           <span v-else class="maps-cover-fallback"><MapIcon :size="26" /></span>
           <span v-if="item.has_pending_report || !item.is_visible" class="maps-flag"><TriangleAlert :size="13" />{{ item.is_visible ? '举报待处理' : '已屏蔽' }}</span>
         </figure>

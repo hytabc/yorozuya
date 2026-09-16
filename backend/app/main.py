@@ -69,6 +69,7 @@ from .schemas import (
     AnnouncementWrite,
     AdminPasswordReset,
     AdminStats,
+    AdminSummary,
     AdminTaskUpdate,
     AdminUserLimitUpdate,
     AdminUserBetaUpdate,
@@ -97,6 +98,7 @@ from .schemas import (
     ReportLimitUpdate,
     ReportResolveRequest,
     RegisterRequest,
+    SiteConfigOut,
     TaskCreate,
     TaskMemberOut,
     TaskOut,
@@ -1280,6 +1282,19 @@ def start_if_ready(db: Session, task: Task) -> None:
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/api/site-config", response_model=SiteConfigOut)
+def site_config():
+    """站点公开配置：目前只有页脚备案号。
+
+    无需登录，也不读数据库；备案号等值来自 .env，前端运行时获取，
+    因此不会被提交进仓库或打进前端构建产物。
+    """
+    return SiteConfigOut(
+        icp=settings.site_icp.strip(),
+        icp_url=settings.site_icp_url.strip() or "https://beian.miit.gov.cn/",
+    )
 
 
 @app.get("/api/auth/captcha", response_model=CaptchaChallenge)
@@ -3613,6 +3628,14 @@ def operations_analytics(
         today_visitors=len(today_bucket["visitors"]),
         pages=pages,
         daily=daily,
+        pending_beta_applications=(
+            db.scalar(
+                select(func.count())
+                .select_from(BetaApplication)
+                .where(BetaApplication.status == ApplicationStatus.PENDING)
+            )
+            or 0
+        ),
     )
 
 
@@ -3626,6 +3649,86 @@ def admin_stats(_: User = Depends(get_admin), db: Session = Depends(get_db)):
         processing=db.scalar(select(func.count()).select_from(Task).where(Task.status.in_([TaskStatus.ACCEPTED, TaskStatus.AWAITING]))) or 0,
         completed=db.scalar(select(func.count()).select_from(Task).where(Task.status == TaskStatus.COMPLETED)) or 0,
         hidden=db.scalar(select(func.count()).select_from(Task).where(Task.is_visible.is_(False))) or 0,
+    )
+
+
+@app.get("/api/admin/summary", response_model=AdminSummary)
+def admin_summary(user: User = Depends(get_content_moderator), db: Session = Depends(get_db)):
+    """监管台轻量汇总：统计卡数字与各标签页待处理角标，全部为 COUNT 查询。
+
+    列表接口已改为按标签页懒加载，这里只负责角标与统计卡，避免首屏并发拉取全部列表。
+    只有超级管理员能看到用户/委托总量（与统计卡展示范围一致）。
+    """
+    expire_due_tasks(db)
+    is_admin = user.is_admin
+    return AdminSummary(
+        users=(db.scalar(select(func.count()).select_from(User)) or 0) if is_admin else 0,
+        tasks=(db.scalar(select(func.count()).select_from(Task)) or 0) if is_admin else 0,
+        processing=(
+            db.scalar(select(func.count()).select_from(Task).where(Task.status.in_([TaskStatus.ACCEPTED, TaskStatus.AWAITING]))) or 0
+        ) if is_admin else 0,
+        completed=(
+            db.scalar(select(func.count()).select_from(Task).where(Task.status == TaskStatus.COMPLETED)) or 0
+        ) if is_admin else 0,
+        hidden=(
+            db.scalar(select(func.count()).select_from(Task).where(Task.is_visible.is_(False))) or 0
+        ) if is_admin else 0,
+        pending_reports=(
+            db.scalar(
+                select(func.count())
+                .select_from(TaskReport)
+                .where(TaskReport.status == ReportStatus.PENDING)
+            )
+            or 0
+        ),
+        pending_feedbacks=(
+            db.scalar(
+                select(func.count())
+                .select_from(Feedback)
+                .where(Feedback.status == FeedbackStatus.PENDING)
+            )
+            or 0
+        ),
+        pending_applications=(
+            db.scalar(
+                select(func.count())
+                .select_from(VolunteerApplication)
+                .where(VolunteerApplication.status == ApplicationStatus.PENDING)
+            )
+            or 0
+        ),
+        pending_beta_applications=(
+            db.scalar(
+                select(func.count())
+                .select_from(BetaApplication)
+                .where(BetaApplication.status == ApplicationStatus.PENDING)
+            )
+            or 0
+        ),
+        pending_vr_map_reports=(
+            db.scalar(
+                select(func.count())
+                .select_from(VrMapReport)
+                .where(VrMapReport.status == ReportStatus.PENDING)
+            )
+            or 0
+        ),
+        pending_vr_map_photos=(
+            db.scalar(
+                select(func.count())
+                .select_from(VrMapPhoto)
+                .where(VrMapPhoto.moderated_at.is_(None))
+            )
+            or 0
+        ),
+        pending_story_photos=(
+            db.scalar(
+                select(func.count())
+                .select_from(StoryPhoto)
+                .where(StoryPhoto.moderated_at.is_(None))
+            )
+            or 0
+        ),
     )
 
 

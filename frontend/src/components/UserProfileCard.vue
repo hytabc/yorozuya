@@ -5,6 +5,7 @@ import { api, errorMessage } from '../api'
 import { roleLabel } from '../constants'
 import UserAvatar from './UserAvatar.vue'
 import UserTitleTag from './UserTitleTag.vue'
+import LazyImage from './LazyImage.vue'
 import ImageLightbox from './ImageLightbox.vue'
 
 const props = defineProps({
@@ -59,7 +60,7 @@ onMounted(async () => {
       <p v-else class="user-card-bio muted">这个人还没有填写简介。</p>
       <div v-if="user.photos?.length" class="user-profile-photos">
         <figure v-for="photo in user.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
-          <img class="zoomable" :src="photo.image_url" :alt="`${user.nickname} 的介绍图片`" @click="openViewer(photo)" />
+          <LazyImage class="zoomable" :src="photo.image_url" :alt="`${user.nickname} 的介绍图片`" @click="openViewer(photo)" />
           <span v-if="!photo.is_visible"><EyeOff :size="13" />已屏蔽</span>
         </figure>
       </div>

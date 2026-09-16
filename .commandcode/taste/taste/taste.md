@@ -1,7 +1,7 @@
 # Taste
 - Deploys projects via Docker Compose and expects deployment changes to be made directly in the compose setup. Confidence: 0.8
 - Wants environment-specific values (server IP, frpc domain, etc.) kept in a `.env` file rather than hardcoded in configs. Confidence: 0.85
-- Expects HTTPS via Let's Encrypt with automatic renewal (certbot-style) when exposing a site. Confidence: 0.75
+- Expects HTTPS via Let's Encrypt with automatic renewal (scheduled/renewing certbot-style) when exposing a site, served under a proper custom domain (e.g. `example.com`) rather than a bare IP. Confidence: 0.85
 - Wants database data persisted locally and preserved across updates, restorable/openable via an external path (bind mount / dump). Confidence: 0.7
 - Asks that operational/deployment procedures be written into the project README. Confidence: 0.8
 - Wants prototype/sub-project features integrated into the main project as a new page rendered inside the existing app layout, and explicitly open to all logged-in users rather than gated to specific roles. Confidence: 0.65
@@ -12,3 +12,7 @@
 - Expects user-facing UI to be interactive rather than static: when requesting that big images be "viewable", explicitly asks for click-to-enlarge plus a zoom in/out animation, and chooses the richer interaction (further wheel/pinch/button zoom) over a minimal non-animated viewer. Confidence: 0.6
 - When adding a new profile/registration field, prefers it to be required (mandatory on save) with a sensible max length rather than optional. Confidence: 0.4
 - States requirements as terse, bulleted Chinese feature lists ("新增需求：…") that bundle several product-area changes into one message, and expects the agent to explore the existing code/PRD and raise clarifying questions with concrete options before committing to a plan. Confidence: 0.5
+- Cares about perceived loading performance: wants page content/images lazy-loaded with skeleton-screen placeholders (applied across all pages) instead of firing everything at once on mount, to avoid jank. Confidence: 0.45
+- When offered implementation choices, picks the most thorough / root-cause option over the minimal-blast-radius or purely cosmetic one (e.g. unified shared component, route-level code-splitting, genuinely eliminating burst requests rather than just swapping text for skeletons). Confidence: 0.5
+- Prefers the public entry to terminate TLS directly (edge reverse proxy on the host) and wants legacy plaintext network-tunneling setups (e.g. frp) fully removed — service, config, env vars, docs and comments — rather than kept as a toggleable option. Confidence: 0.5
+- For a China-hosted public site, wants ICP filing (备案) info shown in the site footer with behavior meeting domestic compliance (e.g. clickable link to the official registry), while keeping the filing number itself out of the public GitHub repo. Confidence: 0.6

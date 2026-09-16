@@ -32,7 +32,13 @@ onMounted(load)
       <div><span class="eyebrow"><Megaphone :size="15" /> COMMUNITY BULLETIN</span><h1>公告中心</h1><p>网站动态与近期社区活动</p></div>
     </div>
 
-    <div v-if="loading" class="notice-empty">正在加载公告…</div>
+    <div v-if="loading" class="announcement-columns">
+      <section v-for="column in 2" :key="column" class="announcement-section">
+        <div class="announcement-list">
+          <article v-for="i in 2" :key="i" class="announcement-item skeleton" />
+        </div>
+      </section>
+    </div>
     <div v-else-if="error" class="notice-empty error-notice">{{ error }}</div>
     <div v-else class="announcement-columns">
       <section class="announcement-section" aria-labelledby="site-notice-heading">

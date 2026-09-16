@@ -5,6 +5,7 @@ import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { useToast } from '../composables/toast'
 import UserAvatar from '../components/UserAvatar.vue'
 import UserTitleTag from '../components/UserTitleTag.vue'
+import LazyImage from '../components/LazyImage.vue'
 import StoryDetailDialog from '../components/StoryDetailDialog.vue'
 import ImageDropzone from '../components/ImageDropzone.vue'
 
@@ -89,7 +90,7 @@ onMounted(load)
     <div v-else class="stories-grid">
       <button v-for="story in stories" :key="story.id" class="story-card" type="button" @click="selected = story">
         <figure class="story-cover">
-          <img v-if="story.cover_url" :src="story.cover_url" :alt="`${story.title} 的配图`" />
+          <LazyImage v-if="story.cover_url" :src="story.cover_url" :alt="`${story.title} 的配图`" />
           <span v-else class="story-cover-fallback"><BookOpen :size="26" /></span>
           <span v-if="story.is_anonymous" class="story-flag"><UserRound :size="13" />匿名</span>
         </figure>

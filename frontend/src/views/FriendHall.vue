@@ -5,6 +5,7 @@ import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { useToast } from '../composables/toast'
 import { useAuthStore } from '../stores/auth'
 import UserTitleTag from '../components/UserTitleTag.vue'
+import LazyImage from '../components/LazyImage.vue'
 import ImageLightbox from '../components/ImageLightbox.vue'
 
 const MAX_PHOTOS = 5
@@ -186,10 +187,11 @@ onBeforeUnmount(clearPendingPhotos)
 
     <section class="sugar-ranking">
       <div class="section-heading compact"><div><span class="section-index">01</span><h2>好友榜</h2><p>好友数量最多的三位用户</p></div></div>
-      <div v-if="topUsers.length" class="pair-grid friend-ranking-grid">
+      <div v-if="loading" class="pair-grid friend-ranking-grid"><div v-for="i in 3" :key="i" class="pair-card skeleton" /></div>
+      <div v-else-if="topUsers.length" class="pair-grid friend-ranking-grid">
         <article v-for="(item, index) in topUsers" :key="item.user.id" class="pair-card friend-rank-card">
           <span class="pair-rank">0{{ index + 1 }}</span><Crown v-if="index === 0" :size="18" />
-          <img v-if="item.photo" :src="item.photo.image_url" :alt="`${item.user.nickname} 的照片`" />
+          <LazyImage v-if="item.photo" :src="item.photo.image_url" :alt="`${item.user.nickname} 的照片`" />
           <UserRound v-else class="friend-rank-placeholder" :size="32" />
           <h3>{{ item.user.nickname }}<UserTitleTag :title="item.user.title" /></h3><p>{{ item.friend_count }} 位好友</p>
         </article>
@@ -217,7 +219,7 @@ onBeforeUnmount(clearPendingPhotos)
       <div v-if="loading" class="sugar-card-grid"><div v-for="i in 6" :key="i" class="sugar-card skeleton" /></div>
       <div v-else-if="profiles.length" class="sugar-card-grid">
         <button v-for="profile in profiles" :key="profile.id" class="sugar-card" type="button" @click="openDetail(profile.user.id)">
-          <img v-if="profile.photos[0]" :src="profile.photos[0].image_url" :alt="`${profile.user.nickname} 的照片`" />
+          <LazyImage v-if="profile.photos[0]" :src="profile.photos[0].image_url" :alt="`${profile.user.nickname} 的照片`" />
           <div v-else class="friend-card-placeholder"><UserRound :size="38" /></div>
           <span class="sugar-card-body"><strong>{{ profile.user.nickname }}</strong><UserTitleTag :title="profile.user.title" /><small class="vrc-nickname">VRChat：{{ profile.vrc_nickname }}</small><small>{{ profile.about }}</small><em><UsersRound :size="13" />{{ profile.friend_count }} 位好友</em></span>
           <span v-if="profile.user.id === auth.user.id" class="mine-tag">我的资料</span>

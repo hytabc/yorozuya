@@ -4,3 +4,5 @@
 - Objects to storing sensitive data (auth tokens, user info) in plaintext in browser localStorage; wants client-side credentials encrypted, and prefers an insecure-fallback-free degrade (memory-only) over ever writing plaintext. Confidence: 0.85
 - Wants human verification (captcha) on login AND registration, and wants the verification mechanism designed as a pluggable/config-switchable provider so third-party captcha services can be dropped in later. Confidence: 0.8
 - Wants persistent-login ("自动登录"/remember-me) convenience, but only with a bounded hard expiry on the token (e.g., must not be usable after 7 days) — convenience must not mean indefinite sessions. Confidence: 0.6
+- Objects to real production identifiers (e.g. the live domain name) being hardcoded anywhere in the repo; wants them supplied only via an env config file so pushing to GitHub carries no privacy risk. Confidence: 0.75
+- Never wants private identifiers (real domain names, ICP filing numbers, emails, keys) recorded in taste entries or any tracked file — public examples must use generic placeholders like example.com. Confidence: 0.9
