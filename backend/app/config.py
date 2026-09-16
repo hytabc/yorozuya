@@ -160,10 +160,20 @@ class Settings(BaseSettings):
             logger.warning("SITE_ICP_URL 必须是 https 地址，已回落到默认工信部备案查询地址：%s", candidate)
         return "https://beian.miit.gov.cn/"
 
+    def _unwritable_error(self, label: str, path: Path, error: OSError) -> RuntimeError:
+        """把目录不可写翻译成可执行的中文提示：裸的 PermissionError 堆栈无法指导运维。"""
+        return RuntimeError(
+            f"{label} {path} 不可写（{error}）。容器以非 root 用户（UID 10001）运行时，"
+            "请在宿主机执行一次 chown -R 10001:10001 backend/data（即挂载到 /data 的目录）后重启。"
+        )
+
     def ensure_sqlite_directory(self) -> None:
         if self.database_url.startswith("sqlite:///"):
             db_path = Path(self.database_url.removeprefix("sqlite:///"))
-            db_path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                db_path.parent.mkdir(parents=True, exist_ok=True)
+            except OSError as error:
+                raise self._unwritable_error("数据库目录", db_path.parent, error) from error
 
     @property
     def sugar_upload_path(self) -> Path:
@@ -182,8 +192,16 @@ class Settings(BaseSettings):
         return self.sugar_upload_path.parent / "private_media"
 
     def ensure_storage_directory(self) -> None:
-        self.sugar_upload_path.mkdir(parents=True, exist_ok=True)
-        self.media_private_path.mkdir(parents=True, exist_ok=True)
+        """创建公开上传区与私有媒体目录。
+
+        ⚠️ 本方法在导入 database.py 时就会执行，早于 main.py 的启动自检，
+        因此必须自己抛出可读的中文提示；否则目录不可写时运维看到的只是 PermissionError 堆栈。
+        """
+        for path, label in ((self.sugar_upload_path, "上传目录"), (self.media_private_path, "私有媒体目录")):
+            try:
+                path.mkdir(parents=True, exist_ok=True)
+            except OSError as error:
+                raise self._unwritable_error(label, path, error) from error
 
     def validate_storage_isolation(self) -> None:
         """防止把上传目录配成数据库目录，否则 wsw.db / backups 会被静态托管下载。"""
@@ -223,10 +241,7 @@ class Settings(BaseSettings):
                     pass
                 probe.unlink(missing_ok=True)
             except OSError as error:
-                raise RuntimeError(
-                    f"{label} {path} 不可写（{error}）。容器以非 root 用户运行时，"
-                    "请在宿主机执行一次 chown -R 10001:10001 <数据库所在目录> 后重启。"
-                ) from error
+                raise self._unwritable_error(label, path, error) from error
 
 
 settings = Settings()

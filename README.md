@@ -114,7 +114,23 @@ TURNSTILE_SECRET_KEY=你的secret
    同时确认该域名的 A/AAAA 记录已指向本机公网 IP，且云厂商安全组与主机防火墙已放行
    **80 与 443**（80 用于 ACME 挑战与跳转，不可关闭）。
 
-4. 首次申请证书并启动：
+4. 准备数据目录并授予容器用户写权限（**必须在首次启动前执行**，从旧版本升级时同样要执行一次）：
+
+   ```bash
+   mkdir -p backend/data
+   chown -R 10001:10001 backend/data
+   ```
+
+   `backend/data` 被绑定挂载为容器内的 `/data`，而后端容器以非 root 用户（UID 10001）运行。
+   跳过这一步容器会起不来并反复重启，日志里是：
+
+   ```
+   PermissionError: [Errno 13] Permission denied: '/data/private_media'
+   ```
+
+   之后新增的数据库、备份与上传文件都由该用户创建，无需再改权限。
+
+5. 首次申请证书并启动：
 
    ```bash
    ./deploy/init-letsencrypt.sh
@@ -133,15 +149,9 @@ TURNSTILE_SECRET_KEY=你的secret
 
    浏览器访问 `https://<你的域名>`（即 `.env` 里的 `DOMAIN`）。首次启动会自动创建 `.env` 中配置的管理员账号。
 
-   - 数据持久化：数据库通过绑定挂载保存在宿主机 `backend/data/wsw.db`，用户资料及砂糖社图片保存在同目录的 `backend/data/uploads/`
-     （该目录已被 `.gitignore` 忽略）。详情见下方「数据存储与备份」；
-   - **后端容器以非 root 用户（UID 10001）运行**，因此首次部署（以及从旧版本升级）时需要在宿主机执行一次：
-
-     ```bash
-     chown -R 10001:10001 backend/data
-     ```
-
-     否则启动日志会提示「数据库目录不可写」。之后新增的上传文件由容器内该用户创建，无需再改权限；
+   - 数据持久化：整个 `backend/data/` 绑定挂载到容器 `/data` —— 数据库 `wsw.db`、自动快照 `backups/`、
+     已过审的公开图片 `uploads/`、待审的私有图片 `private_media/` 都在其中（该目录已被 `.gitignore` 忽略）。
+     详情见下方「数据存储与备份」；
    - 部署代码更新后，运行 `docker compose up -d --build` 重新生成静态文件和镜像；
    - 证书已存在时可直接用 `docker compose up -d --build` 启动或更新，无需再跑初始化脚本；
    - 前端入口不缓存，带内容哈希的 JS/CSS 长期缓存，更新部署后浏览器会加载新版本。
