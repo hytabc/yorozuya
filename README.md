@@ -23,7 +23,7 @@
 - 故事会：登录用户可发布匿名或公开的故事，同一人可写多篇；可附最多 3 张配图（单张不超过 10 MB），配图经管理员审核后公开；其他用户可评论，评论由评论者本人或故事作者删除，故事由作者本人或管理员删除
 - 管理员统计、委托隐藏与恢复；隐藏原因对相关用户可见
 - 看板娘「小白」：PC 端左上角常驻的站内 AI 助手，可聊天、答疑，自带倾听与心理支持模式（可配置，见下文）
-- Docker Compose 一键部署与 FRP TCP 内网穿透
+- Docker Compose 一键部署：边缘 Nginx 终止 HTTPS（HTTP 强制跳转 + HSTS），Let's Encrypt 证书自动续期
 
 ## 🤖 看板娘「小白」（可选 AI 助手）
 
@@ -82,6 +82,8 @@ TURNSTILE_SECRET_KEY=你的secret
 默认部署会在构建镜像时将 Vue 前端编译为静态文件，并由 Nginx 提供服务及代理 `/api`。
 浏览器首次访问不再等待 Vite 实时转换模块，静态资源也可直接缓存。
 
+对外入口是 `edge` 容器（终止 TLS + 强制 HTTPS）；`frontend`、`backend` 只在内网互通，不映射宿主机端口。
+
 1. 创建环境配置：
 
    ```bash
@@ -97,27 +99,63 @@ TURNSTILE_SECRET_KEY=你的secret
    openssl rand -hex 32
    ```
 
-3. 启动（首次或重新部署）：
+3. 在 `.env` 中配置域名、证书邮箱与页脚备案号：
 
-   ```bash
-   docker compose up -d --build
+   ```env
+   DOMAIN=example.com
+   LETSENCRYPT_EMAIL=you@example.com
+   CORS_ORIGINS=
+   SITE_ICP=
    ```
 
-   浏览器访问 `http://localhost:<WEB_PORT>`（默认 `8080`）。首次启动会自动创建 `.env` 中配置的管理员账号。
+   > ⚠️ 真实域名与备案号属于私有信息，**只写进 `.env`**（已被 `.gitignore` 忽略）。
+   > 不要写进 `.env.example`、compose、README 等任何会提交到仓库的文件。
 
-   - 数据持久化：数据库通过绑定挂载保存在宿主机 `backend/data/wsw.db`，用户资料及砂糖社上传图片保存在同目录的 `backend/data/uploads/`
+   同时确认该域名的 A/AAAA 记录已指向本机公网 IP，且云厂商安全组与主机防火墙已放行
+   **80 与 443**（80 用于 ACME 挑战与跳转，不可关闭）。
+
+4. 首次申请证书并启动：
+
+   ```bash
+   ./deploy/init-letsencrypt.sh
+   ```
+
+   脚本会先以「仅 HTTP」引导模式拉起 `edge`（同时启动 `frontend` 与 `backend`），校验 ACME 挑战目录可达后，
+   通过 HTTP 挑战向 Let's Encrypt 申请正式证书，最后重启 `edge` 切换为 HTTPS。
+
+   为避免反复调试触发 Let's Encrypt 速率限制，可先用 staging 试跑：
+
+   ```bash
+   CERTBOT_STAGING=1 ./deploy/init-letsencrypt.sh
+   ```
+
+   确认无误后把 `.env` 的 `CERTBOT_STAGING` 改回 `0` 并重新执行，换成浏览器信任的正式证书。
+
+   浏览器访问 `https://<你的域名>`（即 `.env` 里的 `DOMAIN`）。首次启动会自动创建 `.env` 中配置的管理员账号。
+
+   - 数据持久化：数据库通过绑定挂载保存在宿主机 `backend/data/wsw.db`，用户资料及砂糖社图片保存在同目录的 `backend/data/uploads/`
      （该目录已被 `.gitignore` 忽略）。详情见下方「数据存储与备份」；
    - 部署代码更新后，运行 `docker compose up -d --build` 重新生成静态文件和镜像；
+   - 证书已存在时可直接用 `docker compose up -d --build` 启动或更新，无需再跑初始化脚本；
    - 前端入口不缓存，带内容哈希的 JS/CSS 长期缓存，更新部署后浏览器会加载新版本。
 
-4. 启用 FRP 内网穿透（可选）：先在 `.env` 填写 `FRP_SERVER_ADDR`、`FRP_TOKEN` 和远端端口，再运行：
+### HTTPS 与证书续期
 
-   ```bash
-   docker compose --profile tunnel up -d
-   ```
+公网入口是 `edge`（配置模板 `deploy/nginx/edge.conf.template`）：80 端口只处理 ACME 挑战并 301 跳转 HTTPS，
+443 终止 TLS 后转发给内网 `frontend`，并附加 `Strict-Transport-Security` 等安全响应头。
 
-   `frpc`（仅该 profile 启动）会把远端 `FRP_REMOTE_PORT` 转发到前端容器的 80 端口。
-   对应的 `frps` 服务端需允许该 TCP 端口。
+- **自动续期**：`certbot` 容器常驻，每 12 小时执行一次 `certbot renew`。Let's Encrypt 证书有效期 90 天，
+  certbot 只在到期前 30 天内真正续期，因此大多数轮次是空跑，属正常现象。
+- **新证书生效**：`edge` 容器内每 6 小时重新渲染配置并 `nginx -s reload`，加载续期后的证书（不依赖 docker socket）。
+- **证书缺失时的行为**：`edge` 会自动切到「仅 HTTP」引导配置（只放行 ACME 挑战，其余请求返回 503），
+  不会崩溃重启；重新签发证书后重启 `edge` 即恢复 HTTPS。
+- **手动检查续期链路**：`docker compose exec certbot certbot renew --dry-run`
+- **强制重签**：删除 `deploy/certbot/conf/live/<域名>`、`archive/<域名>`、`renewal/<域名>.conf` 后，
+  重新执行 `./deploy/init-letsencrypt.sh`。
+- **证书存放**：宿主机 `deploy/certbot/conf/`（已在 `.gitignore` 中忽略，**含私钥，注意权限与备份**）。
+- **排查思路**：签发失败多半是 80 端口不通或 DNS 未生效，可先 `curl -I http://<你的域名>/.well-known/acme-challenge/测试文件` 验证；
+  仓库中的 `deploy/certbot/www/` 就是 webroot 目录，可放个测试文件自测。
+  触发速率限制时改用 `CERTBOT_STAGING=1` 试跑。
 
 ## Docker Compose 热部署开发
 
@@ -130,7 +168,8 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 - 后端挂载 `./backend/app` 并通过 `uvicorn --reload` 运行，Python 文件变化后自动重载；
 - 前端挂载 `./frontend` 并通过 Vite 运行，Vue、JavaScript、CSS 等文件变化后通过 HMR
   自动更新页面；`/api` 代理到 Compose 网络内的后端；
-- 访问地址仍为 `http://localhost:<WEB_PORT>`（默认 `8080`）；
+- 访问地址为 `http://localhost:<WEB_PORT>`（默认 `8080`）。该模式**只有明文 HTTP**（`edge`/`certbot` 已通过 profile 排除），
+  仅供本机开发，绝不可用于公网；
 - `node_modules` 保留在容器卷中，避免宿主机与 Linux 容器的依赖不兼容；
 - 修改依赖清单后需要再次加 `--build`，只改源码无需重建镜像。
 
@@ -223,8 +262,9 @@ start.bat test
 - **上传与文件**：图片按文件头校验真实类型、由服务端生成 UUID 文件名，头像/实拍等需审核后才公开；
   上传目录与数据库目录强制隔离，避免 `wsw.db` 与备份被静态托管下载。
 - **响应头**：Nginx 统一附加 `X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`。
-- **生产建议**：务必在 `.env` 设置足够随机的 `SECRET_KEY` 与强 `ADMIN_PASSWORD`；对外建议在 Nginx 前增加 HTTPS（如 Let's Encrypt），
-  当前示例仅监听 80 端口，令牌与密码在链路上为明文。
+- **传输加密**：对外入口 `edge` 已内置 HTTPS（Let's Encrypt 自动续期）、HTTP 强制跳转与 HSTS，
+  令牌与密码不再明文过网。部署时务必按上文配置 `DOMAIN` 与证书，不要绕过 `edge` 直接把前端/后端暴露到公网。
+- **生产建议**：务必在 `.env` 设置足够随机的 `SECRET_KEY` 与强 `ADMIN_PASSWORD`。
 
 ## 数据存储与备份
 

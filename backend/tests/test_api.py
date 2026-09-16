@@ -3011,3 +3011,22 @@ def test_admin_summary_counts_and_permissions():
         assert client.get("/api/admin/summary").status_code == 401
         # /api/admin/stats 仍为超管专属，不因新增汇总接口而放宽。
         assert client.get("/api/admin/stats", headers=staff_headers).status_code == 403
+
+
+def test_site_config_exposes_icp_from_settings(monkeypatch):
+    """页脚备案号：公开接口，值来自配置（.env），未配置时为空且不影响其它功能。"""
+    with TestClient(app) as client:
+        # 未配置：仍返回 200，icp 为空（前端据此不展示该行）。
+        response = client.get("/api/site-config")
+        assert response.status_code == 200, response.text
+        assert response.json()["icp"] == ""
+
+        # 配置后按原样返回，且无需登录即可读取。
+        monkeypatch.setattr(settings, "site_icp", "  京ICP备00000000号  ")
+        configured = client.get("/api/site-config").json()
+        assert configured["icp"] == "京ICP备00000000号"
+        assert configured["icp_url"] == "https://beian.miit.gov.cn/"
+
+        # 自定义跳转地址时按自定义值返回。
+        monkeypatch.setattr(settings, "site_icp_url", "https://example.org/beian")
+        assert client.get("/api/site-config").json()["icp_url"] == "https://example.org/beian"

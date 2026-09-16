@@ -12,13 +12,14 @@
 |---|---|
 | 后端 | Python 3.12 + FastAPI + SQLAlchemy 2.0（ORM）+ Pydantic v2 + pydantic-settings，默认 SQLite（`data/wsw.db`），JWT（HTTPBearer）认证 |
 | 前端 | Vue 3（`<script setup>`）+ Pinia + Vue Router + Vite + axios + lucide-vue-next 图标 |
-| 部署 | Docker Compose（`docker-compose.yml`，prod/dev 两套）+ FRP 内网穿透（`deploy/frpc.toml`）；根目录 `start.sh` / `start.bat` 一键启动 |
+| 部署 | Docker Compose（`docker-compose.yml`，prod/dev 两套）+ 边缘 Nginx 终止 HTTPS + certbot 自动续期（`deploy/nginx/`、`deploy/certbot/`、`deploy/init-letsencrypt.sh`）；根目录 `start.sh` / `start.bat` 一键启动 |
 | 测试 | 后端 pytest（`backend/tests/test_api.py`，TestClient + 内存库，约 34 个用例） |
 
 命令：
 - 后端测试：`cd backend && python -m pytest tests -q`
 - 前端开发/构建：`cd frontend && npm run dev` / `npm run build`
 - 生产：`docker compose up -d --build`（首次自动创建 `.env` 中配置的管理员账号）
+- 首次签发证书（仅需一次）：`./deploy/init-letsencrypt.sh`（域名与邮箱见 `.env` 的 `DOMAIN` / `LETSENCRYPT_EMAIL`）
 
 ## 目录结构
 
@@ -95,7 +96,8 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 13. **地图实拍**：推荐地图时可附 3 张图片；此后每位用户可为同一地图上传最多 5 张实拍，单张最大 10 MB，审核通过后公开展示。
 14. **糖霜世界**（`/frost`，任意登录用户可玩）：纯前端因果解谜游戏，12 关 / 45 设计结局 + 5 全局结局；进度按用户存于 `sugar_frost_saves`（`GET/PUT /api/sugar-frost/save`，revision CAS，409 表示其他页面已更新）。关卡数据/文案在 `frontend/src/frost/data/`，判定逻辑在 `frontend/src/frost/engine/`；改数据后跑 `node frontend/scripts/verify-frost.mjs` 校验可达性。
 15. **故事会**（`/stories`，需登录）：用户可发布匿名或公开的故事（`Story.is_anonymous`，同一人可发多篇），可附最多 3 张配图（单张 ≤10 MB，需审核后才公开）；其他登录用户可评论（评论不匿名），评论可由评论作者、故事作者或管理员组（超管/`staff`）删除；故事可由作者本人或管理员组删除，删除时级联清理评论与磁盘图片。接口在 `/api/stories*`，配图审核在监管台「图片管理 → 故事配图」（`/api/admin/story-photos*`）。
-16. **加载性能约定**（图片懒加载 + 骨架屏 + 按需请求）：
+16. **备案信息**（`/api/site-config`）：页脚展示 `.env` 里的 `SITE_ICP`，点击新窗口跳转 `SITE_ICP_URL`（默认工信部备案查询系统 `https://beian.miit.gov.cn/`），满足国内备案对"可点击跳转官方系统"的要求。留空则整行不展示。**备案号是私有信息，只从 `.env` 读，不得写进任何入库文件**（详见「约定与坑」）。`/life`、`/life-admin` 全屏游戏页不显示页脚。
+17. **加载性能约定**（图片懒加载 + 骨架屏 + 按需请求）：
    - **图片**：所有展示后台内容图的 `<img>` 必须用 `frontend/src/components/LazyImage.vue`（IntersectionObserver 进入视口才请求 + shimmer 占位 + 淡入，单根 `<img>` 渲染以便 `.card > img` 等选择器继续生效）。**例外**（保持原生 `<img>`）：验证码、`ImageLightbox` 单张大图、`URL.createObjectURL` 的本地待上传预览、`life/**` 与 `vrclife/**` 游戏素材。
    - **骨架屏**：全局工具类在 `frontend/src/styles.css`（`.skeleton` 卡片 / `.skeleton-block` / `.skeleton-line` / `.skeleton-list`），各页加载期一律渲染骨架，不再用「正在加载…」纯文字。
    - **按需请求**：监管台 `/admin` 与运营台 `/operations` 均为**按标签页懒加载**（切换标签才请求，`loaded` 标记防重复）。监管台统计卡与各标签角标统一走 `GET /api/admin/summary`（`get_content_moderator`：超管 / `staff` / 风纪委员；仅超管返回用户与委托总量），它只做 COUNT 查询、不返回列表；运营台角标取自 `/api/operations/analytics` 的 `pending_beta_applications`。**注意 `/api/admin/stats` 仍是超管专属（`get_admin`），不要放宽**，测试已断言 `staff` 访问返回 403。
@@ -113,6 +115,9 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - **请求模型**：`RequestModel` 设 `extra="forbid"`，请求体夹带 `role`/`is_admin` 等多余字段会被 422 拒绝（后端另有显式白名单赋值与 `update_user_role` 的角色保护，`is_admin` 无法经任何接口写入）。
 - **本地凭证加密存储**：登录令牌/用户信息不再明文写 localStorage，改由 `frontend/src/authStorage.js` 用 Web Crypto AES-GCM 加密后写入 `wsw_auth`，密钥为不可导出的 `CryptoKey` 存于 IndexedDB；旧明文键（`wsw_token` 等）首次读取时自动迁移并删除。取 token 一律走 `getToken()/getTokenSync()`，禁止再直接读 localStorage。非安全上下文自动降级为“仅内存不落盘”。
 - **登录/注册人机验证**：`backend/app/captcha.py`，`CAPTCHA_PROVIDER` 可选 `turnstile`（Cloudflare，推荐）或 `builtin`（Pillow 图形验证码）；前端 `composables/useCaptcha.js` + `components/CaptchaField.vue`。`login/register` 在校验密码前先 `verify_captcha`（fail-closed），pytest 下自动跳过。Turnstile Secret Key 只放 `.env`（`TURNSTILE_SECRET_KEY`），Site Key 公开。
+- **公网入口只有 `edge`**：`docker-compose.yml` 中 `edge` 独占宿主机 80/443（TLS 终止 + HTTP 301 跳转 + HSTS），`frontend`/`backend` 一律不发布宿主机端口（dev 覆盖文件才把 `WEB_PORT` 加回 `frontend`）。**不要给 frontend/backend 增加 `ports`**，否则会绕过 HTTPS 出现明文入口。
+- **真实客户端 IP**：`edge` 写入 `X-Real-IP`，`frontend/nginx.conf` 用 `real_ip` 模块（信任私网网段）还原后透传给后端，限流才按真实 IP 计数。改动代理层时务必保留这条链路，否则所有用户会被算作同一个来源。
+- **证书续期**：`certbot` 容器每 12h `certbot renew`，`edge` 容器每 6h `nginx -s reload` 加载新证书（不依赖 docker socket）。证书在宿主机 `deploy/certbot/conf/`（已 gitignore，含私钥）。首次签发用 `./deploy/init-letsencrypt.sh`；改域名/换证书后需重新执行并 `nginx -s reload`。
 
 ## 启动行为（main.py 顶部）
 
@@ -123,6 +128,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 
 - 所有面向用户的错误信息为中文（`HTTPException(detail=...)`），前端 `errorMessage()` 直接展示 detail；改文案时前后端要同步（如 403 提示）。
 - 配置全部走根目录 `.env`（见 `.env.example`），pydantic-settings 自动读取，环境变量名 = 字段大写。
+- ⚠️ **私有信息（真实域名 `DOMAIN`、备案号 `SITE_ICP`、邮箱、密钥）只能写在根目录 `.env`**（已被 `.gitignore` 忽略）。**禁止**把真实值写进任何入库文件 —— 包括 `.env.example`、`docker-compose*.yml`、`README.md`、`AGENTS.md`、nginx 模板与源码；示例一律用 `example.com` 之类占位符。仓库要能公开。前端不保存这些值：页脚备案号通过 `GET /api/site-config` 运行时读取（`config.py` 的 `site_icp` / `site_icp_url`）。
 - 测试用内存库，不经 AppSession（无自动快照）；测试断言与业务文案强耦合（如断言 detail 含"接取密码不正确"），改文案记得改测试。
 - 本地若无 Python 3.12，用 3.14 跑测试需 SQLAlchemy>=2.0.44（2.0.38 与 3.14 不兼容）；生产 Docker 是 3.12，requirements.txt 版本锁定不要随意升级。
 - 前端登录缓存有版本号 `AUTH_CACHE_VERSION`（stores/auth.js），改 user 对象结构时递增可强制全员重新登录。

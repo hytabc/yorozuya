@@ -98,6 +98,7 @@ from .schemas import (
     ReportLimitUpdate,
     ReportResolveRequest,
     RegisterRequest,
+    SiteConfigOut,
     TaskCreate,
     TaskMemberOut,
     TaskOut,
@@ -1281,6 +1282,19 @@ def start_if_ready(db: Session, task: Task) -> None:
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/api/site-config", response_model=SiteConfigOut)
+def site_config():
+    """站点公开配置：目前只有页脚备案号。
+
+    无需登录，也不读数据库；备案号等值来自 .env，前端运行时获取，
+    因此不会被提交进仓库或打进前端构建产物。
+    """
+    return SiteConfigOut(
+        icp=settings.site_icp.strip(),
+        icp_url=settings.site_icp_url.strip() or "https://beian.miit.gov.cn/",
+    )
 
 
 @app.get("/api/auth/captcha", response_model=CaptchaChallenge)

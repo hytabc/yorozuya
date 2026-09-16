@@ -425,6 +425,16 @@ class TaskStats(BaseModel):
     completed: int
 
 
+class SiteConfigOut(BaseModel):
+    """站点公开配置：目前只有页脚备案号。
+
+    备案号属于私有信息，值放在服务端 .env，前端运行时通过接口获取，
+    避免被提交进公开仓库或打进前端构建产物。留空时前端不展示该行。
+    """
+    icp: str = ""
+    icp_url: str = "https://beian.miit.gov.cn/"
+
+
 class AnnouncementWrite(RequestModel):
     kind: AnnouncementKind
     title: str = Field(min_length=2, max_length=80)

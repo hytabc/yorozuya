@@ -532,6 +532,7 @@ tr.dimmed td { color: #89918d; background: #fafafa; }
 .app-version { width: min(100% - 40px, 1180px); margin: 0 auto; padding: 18px 0 24px; border-top: 1px solid var(--line); color: var(--muted); text-align: right; font-size: 12px; }
 .app-version a { color: inherit; }
 .app-version a:hover { color: var(--green); }
+.app-version .footer-sep { margin: 0 8px; color: #c3cac6; }
 .beta-toggle { display: block; margin-top: 5px; color: var(--muted); font-size: 11px; white-space: nowrap; }
 .beta-toggle input { vertical-align: -2px; }
 .versions-page { max-width: 820px; }

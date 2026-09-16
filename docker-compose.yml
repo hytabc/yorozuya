@@ -1,4 +1,6 @@
-# 默认使用预构建的前端静态文件，避免 Vite 开发服务器在首次访问时实时转换模块。
+# 生产部署：公网入口是 edge（终止 TLS + HTTP 跳转 HTTPS），frontend 仅在内网提供
+# 静态文件与 /api 反向代理，backend 仅在内网提供接口；两者都不发布宿主机端口。
+# 首次申请证书见 deploy/init-letsencrypt.sh，续期由 certbot 容器自动完成。
 # 需要源码热重载时叠加 docker-compose.dev.yml，具体命令见 README。
 
 services:
@@ -13,7 +15,11 @@ services:
       ADMIN_NICKNAME: ${ADMIN_NICKNAME:-万事屋管理员}
       # 普通用户资料和砂糖社图片共用该持久化目录。
       SUGAR_UPLOAD_DIR: /data/uploads
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      # 站点同源访问，正常不触发 CORS；默认留空，需要跨域时再在 .env 指定。
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      # 页脚备案信息：留空则前端不展示（真实值只放 .env，不入库）。
+      SITE_ICP: ${SITE_ICP:-}
+      SITE_ICP_URL: ${SITE_ICP_URL:-https://beian.miit.gov.cn/}
       # 由 nginx 反向代理访问时按真实客户端 IP 限流。
       BEHIND_PROXY: "true"
       # 看板娘「小白」集中式大脑:值在项目根目录 .env 中设置(compose 只读取根目录 .env)
@@ -39,25 +45,41 @@ services:
   frontend:
     build: ./frontend
     restart: unless-stopped
-    ports:
-      - "${WEB_PORT:-8080}:80"
+    # 仅供 edge 在内网访问，不映射宿主机端口（开发直连见 docker-compose.dev.yml）。
+    expose:
+      - "80"
     depends_on:
       backend:
         condition: service_healthy
 
-  # 内网穿透（可选）：仅当显式指定 profile 启动
-  #   docker compose --profile tunnel up -d --build
-  frpc:
-    image: snowdreamtech/frpc:0.61.1
-    profiles: ["tunnel"]
+  # 公网入口：80 用于 ACME 挑战与跳转，443 终止 TLS。
+  edge:
+    image: nginx:1.27-alpine
     restart: unless-stopped
-    command: ["-c", "/etc/frp/frpc.toml"]
+    entrypoint: ["/bin/sh", "/opt/edge-entrypoint.sh"]
     environment:
-      FRP_SERVER_ADDR: ${FRP_SERVER_ADDR}
-      FRP_SERVER_PORT: ${FRP_SERVER_PORT:-7000}
-      FRP_TOKEN: ${FRP_TOKEN}
-      FRP_REMOTE_PORT: ${FRP_REMOTE_PORT:-18080}
+      # 站点域名只从 .env 读取，不要写进仓库（首次签发证书见 deploy/init-letsencrypt.sh）。
+      DOMAIN: ${DOMAIN:?请在 .env 中设置 DOMAIN（站点域名）}
+    ports:
+      - "80:80"
+      - "443:443"
     volumes:
-      - ./deploy/frpc.toml:/etc/frp/frpc.toml:ro
+      - ./deploy/nginx/edge-entrypoint.sh:/opt/edge-entrypoint.sh:ro
+      - ./deploy/nginx/edge.conf.template:/etc/nginx/templates/edge.conf.template:ro
+      # 证书缺失时的引导配置（仅放行 ACME 挑战），避免 nginx 因缺少证书而启动失败。
+      - ./deploy/nginx/edge-bootstrap.conf.template:/etc/nginx/templates/edge-bootstrap.conf.template:ro
+      # 证书目录与 ACME 挑战目录与 certbot 共享。
+      - ./deploy/certbot/conf:/etc/letsencrypt
+      - ./deploy/certbot/www:/var/www/certbot
     depends_on:
       - frontend
+
+  # 证书自动续期：每 12h 检查一次；续期后的新证书由 edge 定期 reload 加载。
+  certbot:
+    image: certbot/certbot:v5.8.0
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/opt/renew-loop.sh"]
+    volumes:
+      - ./deploy/certbot/renew-loop.sh:/opt/renew-loop.sh:ro
+      - ./deploy/certbot/conf:/etc/letsencrypt
+      - ./deploy/certbot/www:/var/www/certbot

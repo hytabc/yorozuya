@@ -9,3 +9,6 @@ frontend/dist/
 .DS_Store
 /data/uploads/
 .mcp/
+# Let's Encrypt 证书与 ACME 状态(含私钥),绝不入库
+deploy/certbot/conf/
+deploy/certbot/www/

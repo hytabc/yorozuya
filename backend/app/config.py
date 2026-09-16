@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # 留空时跟随 SQLite 数据库所在目录，保证数据库与上传图片能一起通过 Docker 挂载持久化。
     sugar_upload_dir: str = ""
     cors_origins: str = "http://localhost:5173,http://localhost:8080"
-    # 反向代理后部署时（Docker/FRP）设为 True，限流按真实客户端 IP 统计。
+    # 反向代理后部署时（Docker/HTTPS 入口）设为 True，限流按真实客户端 IP 统计。
     behind_proxy: bool = False
 
     # 万事屋看板娘(站内 AI 助手):不填 MASCOT_API_KEY 则聊天接口优雅降级为“未启用”
@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     # Turnstile 公开 Site Key 可入库；Secret Key 只能放服务端 .env。
     turnstile_site_key: str = "0x4AAAAAAEwPP7x-AwVA_SVE"
     turnstile_secret_key: str = ""
+
+    # 网站备案号（页脚展示）。属于私有信息，只从 .env 读取，留空则页脚不展示。
+    site_icp: str = ""
+    # 备案号点击后跳转的官方查询地址（工信部备案系统，公开地址）。
+    site_icp_url: str = "https://beian.miit.gov.cn/"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
