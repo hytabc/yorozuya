@@ -1,0 +1,54 @@
+# 公网入口（edge）：终止 TLS + 强制 HTTP 跳转 HTTPS，再把请求转给内网 frontend。
+# 本文件是模板：容器启动时由 edge-entrypoint.sh 用 envsubst 只替换 ${DOMAIN}，
+# nginx 自身的 $host / $remote_addr 等运行时变量不受影响。
+
+server {
+    listen 80;
+    server_name ${DOMAIN};
+
+    # ACME webroot 挑战必须保持 HTTP 明文可达，不能跳转到这里。
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # 其余明文请求一律跳转 HTTPS。
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${DOMAIN};
+
+    ssl_certificate         /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key     /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/${DOMAIN}/chain.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    # 刻意不加 includeSubDomains / preload：避免波及同域下其它子域且难以回退。
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    server_tokens off;
+    # 与 frontend 容器一致，覆盖地图实拍 5 张 10 MB 的上传请求。
+    client_max_body_size 55m;
+
+    location / {
+        proxy_pass http://frontend:80;
+        # 真实客户端 IP 由 edge 写入；frontend 用 real_ip 模块还原后透传给后端供限流使用。
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host $host;
+        proxy_http_version 1.1;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 60s;
+    }
+}

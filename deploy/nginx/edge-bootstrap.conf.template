@@ -1,0 +1,17 @@
+# 引导用配置：证书还不存在时 edge 使用这一份，避免 nginx 因缺少证书而无法启动。
+# 只放行 ACME HTTP 挑战，其余请求返回 503 —— 证书缺失时不对外暴露明文站点。
+# 证书签发成功后 edge 会自动切回 edge.conf.template（HTTPS），见 edge-entrypoint.sh。
+
+server {
+    listen 80;
+    server_name ${DOMAIN};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        default_type text/plain;
+        return 503 "yorozuya: TLS certificate for ${DOMAIN} is not installed yet. Run ./deploy/init-letsencrypt.sh on the host.\n";
+    }
+}
