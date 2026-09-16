@@ -103,9 +103,9 @@ class User(Base):
     avatar_visible: Mapped[bool] = mapped_column(Boolean, default=False)
     avatar_moderated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
-    @property
-    def avatar_url(self) -> str | None:
-        return f"/uploads/{self.avatar_path}" if self.avatar_path else None
+    # 注意：这里刻意不提供 avatar_url 属性。UserPublic 用 from_attributes 序列化，
+    # 一旦 ORM 上有同名属性，任何直接塞入 ORM 对象的端点都会绕过 avatar_visible
+    # 把未过审头像的 URL 泄露出去。URL 只能由 present_user_public / visible_avatar 生成。
 
     published_tasks: Mapped[list["Task"]] = relationship(
         foreign_keys="Task.publisher_id", back_populates="publisher"
@@ -137,9 +137,8 @@ class UserPhoto(Base):
     user: Mapped[User] = relationship(foreign_keys=[user_id], back_populates="photos")
     moderated_by: Mapped[User | None] = relationship(foreign_keys=[moderated_by_id])
 
-    @property
-    def image_url(self) -> str:
-        return f"/uploads/{self.file_path}"
+    # 同 User：不提供 image_url 属性，URL 只能由 visible_user_photos 按 is_visible 生成，
+    # 否则把 ORM 对象直接塞进 UserPhotoOut 就会泄露待审/被屏蔽图片的地址。
 
 
 class Task(Base):

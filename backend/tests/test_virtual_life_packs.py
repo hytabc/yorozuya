@@ -1,10 +1,12 @@
 import json
 import tempfile
 import unittest
+from io import BytesIO
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from PIL import Image
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -14,6 +16,13 @@ from app.security import create_access_token
 from app.virtual_life import router as save_router
 from app.virtual_life_packs import router as packs_router, seed_virtual_life_packs, \
     validate_pack_content, migrate_pack_content, derive_save_rules, PackContentError
+
+
+def make_png(size=(2, 2)) -> bytes:
+    """可解码的 PNG：上传接口会真正解码图片，魔数 + 填充的假图不再被接受。"""
+    buffer = BytesIO()
+    Image.new("RGBA", size, (0, 0, 255, 255)).save(buffer, format="PNG")
+    return buffer.getvalue()
 
 SEED = json.loads((Path(__file__).resolve().parent.parent / 'app' / 'life_packs' / 'wsw-default-life.json').read_text(encoding='utf-8'))
 
@@ -431,13 +440,12 @@ class PackTests(unittest.TestCase):
 
     def test_asset_upload(self):
         from unittest.mock import patch
-        import app.virtual_life_packs as vlp
+        from app.config import settings
 
-        class FakeSettings:
-            sugar_upload_path = Path(self.temp.name) / 'uploads'
+        # 上传接口现在会真正解码图片，必须用可解码的 PNG（魔数 + 填充会被拒）。
+        png = make_png()
 
-        png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
-        with patch.object(vlp, 'settings', FakeSettings):
+        with patch.object(settings, 'sugar_upload_dir', str(Path(self.temp.name) / 'uploads')):
             ok = self.client.post('/api/virtual-life/assets', files={'file': ('bg.png', png, 'image/png')}, headers=self.headers(1))
             self.assertEqual(ok.status_code, 201, ok.text)
             url = ok.json()['url']

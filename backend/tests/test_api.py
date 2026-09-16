@@ -1,10 +1,12 @@
 from datetime import datetime, timedelta
 from errno import ENOSPC
+from io import BytesIO
 from pathlib import Path
 
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from PIL import Image
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -34,6 +36,9 @@ app.dependency_overrides[get_db] = override_db
 
 
 def setup_function():
+    # 多个测试模块共用同一个 app，各自在 import 时设置过 get_db 覆盖，
+    # 因此这里每次用例前重新指向本模块的内存库，避免被其它模块的覆盖抢走。
+    app.dependency_overrides[get_db] = override_db
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     with TestingSession() as db:
@@ -75,6 +80,42 @@ TINY_PNG = (
     b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
     b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\x0dIDAT\x08\xd7c\xf8\xcf\xc0\xf0\x1f\x00\x05\x00\x01\xff\x89\x99=\x1d\x00\x00\x00\x00IEND\xaeB`\x82"
 )
+
+
+def make_png(size=(2, 2), color=(255, 0, 0, 255)) -> bytes:
+    """真正的 PNG 字节：上传接口现在会实际解码，魔数 + 填充的假图不再被接受。"""
+    buffer = BytesIO()
+    Image.new("RGBA", size, color).save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def make_jpeg(size=(2, 2)) -> bytes:
+    buffer = BytesIO()
+    Image.new("RGB", size, (10, 20, 30)).save(buffer, format="JPEG")
+    return buffer.getvalue()
+
+
+def make_jpeg_with_gps() -> bytes:
+    """带 GPS/设备信息的 JPEG，用于验证上传后元数据被剥离。"""
+    buffer = BytesIO()
+    exif = Image.Exif()
+    exif[0x010F] = "TestCam"  # Make
+    exif[0x0110] = "TestModel"  # Model
+    exif[0x8825] = {1: "N", 2: ((1, 1), (1, 2), (1, 3))}  # GPSInfo
+    Image.new("RGB", (4, 4), (1, 2, 3)).save(buffer, format="JPEG", exif=exif)
+    return buffer.getvalue()
+
+
+def media_path(tmp_path, url: str) -> Path:
+    """把接口返回的媒体地址还原成磁盘路径。
+
+    公开区是 /uploads/<key>；待审/被屏蔽的文件在私有区，地址是
+    /api/media/<key>?exp=&sig=。
+    """
+    if url.startswith("/api/media/"):
+        key = url.removeprefix("/api/media/").split("?", 1)[0]
+        return tmp_path / "private_media" / key
+    return tmp_path / "uploads" / url.removeprefix("/uploads/")
 
 
 def test_vr_map_photo_legacy_unique_constraint_migration(tmp_path, monkeypatch):
@@ -985,7 +1026,10 @@ def test_avatar_upload_and_moderation():
         # 上传 PNG 成功，默认待审核
         uploaded = client.post("/api/users/me/avatar", headers=alice, files={"avatar": ("a.png", TINY_PNG, "image/png")})
         assert uploaded.status_code == 201, uploaded.text
-        assert uploaded.json()["avatar_url"].startswith("/uploads/avatars/")
+        # 未过审的头像在私有区：地址是带签名的 /api/media/...，不是公开的 /uploads/...
+        pending_url = uploaded.json()["avatar_url"]
+        assert pending_url.startswith("/api/media/avatars/"), pending_url
+        assert "exp=" in pending_url and "sig=" in pending_url
         assert uploaded.json()["avatar_visible"] is False
 
         # 本人可以看到自己的待审头像
@@ -1014,11 +1058,12 @@ def test_avatar_upload_and_moderation():
         # 普通用户不能审核头像
         assert client.patch(f"/api/admin/users/{me['id']}/avatar", headers=bob, json={"is_visible": True}).status_code == 403
 
-        # 审核通过后对其他用户可见
+        # 审核通过后对其他用户可见，并且地址换成公开区的 /uploads/
         approved = client.patch(f"/api/admin/users/{me['id']}/avatar", headers=admin, json={"is_visible": True})
         assert approved.status_code == 200, approved.text
         assert approved.json()["avatar_visible"] is True
-        assert client.get(f"/api/users/{me['id']}", headers=bob).json()["avatar_url"]
+        public_url = client.get(f"/api/users/{me['id']}", headers=bob).json()["avatar_url"]
+        assert public_url.startswith("/uploads/avatars/"), public_url
 
         # 驳回后再次仅本人可见
         client.patch(f"/api/admin/users/{me['id']}/avatar", headers=admin, json={"is_visible": False})
@@ -1026,10 +1071,10 @@ def test_avatar_upload_and_moderation():
         assert client.get("/api/auth/me", headers=alice).json()["avatar_url"]
 
         # JPG 重新上传会替换并重置审核状态
-        jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 64
+        jpeg = make_jpeg()
         replaced = client.post("/api/users/me/avatar", headers=alice, files={"avatar": ("b.jpg", jpeg, "image/jpeg")})
         assert replaced.status_code == 201, replaced.text
-        assert replaced.json()["avatar_url"].endswith(".jpg")
+        assert replaced.json()["avatar_url"].split("?", 1)[0].endswith(".jpg")
         assert replaced.json()["avatar_visible"] is False
 
         # 删除头像后清空
@@ -1207,7 +1252,7 @@ def test_vr_map_flow():
         assert guest_photo["uploaded_by_me"] is False
 
         # bob 再次上传会追加图片；驳回新图后，之前通过的图片仍公开
-        replaced = client.post(f"/api/vr-maps/{map_a['id']}/photos", headers=bob, files={"photo": ("shot2.jpg", b"\xff\xd8\xff\xe0" + b"\x00" * 64, "image/jpeg")})
+        replaced = client.post(f"/api/vr-maps/{map_a['id']}/photos", headers=bob, files={"photo": ("shot2.jpg", make_jpeg(), "image/jpeg")})
         assert replaced.status_code == 201
         new_photo = next(photo for photo in replaced.json()["photos"] if photo["id"] != photo_id)
         new_photo_id = new_photo["id"]
@@ -1257,7 +1302,7 @@ def test_vr_map_multi_photo_creation_limits_and_moderator_permissions():
         # 地图已有 5 张照片后，另一位用户仍有独立的 5 张上传额度。
         contributed = client.post(
             f"/api/vr-maps/{map_id}/photos", headers=regular,
-            files=[("photos", (f"visitor-{index}.jpg", b"\xff\xd8\xff\xe0" + bytes([index]) * 32, "image/jpeg")) for index in range(5)],
+            files=[("photos", (f"visitor-{index}.jpg", make_jpeg(), "image/jpeg")) for index in range(5)],
         )
         assert contributed.status_code == 201, contributed.text
         assert len(contributed.json()["photos"]) == 5
@@ -1306,7 +1351,7 @@ def test_vr_map_owner_can_replace_delete_photos_and_delete_recommendation(tmp_pa
         assert created.status_code == 201, created.text
         map_id = created.json()["id"]
         owner_photo = created.json()["photos"][0]
-        owner_path = tmp_path / "uploads" / owner_photo["image_url"].removeprefix("/uploads/")
+        owner_path = media_path(tmp_path, owner_photo["image_url"])
         assert owner_path.exists()
 
         # 其他用户不能更新或删除这张图片，也不能删除整条推荐。
@@ -1319,11 +1364,11 @@ def test_vr_map_owner_can_replace_delete_photos_and_delete_recommendation(tmp_pa
 
         replaced = client.patch(
             f"/api/vr-maps/{map_id}/photos/{owner_photo['id']}", headers=owner,
-            files={"photo": ("replacement.jpg", b"\xff\xd8\xff\xe0" + b"y" * 32, "image/jpeg")},
+            files={"photo": ("replacement.jpg", make_jpeg(), "image/jpeg")},
         )
         assert replaced.status_code == 200, replaced.text
         replaced_photo = replaced.json()["photos"][0]
-        replacement_path = tmp_path / "uploads" / replaced_photo["image_url"].removeprefix("/uploads/")
+        replacement_path = media_path(tmp_path, replaced_photo["image_url"])
         assert replaced_photo["id"] == owner_photo["id"]
         assert replaced_photo["is_visible"] is False and replaced_photo["moderated"] is False
         assert replacement_path.exists() and not owner_path.exists()
@@ -1340,7 +1385,7 @@ def test_vr_map_owner_can_replace_delete_photos_and_delete_recommendation(tmp_pa
             files={"photo": ("contributed.png", TINY_PNG, "image/png")},
         )
         assert contributed.status_code == 201
-        contributed_path = tmp_path / "uploads" / contributed.json()["photos"][0]["image_url"].removeprefix("/uploads/")
+        contributed_path = media_path(tmp_path, contributed.json()["photos"][0]["image_url"])
         assert contributed_path.exists()
         assert client.delete(f"/api/vr-maps/{map_id}", headers=owner).status_code == 204
         assert client.get(f"/api/vr-maps/{map_id}").status_code == 404
@@ -2869,7 +2914,7 @@ def test_story_photos_upload_and_moderation(tmp_path, monkeypatch):
         story_id = created.json()["id"]
         assert len(created.json()["photos"]) == 2
         assert all(photo["is_visible"] is False for photo in created.json()["photos"])
-        assert list((tmp_path / "uploads" / "stories" / str(story_id)).iterdir())
+        assert list((tmp_path / "private_media" / "stories" / str(story_id)).iterdir())
 
         # 未过审的图片不出现在列表封面
         assert client.get("/api/stories", headers=bob).json()[0]["cover_url"] is None
@@ -2903,7 +2948,7 @@ def test_story_photos_upload_and_moderation(tmp_path, monkeypatch):
 
         # 删除故事清理磁盘文件
         assert client.delete(f"/api/stories/{story_id}", headers=alice).status_code == 204
-        assert list((tmp_path / "uploads" / "stories" / str(story_id)).iterdir()) == []
+        assert list((tmp_path / "private_media" / "stories" / str(story_id)).iterdir()) == []
 
 
 def test_turnstile_provider_delegates_to_siteverify(monkeypatch):

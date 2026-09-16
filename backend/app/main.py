@@ -14,6 +14,7 @@ from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BeforeValidator, ValidationError
 from sqlalchemy import delete, func, or_, select, text, update
@@ -23,6 +24,8 @@ from .config import INSECURE_DEFAULT_ADMIN_PASSWORD, settings
 from .backup import skip_next_snapshot
 from .captcha import captcha_required, create_image_captcha, verify_captcha
 from .database import Base, SessionLocal, engine, get_db
+from .images import AVATAR_SIGNATURES, normalize_image
+from .media import delete_media, media_url, place_media, storage_file, verify_media_signature, write_media
 from .ratelimit import client_ip, enforce
 from .dependencies import get_admin, get_beta_application_manager, get_content_moderator, get_current_user, get_operations_manager, get_optional_user, get_role_manager
 from .models import (
@@ -165,6 +168,7 @@ def _running_under_pytest() -> bool:
 
 def initialize_database() -> None:
     settings.validate_storage_isolation()
+    settings.validate_directories_writable()
     Base.metadata.create_all(bind=engine)
     migrate_schema()
     logger = logging.getLogger("yorozuya")
@@ -371,7 +375,27 @@ def migrate_schema() -> None:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     initialize_database()
+    # 升级对账：把历史数据里仍留在公开区的待审/被屏蔽媒体搬进私有区，
+    # 否则它们升级后依然能被 /uploads 直接下载，撤回等于没生效。
+    # pytest 下跳过，避免动到开发者本机的真实上传目录（函数本身由测试直接覆盖）。
+    if not _running_under_pytest():
+        with SessionLocal() as db:
+            sync_media_zones(db)
     yield
+
+
+def sync_media_zones(db: Session) -> None:
+    """让每个媒体文件都待在与其可见性匹配的区（幂等，可反复执行）。"""
+    targets: list[tuple[str | None, bool]] = []
+    targets += [(user.avatar_path, user.avatar_visible) for user in db.scalars(select(User))]
+    targets += [(photo.file_path, photo.is_visible) for photo in db.scalars(select(UserPhoto))]
+    targets += [(photo.file_path, photo.is_visible) for photo in db.scalars(select(SugarPhoto))]
+    targets += [(photo.file_path, photo.is_visible) for photo in db.scalars(select(FriendPhoto))]
+    targets += [(photo.file_path, photo.is_visible) for photo in db.scalars(select(StoryPhoto))]
+    targets += [(photo.file_path, photo.is_visible) for photo in db.scalars(select(VrMapPhoto))]
+    for key, public in targets:
+        if key:
+            place_media(key, public=public)
 
 
 app = FastAPI(title=settings.app_name, version="0.1-beta", lifespan=lifespan)
@@ -382,6 +406,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    """兜底安全响应头。
+
+    生产入口由 nginx 下发同款响应头；这里覆盖直连后端（本地开发、Vite 代理）的场景，
+    尤其保证 /uploads 下的用户文件不会被浏览器按内容嗅探成 HTML。
+    """
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    return response
+
+
 app.mount("/uploads", StaticFiles(directory=settings.sugar_upload_path), name="uploads")
 
 # 万事屋看板娘(站内 AI 助手)
@@ -453,21 +493,28 @@ def task_query():
 
 
 def visible_user_photos(user: User, viewer: User | None = None) -> list[UserPhotoOut]:
-    """资料主人和审核人员可看全部；其他访问者只能看已通过展示的图片。"""
+    """资料主人和审核人员可看全部；其他访问者只能看已通过展示的图片。
+
+    地址按 is_visible 决定分区：已通过的作品走公开区，待审/被屏蔽的只能拿到签名 URL。
+    """
     can_manage = viewer is not None and (viewer.id == user.id or can_review_content(viewer))
     return [
-        UserPhotoOut(id=photo.id, image_url=photo.image_url, is_visible=photo.is_visible)
+        UserPhotoOut(
+            id=photo.id,
+            image_url=media_url(photo.file_path, public=photo.is_visible) or "",
+            is_visible=photo.is_visible,
+        )
         for photo in user.photos
         if can_manage or photo.is_visible
     ]
 
 
 def visible_avatar(user: User, viewer: User | None = None) -> str | None:
-    """头像 URL：审核通过后对所有人可见，未过审时仅本人和管理员组可见。"""
+    """头像 URL：审核通过后对所有人可见，未过审时仅本人和管理员组可见（拿签名 URL）。"""
     if not user.avatar_path:
         return None
     if user.avatar_visible or (viewer is not None and (viewer.id == user.id or can_review_content(viewer))):
-        return user.avatar_url
+        return media_url(user.avatar_path, public=user.avatar_visible)
     return None
 
 
@@ -481,6 +528,32 @@ def present_user_public(user: User, viewer: User | None = None) -> UserPublic:
 
 
 ANONYMOUS_PUBLISHER = UserPublic(id=0, nickname="匿名委托人", bio=None, photos=[])
+
+
+def present_user_self(user: User) -> UserSelf:
+    """本人视角的完整资料（含账号字段）。
+
+    不能直接 UserSelf.model_validate(user)：ORM 上已没有 avatar_url / image_url，
+    那样会让本人的头像和介绍图片全部变成空，必须显式带上自己的可见性。
+    """
+    return UserSelf(
+        id=user.id,
+        nickname=user.nickname,
+        title=user.title,
+        bio=user.bio,
+        photos=visible_user_photos(user, user),
+        avatar_url=visible_avatar(user, user),
+        avatar_visible=user.avatar_visible,
+        is_beta_tester=user.is_beta_tester,
+        username=user.username,
+        qq=user.qq,
+        qq_public=user.qq_public,
+        is_admin=user.is_admin,
+        is_active=user.is_active,
+        role=user.role,
+        max_concurrent_tasks=user.max_concurrent_tasks,
+        created_at=user.created_at,
+    )
 
 
 def present_user_profile(user: User, viewer: User | None = None) -> UserProfileOut:
@@ -577,8 +650,8 @@ def present_task(task: Task, viewer: User | None = None) -> TaskOut:
     if task.publisher_id == viewer.id:
         # 委托人：成员 QQ 已在成员列表可见
         return data
-    if any(m.user_id == viewer.id for m in task.members):
-        # 接单人：可见委托人联系方式
+    if any(m.user_id == viewer.id and m.response_status == TaskMemberResponse.ACCEPTED for m in task.members):
+        # 接单人：可见委托人联系方式（仅限已接受，指定委托里 pending/declined 不算接取）
         data.contact_qq = task.publisher.qq
         return data
     if task.status == TaskStatus.PUBLISHED and task.is_visible:
@@ -643,7 +716,10 @@ def present_report(report: TaskReport) -> TaskReportOut:
 
 
 def present_feedback(feedback: Feedback) -> FeedbackOut:
-    return FeedbackOut.model_validate(feedback)
+    """反馈里的提交者资料同样要走 presenter，否则会带出未过审头像与待审图片地址。"""
+    data = FeedbackOut.model_validate(feedback)
+    data.user = present_user_public(feedback.user) if feedback.user else None
+    return data
 
 
 def member_of(db: Session, task_id: int, user_id: int) -> TaskMember | None:
@@ -723,19 +799,9 @@ def can_view_user_qq(db: Session, viewer: User | None, target: User) -> bool:
 
 MAX_SUGAR_PHOTOS = 6
 MAX_SUGAR_IMAGE_BYTES = 5 * 1024 * 1024
-IMAGE_SIGNATURES = (
-    (b"\xff\xd8\xff", ".jpg"),
-    (b"\x89PNG\r\n\x1a\n", ".png"),
-    (b"GIF87a", ".gif"),
-    (b"GIF89a", ".gif"),
-)
 
 # 头像：仅 PNG/JPG，最大 2 MB，上传后需管理员审核
 MAX_AVATAR_BYTES = 2 * 1024 * 1024
-AVATAR_SIGNATURES = (
-    (b"\xff\xd8\xff", ".jpg"),
-    (b"\x89PNG\r\n\x1a\n", ".png"),
-)
 
 # VRChat 地图推荐：实拍照片仅 PNG/JPG，最大 10 MB，需管理员审核
 MAX_VR_MAP_PHOTO_BYTES = 10 * 1024 * 1024
@@ -760,7 +826,7 @@ def sugar_pair_query():
 
 
 def photo_url(photo: SugarPhoto) -> str:
-    return f"/uploads/{photo.file_path}"
+    return media_url(photo.file_path, public=photo.is_visible) or ""
 
 
 def present_sugar_photos(profile: SugarProfile, viewer: User | None) -> list[SugarPhotoOut]:
@@ -783,7 +849,9 @@ def present_sugar_profile(
 ) -> SugarProfileCardOut | SugarProfileDetailOut:
     data = {
         "id": profile.id,
-        "user": profile.user,
+        # 必须走 present_user_public：直接塞 ORM 的 profile.user 会带上未过审头像
+        # 与待审/被屏蔽的介绍图片地址。
+        "user": present_user_public(profile.user, viewer),
         "about": profile.about,
         "photos": present_sugar_photos(profile, viewer),
         "created_at": profile.created_at,
@@ -793,7 +861,7 @@ def present_sugar_profile(
         return SugarProfileDetailOut(
             **data,
             qq=qq,
-            relationship=present_sugar_pair(relationship) if relationship else None,
+            relationship=present_sugar_pair(relationship, viewer) if relationship else None,
         )
     return SugarProfileCardOut(**data)
 
@@ -805,8 +873,20 @@ def sugar_pair_duration(pair: SugarPair) -> int:
     return max(0, int((finish - pair.activated_at).total_seconds()))
 
 
-def present_sugar_pair(pair: SugarPair) -> SugarPairOut:
-    return SugarPairOut.model_validate(pair).model_copy(update={"duration_seconds": sugar_pair_duration(pair)})
+def present_sugar_pair(pair: SugarPair, viewer: User | None = None) -> SugarPairOut:
+    """显式构造：SugarPairOut.model_validate(pair) 会把 first_user/second_user
+    当作 ORM 对象直读，从而带出未过审头像与待审照片地址。"""
+    return SugarPairOut(
+        id=pair.id,
+        first_user=present_user_public(pair.first_user, viewer),
+        second_user=present_user_public(pair.second_user, viewer),
+        initiated_by_id=pair.initiated_by_id,
+        status=pair.status,
+        initiated_at=pair.initiated_at,
+        activated_at=pair.activated_at,
+        ended_at=pair.ended_at,
+        duration_seconds=sugar_pair_duration(pair),
+    )
 
 
 def get_sugar_profile_or_404(db: Session, user_id: int) -> SugarProfile:
@@ -850,16 +930,8 @@ def active_sugar_pair_for(db: Session, user_id: int, exclude_pair_id: int | None
     return db.scalar(sugar_pair_query().where(*filters).order_by(SugarPair.initiated_at.desc()))
 
 
-def image_extension(content: bytes) -> str | None:
-    for signature, extension in IMAGE_SIGNATURES:
-        if content.startswith(signature):
-            return extension
-    if content.startswith(b"RIFF") and content[8:12] == b"WEBP":
-        return ".webp"
-    return None
-
-
 async def read_sugar_images(photos: list[UploadFile]) -> list[tuple[str, bytes]]:
+    """读取并净化上传的图片：魔数白名单 → 像素上限 → 剥元数据后重编码。"""
     images: list[tuple[str, bytes]] = []
     for photo in photos:
         content = await photo.read(MAX_SUGAR_IMAGE_BYTES + 1)
@@ -867,10 +939,7 @@ async def read_sugar_images(photos: list[UploadFile]) -> list[tuple[str, bytes]]
             raise HTTPException(status_code=422, detail="上传的照片不能为空")
         if len(content) > MAX_SUGAR_IMAGE_BYTES:
             raise HTTPException(status_code=422, detail="单张照片不能超过 5 MiB")
-        extension = image_extension(content)
-        if extension is None:
-            raise HTTPException(status_code=422, detail="仅支持 JPEG、PNG、GIF 或 WebP 图片")
-        images.append((extension, content))
+        images.append(normalize_image(content))
     return images
 
 
@@ -883,24 +952,23 @@ def image_storage_error_detail(error: OSError) -> str:
 
 
 def store_sugar_images(profile: SugarProfile, images: list[tuple[str, bytes]]) -> list[SugarPhoto]:
+    """砂糖社照片默认可见，落在公开区。"""
     settings.ensure_storage_directory()
-    stored: list[tuple[str, str]] = []
+    keys: list[str] = []
+    stored: list[Path] = []
     try:
         for extension, content in images:
-            file_path = f"sugar/{uuid4().hex}{extension}"
-            destination = settings.sugar_upload_path / file_path
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(content)
-            stored.append((file_path, str(destination)))
+            key = f"sugar/{uuid4().hex}{extension}"
+            stored.append(write_media(key, content, public=True))
+            keys.append(key)
     except OSError as error:
-        for _, destination in stored:
+        for destination in stored:
             try:
-                Path(destination).unlink(missing_ok=True)
+                destination.unlink(missing_ok=True)
             except OSError:
                 pass
         raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
-    records = [SugarPhoto(profile=profile, file_path=file_path) for file_path, _ in stored]
-    return records
+    return [SugarPhoto(profile=profile, file_path=key) for key in keys]
 
 
 def friend_profile_query():
@@ -916,7 +984,7 @@ def friend_request_query():
 
 
 def friend_photo_url(photo: FriendPhoto) -> str:
-    return f"/uploads/{photo.file_path}"
+    return media_url(photo.file_path, public=photo.is_visible) or ""
 
 
 def present_friend_photos(profile: FriendProfile, viewer: User | None) -> list[FriendPhotoOut]:
@@ -1001,20 +1069,20 @@ def get_friend_profile_or_404(db: Session, user_id: int) -> FriendProfile:
 
 
 def store_friend_images(profile: FriendProfile, images: list[tuple[str, bytes]]) -> list[FriendPhoto]:
+    """交友厅照片默认待审，落在私有区（需签名 URL 才能访问）。"""
     settings.ensure_storage_directory()
-    stored: list[tuple[str, Path]] = []
+    keys: list[str] = []
+    stored: list[Path] = []
     try:
         for extension, content in images:
-            file_path = f"friends/{profile.user_id}/{uuid4().hex}{extension}"
-            destination = settings.sugar_upload_path / file_path
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(content)
-            stored.append((file_path, destination))
+            key = f"friends/{profile.user_id}/{uuid4().hex}{extension}"
+            stored.append(write_media(key, content, public=False))
+            keys.append(key)
     except OSError as error:
-        for _, destination in stored:
+        for destination in stored:
             destination.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
-    return [FriendPhoto(profile=profile, file_path=file_path) for file_path, _ in stored]
+    return [FriendPhoto(profile=profile, file_path=key) for key in keys]
 
 
 @app.get("/api/friends/profiles", response_model=list[FriendProfileCardOut])
@@ -1080,6 +1148,7 @@ async def save_friend_profile(
 ):
     if user.is_admin:
         raise HTTPException(status_code=403, detail="管理员账号不能登记交友厅资料")
+    enforce("upload", str(user.id), 30, 3600)
     vrc_nickname = vrc_nickname.strip()
     if not 1 <= len(vrc_nickname) <= 64:
         raise HTTPException(status_code=422, detail="VRChat 昵称需要 1 至 64 个字符")
@@ -1110,7 +1179,7 @@ async def save_friend_profile(
     except Exception:
         db.rollback()
         for record in records:
-            (settings.sugar_upload_path / record.file_path).unlink(missing_ok=True)
+            delete_media(record.file_path)
         raise
     saved = get_friend_profile_or_404(db, user.id)
     response.status_code = status.HTTP_201_CREATED if is_new else status.HTTP_200_OK
@@ -1130,10 +1199,7 @@ def delete_friend_photo(photo_id: int, user: User = Depends(get_current_user), d
     file_path = photo.file_path
     db.delete(photo)
     db.commit()
-    root = settings.sugar_upload_path.resolve()
-    destination = (root / file_path).resolve()
-    if destination.is_relative_to(root):
-        destination.unlink(missing_ok=True)
+    delete_media(file_path)
     return present_friend_profile(get_friend_profile_or_404(db, user.id), db=db, viewer=user, detailed=True)
 
 
@@ -1145,11 +1211,8 @@ def delete_friend_profile(user: User = Depends(get_current_user), db: Session = 
     photo_paths = [photo.file_path for photo in profile.photos]
     db.delete(profile)
     db.commit()
-    root = settings.sugar_upload_path.resolve()
     for file_path in photo_paths:
-        destination = (root / file_path).resolve()
-        if destination.is_relative_to(root):
-            destination.unlink(missing_ok=True)
+        delete_media(file_path)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -1293,7 +1356,30 @@ def site_config():
     """
     return SiteConfigOut(
         icp=settings.site_icp.strip(),
-        icp_url=settings.site_icp_url.strip() or "https://beian.miit.gov.cn/",
+        icp_url=settings.safe_site_icp_url,
+    )
+
+
+@app.get("/api/media/{key:path}", include_in_schema=False)
+def read_gated_media(key: str, exp: int = 0, sig: str = ""):
+    """私有区媒体读取：必须携带未过期的签名。
+
+    待审/被屏蔽的文件不在 /uploads 静态目录里；``<img>`` 又带不了 Bearer 令牌，
+    因此由接口响应签发短时签名 URL，这里只校验签名与有效期（校验失败一律 404）。
+    """
+    if not verify_media_signature(key, exp, sig):
+        raise HTTPException(status_code=404, detail="文件不存在")
+    path = storage_file(key, public=False)
+    if path is None or not path.is_file():
+        raise HTTPException(status_code=404, detail="文件不存在")
+    return FileResponse(
+        path,
+        headers={
+            "Cache-Control": "private, max-age=3600",
+            # 即使有人直接打开这个地址，也让内容保持惰性，杜绝 polyglot 文件被当作页面执行。
+            "Content-Security-Policy": "default-src 'none'; sandbox",
+            "X-Content-Type-Options": "nosniff",
+        },
     )
 
 
@@ -1330,7 +1416,7 @@ async def register(payload: RegisterRequest, request: Request, db: Session = Dep
     db.refresh(user)
     return TokenResponse(
         access_token=create_access_token(user.id, user.token_version),
-        user=UserSelf.model_validate(user),
+        user=present_user_self(user),
     )
 
 
@@ -1348,14 +1434,14 @@ async def login(payload: LoginRequest, request: Request, db: Session = Depends(g
         raise HTTPException(status_code=403, detail="账号已停用")
     return TokenResponse(
         access_token=create_access_token(user.id, user.token_version, remember=payload.remember),
-        user=UserSelf.model_validate(user),
+        user=present_user_self(user),
         remember=payload.remember,
     )
 
 
 @app.get("/api/auth/me", response_model=UserSelf)
 def me(user: User = Depends(get_current_user)):
-    return user
+    return present_user_self(user)
 
 
 @app.patch("/api/users/me", response_model=UserSelf)
@@ -1366,7 +1452,7 @@ def update_profile(payload: UserUpdate, user: User = Depends(get_current_user), 
     user.bio = payload.bio.strip() if payload.bio else None
     db.commit()
     db.refresh(user)
-    return user
+    return present_user_self(user)
 
 
 @app.patch("/api/users/me/password", response_model=UserSelf)
@@ -1375,6 +1461,8 @@ def update_my_password(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # 限流当前密码的尝试次数，避免令牌泄露后被用来爆破当前密码改号。
+    enforce("password-change", str(user.id), 10, 300)
     if not verify_password(payload.current_password, user.password_hash):
         raise HTTPException(status_code=403, detail="当前密码不正确")
     user.password_hash = hash_password(payload.password)
@@ -1382,7 +1470,7 @@ def update_my_password(
     user.token_version = (user.token_version or 0) + 1
     db.commit()
     db.refresh(user)
-    return user
+    return present_user_self(user)
 
 
 MAX_USER_PHOTOS = 3
@@ -1406,30 +1494,27 @@ async def save_user_photos(photos: list[UploadFile], user: User, db: Session) ->
     except Exception:
         db.rollback()
         for record in records:
-            try:
-                (settings.sugar_upload_path / record.file_path).unlink(missing_ok=True)
-            except OSError:
-                pass
+            delete_media(record.file_path)
         raise
     db.refresh(user)
     return user
 
 
 def store_user_images(user: User, images: list[tuple[str, bytes]]) -> list[UserPhoto]:
+    """用户介绍图片默认可见（UserPhoto.is_visible 默认 True），落在公开区。"""
     settings.ensure_storage_directory()
-    stored: list[tuple[str, Path]] = []
+    keys: list[str] = []
+    stored: list[Path] = []
     try:
         for extension, content in images:
-            file_path = f"users/{user.id}/{uuid4().hex}{extension}"
-            destination = settings.sugar_upload_path / file_path
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(content)
-            stored.append((file_path, destination))
+            key = f"users/{user.id}/{uuid4().hex}{extension}"
+            stored.append(write_media(key, content, public=True))
+            keys.append(key)
     except OSError as error:
-        for _, destination in stored:
+        for destination in stored:
             destination.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
-    return [UserPhoto(user=user, file_path=file_path) for file_path, _ in stored]
+    return [UserPhoto(user=user, file_path=key) for key in keys]
 
 
 @app.post("/api/users/me/photos", response_model=UserProfileOut, status_code=status.HTTP_201_CREATED)
@@ -1440,6 +1525,7 @@ async def upload_user_photos(
 ):
     if not photos:
         raise HTTPException(status_code=422, detail="请选择要上传的图片")
+    enforce("upload", str(user.id), 30, 3600)
     user = await save_user_photos(photos, user, db)
     return present_user_profile(user, user)
 
@@ -1452,38 +1538,9 @@ def delete_user_photo(photo_id: int, user: User = Depends(get_current_user), db:
     path = photo.file_path
     db.delete(photo)
     db.commit()
-    root = settings.sugar_upload_path.resolve()
-    destination = (root / path).resolve()
-    if destination.is_relative_to(root):
-        try:
-            destination.unlink(missing_ok=True)
-        except OSError:
-            pass
+    delete_media(path)
     db.refresh(user)
     return present_user_profile(user, user)
-
-
-def avatar_extension(content: bytes) -> str | None:
-    for signature, extension in AVATAR_SIGNATURES:
-        if content.startswith(signature):
-            return extension
-    return None
-
-
-def clear_avatar_file(user: User) -> None:
-    """移除旧头像文件并清空头像字段（重新上传换头像、删除头像时复用）。"""
-    if not user.avatar_path:
-        return
-    root = settings.sugar_upload_path.resolve()
-    destination = (root / user.avatar_path).resolve()
-    if destination.is_relative_to(root):
-        try:
-            destination.unlink(missing_ok=True)
-        except OSError:
-            pass
-    user.avatar_path = None
-    user.avatar_visible = False
-    user.avatar_moderated_at = None
 
 
 @app.post("/api/users/me/avatar", response_model=UserProfileOut, status_code=status.HTTP_201_CREATED)
@@ -1492,21 +1549,23 @@ async def upload_avatar(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """上传头像：仅支持 PNG/JPG、最大 2 MB；需管理员审核通过后才公开展示。"""
+    """上传头像：仅支持 PNG/JPG、最大 2 MB；需管理员审核通过后才公开展示。
+
+    未过审的头像存放在私有区，只有本人与审核人员能通过签名 URL 看到。
+    """
+    enforce("upload", str(user.id), 30, 3600)
     content = await avatar.read(MAX_AVATAR_BYTES + 1)
     if not content:
         raise HTTPException(status_code=422, detail="请选择要上传的头像图片")
     if len(content) > MAX_AVATAR_BYTES:
         raise HTTPException(status_code=422, detail="头像图片不能超过 2 MB")
-    extension = avatar_extension(content)
-    if extension is None:
-        raise HTTPException(status_code=422, detail="头像仅支持 PNG 或 JPG 格式")
+    extension, content = normalize_image(
+        content, allowed=AVATAR_SIGNATURES, format_hint="头像仅支持 PNG 或 JPG 格式"
+    )
     settings.ensure_storage_directory()
     file_path = f"avatars/{user.id}/{uuid4().hex}{extension}"
-    destination = settings.sugar_upload_path / file_path
-    destination.parent.mkdir(parents=True, exist_ok=True)
     try:
-        destination.write_bytes(content)
+        write_media(file_path, content, public=False)
     except OSError as error:
         raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
     clear_avatar_file(user)
@@ -1516,6 +1575,16 @@ async def upload_avatar(
     db.commit()
     db.refresh(user)
     return present_user_profile(user, user)
+
+
+def clear_avatar_file(user: User) -> None:
+    """移除旧头像文件并清空头像字段（重新上传换头像、删除头像时复用）。"""
+    if not user.avatar_path:
+        return
+    delete_media(user.avatar_path)
+    user.avatar_path = None
+    user.avatar_visible = False
+    user.avatar_moderated_at = None
 
 
 @app.delete("/api/users/me/avatar", response_model=UserProfileOut)
@@ -1540,6 +1609,8 @@ def moderate_avatar(
     target.avatar_visible = payload.is_visible
     target.avatar_moderated_at = datetime.utcnow()
     db.commit()
+    # 审核结果决定头像所在的区：通过则搬进公开区，驳回则搬回私有区（旧 URL 立即失效）。
+    place_media(target.avatar_path, public=payload.is_visible)
     db.refresh(target)
     return present_moderation_profile(target, manager)
 
@@ -1648,6 +1719,7 @@ async def save_sugar_profile(
     """新建或更新砂糖社档案。每次追加上传最多 6 张，单张最多 5 MiB。"""
     if user.is_admin:
         raise HTTPException(status_code=403, detail="管理员账号不能登记砂糖社档案")
+    enforce("upload", str(user.id), 30, 3600)
     about = about.strip()
     if not 1 <= len(about) <= 1000:
         raise HTTPException(status_code=422, detail="砂糖社介绍需要 1 至 1000 个字符")
@@ -1674,10 +1746,7 @@ async def save_sugar_profile(
     except Exception:
         db.rollback()
         for record in records:
-            try:
-                (settings.sugar_upload_path / record.file_path).unlink(missing_ok=True)
-            except OSError:
-                pass
+            delete_media(record.file_path)
         raise
     saved = get_sugar_profile_or_404(db, user.id)
     response.status_code = status.HTTP_201_CREATED if is_new else status.HTTP_200_OK
@@ -1697,13 +1766,7 @@ def delete_sugar_photo(photo_id: int, user: User = Depends(get_current_user), db
     file_path = photo.file_path
     db.delete(photo)
     db.commit()
-    root = settings.sugar_upload_path.resolve()
-    destination = (root / file_path).resolve()
-    if destination.is_relative_to(root):
-        try:
-            destination.unlink(missing_ok=True)
-        except OSError:
-            pass
+    delete_media(file_path)
     return present_sugar_profile(get_sugar_profile_or_404(db, user.id), viewer=user, qq=user.qq, detailed=True)
 
 
@@ -1729,14 +1792,8 @@ def delete_sugar_profile(user: User = Depends(get_current_user), db: Session = D
             db.delete(pair)
     db.delete(profile)
     db.commit()
-    root = settings.sugar_upload_path.resolve()
     for file_path in photo_paths:
-        destination = (root / file_path).resolve()
-        if destination.is_relative_to(root):
-            try:
-                destination.unlink(missing_ok=True)
-            except OSError:
-                pass
+        delete_media(file_path)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -2136,6 +2193,7 @@ def create_board_message(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    enforce("board-post", str(user.id), 20, 600)
     message = BoardMessage(user_id=user.id, content=payload.content.strip())
     db.add(message)
     db.commit()
@@ -2153,6 +2211,7 @@ def create_board_comment(
     message = db.get(BoardMessage, message_id)
     if message is None:
         raise HTTPException(status_code=404, detail="留言不存在或已被删除")
+    enforce("board-post", str(user.id), 20, 600)
     message.comments.append(BoardComment(user_id=user.id, content=payload.content.strip()))
     db.commit()
     db.refresh(message)
@@ -2214,7 +2273,7 @@ def can_delete_story(story: Story, viewer: User | None) -> bool:
 def present_story_photo(photo: StoryPhoto, viewer: User | None) -> StoryPhotoOut:
     return StoryPhotoOut(
         id=photo.id,
-        image_url=f"/uploads/{photo.file_path}",
+        image_url=media_url(photo.file_path, public=photo.is_visible) or "",
         is_visible=photo.is_visible,
         moderated=photo.moderated_at is not None,
         uploaded_by_me=viewer is not None and viewer.id == photo.user_id,
@@ -2251,7 +2310,7 @@ def present_story_card(story: Story, viewer: User | None, comment_count: int) ->
         excerpt=story.content[:120],
         author=story_author(story, viewer),
         is_anonymous=story.is_anonymous,
-        cover_url=f"/uploads/{visible[0].file_path}" if visible else None,
+        cover_url=media_url(visible[0].file_path, public=True) if visible else None,
         photo_count=len(visible),
         comment_count=comment_count,
         created_at=story.created_at,
@@ -2281,19 +2340,15 @@ def get_story_or_404(db: Session, story_id: int) -> Story:
 
 
 def remove_story_file(file_path: str) -> None:
-    """Best-effort cleanup for a file stored below the configured upload root."""
-    root = settings.sugar_upload_path.resolve()
-    destination = (root / file_path).resolve()
-    if not destination.is_relative_to(root):
-        return
-    try:
-        destination.unlink(missing_ok=True)
-    except OSError:
-        pass
+    """删除故事配图（自动覆盖公开区与私有区）。"""
+    delete_media(file_path)
 
 
 async def save_story_photos(photos: list[UploadFile], story_id: int, user_id: int) -> list[StoryPhoto]:
-    """先完整校验全部文件，再落盘；总量限制防止多文件绕过单图上限。"""
+    """先完整校验全部文件，再落盘；总量限制防止多文件绕过单图上限。
+
+    配图默认待审，落在私有区，只有作者本人与审核人员能凭签名 URL 查看。
+    """
     contents: list[tuple[bytes, str]] = []
     total_bytes = 0
     for photo in photos:
@@ -2305,24 +2360,22 @@ async def save_story_photos(photos: list[UploadFile], story_id: int, user_id: in
         total_bytes += len(content)
         if total_bytes > MAX_STORY_UPLOAD_TOTAL_BYTES:
             raise HTTPException(status_code=422, detail="本次故事图片总大小不能超过 30 MB")
-        extension = avatar_extension(content)
-        if extension is None:
-            raise HTTPException(status_code=422, detail="故事配图仅支持 PNG 或 JPG 格式")
-        contents.append((content, extension))
+        contents.append(
+            normalize_image(content, allowed=AVATAR_SIGNATURES, format_hint="故事配图仅支持 PNG 或 JPG 格式")
+        )
     settings.ensure_storage_directory()
-    stored: list[tuple[str, Path]] = []
+    keys: list[str] = []
+    stored: list[Path] = []
     try:
-        for content, extension in contents:
+        for extension, content in contents:
             file_path = f"stories/{story_id}/{uuid4().hex}{extension}"
-            destination = settings.sugar_upload_path / file_path
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(content)
-            stored.append((file_path, destination))
+            stored.append(write_media(file_path, content, public=False))
+            keys.append(file_path)
     except OSError as error:
-        for _, destination in stored:
+        for destination in stored:
             destination.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
-    return [StoryPhoto(story_id=story_id, user_id=user_id, file_path=file_path) for file_path, _ in stored]
+    return [StoryPhoto(story_id=story_id, user_id=user_id, file_path=key) for key in keys]
 
 
 @app.get("/api/stories", response_model=list[StoryCardOut])
@@ -2451,6 +2504,8 @@ def delete_story_comment(
     if comment is None:
         raise HTTPException(status_code=404, detail="评论不存在或已被删除")
     story = db.get(Story, comment.story_id)
+    if story is None:
+        raise HTTPException(status_code=404, detail="评论不存在或已被删除")
     allowed = can_moderate(user) or user.id in (comment.user_id, story.author_id)
     if not allowed:
         raise HTTPException(status_code=403, detail="只能删除自己的评论")
@@ -2475,7 +2530,7 @@ def admin_story_photos(
     return [
         StoryPhotoAdminOut(
             id=photo.id,
-            image_url=f"/uploads/{photo.file_path}",
+            image_url=media_url(photo.file_path, public=photo.is_visible) or "",
             is_visible=photo.is_visible,
             moderated=photo.moderated_at is not None,
             story_id=photo.story_id,
@@ -2502,10 +2557,12 @@ def moderate_story_photo(
     photo.moderated_by_id = manager.id
     photo.moderated_at = datetime.utcnow()
     db.commit()
+    # 审核结果决定文件所在的区：通过则搬进公开区，驳回则搬回私有区。
+    place_media(photo.file_path, public=payload.is_visible)
     db.refresh(photo)
     return StoryPhotoAdminOut(
         id=photo.id,
-        image_url=f"/uploads/{photo.file_path}",
+        image_url=media_url(photo.file_path, public=photo.is_visible) or "",
         is_visible=photo.is_visible,
         moderated=photo.moderated_at is not None,
         story_id=photo.story_id,
@@ -2540,7 +2597,7 @@ def present_vr_map_photos(vr_map: VrMap, viewer: User | None) -> list[VrMapPhoto
             photos.append(
                 VrMapPhotoOut(
                     id=photo.id,
-                    image_url=f"/uploads/{photo.file_path}",
+                    image_url=media_url(photo.file_path, public=photo.is_visible) or "",
                     is_visible=photo.is_visible,
                     moderated=photo.moderated_at is not None,
                     uploaded_by_me=viewer is not None and viewer.id == photo.user_id,
@@ -2575,21 +2632,17 @@ def get_vr_map_or_404(db: Session, map_id: int) -> VrMap:
 
 
 def remove_vr_map_file(file_path: str) -> None:
-    """Best-effort cleanup for a file stored below the configured upload root."""
-    root = settings.sugar_upload_path.resolve()
-    destination = (root / file_path).resolve()
-    if not destination.is_relative_to(root):
-        return
-    try:
-        destination.unlink(missing_ok=True)
-    except OSError:
-        pass
+    """删除地图实拍（自动覆盖公开区与私有区）。"""
+    delete_media(file_path)
 
 
 async def save_vr_map_photos(
     photos: list[UploadFile], map_id: int, user_id: int,
 ) -> list[VrMapPhoto]:
-    """先完整校验全部文件，再落盘；总量限制防止多文件绕过单图上限。"""
+    """先完整校验全部文件，再落盘；总量限制防止多文件绕过单图上限。
+
+    实拍照片默认待审，落在私有区，需审核通过后才会进入公开区。
+    """
     contents: list[tuple[bytes, str]] = []
     total_bytes = 0
     for photo in photos:
@@ -2601,26 +2654,24 @@ async def save_vr_map_photos(
         total_bytes += len(content)
         if total_bytes > MAX_VR_MAP_UPLOAD_TOTAL_BYTES:
             raise HTTPException(status_code=422, detail="本次地图图片总大小不能超过 50 MB")
-        extension = avatar_extension(content)
-        if extension is None:
-            raise HTTPException(status_code=422, detail="地图照片仅支持 PNG 或 JPG 格式")
-        contents.append((content, extension))
+        contents.append(
+            normalize_image(content, allowed=AVATAR_SIGNATURES, format_hint="地图照片仅支持 PNG 或 JPG 格式")
+        )
 
     settings.ensure_storage_directory()
-    stored: list[tuple[str, Path]] = []
+    keys: list[str] = []
+    stored: list[Path] = []
     try:
-        for content, extension in contents:
+        for extension, content in contents:
             file_path = f"vrmaps/{map_id}/{uuid4().hex}{extension}"
-            destination = settings.sugar_upload_path / file_path
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(content)
-            stored.append((file_path, destination))
+            stored.append(write_media(file_path, content, public=False))
+            keys.append(file_path)
     except OSError as error:
-        for _, destination in stored:
+        for destination in stored:
             destination.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
 
-    return [VrMapPhoto(map_id=map_id, user_id=user_id, file_path=file_path) for file_path, _ in stored]
+    return [VrMapPhoto(map_id=map_id, user_id=user_id, file_path=key) for key in keys]
 
 
 @app.get("/api/vr-maps", response_model=list[VrMapOut])
@@ -2647,6 +2698,7 @@ async def create_vr_map(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    enforce("upload", str(user.id), 30, 3600)
     try:
         if request.headers.get("content-type", "").startswith("multipart/form-data"):
             form = await request.form()
@@ -2766,6 +2818,7 @@ async def upload_vr_map_photo(
     db: Session = Depends(get_db),
 ):
     """上传地图实拍照片：单次最多 5 张，每位用户对每张地图最多 5 张；需审核后公开。"""
+    enforce("upload", str(user.id), 30, 3600)
     vr_map = get_vr_map_or_404(db, map_id)
     if photo is not None:
         photos = [*photos, photo]
@@ -2797,6 +2850,7 @@ async def replace_vr_map_photo(
     db: Session = Depends(get_db),
 ):
     """替换本人上传的地图图片；新图片必须重新通过审核。"""
+    enforce("upload", str(user.id), 30, 3600)
     vr_map = get_vr_map_or_404(db, map_id)
     record = db.get(VrMapPhoto, photo_id)
     if record is None or record.map_id != map_id:
@@ -2924,7 +2978,7 @@ def admin_vr_map_photos(
     return [
         VrMapPhotoAdminOut(
             id=photo.id,
-            image_url=f"/uploads/{photo.file_path}",
+            image_url=media_url(photo.file_path, public=photo.is_visible) or "",
             is_visible=photo.is_visible,
             moderated=photo.moderated_at is not None,
             map_id=photo.map_id,
@@ -2951,10 +3005,12 @@ def moderate_vr_map_photo(
     photo.moderated_by_id = manager.id
     photo.moderated_at = datetime.utcnow()
     db.commit()
+    # 审核结果决定文件所在的区：通过则搬进公开区，驳回则搬回私有区。
+    place_media(photo.file_path, public=payload.is_visible)
     db.refresh(photo)
     return VrMapPhotoAdminOut(
         id=photo.id,
-        image_url=f"/uploads/{photo.file_path}",
+        image_url=media_url(photo.file_path, public=photo.is_visible) or "",
         is_visible=photo.is_visible,
         moderated=photo.moderated_at is not None,
         map_id=photo.map_id,
@@ -3559,9 +3615,12 @@ def delete_announcement(
 @app.post("/api/analytics/page-view", status_code=status.HTTP_204_NO_CONTENT)
 def track_page_view(
     payload: PageViewCreate,
+    request: Request,
     viewer: User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
+    # 游客也能写入，按 IP 限流，避免被用来放大 SQLite 写入量。
+    enforce("page-view-ip", client_ip(request), 120, 60)
     visitor_key = f"user:{viewer.id}" if viewer else f"anon:{sha256(payload.session_id.encode()).hexdigest()}"
     now = datetime.utcnow()
     skip_next_snapshot(db)
@@ -3739,6 +3798,28 @@ def admin_tasks(_: User = Depends(get_role_manager), db: Session = Depends(get_d
     return [present_task(task, _) for task in tasks]
 
 
+def present_admin_user(db: Session, user: User, viewer: User) -> AdminUserOut:
+    """监管台用户条目。
+
+    照片必须由 visible_user_photos 生成：直接 model_validate(user) 读 ORM 的 photos
+    拿不到地址（ORM 上没有 image_url），而可见性判断也需要按查看者身份区分。
+    """
+    return AdminUserOut(
+        id=user.id,
+        username=user.username,
+        nickname=user.nickname,
+        title=user.title,
+        is_admin=user.is_admin,
+        is_active=user.is_active,
+        role=user.role,
+        is_beta_tester=user.is_beta_tester,
+        max_concurrent_tasks=user.max_concurrent_tasks,
+        active_task_count=active_task_count(db, user.id),
+        created_at=user.created_at,
+        photos=visible_user_photos(user, viewer),
+    )
+
+
 @app.get("/api/admin/users", response_model=list[AdminUserOut])
 def admin_users(manager: User = Depends(get_role_manager), db: Session = Depends(get_db)):
     expire_due_tasks(db)
@@ -3746,12 +3827,7 @@ def admin_users(manager: User = Depends(get_role_manager), db: Session = Depends
     if not manager.is_admin:
         query = query.where(User.is_admin.is_(False))
     users = db.scalars(query.options(joinedload(User.photos))).unique().all()
-    return [
-        AdminUserOut.model_validate(user).model_copy(
-            update={"active_task_count": active_task_count(db, user.id)}
-        )
-        for user in users
-    ]
+    return [present_admin_user(db, user, manager) for user in users]
 
 
 @app.get("/api/admin/photos", response_model=list[UserProfileOut])
@@ -3774,6 +3850,8 @@ def moderate_user_photo(
     photo.moderated_by_id = manager.id
     photo.moderated_at = datetime.utcnow()
     db.commit()
+    # 审核结果决定文件所在的区：通过则搬进公开区，屏蔽则搬回私有区。
+    place_media(photo.file_path, public=payload.is_visible)
     user = db.scalar(user_with_photos_query().where(User.id == photo.user_id))
     return present_moderation_profile(user, manager)
 
@@ -3818,6 +3896,8 @@ def moderate_sugar_photo(
     photo.moderated_by_id = manager.id
     photo.moderated_at = datetime.utcnow()
     db.commit()
+    # 审核结果决定文件所在的区：恢复则搬进公开区，屏蔽则搬回私有区。
+    place_media(photo.file_path, public=payload.is_visible)
     db.refresh(photo)
     return present_sugar_photo_admin(photo)
 
@@ -3862,6 +3942,8 @@ def moderate_friend_photo(
     photo.moderated_by_id = manager.id
     photo.moderated_at = datetime.utcnow()
     db.commit()
+    # 审核结果决定文件所在的区：恢复则搬进公开区，屏蔽则搬回私有区。
+    place_media(photo.file_path, public=payload.is_visible)
     db.refresh(photo)
     photo = db.scalar(
         select(FriendPhoto)
@@ -3875,7 +3957,7 @@ def moderate_friend_photo(
 def update_user_task_limit(
     user_id: int,
     payload: AdminUserLimitUpdate,
-    _: User = Depends(get_admin),
+    manager: User = Depends(get_admin),
     db: Session = Depends(get_db),
 ):
     user = db.get(User, user_id)
@@ -3884,16 +3966,14 @@ def update_user_task_limit(
     user.max_concurrent_tasks = payload.max_concurrent_tasks
     db.commit()
     db.refresh(user)
-    return AdminUserOut.model_validate(user).model_copy(
-        update={"active_task_count": active_task_count(db, user.id)}
-    )
+    return present_admin_user(db, user, manager)
 
 
 @app.patch("/api/admin/users/{user_id}/password", response_model=AdminUserOut)
 def reset_user_password(
     user_id: int,
     payload: AdminPasswordReset,
-    _: User = Depends(get_admin),
+    manager: User = Depends(get_admin),
     db: Session = Depends(get_db),
 ):
     user = db.get(User, user_id)
@@ -3904,9 +3984,7 @@ def reset_user_password(
     user.token_version = (user.token_version or 0) + 1
     db.commit()
     db.refresh(user)
-    return AdminUserOut.model_validate(user).model_copy(
-        update={"active_task_count": active_task_count(db, user.id)}
-    )
+    return present_admin_user(db, user, manager)
 
 
 @app.patch("/api/admin/users/{user_id}/role", response_model=AdminUserOut)
@@ -3930,9 +4008,7 @@ def update_user_role(
     user.role = payload.role
     db.commit()
     db.refresh(user)
-    return AdminUserOut.model_validate(user).model_copy(
-        update={"active_task_count": active_task_count(db, user.id)}
-    )
+    return present_admin_user(db, user, manager)
 
 
 @app.patch("/api/admin/users/{user_id}/title", response_model=AdminUserOut)
@@ -3942,25 +4018,24 @@ def update_user_title(
     manager: User = Depends(get_role_manager),
     db: Session = Depends(get_db),
 ):
-    """设置用户自定义称号；管理员只能设置非超级管理员账号的称号。"""
+    """设置用户自定义称号；管理员只能设置普通用户与志愿者的称号。"""
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="用户不存在")
-    if user.is_admin and not manager.is_admin:
-        raise HTTPException(status_code=403, detail="只有超级管理员可以设置管理员的称号")
+    protected_roles = (UserRole.STAFF, UserRole.MASCOT, UserRole.DISCIPLINARIAN)
+    if not manager.is_admin and (user.is_admin or user.role in protected_roles):
+        raise HTTPException(status_code=403, detail="只有超级管理员可以设置管理员、看板娘和风纪委员的称号")
     user.title = payload.title
     db.commit()
     db.refresh(user)
-    return AdminUserOut.model_validate(user).model_copy(
-        update={"active_task_count": active_task_count(db, user.id)}
-    )
+    return present_admin_user(db, user, manager)
 
 
 @app.patch("/api/admin/users/{user_id}/beta-tester", response_model=AdminUserOut)
 def update_user_beta_tester(
     user_id: int,
     payload: AdminUserBetaUpdate,
-    _: User = Depends(get_admin),
+    manager: User = Depends(get_admin),
     db: Session = Depends(get_db),
 ):
     user = db.get(User, user_id)
@@ -3969,9 +4044,7 @@ def update_user_beta_tester(
     user.is_beta_tester = payload.is_beta_tester
     db.commit()
     db.refresh(user)
-    return AdminUserOut.model_validate(user).model_copy(
-        update={"active_task_count": active_task_count(db, user.id)}
-    )
+    return present_admin_user(db, user, manager)
 
 
 @app.patch("/api/admin/tasks/{task_id}", response_model=TaskOut)

@@ -25,7 +25,14 @@ class Settings(BaseSettings):
     admin_password: str = INSECURE_DEFAULT_ADMIN_PASSWORD
     admin_nickname: str = "万事屋管理员"
     # 留空时跟随 SQLite 数据库所在目录，保证数据库与上传图片能一起通过 Docker 挂载持久化。
+    # 该目录是「公开区」：只有已过审的媒体才会放在这里，由 /uploads 静态托管。
     sugar_upload_dir: str = ""
+    # 待审/被屏蔽的媒体存放在这里（「私有区」）：不在任何静态挂载范围内，
+    # 只能凭 /api/media/{key}?exp=&sig= 的短时签名访问。留空时取上传目录同级的 private_media。
+    media_private_dir: str = ""
+    # 私有媒体签名 URL 的有效期（秒）。每次接口响应都会重新签发，因此可以设得较短：
+    # 越短则「审核驳回后旧链接失效」越快，过长会削弱撤回效果。
+    media_token_ttl_seconds: int = 6 * 60 * 60
     cors_origins: str = "http://localhost:5173,http://localhost:8080"
     # 反向代理后部署时（Docker/HTTPS 入口）设为 True，限流按真实客户端 IP 统计。
     behind_proxy: bool = False
@@ -63,6 +70,13 @@ class Settings(BaseSettings):
                 "未检测到有效的 SECRET_KEY，已为本次运行生成临时密钥。"
                 "所有登录会在重启后失效，请在 .env 中设置固定的 SECRET_KEY（openssl rand -hex 32）。"
             )
+        # 接口允许携带凭证（Authorization / 未来可能的 Cookie），通配来源等于让任意站点
+        # 带着访客的登录态调用本站接口，因此必须直接拒绝而不是静默生效。
+        if "*" in self.cors_origin_list:
+            raise RuntimeError(
+                "CORS_ORIGINS 不能包含 *：本站接口允许携带凭证，通配来源会让任意网站"
+                "以访客身份调用本站接口。请改为逐个列出真实来源，例如 https://example.com。"
+            )
 
     @property
     def admin_password_is_default(self) -> bool:
@@ -71,6 +85,16 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def safe_site_icp_url(self) -> str:
+        """页脚备案链接只接受 https，避免 .env 误配成 javascript: 等伪协议后被放进 href。"""
+        candidate = self.site_icp_url.strip()
+        if candidate.startswith("https://"):
+            return candidate
+        if candidate:
+            logger.warning("SITE_ICP_URL 必须是 https 地址，已回落到默认工信部备案查询地址：%s", candidate)
+        return "https://beian.miit.gov.cn/"
 
     def ensure_sqlite_directory(self) -> None:
         if self.database_url.startswith("sqlite:///"):
@@ -86,8 +110,16 @@ class Settings(BaseSettings):
             return database_path.parent / "uploads"
         return Path("./data/uploads")
 
+    @property
+    def media_private_path(self) -> Path:
+        """私有媒体目录：默认与公开上传目录同级，便于随数据目录一起挂载持久化。"""
+        if self.media_private_dir:
+            return Path(self.media_private_dir)
+        return self.sugar_upload_path.parent / "private_media"
+
     def ensure_storage_directory(self) -> None:
         self.sugar_upload_path.mkdir(parents=True, exist_ok=True)
+        self.media_private_path.mkdir(parents=True, exist_ok=True)
 
     def validate_storage_isolation(self) -> None:
         """防止把上传目录配成数据库目录，否则 wsw.db / backups 会被静态托管下载。"""
@@ -100,6 +132,37 @@ class Settings(BaseSettings):
                 "SUGAR_UPLOAD_DIR 不能指向数据库所在目录（或它的上级），"
                 "否则数据库与备份文件会通过 /uploads 被公开下载。请改为独立的子目录，例如 <data>/uploads。"
             )
+        private_path = self.media_private_path.resolve()
+        if private_path == db_path or private_path in db_path.parents:
+            raise RuntimeError(
+                "MEDIA_PRIVATE_DIR 不能指向数据库所在目录（或它的上级），"
+                "否则数据库与备份文件可能随媒体一起被读取。请改用独立的子目录，例如 <data>/private_media。"
+            )
+        # 私有区一旦落在公开上传目录之内，待审媒体又会通过 /uploads 直接可下载，
+        # 等于整套受控访问失效，因此必须在启动时拦住。
+        if private_path == upload_path or upload_path in private_path.parents:
+            raise RuntimeError(
+                "MEDIA_PRIVATE_DIR 不能位于 SUGAR_UPLOAD_DIR（公开上传目录）之内，"
+                "否则待审/被屏蔽的图片仍会被 /uploads 公开下载。请改用与上传目录同级的独立目录。"
+            )
+
+    def validate_directories_writable(self) -> None:
+        """启动自检：数据目录不可写时给出可执行的中文提示，而不是等 sqlite 抛出堆栈。"""
+        targets = [(self.sugar_upload_path, "上传目录"), (self.media_private_path, "私有媒体目录")]
+        if self.database_url.startswith("sqlite:///"):
+            targets.append((Path(self.database_url.removeprefix("sqlite:///")).parent, "数据库目录"))
+        for path, label in targets:
+            try:
+                path.mkdir(parents=True, exist_ok=True)
+                probe = path / ".yorozuya-write-test"
+                with probe.open("wb"):
+                    pass
+                probe.unlink(missing_ok=True)
+            except OSError as error:
+                raise RuntimeError(
+                    f"{label} {path} 不可写（{error}）。容器以非 root 用户运行时，"
+                    "请在宿主机执行一次 chown -R 10001:10001 <数据库所在目录> 后重启。"
+                ) from error
 
 
 settings = Settings()

@@ -135,6 +135,13 @@ TURNSTILE_SECRET_KEY=你的secret
 
    - 数据持久化：数据库通过绑定挂载保存在宿主机 `backend/data/wsw.db`，用户资料及砂糖社图片保存在同目录的 `backend/data/uploads/`
      （该目录已被 `.gitignore` 忽略）。详情见下方「数据存储与备份」；
+   - **后端容器以非 root 用户（UID 10001）运行**，因此首次部署（以及从旧版本升级）时需要在宿主机执行一次：
+
+     ```bash
+     chown -R 10001:10001 backend/data
+     ```
+
+     否则启动日志会提示「数据库目录不可写」。之后新增的上传文件由容器内该用户创建，无需再改权限；
    - 部署代码更新后，运行 `docker compose up -d --build` 重新生成静态文件和镜像；
    - 证书已存在时可直接用 `docker compose up -d --build` 启动或更新，无需再跑初始化脚本；
    - 前端入口不缓存，带内容哈希的 JS/CSS 长期缓存，更新部署后浏览器会加载新版本。
@@ -259,11 +266,24 @@ start.bat test
   因此即便手工改写本地缓存也无法让界面误认为自己拥有管理员权限（后端对每个接口独立鉴权）。
 - **拒绝越权字段**：请求模型启用 `extra="forbid"`，请求体夹带 `role`/`is_admin` 等额外字段会返回 422；
   `is_admin` 无法通过任何接口写入，只有超级管理员能通过 `PATCH /admin/users/{id}/role` 调整 `staff`/`mascot`/`disciplinarian`。
-- **上传与文件**：图片按文件头校验真实类型、由服务端生成 UUID 文件名，头像/实拍等需审核后才公开；
+- **上传与文件**：图片会先按文件头校验真实类型，再用 Pillow **真正解码**一次后重新编码：
+  按拍摄方向摆正、剥离 EXIF/GPS 等全部元数据、限制单张像素（约 25 MP，先看文件头再解码，挡下压缩炸弹）
+  与长边（2560 px）、动图只保留首帧；文件名由服务端生成 UUID。
   上传目录与数据库目录强制隔离，避免 `wsw.db` 与备份被静态托管下载。
-- **响应头**：Nginx 统一附加 `X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`。
+- **待审媒体受控访问**：媒体分两个区 —— 已过审的文件在公开区 `backend/data/uploads/`，由 `/uploads` 静态托管；
+  待审与被屏蔽的文件落在**公开目录之外**的 `backend/data/private_media/`，只能通过短时签名地址
+  `/api/media/<key>?exp=&sig=` 访问（`<img>` 带不了 Bearer 令牌，所以签名即访问控制，默认有效期 6 小时）。
+  审核通过时文件搬进公开区，驳回/屏蔽时搬回私有区，因此**撤回后旧公开地址立即失效**。
+  升级到本版本时后端会在启动阶段做一次对账，把历史遗留的"已屏蔽但仍在公开区"的文件搬进私有区。
+- **响应头**：Nginx 统一附加 `X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`，
+  并下发 `Content-Security-Policy`（`default-src 'self'`，仅额外放行 Cloudflare Turnstile）；
+  `/uploads/` 与 `/api/media/` 额外带 `default-src 'none'; sandbox`，使任何被直接打开的上传文件都无法作为页面执行。
 - **传输加密**：对外入口 `edge` 已内置 HTTPS（Let's Encrypt 自动续期）、HTTP 强制跳转与 HSTS，
   令牌与密码不再明文过网。部署时务必按上文配置 `DOMAIN` 与证书，不要绕过 `edge` 直接把前端/后端暴露到公网。
+- **运行面加固**：`backend` 容器以非 root（UID 10001）运行，根文件系统只读、`/tmp` 为内存盘、丢弃全部 Linux
+  capability 并禁止提权；`frontend`/`edge` 为只读根文件系统 + 内存临时目录（`edge` 的 `/etc/nginx/conf.d`
+  必须挂 tmpfs，entrypoint 要写入渲染后的配置）。开发覆盖文件 `docker-compose.dev.yml` 会显式取消只读，
+  仅用于本机且不可用于公网。
 - **生产建议**：务必在 `.env` 设置足够随机的 `SECRET_KEY` 与强 `ADMIN_PASSWORD`。
 
 ## 数据存储与备份

@@ -77,7 +77,10 @@ class LoginRequest(RequestModel):
 
 class UserPhotoOut(ApiModel):
     id: int
-    image_url: str
+    # 默认空串：万一有人把 ORM 的 UserPhoto 直接塞进来（from_attributes），
+    # 得到的只是空地址而不是可访问的真实 URL —— 泄露是 fail-closed 的。
+    # 真实地址一律由 visible_user_photos 按 is_visible 生成。
+    image_url: str = ""
     is_visible: bool = True
 
 
