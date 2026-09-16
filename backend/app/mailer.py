@@ -1,7 +1,7 @@
-"""邮件发送：Brevo SMTP 传输、中文模板与本地 OUTBOX。
+"""邮件发送：SMTP 传输（SSL/STARTTLS 可配）、中文模板与本地 OUTBOX。
 
-- 真实发信用标准库 ``smtplib``（587 + STARTTLS），经线程池执行，不阻塞事件循环，
-  也**不引入新依赖**（供应链更干净）。
+- 真实发信用标准库 ``smtplib``（默认 465 + SSL，可改为 587 + STARTTLS），经线程池执行，
+  不阻塞事件循环，也**不引入新依赖**（供应链更干净）。
 - ``EMAIL_DELIVERY=log``（或 pytest 运行中）不联网：邮件写入 ``OUTBOX`` 并打印到日志，
   本地开发无需配 SMTP，测试也能从中取出验证链接与验证码。
 - 邮件服务未配置或发送失败时抛 ``EmailNotConfigured`` / ``EmailDeliveryError``，
@@ -60,11 +60,21 @@ def mask_email(address: str | None) -> str:
 
 
 def _smtp_send(message: EmailMessage) -> None:
+    """按 SMTP_ENCRYPTION 选择连接方式：ssl=直接 TLS（465）；starttls=明文升级（587）；none=不加密。"""
     context = ssl.create_default_context()
-    with smtplib.SMTP(
-        settings.smtp_host, settings.smtp_port, timeout=settings.smtp_timeout_seconds
-    ) as client:
-        if settings.smtp_starttls:
+    if settings.smtp_encryption == "ssl":
+        client: smtplib.SMTP = smtplib.SMTP_SSL(
+            settings.smtp_host,
+            settings.smtp_port,
+            timeout=settings.smtp_timeout_seconds,
+            context=context,
+        )
+    else:
+        client = smtplib.SMTP(
+            settings.smtp_host, settings.smtp_port, timeout=settings.smtp_timeout_seconds
+        )
+    with client:
+        if settings.smtp_encryption == "starttls":
             client.starttls(context=context)
             client.ehlo()
         client.login(settings.smtp_username, settings.smtp_password)

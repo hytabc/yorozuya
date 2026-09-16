@@ -114,7 +114,23 @@ TURNSTILE_SECRET_KEY=你的secret
    同时确认该域名的 A/AAAA 记录已指向本机公网 IP，且云厂商安全组与主机防火墙已放行
    **80 与 443**（80 用于 ACME 挑战与跳转，不可关闭）。
 
-4. 首次申请证书并启动：
+4. 准备数据目录并授予容器用户写权限（**必须在首次启动前执行**，从旧版本升级时同样要执行一次）：
+
+   ```bash
+   mkdir -p backend/data
+   chown -R 10001:10001 backend/data
+   ```
+
+   `backend/data` 被绑定挂载为容器内的 `/data`，而后端容器以非 root 用户（UID 10001）运行。
+   跳过这一步容器会起不来并反复重启，日志里是：
+
+   ```
+   PermissionError: [Errno 13] Permission denied: '/data/private_media'
+   ```
+
+   之后新增的数据库、备份与上传文件都由该用户创建，无需再改权限。
+
+5. 首次申请证书并启动：
 
    ```bash
    ./deploy/init-letsencrypt.sh
@@ -133,15 +149,9 @@ TURNSTILE_SECRET_KEY=你的secret
 
    浏览器访问 `https://<你的域名>`（即 `.env` 里的 `DOMAIN`）。首次启动会自动创建 `.env` 中配置的管理员账号。
 
-   - 数据持久化：数据库通过绑定挂载保存在宿主机 `backend/data/wsw.db`，用户资料及砂糖社图片保存在同目录的 `backend/data/uploads/`
-     （该目录已被 `.gitignore` 忽略）。详情见下方「数据存储与备份」；
-   - **后端容器以非 root 用户（UID 10001）运行**，因此首次部署（以及从旧版本升级）时需要在宿主机执行一次：
-
-     ```bash
-     chown -R 10001:10001 backend/data
-     ```
-
-     否则启动日志会提示「数据库目录不可写」。之后新增的上传文件由容器内该用户创建，无需再改权限；
+   - 数据持久化：整个 `backend/data/` 绑定挂载到容器 `/data` —— 数据库 `wsw.db`、自动快照 `backups/`、
+     已过审的公开图片 `uploads/`、待审的私有图片 `private_media/` 都在其中（该目录已被 `.gitignore` 忽略）。
+     详情见下方「数据存储与备份」；
    - 部署代码更新后，运行 `docker compose up -d --build` 重新生成静态文件和镜像；
    - 证书已存在时可直接用 `docker compose up -d --build` 启动或更新，无需再跑初始化脚本；
    - 前端入口不缓存，带内容哈希的 JS/CSS 长期缓存，更新部署后浏览器会加载新版本。
@@ -289,7 +299,7 @@ start.bat test
 ## 邮箱验证与邮件通知
 
 本站用邮箱做账号体系的一部分：注册必须验证邮箱、存量账号登录后强制补充绑定、可以用邮箱找回密码与换绑邮箱，
-并且登录时还要再输入一次邮件验证码（二次验证）。邮件通过 **Brevo SMTP 中继** 发送。
+并且登录时还要再输入一次邮件验证码（二次验证）。邮件通过 **SMTP 服务商发送（示例配置为阿里云邮件推送）**。
 
 ### 功能一览
 
@@ -303,25 +313,28 @@ start.bat test
 | 事件通知 | 委托被接取/开始/完成/取消、委托被隐藏、反馈收到回复、志愿者与内测申请审核结果 |
 
 通知邮件只发给「已验证邮箱 + 未关闭通知开关」的账号，正文不含 QQ 等联系方式。
-公告类**不做群发**（会按用户数消耗 Brevo 配额且有滥用风险）。
+公告类**不做群发**（会按用户数消耗邮箱配额且有滥用风险）。
 
-### 配置（Brevo）
+### 配置（阿里云邮件推送示例）
 
-1. 在 Brevo 后台 → **SMTP & API → SMTP** 获取登录账号（形如 `xxxx@smtp-brevo.com`）并生成 SMTP key。
-2. 在 Brevo 后台 → **Senders 验证一个发件地址**（或验证你的域名）。
-   ⚠️ `EMAIL_FROM_ADDRESS` 必须是**已验证的发件地址**，否则中继会返回 554/550 拒收。
+1. 阿里云控制台 → **邮件推送 → 发信域名**：添加你的发信域名（如 `mail.example.com`），按其提示配置 DNS（TXT 所有权验证 + SPF）。
+2. **发信地址**：创建发信地址（如 `no-reply@mail.example.com`，类型选**触发邮件**），并设置该地址的 **SMTP 密码**。
 3. 把凭据写进根目录 `.env`（**该文件已被 `.gitignore` 忽略，密钥绝不要写进任何入库文件**）：
 
    ```bash
    EMAIL_DELIVERY=smtp
-   SMTP_HOST=smtp-relay.brevo.com
-   SMTP_PORT=587
-   SMTP_USERNAME=xxxx@smtp-brevo.com
-   SMTP_PASSWORD=你的-SMTP-key
-   EMAIL_FROM_ADDRESS=no-reply@你的域名
+   SMTP_HOST=smtpdm.aliyun.com
+   SMTP_PORT=465
+   SMTP_ENCRYPTION=ssl          # 465 用 ssl；若改用 80/25 端口则设为 starttls 或 none
+   SMTP_USERNAME=no-reply@mail.example.com   # 阿里云的用户名就是发信地址
+   SMTP_PASSWORD=你的-SMTP密码
+   EMAIL_FROM_ADDRESS=no-reply@mail.example.com
    EMAIL_FROM_NAME=万事屋委托站
    SITE_BASE_URL=https://你的域名   # 邮件里链接的前缀，建议显式填写
    ```
+
+   `SMTP_ENCRYPTION` 可选 `ssl`（465，直接 TLS）/ `starttls`（80/25，先明文再升级）/ `none`（不加密）。
+   阿里云 ECS 默认封禁 25 端口：**不加密用 80，加密用 465**。
 
 4. `docker compose up -d --build` 重启后端使配置生效。
 
@@ -341,7 +354,7 @@ start.bat test
 
 ### ⚠️ 被锁住时的救援步骤
 
-邮件服务出问题时（密钥失效、Brevo 拒收发件地址、配额用尽），会影响注册、验证、找回密码与登录验证码。
+邮件服务出问题时（授权码失效、发件地址被拒收、配额用尽），会影响注册、验证、找回密码与登录验证码。
 **超级管理员（`is_admin`）不受验证闸门限制**，可在后台处理日常事务；若连登录验证码都收不到，按下面顺序恢复：
 
 1. 在 `.env` 里把 `LOGIN_CODE_REQUIRED=false`（先能登录）→ `docker compose up -d` 重启后端；

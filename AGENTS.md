@@ -35,7 +35,7 @@ backend/app/
   backup.py      # 数据库自动快照，保留最近 db_backup_keep 份
   media.py       # 媒体分区（公开区 /uploads + 私有区 private_media）与短时签名 URL
   images.py      # 上传图片净化：解码校验、像素上限、剥 EXIF、统一静态重编码
-  mailer.py      # 邮件发送（Brevo SMTP / 本地 OUTBOX）+ 中文邮件模板
+  mailer.py      # 邮件发送（SMTP：465 SSL / 80 STARTTLS 可配，现用阿里云邮件推送；本地 OUTBOX）+ 中文邮件模板
   email_flow.py  # 邮箱令牌发放/消费、邮件链接、发信冷却与 fail-closed 投递
   virtual_life*.py # 虚拟人生（/life）存档与内容包
   sugar_frost.py # 糖霜世界（/frost）存档：GET/PUT /api/sugar-frost/save，per-user 乐观锁
@@ -120,6 +120,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
   - **新增上传/审核/删除路径必须走上面四个 helper**，不要手写 `settings.sugar_upload_path / path` 或 `unlink()`，否则会绕过分区与撤回语义。测试断言待审文件时用 `tmp_path / "private_media"`。
   - 启动对账 `sync_media_zones()`（`lifespan` 内，pytest 下跳过）把历史遗留的"已屏蔽但仍在公开区"文件搬进私有区。
   - `config.validate_storage_isolation()` 会拒绝把私有区放进公开区之内（否则等于没隔离），`validate_directories_writable()` 在启动时给出可执行的中文提示。
+  - ⚠️ **建目录（`ensure_sqlite_directory` / `ensure_storage_directory`）发生在导入 `database.py` 时，早于 `initialize_database()` 的自检**，所以它们自己也必须抛同一份中文提示（`_unwritable_error()`）。只靠 `validate_directories_writable()` 兜底是无效的 —— 目录不可写时进程在导入阶段就崩了，运维只能看到裸的 `PermissionError` 堆栈（2026-09 已修）。
 - **图片净化**（`backend/app/images.py`，2026-09）：所有上传入口（头像/资料图/砂糖/交友/故事/地图/life 素材/NPC 导入）都必须经 `normalize_image()` —— 魔数白名单 → 先读文件头判像素（`MAX_IMAGE_PIXELS` 25MP，挡压缩炸弹）→ `exif_transpose` 摆正 → 剥全部元数据（不传 exif/icc_profile）→ 长边 `MAX_IMAGE_EDGE` 2560 等比缩小 → 有 alpha 出 PNG，否则出 JPEG；动图只取首帧。**因此测试里不能再传"魔数 + 填充"的假图片**，用 `test_api.py` 的 `make_png()/make_jpeg()`。
 - **⚠️ 不要给 ORM 模型加 `avatar_url` / `image_url` 属性**（`models.py` 已刻意移除）：`UserPublic`/`UserPhotoOut` 用 `from_attributes` 序列化，一旦 ORM 上有同名属性，任何"直接塞 ORM 对象进响应模型"的端点都会绕过 `avatar_visible`/`is_visible` 泄露未过审媒体地址（2026-09 已修 `present_sugar_profile`/`present_sugar_pair`/`present_feedback`）。新增相关端点必须走 `present_user_public()` / `visible_user_photos()` / `present_user_self()` / `present_admin_user()`。
 - **邮箱验证**（`backend/app/mailer.py` + `email_flow.py`，2026-09）：

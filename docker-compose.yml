@@ -24,16 +24,16 @@ services:
       # 页脚备案信息：留空则前端不展示（真实值只放 .env，不入库）。
       SITE_ICP: ${SITE_ICP:-}
       SITE_ICP_URL: ${SITE_ICP_URL:-https://beian.miit.gov.cn/}
-      # ── 邮箱验证与邮件通知（Brevo SMTP）──
+      # ── 邮箱验证与邮件通知（SMTP，示例为阿里云邮件推送）──
       # ⚠️ 真实凭据只写在根目录 .env（已 gitignore），这里仅做透传，仓库里不出现任何密钥。
-      # SMTP_PASSWORD 请在 Brevo 后台轮换后填入 .env。
       EMAIL_DELIVERY: ${EMAIL_DELIVERY:-smtp}
-      SMTP_HOST: ${SMTP_HOST:-smtp-relay.brevo.com}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      SMTP_HOST: ${SMTP_HOST:-smtpdm.aliyun.com}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      # 加密方式：ssl（465，阿里云推荐）/ starttls（80/25，显式加密）/ none。
+      SMTP_ENCRYPTION: ${SMTP_ENCRYPTION:-ssl}
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      # 发件地址必须是 Brevo 账号里已验证的 Sender，否则中继拒收。
+      # 必须是服务商已验证的发信地址，否则被拒收。
       EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-万事屋委托站}
       # 邮件链接前缀（如 https://example.com）；留空则按请求 Host 推导。
