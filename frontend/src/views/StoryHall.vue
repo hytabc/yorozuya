@@ -2,6 +2,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { BookOpen, MessageCircle, PenLine, Plus, UserRound, X } from 'lucide-vue-next'
 import { api, errorMessage, imageUploadErrorMessage } from '../api'
+import { track } from '../analytics'
 import { useToast } from '../composables/toast'
 import UserAvatar from '../components/UserAvatar.vue'
 import UserTitleTag from '../components/UserTitleTag.vue'
@@ -36,6 +37,11 @@ function create() {
   showCreate.value = true
 }
 
+function openStory(story) {
+  selected.value = story
+  track('story.open_detail')
+}
+
 async function submitCreate() {
   if (!form.title.trim()) return toast.error('请填写故事标题')
   if (form.content.trim().length < 10) return toast.error('故事正文请至少填写 10 个字符')
@@ -57,6 +63,7 @@ async function submitCreate() {
     form.is_anonymous = false
     createPhotos.value = []
     toast.success(hasPhotos ? '故事已发布，配图将在审核通过后公开' : '故事已发布')
+    track('story.create')
     await load()
   } catch (err) {
     toast.error(imageUploadErrorMessage(err))
@@ -88,7 +95,7 @@ onMounted(load)
     <div v-else-if="error" class="stories-empty error-notice">{{ error }}</div>
     <div v-else-if="!stories.length" class="stories-empty"><BookOpen :size="26" /><strong>还没有故事</strong><span>第一篇故事由你来写。</span></div>
     <div v-else class="stories-grid">
-      <button v-for="story in stories" :key="story.id" class="story-card" type="button" @click="selected = story">
+      <button v-for="story in stories" :key="story.id" class="story-card" type="button" @click="openStory(story)">
         <figure class="story-cover">
           <LazyImage v-if="story.cover_url" :src="story.cover_url" :alt="`${story.title} 的配图`" />
           <span v-else class="story-cover-fallback"><BookOpen :size="26" /></span>

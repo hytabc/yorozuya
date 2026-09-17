@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { BookOpen, EyeOff, MessageCircle, Send, Trash2, UserRound, X } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
+import { track } from '../analytics'
 import { useToast } from '../composables/toast'
 import UserAvatar from './UserAvatar.vue'
 import UserTitleTag from './UserTitleTag.vue'
@@ -46,6 +47,7 @@ async function submitComment() {
     const { data } = await api.post(`/stories/${props.storyId}/comments`, { content })
     story.value = data
     commentDraft.value = ''
+    track('story.comment')
   } catch (err) {
     toast.error(errorMessage(err))
   } finally {
@@ -73,6 +75,7 @@ async function deleteStory() {
   try {
     await api.delete(`/stories/${props.storyId}`)
     toast.success('故事已删除')
+    track('story.delete')
     emit('deleted', props.storyId)
   } catch (err) {
     toast.error(errorMessage(err))

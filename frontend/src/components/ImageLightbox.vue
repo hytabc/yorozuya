@@ -37,6 +37,7 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { track } from '../analytics'
 
 const emit = defineEmits(['close'])
 
@@ -159,6 +160,7 @@ onMounted(() => {
   previousOverflow = document.body.style.overflow
   document.body.style.overflow = 'hidden'
   document.addEventListener('keydown', handleKeydown)
+  track('lightbox.open')
 })
 
 onUnmounted(() => {

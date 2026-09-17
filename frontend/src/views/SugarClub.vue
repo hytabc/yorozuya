@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { Camera, Crown, HeartHandshake, ImagePlus, EyeOff, MessageCircle, Pencil, Save, Trash2, X } from 'lucide-vue-next'
 import { api, errorMessage, imageUploadErrorMessage } from '../api'
+import { track } from '../analytics'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import UserTitleTag from '../components/UserTitleTag.vue'
@@ -115,6 +116,7 @@ async function saveProfile() {
     editorOpen.value = false
     await load()
     toast.success('砂糖社档案已保存')
+    track('sugar.save_profile')
   } catch (error) {
     toast.error(pendingPhotos.value.length ? imageUploadErrorMessage(error) : errorMessage(error))
   } finally {
@@ -147,6 +149,7 @@ async function deleteProfile() {
 async function openDetail(userId) {
   detail.value = null
   detailLoading.value = true
+  track('sugar.open_profile')
   try {
     detail.value = (await api.get(`/sugar/profiles/${userId}`)).data
   } catch (error) {
@@ -161,6 +164,7 @@ async function confirmPair() {
   try {
     const { data } = await api.post(`/sugar/pairs/${detail.value.user.id}/confirm`)
     toast.success(data.status === 'active' ? '已登记为砂糖' : '已等待对方确认')
+    track('sugar.confirm')
     await load()
     detail.value = (await api.get(`/sugar/profiles/${detail.value.user.id}`)).data
   } catch (error) {
@@ -175,6 +179,7 @@ async function endPair(pair) {
     detail.value = null
     await load()
     toast.success('砂糖关系已结束')
+    track('sugar.end')
   } catch (error) {
     toast.error(errorMessage(error))
   }

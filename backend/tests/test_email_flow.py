@@ -1,6 +1,6 @@
 """邮箱验证与邮件相关流程的回归测试。
 
-覆盖：注册必须验证、邮箱登录、登录邮箱二次验证码、邮件找回密码、换绑邮箱、
+覆盖：注册必须验证、邮箱登录、邮件找回密码、换绑邮箱、
 未验证闸门与超管豁免、邮件服务不可用时的 fail-closed、以及令牌只以哈希入库。
 """
 
@@ -37,9 +37,8 @@ def setup_function():
     app.dependency_overrides[get_db] = override_db
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
-    # 本地信箱 + 关掉冷却，让用例能连续发信；登录二次验证默认关闭，需要的用例自行打开。
+    # 本地信箱 + 关掉冷却，让用例能连续发信。
     settings.email_delivery = "log"
-    settings.login_code_required = False
     settings.email_send_cooldown_seconds = 0
     settings.require_email_verification = True
     settings.smtp_username = "smtp-user"
@@ -65,14 +64,6 @@ def token_from(address: str) -> str:
     match = re.search(r"[?&]token=([^&\s]+)", found[-1]["text"])
     assert match, f"邮件正文里没有链接：{found[-1]['text']}"
     return unquote(match.group(1))
-
-
-def code_from(address: str) -> str:
-    found = mails_to(address)
-    assert found, f"没有寄给 {address} 的邮件"
-    match = re.search(r"验证码是：\s*(\d{6})", found[-1]["text"])
-    assert match, f"邮件正文里没有验证码：{found[-1]['text']}"
-    return match.group(1)
 
 
 def register(client, username, email=None, password="Password123!"):
@@ -153,66 +144,7 @@ def test_verification_token_is_single_use():
         assert client.post("/api/auth/email/confirm", json={"token": "not-a-real-token"}).status_code == 422
 
 
-# ---- 2. 登录邮箱二次验证 ----
-
-
-def test_login_email_code_two_step_flow():
-    with TestClient(app) as client:
-        address = register(client, "code_user")
-        verify(client, address)
-        settings.login_code_required = True
-
-        step_one = login(client, "code_user")
-        assert step_one.status_code == 200, step_one.text
-        payload = step_one.json()
-        assert payload["email_code_required"] is True
-        assert "access_token" not in payload
-        assert payload["email_masked"].startswith("co***@")
-        challenge_id = payload["challenge_id"]
-
-        # 错码不计入成功，但会消耗尝试次数
-        wrong = client.post(
-            "/api/auth/login/email-code",
-            json={"challenge_id": challenge_id, "code": "000000"},
-        )
-        assert wrong.status_code == 422
-
-        code = code_from(address)
-        ok = client.post(
-            "/api/auth/login/email-code",
-            json={"challenge_id": challenge_id, "code": code, "remember": True},
-        )
-        assert ok.status_code == 200, ok.text
-        assert ok.json()["access_token"]
-        assert ok.json()["remember"] is True
-
-        # 验证码一次性：同一个挑战不能用第二次
-        assert client.post(
-            "/api/auth/login/email-code",
-            json={"challenge_id": challenge_id, "code": code},
-        ).status_code == 422
-
-
-def test_login_email_code_locks_after_five_wrong_attempts():
-    with TestClient(app) as client:
-        address = register(client, "lock_user")
-        verify(client, address)
-        settings.login_code_required = True
-
-        challenge_id = login(client, "lock_user").json()["challenge_id"]
-        for _ in range(5):
-            assert client.post(
-                "/api/auth/login/email-code",
-                json={"challenge_id": challenge_id, "code": "111111"},
-            ).status_code == 422
-        # 超过尝试上限后，即使输入正确验证码也作废
-        assert client.post(
-            "/api/auth/login/email-code",
-            json={"challenge_id": challenge_id, "code": code_from(address)},
-        ).status_code == 422
-
-
-# ---- 3. 邮件找回密码 ----
+# ---- 2. 邮件找回密码 ----
 
 
 def test_password_reset_request_does_not_leak_account_existence():
@@ -407,19 +339,6 @@ def test_registration_fails_closed_when_mail_service_unavailable(monkeypatch):
         with TestingSession() as db:
             assert db.scalar(select(User).where(User.username == "no_mail_user")) is None
             assert db.scalars(select(EmailToken)).all() == []
-
-
-def test_login_code_fails_closed_when_mail_service_unavailable(monkeypatch):
-    with TestClient(app) as client:
-        address = register(client, "code_fail_user")
-        verify(client, address)
-        settings.login_code_required = True
-
-        monkeypatch.setattr(mailer, "delivery_is_local", lambda: False)
-        monkeypatch.setattr(settings, "smtp_password", "")
-
-        # 验证码发不出去时不能放行登录（否则用户会卡在没有验证码的第二步）
-        assert login(client, "code_fail_user").status_code == 503
 
 
 # ---- 7. 通知开关 ----

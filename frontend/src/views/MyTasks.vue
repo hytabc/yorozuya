@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ClipboardList, Plus } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
+import { track } from '../analytics'
 import { useToast } from '../composables/toast'
 import { useAuthStore } from '../stores/auth'
 import TaskCard from '../components/TaskCard.vue'
@@ -54,7 +55,21 @@ async function action(key, payload = {}) {
       password: '接取密码已更新，请把新密码告知接单人',
     }
     toast.success(messages[key])
+    const trackedEvents = {
+      accept: 'task.accept',
+      leave: 'task.leave',
+      start: 'task.start',
+      confirm: 'task.confirm',
+      cancel: 'task.cancel',
+      'confirm-cancel': 'task.cancel_confirm',
+      password: 'task.password',
+    }
+    if (trackedEvents[key]) track(trackedEvents[key])
   } catch (error) { toast.error(errorMessage(error)) } finally { busy.value = false }
+}
+function openTask(task) {
+  selected.value = task
+  track('task.open_detail')
 }
 function created(task) { showCreate.value = false; tasks.value.unshift(task) }
 function attention(task) {
@@ -74,7 +89,7 @@ onMounted(load)
     <div class="page-title"><div><span class="eyebrow">MY REQUESTS</span><h1>我的委托</h1><p>跟进正在进行的协作与过往记录。</p></div><button class="button" @click="showCreate = true"><Plus :size="18" />发布委托</button></div>
     <div class="tabs" role="tablist"><button v-for="item in tabs" :key="item.value" :class="{ active: tab === item.value }" @click="tab = item.value">{{ item.label }}<span>{{ item.value === 'active' ? tasks.filter(t => activeStatuses.includes(t.status)).length : '' }}</span></button></div>
     <div v-if="loading" class="task-grid"><div v-for="i in 3" :key="i" class="task-card skeleton" /></div>
-    <div v-else-if="filtered.length" class="task-grid"><TaskCard v-for="task in filtered" :key="task.id" :task="task" show-role :hint="attention(task)" @select="selected = $event" /></div>
+    <div v-else-if="filtered.length" class="task-grid"><TaskCard v-for="task in filtered" :key="task.id" :task="task" show-role :hint="attention(task)" @select="openTask" /></div>
     <div v-else class="empty-state"><ClipboardList :size="34" /><h3>这里还没有委托</h3><p>切换其他分类查看，或去大厅联系接取委托。</p><RouterLink class="button secondary" to="/">浏览委托大厅</RouterLink></div>
     <CreateTaskDialog v-if="showCreate" @close="showCreate = false" @created="created" />
     <TaskDialog v-if="selected" :task="selected" :busy="busy" @close="selected = null" @action="action" />

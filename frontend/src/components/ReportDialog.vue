@@ -2,6 +2,7 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { Flag, X } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
+import { track } from '../analytics'
 import { useToast } from '../composables/toast'
 
 const props = defineProps({ task: { type: Object, required: true } })
@@ -16,6 +17,7 @@ async function submit() {
   try {
     await api.post(`/tasks/${props.task.id}/report`, { reason: reason.value.trim() })
     toast.success('举报已提交，管理员会尽快处理')
+    track('task.report')
     emit('reported')
     emit('close')
   } catch (error) {

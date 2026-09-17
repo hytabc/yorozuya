@@ -27,20 +27,17 @@ from .database import Base, SessionLocal, engine, get_db
 from .email_flow import (
     CHANGE_EMAIL,
     EMAIL_TAKEN_DETAIL,
-    INVALID_CODE_DETAIL,
     INVALID_TOKEN_DETAIL,
     RESET_PASSWORD,
     VERIFY_EMAIL,
     base_url,
     cooldown_remaining,
     consume_link_token,
-    consume_login_code,
     deliver,
     email_taken,
     find_account,
     hash_link_token,
     issue_link_token,
-    issue_login_code,
     notification_target,
     notify_address,
     reset_link,
@@ -50,7 +47,6 @@ from .images import AVATAR_SIGNATURES, normalize_image
 from .mailer import (
     change_email_message,
     email_changed_notice,
-    login_code_message,
     mask_email,
     new_email_pending_notice,
     password_changed_notice,
@@ -62,6 +58,7 @@ from .media import delete_media, media_url, place_media, storage_file, verify_me
 from .ratelimit import client_ip, enforce
 from .dependencies import email_gate_required, get_admin, get_authenticated_user, get_beta_application_manager, get_content_moderator, get_current_user, get_operations_manager, get_optional_user, get_role_manager
 from .models import (
+    AnalyticsEvent,
     AppSetting,
     ApplicationStatus,
     Announcement,
@@ -104,12 +101,11 @@ from .schemas import (
     AccountRequest,
     ActionAckOut,
     EmailChangeRequest,
-    EmailCodeChallengeOut,
-    EmailCodeLoginRequest,
     EmailVerifyRequest,
     NotifyEmailUpdate,
     PasswordResetConfirm,
     RegisterPendingOut,
+    AnalyticsEventCreate,
     AnalyticsOut,
     AnnouncementOut,
     AnnouncementWrite,
@@ -138,6 +134,8 @@ from .schemas import (
     PasswordUpdate,
     PageMetric,
     PageViewCreate,
+    EventMetric,
+    OperationsSummary,
     DailyMetric,
     ReportCreate,
     ReportLimitOut,
@@ -509,6 +507,7 @@ PAGE_LABELS = {
     "board": "留言板",
     "maps": "地图推荐",
     "friends": "交友厅",
+    "stories": "故事会",
     "versions": "版本更新",
     "sugar": "砂糖社",
     "announcements": "公告中心",
@@ -516,6 +515,61 @@ PAGE_LABELS = {
     "profile": "个人设置",
     "login": "登录注册",
     "frost": "糖霜世界",
+    "operations": "运营台",
+    "admin": "监管台",
+    "life": "虚拟人生",
+    "life-admin": "人生内容管理",
+    "verify-email": "邮箱验证",
+    "forgot-password": "找回密码",
+    "reset-password": "重置密码",
+}
+
+# 关键行为事件白名单：前端 track() 的 event_key 必须在这里，未知事件不入库（防脏数据）。
+EVENT_LABELS = {
+    "auth.login": "登录",
+    "auth.register": "注册",
+    "task.open_detail": "打开委托详情",
+    "task.accept": "接取委托",
+    "task.leave": "退出/拒绝委托",
+    "task.start": "开始委托",
+    "task.confirm": "确认完成委托",
+    "task.cancel": "发起取消委托",
+    "task.cancel_confirm": "同意取消委托",
+    "task.password": "设置接取密码",
+    "task.create": "发布委托",
+    "task.report": "举报委托",
+    "feedback.submit": "提交反馈",
+    "board.post": "发表留言",
+    "board.comment": "留言评论",
+    "board.delete": "删除留言/评论",
+    "map.create": "推荐地图",
+    "map.open_detail": "查看地图详情",
+    "map.like": "点赞地图",
+    "map.report": "举报地图",
+    "map.upload_photo": "上传地图实拍",
+    "story.create": "发布故事",
+    "story.open_detail": "阅读故事",
+    "story.comment": "故事评论",
+    "story.delete": "删除故事",
+    "sugar.save_profile": "保存砂糖社档案",
+    "sugar.open_profile": "查看砂糖社档案",
+    "sugar.confirm": "确认结为砂糖",
+    "sugar.end": "结束砂糖关系",
+    "friend.save_profile": "保存交友资料",
+    "friend.open_profile": "查看交友资料",
+    "friend.apply": "发送好友申请",
+    "friend.accept": "同意好友申请",
+    "friend.reject": "拒绝好友申请",
+    "profile.save": "更新个人资料",
+    "profile.email_bind": "绑定/换绑邮箱",
+    "staff.apply_volunteer": "申请志愿者",
+    "announcement.confirm": "确认首页公告",
+    "mascot.open": "打开看板娘",
+    "mascot.send": "与看板娘对话",
+    "lightbox.open": "放大查看图片",
+    "frost.enter_level": "进入糖霜关卡",
+    "frost.level_submit": "提交糖霜关卡解答",
+    "life.start": "开始虚拟人生",
 }
 
 
@@ -1558,7 +1612,7 @@ async def confirm_email_token(
     return ActionAckOut()
 
 
-@app.post("/api/auth/login", response_model=TokenResponse | EmailCodeChallengeOut)
+@app.post("/api/auth/login", response_model=TokenResponse)
 async def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
     # 按来源 IP 与账号双维度限流，抵御暴力破解与撞库。
     enforce("login-ip", client_ip(request), 30, 300)
@@ -1575,17 +1629,6 @@ async def login(payload: LoginRequest, request: Request, db: Session = Depends(g
     # （存量账号没有邮箱，可以登录，但会被邮箱验证闸门限制到只剩「绑定邮箱」。）
     if user.email and not user.email_verified:
         raise HTTPException(status_code=403, detail="邮箱尚未验证，请先点击验证邮件里的链接")
-    if settings.login_code_required and user.email and user.email_verified:
-        challenge_id, code = issue_login_code(db, user, ttl_minutes=settings.login_code_ttl_minutes)
-        subject, text, html_body = login_code_message(code, ttl_minutes=settings.login_code_ttl_minutes)
-        # fail-closed：验证码发不出去就不放行，否则用户会卡在没有验证码的第二步。
-        await deliver(user.email, subject, text, html_body)
-        db.commit()
-        return EmailCodeChallengeOut(
-            challenge_id=challenge_id,
-            email_masked=mask_email(user.email),
-            expires_in=settings.login_code_ttl_minutes * 60,
-        )
     return issue_login_response(user, payload.remember)
 
 
@@ -1595,21 +1638,6 @@ def issue_login_response(user: User, remember: bool) -> TokenResponse:
         user=present_user_self(user),
         remember=remember,
     )
-
-
-@app.post("/api/auth/login/email-code", response_model=TokenResponse)
-async def login_with_email_code(payload: EmailCodeLoginRequest, request: Request, db: Session = Depends(get_db)):
-    """登录第二步：提交邮箱验证码换取登录令牌。"""
-    enforce("login-code", client_ip(request), 30, 600)
-    challenge = db.get(EmailToken, payload.challenge_id)
-    if challenge is None:
-        raise HTTPException(status_code=422, detail=INVALID_CODE_DETAIL)
-    user = db.get(User, challenge.user_id)
-    if user is None or not user.is_active:
-        raise HTTPException(status_code=401, detail="账号不可用")
-    consume_login_code(db, user, payload.challenge_id, payload.code)
-    db.commit()
-    return issue_login_response(user, payload.remember)
 
 
 @app.post("/api/auth/password-reset/request", response_model=ActionAckOut)
@@ -4041,13 +4069,41 @@ def track_page_view(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@app.post("/api/analytics/event", status_code=status.HTTP_204_NO_CONTENT)
+def track_event(
+    payload: AnalyticsEventCreate,
+    request: Request,
+    viewer: User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    """记录关键行为事件；未知 event_key 直接忽略，避免脏数据污染统计。"""
+    enforce("analytics-event-ip", client_ip(request), 240, 60)
+    if payload.event_key not in EVENT_LABELS:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    visitor_key = f"user:{viewer.id}" if viewer else f"anon:{sha256(payload.session_id.encode()).hexdigest()}"
+    now = datetime.utcnow()
+    skip_next_snapshot(db)
+    db.add(
+        AnalyticsEvent(
+            event_key=payload.event_key,
+            page_key=payload.page_key,
+            visitor_key=visitor_key,
+            user_id=viewer.id if viewer else None,
+            created_at=now,
+        )
+    )
+    db.execute(delete(AnalyticsEvent).where(AnalyticsEvent.created_at < now - timedelta(days=180)))
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @app.get("/api/operations/analytics", response_model=AnalyticsOut)
 def operations_analytics(
     days: int = Query(default=7, ge=1, le=90),
-    _: User = Depends(get_operations_manager),
+    _: User = Depends(get_role_manager),
     db: Session = Depends(get_db),
 ):
-    """按北京时间统计页面浏览量和去重访客，不暴露任何访客明细。"""
+    """按北京时间统计页面浏览量、去重访客与关键行为事件，不暴露任何访客明细。"""
     utc_now = datetime.utcnow()
     local_today = (utc_now + timedelta(hours=8)).date()
     first_day = local_today - timedelta(days=days - 1)
@@ -4075,6 +4131,26 @@ def operations_analytics(
         daily_buckets[local_day]["visitors"].add(event.visitor_key)
         all_visitors.add(event.visitor_key)
 
+    event_counts: dict[tuple[str | None, str], int] = {}
+    for row in db.scalars(
+        select(AnalyticsEvent).where(
+            AnalyticsEvent.created_at >= range_start, AnalyticsEvent.created_at < range_end
+        )
+    ).all():
+        key = (row.page_key, row.event_key)
+        event_counts[key] = event_counts.get(key, 0) + 1
+    event_metrics = [
+        EventMetric(
+            event_key=event_key,
+            label=EVENT_LABELS.get(event_key, event_key),
+            page_key=page_key,
+            page_label=PAGE_LABELS.get(page_key) if page_key else None,
+            count=count,
+        )
+        for (page_key, event_key), count in event_counts.items()
+    ]
+    event_metrics.sort(key=lambda item: (-item.count, item.label))
+
     pages = [
         PageMetric(
             page_key=key,
@@ -4098,6 +4174,14 @@ def operations_analytics(
         today_visitors=len(today_bucket["visitors"]),
         pages=pages,
         daily=daily,
+        events=event_metrics,
+    )
+
+
+@app.get("/api/operations/summary", response_model=OperationsSummary)
+def operations_summary(_: User = Depends(get_beta_application_manager), db: Session = Depends(get_db)):
+    """运营台轻量汇总：给「内测申请」标签提供待处理角标（看板娘也可以读）。"""
+    return OperationsSummary(
         pending_beta_applications=(
             db.scalar(
                 select(func.count())

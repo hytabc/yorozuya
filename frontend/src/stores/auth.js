@@ -24,7 +24,8 @@ export const useAuthStore = defineStore('auth', () => {
   const role = computed(() => (verified.value ? user.value?.role ?? null : null))
   const canModerate = computed(() => isAdmin.value || isStaff.value || isDisciplinarian.value)
   const canManageRoles = computed(() => isAdmin.value || isStaff.value)
-  const canOperate = computed(() => isAdmin.value || isMascot.value)
+  // 运营台入口：看板娘管公告/内测、管理员组看数据看板与内测，超管全部可见。
+  const canOperate = computed(() => isAdmin.value || isMascot.value || isStaff.value)
   const isBetaTester = computed(() => verified.value && Boolean(user.value?.is_beta_tester))
   // 邮箱验证状态：只有服务端确认过身份（verified）后才可信。
   // emailGateRequired 由后端下发（它知道 require_email_verification 策略），前端不自作判断。
@@ -68,19 +69,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(credentials) {
     const { data } = await api.post('/auth/login', credentials)
-    // 两步登录：服务端可能返回「邮箱验证码」挑战，此时还没有登录态。
-    if (data.email_code_required) return data
-    await persist(data)
-    return null
-  }
-
-  // 登录第二步：提交邮箱验证码换取令牌。
-  async function loginWithEmailCode({ challengeId, code, remember }) {
-    const { data } = await api.post('/auth/login/email-code', {
-      challenge_id: challengeId,
-      code,
-      remember,
-    })
     await persist(data)
   }
 
@@ -133,5 +121,5 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   window.addEventListener('auth-expired', logout)
-  return { token, user, verified, ready, isLoggedIn, isAdmin, isStaff, isMascot, isDisciplinarian, role, canModerate, canManageRoles, canOperate, isBetaTester, emailVerified, emailGateRequired, canPlayLife, login, loginWithEmailCode, register, restore, updateUser, logout, hydrate }
+  return { token, user, verified, ready, isLoggedIn, isAdmin, isStaff, isMascot, isDisciplinarian, role, canModerate, canManageRoles, canOperate, isBetaTester, emailVerified, emailGateRequired, canPlayLife, login, register, restore, updateUser, logout, hydrate }
 })

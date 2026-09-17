@@ -59,8 +59,8 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 ## 领域模型速查（models.py）
 
 - `User`：`role`（枚举值 `'user'|'volunteer'|'staff'|'mascot'`，SqlEnum 存字符串）+ `is_admin`（独立的更高级监管账号）+ `qq_public` + `max_concurrent_tasks`（并发接单上限）+ `title`（自定义称号，超管/管理员设置，纯展示）+ **邮箱四件套**：`email`（小写存储、唯一索引）、`email_verified`、`pending_email`（换绑待确认）、`notify_email`（事件通知开关）。新增列需在 `migrate_schema()` 补 ALTER（唯一索引单独 `CREATE UNIQUE INDEX`）。
-- `EmailToken`：一次性邮箱令牌（`verify_email` / `change_email` / `reset_password` / `login_code`）。**只存 `sha256`**：链接令牌存 `sha256(secret)` 便于按索引定位，6 位登录验证码另加随机 salt 且只能按主键 `challenge_id` 定位 + 最多错 5 次；用后置 `used_at` 保证一次性。
-- `Announcement`：网站/活动公告，支持草稿、置顶和起止展示时间；`PageView` 保存隐私化页面访问事件（180 天留存）。
+- `EmailToken`：一次性邮箱令牌（`verify_email` / `change_email` / `reset_password`）。**只存 `sha256`**：链接令牌存 `sha256(secret)` 便于按索引 O(1) 定位；用后置 `used_at` 保证一次性。（曾用于登录验证码的 `salt` / `attempts` 列已不再写入，保留列以免做删除迁移。）
+- `Announcement`：网站/活动公告，支持草稿、置顶和起止展示时间；`PageView` 保存隐私化页面访问事件（180 天留存）；`AnalyticsEvent` 保存关键行为事件（`event_key` + `page_key`，白名单见 `main.py` 的 `EVENT_LABELS`，同样 180 天留存）。两者都只存账号 ID 或匿名会话摘要，不记录内容明细。
 - `Task`：`status`（published→accepted→awaiting→completed；另有 cancelling/expired/cancelled）、`accept_password_hash`（只存哈希，便捷属性 `requires_password`）、`is_designated`（指定委托，designated_user_ids）、`is_anonymous`、`required_takers`、`is_visible/admin_note`（后台屏蔽）、`expires_at`（查询时惰性过期 `expire_due_tasks`）。
 - `TaskMember`：接单人及 `response_status`（pending/accepted/declined）+ 完成确认 `confirmed_at` + 取消确认。
 - 其余：`TaskReport`（举报）、`Feedback`（反馈）、`SugarProfile`/`SugarPair`（砂糖社）、`Story`/`StoryComment`/`StoryPhoto`（故事会：`Story.is_anonymous`；`StoryPhoto.is_visible` 默认 `False` 表示上传即待审，评论不匿名）、用户图片等。
@@ -71,11 +71,11 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 |---|---|---|
 | `is_admin=True` | **超级管理员** | 监管台全部：统计、反馈、授予 staff 角色、接单上限、重置密码；不接取委托 |
 | `role='staff'` | **管理员**（历史名"店员"，内部值不改！） | 志愿者能力 + 管理非管理员账号的 user/volunteer 等级 + 查看处理举报/反馈 + 委托屏蔽/图片审核 + QQ 强制公开 |
-| `role='mascot'` | **看板娘** | 管理网站/活动公告 + 查看页面活跃分析；不继承管理员、志愿者能力 |
+| `role='mascot'` | **看板娘** | 管理网站/活动公告 + 审核内测申请；**看不到数据看板**（页面/行为埋点仅管理员组可见）；不继承管理员、志愿者能力 |
 | `role='volunteer'` | 志愿者 | 发布/接取全部委托 |
 | `role='user'` | 普通用户 | 发布委托；凭**正确密码**可接取带密码委托；无密码委托直接接取 |
 
-- 后端权限单一收口在 `dependencies.py`：`get_admin`（仅 is_admin）、`get_role_manager`（is_admin **或** staff）、`get_operations_manager`（is_admin **或** mascot）。改权限语义只动这里 + 各路由 Depends。
+- 后端权限单一收口在 `dependencies.py`：`get_admin`（仅 is_admin）、`get_role_manager`（is_admin **或** staff）、`get_operations_manager`（is_admin **或** mascot，用于公告）、`get_beta_application_manager`（is_admin / staff / mascot，用于内测申请）。改权限语义只动这里 + 各路由 Depends。⚠️ **运营台数据看板 `GET /api/operations/analytics` 用 `get_role_manager`（管理员组），看板娘被排除**。
 - 前端对应 `stores/auth.js` 的 `isAdmin` / `isStaff` / `isMascot` / `canManageRoles` / `canOperate`；显示名统一走 `constants.js` 的 `roleLabel()`。
 - ⚠️ **不要**把 `'staff'` 改成 `'admin'` 之类的内部值：它是数据库存储值 + `schemas.py` Literal 校验 + 前端字面量三处联动，2026-09 已决策"只改显示名"。
 - 授予或撤销 staff/mascot 角色仅超级管理员可做（`main.py` 的 `update_user_role`）。
@@ -105,7 +105,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 17. **加载性能约定**（图片懒加载 + 骨架屏 + 按需请求）：
    - **图片**：所有展示后台内容图的 `<img>` 必须用 `frontend/src/components/LazyImage.vue`（IntersectionObserver 进入视口才请求 + shimmer 占位 + 淡入，单根 `<img>` 渲染以便 `.card > img` 等选择器继续生效）。**例外**（保持原生 `<img>`）：验证码、`ImageLightbox` 单张大图、`URL.createObjectURL` 的本地待上传预览、`life/**` 与 `vrclife/**` 游戏素材。
    - **骨架屏**：全局工具类在 `frontend/src/styles.css`（`.skeleton` 卡片 / `.skeleton-block` / `.skeleton-line` / `.skeleton-list`），各页加载期一律渲染骨架，不再用「正在加载…」纯文字。
-   - **按需请求**：监管台 `/admin` 与运营台 `/operations` 均为**按标签页懒加载**（切换标签才请求，`loaded` 标记防重复）。监管台统计卡与各标签角标统一走 `GET /api/admin/summary`（`get_content_moderator`：超管 / `staff` / 风纪委员；仅超管返回用户与委托总量），它只做 COUNT 查询、不返回列表；运营台角标取自 `/api/operations/analytics` 的 `pending_beta_applications`。**注意 `/api/admin/stats` 仍是超管专属（`get_admin`），不要放宽**，测试已断言 `staff` 访问返回 403。
+   - **按需请求**：监管台 `/admin` 与运营台 `/operations` 均为**按标签页懒加载**（切换标签才请求，`loaded` 标记防重复）。监管台统计卡与各标签角标统一走 `GET /api/admin/summary`（`get_content_moderator`：超管 / `staff` / 风纪委员；仅超管返回用户与委托总量），它只做 COUNT 查询、不返回列表；运营台内测角标取自 `GET /api/operations/summary`（`get_beta_application_manager`，看板娘也能取），数据看板单独用 `/api/operations/analytics`（仅管理员组）。运营台三个标签按角色显示：数据看板 = 管理员组，公告管理 = 超管/看板娘，内测申请 = 超管/管理员/看板娘。**注意 `/api/admin/stats` 仍是超管专属（`get_admin`），不要放宽**，测试已断言 `staff` 访问返回 403。
    - **路由分包**：`frontend/src/router.js` 全部页面用 `() => import()` 动态导入，不要改回静态 import。
 
 ## 安全加固（2026-09 起）
@@ -113,7 +113,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - **令牌版本**：`User.token_version`（JWT 载荷 `ver`）；`dependencies.py` 比对令牌与用户字段，不匹配即 401。改密/管理员重置密码时 `token_version += 1`，旧令牌立即失效。新增列需在 `migrate_schema()` 补 `ALTER TABLE users ADD COLUMN token_version`（`title` 列同理）。
 - **自动登录令牌**：登录勾选「自动登录」时签发 7 天有效令牌（载荷含 `rm` 声明，`exp` 由 `remember_token_days` 决定，硬上限 7 天）；未勾选维持 24 小时。`security.py` 的 `decode_access_token` 按 `rm` 选择绝对上限（`REMEMBER_MAX_AGE_SECONDS` 7 天 / `SESSION_MAX_AGE_SECONDS` 24 小时）。**前端 `stores/auth.js` 的本地有效期窗口必须与之同步**（`REMEMBER_MAX_AGE_MS` / `LOGIN_MAX_AGE_MS`），否则会出现前端提前登出或后端拒绝。`token_version` 机制不变：7 天令牌在改密/重置后同样立即失效。
 - **自助改密**必须带 `current_password`（`UserPasswordUpdate`）；管理员重置用 `AdminPasswordReset`（无此要求）。
-- **限流**：`backend/app/ratelimit.py` 进程内滑动窗口，`enforce(bucket, key, limit, window)`；已用于登录（IP+账号）、注册、带密码接取、看板娘 `/mascot/chat`、反馈，以及 2026-09 补的 `page-view-ip`（IP，120/60s）、`upload`（用户，30/3600s，覆盖全部上传入口）、`board-post`（用户，20/600s）、`password-change`（用户，10/300s）、`email-send-ip`/`email-send-user`/`password-reset-ip`/`login-code`（邮件相关）。`BEHIND_PROXY=true` 时按 `X-Real-IP/X-Forwarded-For` 取真实 IP（compose 已设）。**pytest 下自动跳过**（否则测试会互相触发 429）。
+- **限流**：`backend/app/ratelimit.py` 进程内滑动窗口，`enforce(bucket, key, limit, window)`；已用于登录（IP+账号）、注册、带密码接取、看板娘 `/mascot/chat`、反馈，以及 2026-09 补的 `page-view-ip`（IP，120/60s）、`analytics-event-ip`（IP，240/60s）、`upload`（用户，30/3600s，覆盖全部上传入口）、`board-post`（用户，20/600s）、`password-change`（用户，10/300s）、`email-send-ip`/`email-send-user`/`password-reset-ip`（邮件相关）。`BEHIND_PROXY=true` 时按 `X-Real-IP/X-Forwarded-For` 取真实 IP（compose 已设）。**pytest 下自动跳过**（否则测试会互相触发 429）。
 - **媒体分区与签名访问**（`backend/app/media.py`，2026-09）：
   - 已过审的媒体在**公开区** `SUGAR_UPLOAD_DIR`（`/uploads` 静态托管）；待审/被屏蔽的媒体在**私有区** `MEDIA_PRIVATE_DIR`（默认上传目录同级 `private_media`，**不在任何静态挂载内**），只能通过 `GET /api/media/{key}?exp=&sig=` 校验 HMAC 签名后读取（`<img>` 带不了 Bearer 令牌，故签名即访问控制，TTL 见 `MEDIA_TOKEN_TTL_SECONDS`，默认 6h）。
   - `file_path` 列永远只存逻辑 key（如 `sugar/x.jpg`），**所在区由可见性推导**：URL 一律经 `media.media_url(key, public=...)` 生成，落盘用 `media.write_media(key, content, public=...)`，删除用 `media.delete_media(key)`（两区都删），审核翻转用 `media.place_media(key, public=...)` 搬区 —— 因此"审核驳回后旧公开地址立即失效"。
@@ -126,13 +126,13 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - **邮箱验证**（`backend/app/mailer.py` + `email_flow.py`，2026-09）：
   - 传输用标准库 `smtplib`（587 + STARTTLS，线程池执行，**不引入新依赖**）。`EMAIL_DELIVERY=log` 或 pytest 运行中不联网，邮件写入 `mailer.OUTBOX` 并打印日志 —— **测试就靠它取验证链接与验证码**。
   - **fail-closed**：注册、发验证码、发重置链接等「用户正在等结果」的操作，发信失败一律 503 且不提交事务（不会留下收不到信的半成品账号）；只有事件通知是 best-effort（`required=False`）。
-  - 令牌只存哈希：链接令牌 = `sha256(secret)`（可按索引 O(1) 查），登录验证码 = `sha256(salt+code)` 且按主键定位 + 最多错 5 次；`_mark_used` 用 `UPDATE ... WHERE used_at IS NULL` 的 rowcount 保证一次性。
+  - 令牌只存哈希：链接令牌 = `sha256(secret)`（可按索引 O(1) 查）；`_mark_used` 用 `UPDATE ... WHERE used_at IS NULL` 的 rowcount 保证一次性。
   - 邮件正文里的用户数据一律 `html.escape`，用户数据只进正文、不进邮件头（防头注入）。链接前缀优先 `SITE_BASE_URL`，为空时按请求 Host 推导（生产建议显式配置，防 Host 伪造）。
-  - 限流桶：`email-send-ip`、`email-send-user`、`password-reset-ip`、`login-code`；另有 `EMAIL_SEND_COOLDOWN_SECONDS` 控制同账号同用途的最小发信间隔。
+  - 限流桶：`email-send-ip`、`email-send-user`、`password-reset-ip`；另有 `EMAIL_SEND_COOLDOWN_SECONDS` 控制同账号同用途的最小发信间隔。
 - **未验证邮箱闸门**（`dependencies.py`）：`get_current_user` = 登录 + 闸门（未验证 403），`get_authenticated_user` = 只要求登录（白名单：`/auth/me`、邮箱绑定与确认、改密）。**新增写接口默认挂 `get_current_user` 即可自动受闸门保护**；若某接口必须让未验证用户使用，才改成 `get_authenticated_user` 并在 README 里说明。公开浏览接口用 `get_optional_user`（不受闸门限制）。
   - ⚠️ **`is_admin`（超管）豁免闸门**：存量账号都没有邮箱，而「已验证」只能靠收邮件达成，必须给运维账号留一条永远可用的通道（邮件配置坏了才进得去后台改回来）。`role='staff'` 不豁免。
-  - 救援开关：`REQUIRE_EMAIL_VERIFICATION=false`（放行写操作）、`LOGIN_CODE_REQUIRED=false`（登录不再要验证码），改完重启后端。
-- **登录流程是两段式**：`POST /api/auth/login` 可能返回 `TokenResponse`，也可能返回 `{email_code_required, challenge_id, email_masked}` 挑战（此时**没有** `access_token`），第二步走 `POST /api/auth/login/email-code`。改登录响应结构时前端 `stores/auth.js` 的 `login()` 要同步（它靠 `email_code_required` 分支）。
+  - 救援开关：`REQUIRE_EMAIL_VERIFICATION=false`（放行写操作），改完重启后端。
+- **登录为单步**：`POST /api/auth/login` 直接返回 `TokenResponse`（密码 + 人机验证），**不再发送登录邮箱验证码**（避免每次登录都消耗 SMTP 配额）。旧的 `/api/auth/login/email-code` 与两步登录逻辑已移除，前端 `stores/auth.js` 的 `login()` 直接落库凭证。
 - **注册接口不再下发登录令牌**：只返回 `{email_masked, verification_sent}`；前端注册成功后展示「去邮箱验证」面板（含带人机验证的重发）。
 - **默认值防护**：`config.py` 不再直接使用 `change-this-secret-in-production`/`Admin123!`；未配置 `SECRET_KEY` 时启动随机生成，首次创建管理员随机密码并打印日志，已存在且仍用默认密码的管理员会被自动轮换（pytest 下跳过以免动到真实库）。`SUGAR_UPLOAD_DIR` 不得指向数据库目录，否则启动报错。
 - **前端权限**：`router.js` 对 `moderator/operations/life*/roleManager` 路由先 `await auth.restore()`（走 `/api/auth/me`）再判权限；`AdminView/OperationsView` 在 `onMounted` 再复核一次。**localStorage 的 `wsw_user` 只是界面缓存，绝不可作为权限依据**。
@@ -159,7 +159,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - ⚠️ **私有信息（真实域名 `DOMAIN`、备案号 `SITE_ICP`、邮箱、密钥）只能写在根目录 `.env`**（已被 `.gitignore` 忽略）。**禁止**把真实值写进任何入库文件 —— 包括 `.env.example`、`docker-compose*.yml`、`README.md`、`AGENTS.md`、nginx 模板与源码；示例一律用 `example.com` 之类占位符。仓库要能公开。前端不保存这些值：页脚备案号通过 `GET /api/site-config` 运行时读取（`config.py` 的 `site_icp` / `site_icp_url`）。
 - 测试用内存库，不经 AppSession（无自动快照）；测试断言与业务文案强耦合（如断言 detail 含"接取密码不正确"），改文案记得改测试。
 - 多个测试模块共用同一个 FastAPI `app`，各自在 import 时设置 `get_db` 覆盖 —— **每个模块的 `setup_function` 里要重新指向自己的内存库**，否则会被别的模块抢走覆盖而报 "no such table"。
-- **注册接口不再返回令牌**（必须邮箱验证）：测试 helper 一律走 `test_api.py` 的 `register()/last_mail_token()` 那套「注册 → 从 `mailer.OUTBOX` 取信 → 点链接 → 登录」。pytest 下不发真邮件，`setup_function` 默认 `email_delivery=log`、`login_code_required=False`、`email_send_cooldown_seconds=0`；要测两步登录的用例自行打开开关（见 `test_email_flow.py`）。直接往库里塞用户时记得 `email_verified=True`，否则会被邮箱闸门挡成 403。
+- **注册接口不再返回令牌**（必须邮箱验证）：测试 helper 一律走 `test_api.py` 的 `register()/last_mail_token()` 那套「注册 → 从 `mailer.OUTBOX` 取信 → 点链接 → 登录」。pytest 下不发真邮件，`setup_function` 默认 `email_delivery=log`、`email_send_cooldown_seconds=0`。直接往库里塞用户时记得 `email_verified=True`，否则会被邮箱闸门挡成 403。
 - **发信失败是 fail-closed**：新增依赖邮件的写接口要沿用 `email_flow.deliver()`（未配置/失败 → 503 且不提交事务），只有事件通知用 `required=False` 的 best-effort 路径。
 - 本地若无 Python 3.12，用 3.14 跑测试需 SQLAlchemy>=2.0.44（2.0.38 与 3.14 不兼容）；生产 Docker 是 3.12，requirements.txt 版本锁定不要随意升级。
 - 前端登录缓存有版本号 `AUTH_CACHE_VERSION`（stores/auth.js），改 user 对象结构时递增可强制全员重新登录。

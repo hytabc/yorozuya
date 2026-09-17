@@ -10,6 +10,15 @@ import UserTitleTag from '../components/UserTitleTag.vue'
 const toast = useToast()
 const auth = useAuthStore()
 const router = useRouter()
+// 标签页可见性：数据看板仅管理员组（超管/管理员）可见；公告管理归看板娘/超管；内测申请三者皆可。
+const canSeeAnalytics = computed(() => auth.canManageRoles)
+const canSeeAnnouncements = computed(() => auth.isAdmin || auth.isMascot)
+const canSeeBetaApplications = computed(() => auth.isAdmin || auth.isStaff || auth.isMascot)
+function defaultTab() {
+  if (canSeeAnalytics.value) return 'analytics'
+  if (canSeeAnnouncements.value) return 'announcements'
+  return 'beta-applications'
+}
 const activeTab = ref('analytics')
 // 按标签页懒加载：只请求当前标签的数据，其余标签首次切入时才加载。
 const tabLoading = reactive({ analytics: false, announcements: false, 'beta-applications': false })
@@ -20,13 +29,14 @@ const announcements = ref([])
 const betaApplications = ref([])
 const reviewBetaAppId = ref(null)
 const rangeDays = ref(7)
-const analytics = ref({ days: 7, total_views: 0, total_visitors: 0, today_views: 0, today_visitors: 0, pages: [], daily: [] })
+const analytics = ref({ days: 7, total_views: 0, total_visitors: 0, today_views: 0, today_visitors: 0, pages: [], daily: [], events: [] })
 const editing = ref(false)
 const saving = ref(false)
 const form = reactive({ id: null, kind: 'site', title: '', content: '', is_published: false, is_pinned: false, starts_at: '', ends_at: '' })
 const maxDailyViews = computed(() => Math.max(1, ...analytics.value.daily.map((item) => item.views)))
-// 徽标计数来自轻量分析接口，避免为了显示角标而提前拉取整个申请列表。
-const pendingBetaApplications = computed(() => analytics.value.pending_beta_applications || 0)
+const maxEventCount = computed(() => Math.max(1, ...analytics.value.events.map((item) => item.count)))
+// 内测申请角标走独立轻量接口（看板娘也能取），数据看板不再承担该角标。
+const pendingBetaApplications = ref(0)
 
 function formatDate(value) {
   if (!value) return '长期有效'
@@ -54,6 +64,9 @@ function resetForm(item = null) {
   editing.value = true
 }
 
+async function loadSummary() {
+  try { pendingBetaApplications.value = (await api.get('/operations/summary')).data.pending_beta_applications || 0 } catch { /* 角标失败不影响页面 */ }
+}
 async function loadAnnouncements() {
   tabLoading.announcements = true
   try {
@@ -136,6 +149,9 @@ onMounted(async () => {
   // 双保险：即使路由守卫被绕过，也先确认服务端身份再拉取运营数据。
   await auth.restore()
   if (!auth.canOperate) { router.replace('/'); return }
+  // 依角色落到第一个可见标签：管理员组看数据、看板娘看公告。
+  activeTab.value = defaultTab()
+  loadSummary()
   loadTab(activeTab.value)
 })
 watch(activeTab, (tab) => loadTab(tab))
@@ -149,9 +165,9 @@ watch(activeTab, (tab) => loadTab(tab))
     </div>
 
     <div class="tabs operations-tabs" role="tablist">
-      <button :class="{ active: activeTab === 'analytics' }" role="tab" @click="activeTab = 'analytics'"><BarChart3 :size="16" />数据分析</button>
-      <button :class="{ active: activeTab === 'announcements' }" role="tab" @click="activeTab = 'announcements'"><Megaphone :size="16" />公告管理</button>
-      <button :class="{ active: activeTab === 'beta-applications' }" role="tab" @click="activeTab = 'beta-applications'"><Sparkles :size="16" />内测申请<span v-if="pendingBetaApplications">{{ pendingBetaApplications }}</span></button>
+      <button v-if="canSeeAnalytics" :class="{ active: activeTab === 'analytics' }" role="tab" @click="activeTab = 'analytics'"><BarChart3 :size="16" />数据分析</button>
+      <button v-if="canSeeAnnouncements" :class="{ active: activeTab === 'announcements' }" role="tab" @click="activeTab = 'announcements'"><Megaphone :size="16" />公告管理</button>
+      <button v-if="canSeeBetaApplications" :class="{ active: activeTab === 'beta-applications' }" role="tab" @click="activeTab = 'beta-applications'"><Sparkles :size="16" />内测申请<span v-if="pendingBetaApplications">{{ pendingBetaApplications }}</span></button>
     </div>
 
     <template v-if="activeTab === 'analytics'">
@@ -184,6 +200,13 @@ watch(activeTab, (tab) => loadTab(tab))
           </div>
         </section>
       </div>
+      <section class="analytics-panel page-ranking">
+        <header><h2>热门操作</h2><span>次数</span></header>
+        <div v-for="item in analytics.events" :key="`${item.page_key}-${item.event_key}`" class="ranking-row">
+          <span>{{ item.label }}<small v-if="item.page_label" class="muted"> · {{ item.page_label }}</small></span><div><i :style="{ width: `${item.count / maxEventCount * 100}%` }" /></div><strong>{{ item.count }}</strong>
+        </div>
+        <p v-if="!analytics.events.length" class="muted">暂无操作事件</p>
+      </section>
       </template>
     </template>
 

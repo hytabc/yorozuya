@@ -1,9 +1,10 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { ArrowRight, Check, KeyRound, Mail, MailCheck, ShieldCheck, UserRound } from 'lucide-vue-next'
+import { ArrowRight, Check, KeyRound, Mail, MailCheck, UserRound } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { api, errorMessage } from '../api'
+import { track } from '../analytics'
 import CaptchaField from '../components/CaptchaField.vue'
 
 const props = defineProps({ initialMode: { type: String, default: 'login' } })
@@ -21,11 +22,7 @@ const pendingEmailMasked = ref('')
 // 验证邮件可能没送到：面板里允许带人机验证重发一次。
 const resendCaptcha = ref(null)
 const resendInfo = ref('')
-// 两步登录：密码通过后服务端返回邮箱验证码挑战，进入第二步。
-const challenge = ref(null)
-const emailCode = ref('')
 const isRegister = computed(() => mode.value === 'register')
-const needsEmailCode = computed(() => Boolean(challenge.value))
 
 function textLength(value) {
   return [...value].length
@@ -105,10 +102,6 @@ function safeRedirect(target) {
 
 async function submit() {
   error.value = ''
-  if (needsEmailCode.value) {
-    submitEmailCode()
-    return
-  }
   if (isRegister.value ? !validateRegistration() : !validateLogin()) return
   if (!captchaField.value?.isSatisfied()) {
     error.value = '请先完成人机验证'
@@ -127,15 +120,10 @@ async function submit() {
         ...captcha,
       })
       pendingEmailMasked.value = result?.email_masked || form.email
+      track('auth.register')
     } else {
-      const step = await auth.login({ username: form.username, password: form.password, remember: form.remember, ...captcha })
-      if (step?.email_code_required) {
-        // 进入第二步：验证码已被消耗，重置控件供下次使用
-        challenge.value = step
-        emailCode.value = ''
-        captchaField.value?.reset()
-        return
-      }
+      await auth.login({ username: form.username, password: form.password, remember: form.remember, ...captcha })
+      track('auth.login')
       router.push(safeRedirect(route.query.redirect))
     }
   } catch (err) {
@@ -147,32 +135,6 @@ async function submit() {
   } finally {
     busy.value = false
   }
-}
-
-async function submitEmailCode() {
-  error.value = ''
-  const code = emailCode.value.trim()
-  if (!/^[0-9]{6}$/.test(code)) {
-    error.value = '请输入 6 位数字验证码'
-    return
-  }
-  busy.value = true
-  try {
-    await auth.loginWithEmailCode({ challengeId: challenge.value.challenge_id, code, remember: form.remember })
-    router.push(safeRedirect(route.query.redirect))
-  } catch (err) {
-    error.value = errorMessage(err, '验证码错误或已失效，请返回上一步重新登录')
-    emailCode.value = ''
-  } finally {
-    busy.value = false
-  }
-}
-
-function backToCredentials() {
-  challenge.value = null
-  emailCode.value = ''
-  error.value = ''
-  captchaField.value?.reset()
 }
 
 async function resendVerification() {
@@ -201,8 +163,6 @@ async function resendVerification() {
 function switchMode(next) {
   mode.value = next
   error.value = ''
-  challenge.value = null
-  emailCode.value = ''
   pendingEmailMasked.value = ''
   Object.keys(fieldErrors).forEach((field) => { fieldErrors[field] = '' })
   captchaField.value?.reset()
@@ -242,34 +202,6 @@ function switchMode(next) {
           </button>
           <button class="button secondary wide" :disabled="busy" @click="switchMode('login')">去登录</button>
         </div>
-      </template>
-
-      <!-- 登录第二步：邮箱验证码 -->
-      <template v-else-if="needsEmailCode">
-        <div class="auth-form-header">
-          <span class="eyebrow">EMAIL CODE</span>
-          <h2>输入邮箱验证码</h2>
-          <p>为了确认是你本人，我们向 {{ challenge.email_masked }} 发送了一个 6 位验证码，{{ Math.round(challenge.expires_in / 60) }} 分钟内有效。</p>
-        </div>
-        <div class="auth-notice"><ShieldCheck :size="22" /><span>连续输错 5 次验证码会作废，需要重新登录获取。</span></div>
-        <form class="form-stack" novalidate @submit.prevent="submit">
-          <label>
-            验证码
-            <div class="input-with-icon">
-              <KeyRound :size="18" />
-              <input
-                v-model="emailCode"
-                inputmode="numeric"
-                maxlength="6"
-                autocomplete="one-time-code"
-                placeholder="6 位数字"
-              />
-            </div>
-          </label>
-          <p v-if="error" class="form-error" role="alert">{{ error }}</p>
-          <button class="button wide" :disabled="busy">{{ busy ? '验证中…' : '验证并登录' }}<ArrowRight :size="18" /></button>
-          <button class="button secondary wide" type="button" :disabled="busy" @click="backToCredentials">返回上一步</button>
-        </form>
       </template>
 
       <!-- 常规登录 / 注册表单 -->

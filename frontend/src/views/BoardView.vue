@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { MessagesSquare, Send, Trash2 } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
+import { track } from '../analytics'
 import { useToast } from '../composables/toast'
 import { useAuthStore } from '../stores/auth'
 import UserAvatar from '../components/UserAvatar.vue'
@@ -55,6 +56,7 @@ async function postMessage() {
     messages.value.unshift(data)
     newContent.value = ''
     toast.success('留言已发布')
+    track('board.post')
   } catch (err) {
     toast.error(errorMessage(err))
   } finally {
@@ -70,6 +72,7 @@ async function postComment(message) {
     const { data } = await api.post(`/board/${message.id}/comments`, { content })
     messages.value[messages.value.findIndex((item) => item.id === message.id)] = data
     delete commentDrafts[message.id]
+    track('board.comment')
   } catch (err) {
     toast.error(errorMessage(err))
   } finally {
@@ -84,6 +87,7 @@ async function deleteMessage(message) {
     await api.delete(`/board/${message.id}`)
     messages.value = messages.value.filter((item) => item.id !== message.id)
     toast.success('留言已删除')
+    track('board.delete')
   } catch (err) {
     toast.error(errorMessage(err))
   } finally {
@@ -98,6 +102,7 @@ async function deleteComment(message, comment) {
     await api.delete(`/board/comments/${comment.id}`)
     message.comments = message.comments.filter((item) => item.id !== comment.id)
     toast.success('评论已删除')
+    track('board.delete')
   } catch (err) {
     toast.error(errorMessage(err))
   } finally {

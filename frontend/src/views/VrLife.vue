@@ -14,6 +14,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute } from 'vue-router';
 import { useVrclifeStore } from '../vrclife/store/vrclifeStore.js';
 import { rarityLabel } from '../vrclife/utils/format.js';
+import { track } from '../analytics';
 
 import VrStartScreen from '../vrclife/components/VrStartScreen.vue';
 import VrTopBar from '../vrclife/components/VrTopBar.vue';
@@ -57,6 +58,7 @@ function retry() {
 
 /** 开场卡 → 正式回合 */
 function beginPlay() {
+  track('life.start');
   store.begin();
 }
 

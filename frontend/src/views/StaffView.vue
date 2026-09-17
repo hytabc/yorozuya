@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { CalendarDays, Heart, HeartHandshake, MessageCircle, ShieldAlert, Sparkles, Store } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
+import { track } from '../analytics'
 import { useAuthStore } from '../stores/auth'
 import UserProfileCard from '../components/UserProfileCard.vue'
 import UserAvatar from '../components/UserAvatar.vue'
@@ -33,6 +34,11 @@ const directorySections = computed(() => [
 
 const joined = (value) =>
   new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' }).format(new Date(value))
+
+function applyVolunteer() {
+  showApplyDialog.value = true
+  track('staff.apply_volunteer')
+}
 
 async function loadMyApplication() {
   if (!auth.user) return
@@ -72,7 +78,7 @@ onMounted(async () => {
         <div v-if="myApplication?.status === 'rejected'" class="apply-banner rejected">
           <span>上一次申请未通过{{ myApplication.review_note ? `：${myApplication.review_note}` : '' }}，欢迎补充理由后再次申请。</span>
         </div>
-        <button class="button" type="button" @click="showApplyDialog = true"><HeartHandshake :size="16" />申请成为志愿者</button>
+        <button class="button" type="button" @click="applyVolunteer"><HeartHandshake :size="16" />申请成为志愿者</button>
       </template>
     </section>
 

@@ -3,9 +3,7 @@
 令牌设计：
 - **链接令牌**（验证邮箱/换绑/重置密码）用 32 字节随机值，库里存 ``sha256(secret)``，
   因此可以直接按索引 O(1) 查找，数据库泄露也无法反推出明文链接。
-- **登录验证码**是 6 位数字（熵低），因此加随机 salt 后哈希，并且只能凭 ``challenge_id``
-  （行主键）定位，再配合「最多错 5 次即作废」限制在线爆破。
-- 两者都靠 ``UPDATE ... WHERE used_at IS NULL`` 的 rowcount 保证**一次性**：
+- 靠 ``UPDATE ... WHERE used_at IS NULL`` 的 rowcount 保证**一次性**：
   并发的两次提交只有一次能成功。
 """
 
@@ -36,15 +34,12 @@ logger = logging.getLogger("yorozuya.email")
 VERIFY_EMAIL = "verify_email"
 CHANGE_EMAIL = "change_email"
 RESET_PASSWORD = "reset_password"
-LOGIN_CODE = "login_code"
-PURPOSES = (VERIFY_EMAIL, CHANGE_EMAIL, RESET_PASSWORD, LOGIN_CODE)
+PURPOSES = (VERIFY_EMAIL, CHANGE_EMAIL, RESET_PASSWORD)
 
 LINK_TOKEN_BYTES = 32
-LOGIN_CODE_MAX_ATTEMPTS = 5
 
 MAIL_UNAVAILABLE_DETAIL = "邮件服务暂时不可用，请稍后重试或联系管理员"
 INVALID_TOKEN_DETAIL = "链接无效或已过期，请重新获取"
-INVALID_CODE_DETAIL = "验证码错误或已失效，请重新获取"
 EMAIL_TAKEN_DETAIL = "该邮箱已被其他账号使用"
 
 # 前端路由（邮件里的链接指向它们）
@@ -54,10 +49,6 @@ RESET_PASSWORD_PATH = "/reset-password"
 
 def hash_link_token(secret: str) -> str:
     return hashlib.sha256(secret.encode()).hexdigest()
-
-
-def _hash_login_code(salt: str, code: str) -> str:
-    return hashlib.sha256(f"{salt}{code}".encode()).hexdigest()
 
 
 def _prune(db: Session, now: datetime) -> None:
@@ -130,26 +121,6 @@ def issue_link_token(
     return secret
 
 
-def issue_login_code(db: Session, user: User, *, ttl_minutes: int) -> tuple[int, str]:
-    """发放登录验证码，返回（挑战 id, 6 位验证码）。"""
-    now = datetime.utcnow()
-    _prune(db, now)
-    _invalidate_previous(db, user.id, LOGIN_CODE)
-    code = f"{secrets.randbelow(10**6):06d}"
-    salt = secrets.token_hex(8)
-    row = EmailToken(
-        user_id=user.id,
-        purpose=LOGIN_CODE,
-        token_hash=_hash_login_code(salt, code),
-        salt=salt,
-        expires_at=now + timedelta(minutes=ttl_minutes),
-        created_at=now,
-    )
-    db.add(row)
-    db.flush()
-    return row.id, code
-
-
 # ---- 消费 ----
 
 
@@ -177,25 +148,6 @@ def consume_link_token(db: Session, purpose: str, secret: str) -> EmailToken:
     )
     if row is None or row.used_at is not None or row.expires_at <= datetime.utcnow():
         raise HTTPException(status_code=422, detail=INVALID_TOKEN_DETAIL)
-    return _mark_used(db, row)
-
-
-def consume_login_code(db: Session, user: User, challenge_id: int, code: str) -> EmailToken:
-    row = db.get(EmailToken, challenge_id)
-    if (
-        row is None
-        or row.purpose != LOGIN_CODE
-        or row.user_id != user.id
-        or row.used_at is not None
-        or row.expires_at <= datetime.utcnow()
-        or row.attempts >= LOGIN_CODE_MAX_ATTEMPTS
-    ):
-        raise HTTPException(status_code=422, detail=INVALID_CODE_DETAIL)
-    if not secrets.compare_digest(row.token_hash, _hash_login_code(row.salt, (code or "").strip())):
-        # 错一次记一次：独立提交，确保计数不会被后续异常回滚掉。
-        row.attempts += 1
-        db.commit()
-        raise HTTPException(status_code=422, detail=INVALID_CODE_DETAIL)
     return _mark_used(db, row)
 
 

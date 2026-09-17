@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { Snowflake } from 'lucide-vue-next'
 import '../frost/frost.css'
 import { useFrostGame } from '../frost/useFrostGame.js'
+import { track } from '../analytics'
 import { useAuthStore } from '../stores/auth'
 import UserTitleTag from '../components/UserTitleTag.vue'
 import FrostChapterList from '../frost/components/FrostChapterList.vue'
@@ -79,6 +80,16 @@ const { ready: saveReady, saving: saveSaving, dirty: saveDirty, error: saveError
 
 const settingsVisible = ref(false)
 
+// 行为埋点：在进入关卡 / 提交解答时各记一次（游戏内细节不逐个上报，避免噪声）。
+function onEnterLevel(...args) {
+  track('frost.enter_level')
+  return enterLevel(...args)
+}
+function onLevelSubmit(...args) {
+  track('frost.level_submit')
+  return submit(...args)
+}
+
 const relationships = computed(() => [
   { from: 'Mio', to: 'Shiori', label: '砂糖（核心主轴）', bidirectional: true },
   { from: 'Rin', to: 'Shiori', label: '单向守护', bidirectional: false },
@@ -150,7 +161,7 @@ const headerNote = computed(() => {
     <p v-if="saveError" class="frost-notice">{{ saveError }}</p>
 
     <!-- 章节 -->
-    <FrostChapterList v-if="screen === 'chapters'" :chapters="levelStates" @enter="enterLevel" />
+    <FrostChapterList v-if="screen === 'chapters'" :chapters="levelStates" @enter="onEnterLevel" />
 
     <!-- 图鉴 -->
     <FrostGallery v-else-if="screen === 'gallery'" :gallery="gallery" :global-gallery="globalGallery" />
@@ -200,7 +211,7 @@ const headerNote = computed(() => {
           @move-by="moveBy"
           @move-edge="moveToEdge"
           @undo="undo"
-          @submit="submit"
+          @submit="onLevelSubmit"
         />
         <aside class="frost-side">
           <FrostMeters :coherence="coherence" :valence="valence" />
