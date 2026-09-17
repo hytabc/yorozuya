@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { MessageCircle, Plus, Search, SlidersHorizontal, Sparkles, TriangleAlert } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
+import { track } from '../analytics'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import TaskCard from '../components/TaskCard.vue'
@@ -60,6 +61,7 @@ async function loadAnnouncements() {
 function confirmAnnouncements() {
   if (auth.isLoggedIn) markAnnouncementsSeen(activeAnnouncements.value, auth.user?.id)
   showAnnouncementPrompt.value = false
+  track('announcement.confirm')
 }
 
 let timer
@@ -76,6 +78,10 @@ async function load() {
 function create() {
   if (!auth.isLoggedIn) return router.push({ path: '/login', query: { redirect: '/' } })
   showCreate.value = true
+}
+function openTask(task) {
+  selected.value = task
+  track('task.open_detail')
 }
 function search() { clearTimeout(timer); timer = setTimeout(load, 280) }
 function created(task) { showCreate.value = false; tasks.value.unshift(task) }
@@ -107,6 +113,16 @@ async function action(key, payload = {}) {
       password: '接取密码已更新，请把新密码告知接单人',
     }
     toast.success(messages[key])
+    const trackedEvents = {
+      accept: 'task.accept',
+      leave: 'task.leave',
+      start: 'task.start',
+      confirm: 'task.confirm',
+      cancel: 'task.cancel',
+      'confirm-cancel': 'task.cancel_confirm',
+      password: 'task.password',
+    }
+    if (trackedEvents[key]) track(trackedEvents[key])
     loadStats()
   } catch (error) { toast.error(errorMessage(error)) } finally { busy.value = false }
 }
@@ -153,7 +169,7 @@ watch(() => auth.ready, (ready) => { if (ready) loadAnnouncements() }, { immedia
       </div>
 
       <div v-if="loading" class="task-grid"><div v-for="i in 6" :key="i" class="task-card skeleton" /></div>
-      <div v-else-if="tasks.length" class="task-grid"><TaskCard v-for="task in tasks" :key="task.id" :task="task" @select="selected = $event" /></div>
+      <div v-else-if="tasks.length" class="task-grid"><TaskCard v-for="task in tasks" :key="task.id" :task="task" @select="openTask" /></div>
       <div v-else class="empty-state"><span>空</span><h3>没有找到相关委托</h3><p>调整筛选条件，或发布第一份委托。</p><button class="button secondary" @click="create">发布委托</button></div>
     </section>
 

@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import { api } from './api'
+import { analyticsSessionId, setCurrentPage } from './analytics'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -11,9 +12,9 @@ const router = createRouter({
     { path: '/login', component: () => import('./views/LoginView.vue'), meta: { guestOnly: true, analyticsKey: 'login' } },
     { path: '/register', component: () => import('./views/LoginView.vue'), props: { initialMode: 'register' }, meta: { guestOnly: true, analyticsKey: 'login' } },
     // 邮箱相关：验证/重置链接可能从任意浏览器打开，因此都不要求登录态。
-    { path: '/verify-email', component: () => import('./views/VerifyEmailView.vue') },
-    { path: '/forgot-password', component: () => import('./views/ForgotPasswordView.vue') },
-    { path: '/reset-password', component: () => import('./views/ResetPasswordView.vue') },
+    { path: '/verify-email', component: () => import('./views/VerifyEmailView.vue'), meta: { analyticsKey: 'verify-email' } },
+    { path: '/forgot-password', component: () => import('./views/ForgotPasswordView.vue'), meta: { analyticsKey: 'forgot-password' } },
+    { path: '/reset-password', component: () => import('./views/ResetPasswordView.vue'), meta: { analyticsKey: 'reset-password' } },
     { path: '/mine', component: () => import('./views/MyTasks.vue'), meta: { auth: true, analyticsKey: 'mine' } },
     { path: '/profile', component: () => import('./views/ProfileView.vue'), meta: { auth: true, analyticsKey: 'profile' } },
     { path: '/staff', component: () => import('./views/StaffView.vue'), meta: { analyticsKey: 'staff' } },
@@ -24,11 +25,11 @@ const router = createRouter({
     { path: '/sugar', component: () => import('./views/SugarClub.vue'), meta: { auth: true, analyticsKey: 'sugar' } },
     { path: '/announcements', component: () => import('./views/AnnouncementsView.vue'), meta: { analyticsKey: 'announcements' } },
     { path: '/versions', component: () => import('./views/VersionsView.vue'), meta: { analyticsKey: 'versions' } },
-    { path: '/operations', component: () => import('./views/OperationsView.vue'), meta: { operations: true } },
+    { path: '/operations', component: () => import('./views/OperationsView.vue'), meta: { operations: true, analyticsKey: 'operations' } },
     { path: '/frost', component: () => import('./views/SugarFrost.vue'), meta: { auth: true, analyticsKey: 'frost' } },
-    { path: '/life', component: () => import('./views/VrLife.vue'), meta: { lifeOnly: true } },
-    { path: '/life-admin', component: () => import('./views/LifeAdmin.vue'), meta: { lifeManager: true } },
-    { path: '/admin', component: () => import('./views/AdminView.vue'), meta: { moderator: true } },
+    { path: '/life', component: () => import('./views/VrLife.vue'), meta: { lifeOnly: true, analyticsKey: 'life' } },
+    { path: '/life-admin', component: () => import('./views/LifeAdmin.vue'), meta: { lifeManager: true, analyticsKey: 'life-admin' } },
+    { path: '/admin', component: () => import('./views/AdminView.vue'), meta: { moderator: true, analyticsKey: 'admin' } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })
@@ -55,18 +56,9 @@ router.beforeEach(async (to) => {
   if (to.meta.guestOnly && auth.isLoggedIn) return '/'
 })
 
-function analyticsSessionId() {
-  const key = 'wsw_analytics_session'
-  let value = localStorage.getItem(key)
-  if (!value) {
-    value = globalThis.crypto?.randomUUID?.().replaceAll('-', '')
-      || `${Date.now()}_${Math.random().toString(36).slice(2)}`
-    localStorage.setItem(key, value)
-  }
-  return value
-}
-
 router.afterEach((to) => {
+  // 记录当前页面，供后续点击事件 track() 归类到页面。
+  setCurrentPage(to.meta.analyticsKey)
   if (!to.meta.analyticsKey) return
   api.post('/analytics/page-view', {
     page_key: to.meta.analyticsKey,

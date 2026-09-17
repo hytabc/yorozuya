@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { Camera, Check, Crown, EyeOff, Gamepad2, ImagePlus, MessageCircle, Pencil, Save, Trash2, UserPlus, UserRound, UsersRound, X } from 'lucide-vue-next'
 import { api, errorMessage, imageUploadErrorMessage } from '../api'
+import { track } from '../analytics'
 import { useToast } from '../composables/toast'
 import { useAuthStore } from '../stores/auth'
 import UserTitleTag from '../components/UserTitleTag.vue'
@@ -107,6 +108,7 @@ async function saveProfile() {
     editorOpen.value = false
     await load()
     toast.success('交友厅资料已保存')
+    track('friend.save_profile')
   } catch (error) {
     toast.error(pendingPhotos.value.length ? imageUploadErrorMessage(error) : errorMessage(error))
   } finally {
@@ -136,6 +138,7 @@ async function deleteProfile() {
 async function openDetail(userId) {
   detail.value = null
   detailLoading.value = true
+  track('friend.open_profile')
   try {
     detail.value = (await api.get(`/friends/profiles/${userId}`)).data
   } catch (error) {
@@ -152,6 +155,7 @@ async function sendRequest() {
     detail.value.relationship = data
     await load()
     toast.success('好友申请已发送')
+    track('friend.apply')
   } catch (error) { toast.error(errorMessage(error)) }
 }
 
@@ -162,6 +166,7 @@ async function resolveRequest(request, action) {
     if (detail.value?.user.id === data.requester.id || detail.value?.user.id === data.target.id) detail.value.relationship = data
     await load()
     toast.success(action === 'accept' ? '已添加好友' : '已拒绝好友申请')
+    track(action === 'accept' ? 'friend.accept' : 'friend.reject')
   } catch (error) { toast.error(errorMessage(error)) }
 }
 

@@ -2,6 +2,7 @@
 import { computed, reactive, ref } from 'vue'
 import { CalendarDays, EyeOff, Heart, ImagePlus, KeyRound, Mail, Save, ShieldCheck, Store, Trash2, UserRound } from 'lucide-vue-next'
 import { api, errorMessage, imageUploadErrorMessage } from '../api'
+import { track } from '../analytics'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import { roleLabel, ROLE_HINTS } from '../constants'
@@ -52,6 +53,7 @@ async function bindEmail() {
     auth.updateUser(data)
     emailForm.email = ''
     toast.success('验证邮件已发送，请到邮箱里点击链接完成验证')
+    track('profile.email_bind')
   } catch (error) {
     toast.error(errorMessage(error))
   } finally {
@@ -74,7 +76,7 @@ async function toggleNotify() {
 
 async function save() {
   busy.value = true
-  try { const { data } = await api.patch('/users/me', form); auth.updateUser(data); toast.success('个人资料已保存') }
+  try { const { data } = await api.patch('/users/me', form); auth.updateUser(data); toast.success('个人资料已保存'); track('profile.save') }
   catch (error) { toast.error(errorMessage(error)) } finally { busy.value = false }
 }
 async function changePassword() {

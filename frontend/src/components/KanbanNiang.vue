@@ -1,6 +1,7 @@
 <script setup>
 import { nextTick, ref } from 'vue'
 import { getToken } from '../authStorage'
+import { track } from '../analytics'
 
 const open = ref(true) // 默认展开,让看板娘更醒目(移动端仍隐藏)
 const busy = ref(false)
@@ -19,10 +20,16 @@ function scrollBottom() {
   })
 }
 
+function openPanel() {
+  open.value = true
+  track('mascot.open')
+}
+
 async function send() {
   const text = input.value.trim()
   if (!text || busy.value) return
 
+  track('mascot.send')
   input.value = ''
   messages.value.push({ role: 'user', content: text })
   busy.value = true
@@ -101,7 +108,7 @@ async function send() {
       </div>
     </Transition>
 
-    <button v-if="!open" class="fab" @click="open = true" aria-label="打开看板娘">
+    <button v-if="!open" class="fab" @click="openPanel" aria-label="打开看板娘">
       <span class="fab-avatar">白</span>
       <span class="fab-name">小白</span>
       <span class="fab-dot" />

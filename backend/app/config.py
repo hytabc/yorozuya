@@ -79,12 +79,8 @@ class Settings(BaseSettings):
     email_verification_ttl_hours: int = 24
     # 重置密码链接有效期（分钟）。
     password_reset_ttl_minutes: int = 30
-    # 登录邮箱验证码有效期（分钟）。
-    login_code_ttl_minutes: int = 10
     # 同一账号同一用途两次发信的最小间隔（秒），防止连点把邮箱刷爆；0 表示不限制。
     email_send_cooldown_seconds: int = 60
-    # 登录时是否要求邮箱验证码（二次验证）。邮箱服务不可用时建议临时关闭。
-    login_code_required: bool = True
     # 未验证邮箱是否封锁写操作。
     # ⚠️ 救援开关：邮件配置出错导致无人能验证时，置 false 重启即可恢复使用。
     require_email_verification: bool = True

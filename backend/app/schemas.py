@@ -83,23 +83,6 @@ class LoginRequest(RequestModel):
     captcha_code: str = Field(default="", max_length=4096)
 
 
-class EmailCodeLoginRequest(RequestModel):
-    """登录第二步：提交邮箱验证码（LOGIN_CODE_REQUIRED 开启时）。"""
-
-    challenge_id: int = Field(ge=1)
-    code: str = Field(min_length=6, max_length=6, pattern=r"^[0-9]{6}$")
-    remember: bool = False
-
-
-class EmailCodeChallengeOut(BaseModel):
-    """登录第二步的挑战信息；前端据此显示验证码输入框。"""
-
-    email_code_required: Literal[True] = True
-    challenge_id: int
-    email_masked: str
-    expires_in: int
-
-
 class ActionAckOut(BaseModel):
     """通用「已受理」响应：刻意不透露内部细节（例如账号是否存在）。"""
 
@@ -548,8 +531,25 @@ class AnnouncementOut(ApiModel):
     updated_at: datetime
 
 
+# 全站埋点覆盖的页面 key：前端 router 的 meta.analyticsKey 必须与这里保持一致。
+PageKeyLiteral = Literal[
+    "hall", "staff", "board", "maps", "friends", "stories", "sugar",
+    "announcements", "versions", "mine", "profile", "login", "frost",
+    "operations", "admin", "life", "life-admin",
+    "verify-email", "forgot-password", "reset-password",
+]
+
+
 class PageViewCreate(RequestModel):
-    page_key: Literal["hall", "staff", "board", "maps", "friends", "sugar", "announcements", "versions", "mine", "profile", "login", "frost"]
+    page_key: PageKeyLiteral
+    session_id: str = Field(min_length=16, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
+
+
+class AnalyticsEventCreate(RequestModel):
+    """关键行为事件埋点：event_key 由后端白名单校验，未知事件直接忽略。"""
+
+    event_key: str = Field(min_length=2, max_length=64, pattern=r"^[a-z0-9_.]+$")
+    page_key: PageKeyLiteral | None = None
     session_id: str = Field(min_length=16, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
 
 
@@ -558,6 +558,14 @@ class PageMetric(BaseModel):
     label: str
     views: int
     visitors: int
+
+
+class EventMetric(BaseModel):
+    event_key: str
+    label: str
+    page_key: str | None = None
+    page_label: str | None = None
+    count: int
 
 
 class DailyMetric(BaseModel):
@@ -574,7 +582,13 @@ class AnalyticsOut(BaseModel):
     today_visitors: int
     pages: list[PageMetric]
     daily: list[DailyMetric]
-    # 供运营台「内测申请」标签角标使用，省去为了显示角标而提前拉取申请列表
+    # 关键行为事件计数（按事件 + 页面聚合），用于分析点击/使用偏好。
+    events: list[EventMetric] = []
+
+
+class OperationsSummary(BaseModel):
+    """运营台轻量汇总：目前只提供「内测申请」待处理角标（看板娘也需要）。"""
+
     pending_beta_applications: int = 0
 
 

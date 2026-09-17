@@ -2,6 +2,7 @@
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { MessageCircle, Send, X } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
+import { track } from '../analytics'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 
@@ -34,6 +35,7 @@ async function submit() {
     if (!auth.isLoggedIn) payload.contact = form.contact.trim()
     await api.post('/feedback', payload)
     toast.success('反馈已提交，感谢你的建议')
+    track('feedback.submit')
     form.content = ''
     form.page = ''
     await loadMine()

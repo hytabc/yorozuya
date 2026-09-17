@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { EyeOff, Flag, Heart, ImagePlus, LogIn, Map as MapIcon, Pencil, Send, Trash2, X } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { api, errorMessage, imageUploadErrorMessage } from '../api'
+import { track } from '../analytics'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import UserAvatar from './UserAvatar.vue'
@@ -52,7 +53,7 @@ async function toggleLike() {
   try {
     const { data } = await api.post(`/vr-maps/${props.map.id}/like`)
     emit('updated', { ...props.map, like_count: data.like_count, liked_by_me: data.liked })
-    if (data.liked) toast.success('已点赞')
+    if (data.liked) { toast.success('已点赞'); track('map.like') }
   } catch (error) {
     toast.error(errorMessage(error))
   } finally {
@@ -66,6 +67,7 @@ async function submitReport() {
   try {
     const { data } = await api.post(`/vr-maps/${props.map.id}/report`, { reason: reportReason.value.trim() })
     toast.success('举报已提交，管理员会尽快处理')
+    track('map.report')
     showReport.value = false
     reportReason.value = ''
     emit('updated', data)
@@ -85,6 +87,7 @@ async function uploadPhotos(files) {
     files.forEach((file) => body.append('photos', file))
     const { data } = await api.post(`/vr-maps/${props.map.id}/photos`, body)
     toast.success(`${files.length} 张照片已上传，等待管理员审核`)
+    track('map.upload_photo')
     emit('updated', data, { keepOpen: true })
   } catch (error) {
     toast.error(imageUploadErrorMessage(error))

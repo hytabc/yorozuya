@@ -234,20 +234,6 @@ def password_changed_notice() -> tuple[str, str, str]:
     )
 
 
-def login_code_message(code: str, *, ttl_minutes: int) -> tuple[str, str, str]:
-    lines = [
-        "你正在登录万事屋，本次登录的邮箱验证码是：",
-        f"    {code}",
-        f"验证码 {ttl_minutes} 分钟内有效，连续输错 5 次会作废。",
-        "如果这不是你本人的操作，请立即修改密码。",
-    ]
-    return (
-        f"【{BRAND}】登录验证码 {code}",
-        _text_body(lines),
-        _html_layout("登录验证码", lines),
-    )
-
-
 def notification_message(title: str, lines: list[str], link: str | None = None) -> tuple[str, str, str]:
     """事件通知（委托进度、审核结果等）：正文只传标题与状态，不放联系方式。"""
     return (

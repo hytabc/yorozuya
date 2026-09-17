@@ -49,9 +49,8 @@ def setup_function():
     app.dependency_overrides[get_db] = override_db
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
-    # 邮箱相关：走本地信箱、关掉登录验证码与发信冷却，保持用例简短。
+    # 邮箱相关：走本地信箱、关掉发信冷却，保持用例简短。
     settings.email_delivery = "log"
-    settings.login_code_required = False
     settings.email_send_cooldown_seconds = 0
     mailer.OUTBOX.clear()
     with TestingSession() as db:

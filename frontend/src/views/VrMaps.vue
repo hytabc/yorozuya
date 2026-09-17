@@ -3,6 +3,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { Heart, Map as MapIcon, Plus, TriangleAlert, UserRound, X } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
+import { track } from '../analytics'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import { MAP_CATEGORIES } from '../constants'
@@ -44,6 +45,11 @@ function create() {
   showCreate.value = true
 }
 
+function openMap(item) {
+  selected.value = item
+  track('map.open_detail')
+}
+
 async function submitCreate() {
   if (!form.name.trim()) return toast.error('请填写地图名称')
   if (form.description.trim().length < 10) return toast.error('地图介绍请至少填写 10 个字符')
@@ -62,6 +68,7 @@ async function submitCreate() {
     form.description = ''
     createPhotos.value = []
     toast.success('地图已提交，感谢推荐！')
+    track('map.create')
     await load()
   } catch (err) {
     toast.error(errorMessage(err))
@@ -104,7 +111,7 @@ onMounted(load)
     <div v-else-if="error" class="maps-empty error-notice">{{ error }}</div>
     <div v-else-if="!maps.length" class="maps-empty"><MapIcon :size="26" /><strong>还没有地图推荐</strong><span>第一张地图由你来推荐。</span></div>
     <div v-else class="maps-grid">
-      <button v-for="item in maps" :key="item.id" class="maps-card" type="button" @click="selected = item">
+      <button v-for="item in maps" :key="item.id" class="maps-card" type="button" @click="openMap(item)">
         <figure class="maps-cover">
           <LazyImage v-if="cover(item)" :src="cover(item)" :alt="`${item.name} 的照片`" />
           <span v-else class="maps-cover-fallback"><MapIcon :size="26" /></span>

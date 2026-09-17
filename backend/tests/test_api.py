@@ -44,11 +44,9 @@ def setup_function():
     app.dependency_overrides[get_db] = override_db
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
-    # 邮箱相关：走本地信箱（不发真邮件）、关掉登录邮箱验证码、关掉发信冷却，
+    # 邮箱相关：走本地信箱（不发真邮件）、关掉发信冷却，
     # 让绝大多数用例保持「注册即可登录」的节奏。
-    # 邮箱验证码那条链路由 test_email_flow.py 专门开着开关覆盖。
     settings.email_delivery = "log"
-    settings.login_code_required = False
     settings.email_send_cooldown_seconds = 0
     mailer.OUTBOX.clear()
     with TestingSession() as db:
@@ -260,7 +258,25 @@ def test_mascot_operations_announcements_and_analytics():
             )
             assert response.status_code == 204
 
-        report = client.get("/api/operations/analytics", headers=mascot, params={"days": 7})
+        # 关键行为事件埋点：游客与登录用户都能写；未知事件不入库但同样返回 204。
+        for event_key, headers in [
+            ("task.open_detail", None),
+            ("task.open_detail", None),
+            ("task.accept", regular),
+            ("not.a.real.event", None),
+        ]:
+            response = client.post(
+                "/api/analytics/event",
+                headers=headers,
+                json={"event_key": event_key, "page_key": "hall", "session_id": "anonymous_session_a"},
+            )
+            assert response.status_code == 204
+
+        # 数据看板仅管理员组（超管/管理员）可见：看板娘与普通用户一律 403。
+        assert client.get("/api/operations/analytics", headers=mascot, params={"days": 7}).status_code == 403
+        assert client.get("/api/operations/analytics", headers=regular, params={"days": 7}).status_code == 403
+
+        report = client.get("/api/operations/analytics", headers=staff, params={"days": 7})
         assert report.status_code == 200, report.text
         data = report.json()
         assert data["today_views"] == 4
@@ -269,6 +285,16 @@ def test_mascot_operations_announcements_and_analytics():
         sugar = next(item for item in data["pages"] if item["page_key"] == "sugar")
         assert (hall["views"], hall["visitors"]) == (3, 2)
         assert (sugar["views"], sugar["visitors"]) == (1, 1)
+        events = {(item["event_key"], item["page_key"]): item["count"] for item in data["events"]}
+        assert events[("task.open_detail", "hall")] == 2
+        assert events[("task.accept", "hall")] == 1
+        assert all(item["event_key"] != "not.a.real.event" for item in data["events"])
+
+        # 超管同样可读数据看板；内测申请角标走独立汇总接口，看板娘也能取。
+        assert client.get("/api/operations/analytics", headers=admin, params={"days": 7}).status_code == 200
+        summary = client.get("/api/operations/summary", headers=mascot)
+        assert summary.status_code == 200, summary.text
+        assert summary.json()["pending_beta_applications"] == 0
 
         deleted = client.delete(f"/api/operations/announcements/{announcement_id}", headers=mascot)
         assert deleted.status_code == 204

@@ -3,6 +3,7 @@ import { reactive, ref, computed, onMounted, onUnmounted } from 'vue'
 import { Check, TriangleAlert, X } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
+import { track } from '../analytics'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import { CATEGORIES } from '../constants'
@@ -53,6 +54,7 @@ async function submit() {
     }
     const { data } = await api.post('/tasks', payload)
     toast.success(designated.value ? '指定委托已发布，等待被指定人员响应' : (unlimited.value || form.required_takers === 1 ? '委托已发布' : '委托已发布，凑齐人数后自动开始'))
+    track('task.create')
     emit('created', data)
   } catch (error) { toast.error(errorMessage(error)) } finally { busy.value = false }
 }

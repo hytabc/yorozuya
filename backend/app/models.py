@@ -387,6 +387,22 @@ class PageView(Base):
     viewed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
 
+class AnalyticsEvent(Base):
+    """隐私友好的关键行为事件（打开详情/接取/发布/点赞等），只做聚合计数。
+
+    ``visitor_key`` 与 PageView 一致，仅保存账号 ID 或匿名会话摘要，不记录任何内容明细。
+    """
+
+    __tablename__ = "analytics_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    event_key: Mapped[str] = mapped_column(String(64), index=True)
+    page_key: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    visitor_key: Mapped[str] = mapped_column(String(80), index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
 class BoardMessage(Base):
     """留言板留言：登录用户发布，留言者本人或管理员组可删除（删除时级联删评论）。"""
 
@@ -685,9 +701,9 @@ class SugarPair(Base):
 
 
 class EmailToken(Base):
-    """一次性邮箱令牌：邮箱验证/换绑/重置密码的链接令牌，以及登录邮箱验证码。
+    """一次性邮箱令牌：邮箱验证/换绑/重置密码的链接令牌。
 
-    刻意只存 ``sha256(salt + secret)``：明文只在邮件正文里出现一次，
+    刻意只存 ``sha256(secret)``：明文只在邮件正文里出现一次，
     即使数据库泄露也无法拿着令牌去改别人的密码。用后置 ``used_at`` 作废。
     """
 
@@ -695,13 +711,13 @@ class EmailToken(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    # verify_email / change_email / reset_password / login_code
+    # verify_email / change_email / reset_password
     purpose: Mapped[str] = mapped_column(String(24), index=True)
     token_hash: Mapped[str] = mapped_column(String(64), index=True)
     salt: Mapped[str] = mapped_column(String(32))
     # 换绑邮箱时记录目标地址：该令牌只对这一地址有效，避免被拿去改绑别的邮箱。
     new_email: Mapped[str | None] = mapped_column(String(254), nullable=True)
-    # 6 位验证码的尝试次数，超过上限直接作废，避免被在线爆破。
+    # 历史遗留：曾用于登录邮箱验证码的尝试次数，现已不再写入，保留列以免做删除迁移。
     attempts: Mapped[int] = mapped_column(default=0)
     expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
     used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
