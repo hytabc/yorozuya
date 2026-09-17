@@ -8,8 +8,9 @@
   只能凭 ``/api/media/{key}?exp=&sig=`` 的短时签名访问。
 
 为什么用签名而不是登录校验：``<img>`` 标签带不了 ``Authorization`` 头，服务端拿不到
-Bearer 令牌。因此签名本身就是访问控制，同时让「审核驳回后旧链接立即失效」成为可能
-—— 审核翻转时把文件从一个区搬到另一个区，旧的公开 URL 直接 404。
+Bearer 令牌。因此签名本身就是访问控制。注意签名的有效期由 ``MEDIA_TOKEN_TTL_SECONDS``
+决定：审核翻转后，已签发的旧私有链接要在 TTL 到期后才失效，因此该值刻意设得较短，
+且读取端会回查数据库当前可见性（已过审/已删除的记录立即 404）。
 
 ``file_path`` 列里始终只存**逻辑 key**（如 ``sugar/xxx.jpg``），所在区由可见性推导，
 文件与数据库无法原子提交；审核失败保持私有状态，公开读取另查数据库可见性。
@@ -69,7 +70,11 @@ def verify_media_signature(key: str, expires_at: int, signature: str) -> bool:
     now = int(time.time())
     if expires_at < now or expires_at > now + settings.media_token_ttl_seconds + EXPIRY_SLACK_SECONDS:
         return False
-    return hmac.compare_digest(signature, sign_media_signature(key, expires_at))
+    # 必须比较 bytes：compare_digest 对含非 ASCII 的 str 会抛 TypeError（未捕获即 500），
+    # 攻击者用 ?sig=é 这类参数即可触发。
+    return hmac.compare_digest(
+        signature.encode("utf-8"), sign_media_signature(key, expires_at).encode("utf-8")
+    )
 
 
 def media_url(key: str | None, *, public: bool) -> str | None:
@@ -82,7 +87,7 @@ def media_url(key: str | None, *, public: bool) -> str | None:
 
 def storage_file(key: str, *, public: bool) -> Path | None:
     """把相对 key 解析成指定区内的绝对路径；越界（``..``、绝对路径）返回 None。"""
-    if not key or key.startswith("/") or "\\" in key:
+    if not key or key.startswith("/") or "\\" in key or "\x00" in key:
         return None
     root = root_for(public).resolve()
     candidate = (root / key).resolve()

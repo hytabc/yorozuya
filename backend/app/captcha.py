@@ -13,7 +13,6 @@ from __future__ import annotations
 import logging
 import random
 import secrets
-import sys
 import threading
 import time
 from io import BytesIO
@@ -36,8 +35,8 @@ _PRUNE_INTERVAL_SECONDS = 60.0
 
 
 def captcha_required() -> bool:
-    """是否需要强制校验验证码；pytest 下关闭，避免既有用例都要构造验证码。"""
-    return settings.captcha_enabled and "pytest" not in sys.modules
+    """是否需要强制校验验证码；测试模式关闭，避免既有用例都要构造验证码。"""
+    return settings.captcha_enabled and not settings.testing
 
 
 def _normalize(code: str) -> str:
@@ -117,7 +116,8 @@ def create_image_captcha() -> tuple[str, bytes]:
     from PIL import Image, ImageDraw
 
     resampling = getattr(Image, "Resampling", Image)
-    answer = "".join(random.choice(_ALPHABET) for _ in range(_CODE_LENGTH))
+    # 答案用 CSPRNG 生成，不能用 Mersenne-Twister 的 random（可被预测，且干扰线共用同一序列）。
+    answer = "".join(secrets.choice(_ALPHABET) for _ in range(_CODE_LENGTH))
     width, height = _IMAGE_SIZE
     image = Image.new("RGB", (width, height), (245, 247, 246))
     draw = ImageDraw.Draw(image)

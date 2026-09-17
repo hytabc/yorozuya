@@ -280,7 +280,9 @@ def test_mascot_operations_announcements_and_analytics():
         assert report.status_code == 200, report.text
         data = report.json()
         assert data["today_views"] == 4
-        assert data["today_visitors"] == 3
+        # 匿名访客按来源 IP 归并（不再采信客户端 session_id，避免伪造出无限「独立访客」）：
+        # 同源的两个匿名 session 只算 1 个访客，登录用户另算 1 个，合计 2。
+        assert data["today_visitors"] == 2
         hall = next(item for item in data["pages"] if item["page_key"] == "hall")
         sugar = next(item for item in data["pages"] if item["page_key"] == "sugar")
         assert (hall["views"], hall["visitors"]) == (3, 2)
@@ -639,14 +641,17 @@ def test_sugar_club_profiles_pairing_and_ranking(tmp_path, monkeypatch):
         alice_id = alice_profile["user"]["id"]
         bob_id = bob_profile["user"]["id"]
 
-        # 公共卡片不返回 QQ，详情只在当前查看人与档案主人之间提供联系方式。
+        # 公共卡片不返回 QQ；详情只在本人或已建立「进行中」砂糖关系的双方之间提供联系方式。
         cards = client.get("/api/sugar/profiles", headers=alice).json()
         assert {card["user"]["id"] for card in cards} == {alice_id, bob_id}
         assert all("qq" not in card for card in cards)
-        detail = client.get(f"/api/sugar/profiles/{bob_id}", headers=alice).json()
-        assert detail["qq"] == "2222222222"
-        assert detail["photos"][0]["image_url"].startswith("/uploads/sugar/")
-        assert list((tmp_path / "uploads" / "sugar").iterdir())
+        # 尚无砂糖关系：不能靠遍历 user_id 读取对方 QQ。
+        unpaired = client.get(f"/api/sugar/profiles/{bob_id}", headers=alice).json()
+        assert unpaired["qq"] is None
+        # 先审后公开：新上传照片落在私有区，只有本人与审核人员能凭签名地址看到。
+        own_detail = client.get(f"/api/sugar/profiles/{alice_id}", headers=alice).json()
+        assert own_detail["photos"][0]["image_url"].startswith("/api/media/sugar/")
+        assert list((tmp_path / "private_media" / "sugar").iterdir())
 
         # 第一次确认进入待确认；第二人确认后才开始计时。
         pending = client.post(f"/api/sugar/pairs/{bob_id}/confirm", headers=alice)
@@ -656,6 +661,10 @@ def test_sugar_club_profiles_pairing_and_ranking(tmp_path, monkeypatch):
         assert active.status_code == 201, active.text
         assert active.json()["status"] == "active"
         pair_id = active.json()["id"]
+
+        # 关系进入「进行中」后，双方才互相可见 QQ。
+        paired_detail = client.get(f"/api/sugar/profiles/{bob_id}", headers=alice).json()
+        assert paired_detail["qq"] == "2222222222"
 
         # 进行中的关系会出现在砂糖榜；关系结束后不再展示。
         leaderboard = client.get("/api/sugar/pairs/top", headers=bob).json()
@@ -1156,20 +1165,30 @@ def test_sugar_photo_moderation():
         profile = register_sugar_profile(client, alice)
         photo_id = profile["photos"][0]["id"]
 
-        # 管理端能看到砂糖照片及主人
+        # 先审后公开：新上传的砂糖照片默认为待审，落在私有区。
+        assert profile["photos"][0]["is_visible"] is False
+        assert profile["photos"][0]["image_url"].startswith("/api/media/")
+
+        # 管理端能看到待审砂糖照片及主人
         listed = client.get("/api/admin/sugar/photos", headers=admin)
         assert listed.status_code == 200
         assert listed.json()[0]["id"] == photo_id
         assert listed.json()[0]["user"]["nickname"] == "用户sugar_own"
-        assert listed.json()[0]["is_visible"] is True
+        assert listed.json()[0]["is_visible"] is False
+
+        # 他人看不到待审照片
+        assert client.get("/api/sugar/profiles", headers=bob).json()[0]["photos"] == []
+
+        # 审核通过 → 搬进公开区，他人可见
+        approved = client.patch(f"/api/admin/sugar/photos/{photo_id}", headers=admin, json={"is_visible": True})
+        assert approved.status_code == 200, approved.text
+        assert approved.json()["is_visible"] is True
+        assert len(client.get("/api/sugar/profiles", headers=bob).json()[0]["photos"]) == 1
 
         # 屏蔽时不填理由 → 422
         missing_note = client.patch(f"/api/admin/sugar/photos/{photo_id}", headers=admin, json={"is_visible": False})
         assert missing_note.status_code == 422
         assert "理由" in missing_note.json()["detail"]
-
-        # 普通用户不能审核
-        assert client.patch(f"/api/admin/sugar/photos/{photo_id}", headers=bob, json={"is_visible": False, "admin_note": "乱填"}).status_code == 403
 
         # 带理由屏蔽
         hidden = client.patch(
@@ -2029,13 +2048,13 @@ def test_staff_role_management_and_public_directory():
             json={"max_concurrent_tasks": 5},
         ).status_code == 403
 
-        # 店员 QQ 公开；志愿者 QQ 默认隐藏。
+        # 店员与志愿者的 QQ 都只在本人主动公开（qq_public）时才展示。
         directory = client.get("/api/staff")
         assert directory.status_code == 200
         assert "group_chat_id" not in directory.json()
         public_staff = next(user for user in directory.json()["staff"] if user["id"] == staff_id)
         assert public_staff["nickname"] == "公开店员"
-        assert public_staff["qq"] == "123456789"
+        assert public_staff["qq"] is None
         assert public_staff["bio"] == "负责处理权限申请"
         public_volunteer = next(
             user for user in directory.json()["volunteers"] if user["id"] == volunteer_me.json()["id"]
@@ -2062,7 +2081,19 @@ def test_staff_role_management_and_public_directory():
 
         public_profile = client.get(f"/api/users/{staff_id}")
         assert public_profile.status_code == 200
-        assert public_profile.json()["qq"] == "123456789"
+        assert public_profile.json()["qq"] is None
+
+        # 店员也可以自行决定公开 QQ（与志愿者同规则）。
+        staff_me = client.get("/api/auth/me", headers=staff_headers).json()
+        staff_published = client.patch(
+            "/api/users/me",
+            headers=staff_headers,
+            json={"nickname": staff_me["nickname"], "qq": "123456789", "qq_public": True, "bio": None},
+        )
+        assert staff_published.status_code == 200
+        assert staff_published.json()["qq_public"] is True
+        directory = client.get("/api/staff").json()
+        assert next(u for u in directory["staff"] if u["id"] == staff_id)["qq"] == "123456789"
         hidden_volunteer_profile = client.get(f"/api/users/{volunteer_me.json()['id']}")
         assert hidden_volunteer_profile.status_code == 200
         assert hidden_volunteer_profile.json()["qq"] is None
@@ -2137,8 +2168,9 @@ def test_user_profile_photos_upload_limits_task_visibility_and_moderation(monkey
         uploaded = client.post("/api/users/me/photos", headers=owner, files=files)
         assert uploaded.status_code == 201, uploaded.text
         assert len(uploaded.json()["photos"]) == 3
-        assert all(photo["image_url"].startswith("/uploads/users/") for photo in uploaded.json()["photos"])
-        assert len(list((tmp_path / "uploads" / "users" / str(owner_id)).iterdir())) == 3
+        # 先审后公开：新上传的介绍图片在私有区，只有本人与审核人员看得到。
+        assert all(photo["image_url"].startswith("/api/media/users/") for photo in uploaded.json()["photos"])
+        assert len(list((tmp_path / "private_media" / "users" / str(owner_id)).iterdir())) == 3
 
         over_count = client.post(
             "/api/users/me/photos",
@@ -2170,8 +2202,16 @@ def test_user_profile_photos_upload_limits_task_visibility_and_moderation(monkey
         assert invalid_format.status_code == 422
         assert invalid_format.json()["detail"] == "仅支持 JPEG、PNG、GIF 或 WebP 图片"
 
-        # 图片会随委托中的用户摘要返回，便于接取前查看委托人资料。
+        # 待审图片不会随委托中的用户摘要泄露给他人。
         task = create_task(client, owner, password=None, required=1, title="带个人图片的委托")
+        task_detail = client.get(f"/api/tasks/{task['id']}", headers=viewer).json()
+        assert task_detail["publisher"]["photos"] == []
+
+        # 审核通过后才公开：图片随委托中的用户摘要返回，便于接取前查看委托人资料。
+        for photo in uploaded.json()["photos"]:
+            assert client.patch(
+                f"/api/admin/photos/{photo['id']}", headers=admin, json={"is_visible": True}
+            ).status_code == 200
         task_detail = client.get(f"/api/tasks/{task['id']}", headers=viewer).json()
         assert len(task_detail["publisher"]["photos"]) == 3
 

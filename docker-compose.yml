@@ -18,7 +18,7 @@ services:
       # 待审/被屏蔽媒体的私有目录：不在 /uploads 静态托管范围内，只能凭签名地址访问。
       MEDIA_PRIVATE_DIR: ${MEDIA_PRIVATE_DIR:-/data/private_media}
       # 私有媒体签名地址的有效期（秒）；越短则审核驳回后旧链接越快失效。
-      MEDIA_TOKEN_TTL_SECONDS: ${MEDIA_TOKEN_TTL_SECONDS:-21600}
+      MEDIA_TOKEN_TTL_SECONDS: ${MEDIA_TOKEN_TTL_SECONDS:-3600}
       # 站点同源访问，正常不触发 CORS；默认留空，需要跨域时再在 .env 指定。
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       # 页脚备案信息：留空则前端不展示（真实值只放 .env，不入库）。
@@ -82,13 +82,21 @@ services:
     # 仅供 edge 在内网访问，不映射宿主机端口（开发直连见 docker-compose.dev.yml）。
     expose:
       - "80"
-    # 根文件系统只读 + 内存临时目录。nginx 需要 root master 才能 chown/setuid 到
-    # worker 用户并绑定 80 端口，因此这里不 cap_drop: ALL，只加 no-new-privileges。
+    # 根文件系统只读 + 内存临时目录。nginx master 需要绑定 80 并对 worker 执行
+    # chown/setuid，因此只保留这几项必要 capability，其余全部丢弃。
     read_only: true
     tmpfs:
       - /var/cache/nginx
       - /var/run
       - /tmp
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
     security_opt:
       - no-new-privileges:true
     depends_on:
@@ -122,6 +130,15 @@ services:
       - /var/cache/nginx
       - /var/run
       - /tmp
+    # 与 frontend 同理：只保留绑定 80/443 与切换 worker 用户所需的 capability。
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
     security_opt:
       - no-new-privileges:true
     depends_on:
@@ -136,8 +153,13 @@ services:
       - ./deploy/certbot/renew-loop.sh:/opt/renew-loop.sh:ro
       - ./deploy/certbot/conf:/etc/letsencrypt
       - ./deploy/certbot/www:/var/www/certbot
-    # 续期进程需要写 /etc/letsencrypt（bind mount）与 /var/log/letsencrypt，
-    # 因此保持可写，只禁止提权。
+    # 根文件系统只读：证书写在 bind mount 的 /etc/letsencrypt，
+    # 临时/工作/日志目录改用内存盘。
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/lib/letsencrypt
+      - /var/log/letsencrypt
     cap_drop:
       - ALL
     security_opt:

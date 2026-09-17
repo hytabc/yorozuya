@@ -1,3 +1,4 @@
+import ipaddress
 import logging
 import secrets
 from pathlib import Path
@@ -7,9 +8,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger("yorozuya.config")
 
-# 代码内置的占位值：一旦生效，JWT 可被伪造 / 管理员密码人人皆知，必须替换。
+# 代码内置与仓库示例文件里的占位值：一旦生效，JWT 可被伪造 / 管理员密码人人皆知，必须替换。
+# .env.example 是对外公开的，运维为让 compose 的必填校验通过最可能直接照抄这两个值，
+# 因此它们必须与内置占位值一样被识别为「不安全」，否则会被当成有效凭证静默生效。
 INSECURE_DEFAULT_SECRET = "change-this-secret-in-production"
 INSECURE_DEFAULT_ADMIN_PASSWORD = "Admin123!"
+PLACEHOLDER_SECRETS = frozenset({INSECURE_DEFAULT_SECRET, "replace-with-a-long-random-secret"})
+PLACEHOLDER_ADMIN_PASSWORDS = frozenset(
+    {INSECURE_DEFAULT_ADMIN_PASSWORD, "replace-with-a-strong-password"}
+)
+# 签名密钥的最小长度（字符）：短于该长度一律视为不安全并改为随机生成。
+MIN_SECRET_KEY_LENGTH = 32
 
 
 class Settings(BaseSettings):
@@ -33,10 +42,16 @@ class Settings(BaseSettings):
     media_private_dir: str = ""
     # 私有媒体签名 URL 的有效期（秒）。每次接口响应都会重新签发，因此可以设得较短：
     # 越短则「审核驳回后旧链接失效」越快，过长会削弱撤回效果。
-    media_token_ttl_seconds: int = 6 * 60 * 60
+    media_token_ttl_seconds: int = 60 * 60
     cors_origins: str = "http://localhost:5173,http://localhost:8080"
     # 反向代理后部署时（Docker/HTTPS 入口）设为 True，限流按真实客户端 IP 统计。
     behind_proxy: bool = False
+    # 只有直连来源落在这些网段内，才信任 X-Real-IP / X-Forwarded-For。
+    # 默认仅容器私网与回环：即便 BEHIND_PROXY 被误设为 true，公网直连也无法伪造来源 IP。
+    trusted_proxy_cidrs: str = "127.0.0.0/8,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+    # 测试模式：关闭限流与人机验证、跳过启动期的破坏性操作。
+    # 由 pytest 的 conftest 显式开启，不再依赖「进程里是否 import 了 pytest」这种脆弱判断。
+    testing: bool = False
 
     # 万事屋看板娘(站内 AI 助手):不填 MASCOT_API_KEY 则聊天接口优雅降级为“未启用”
     mascot_api_base: str = "https://api.moonshot.cn/v1"
@@ -93,11 +108,12 @@ class Settings(BaseSettings):
     def model_post_init(self, __context) -> None:
         # 未配置 SECRET_KEY 时绝不能使用公开的占位值签名令牌：
         # 改用本次进程的随机会话密钥（重启后旧登录失效，但令牌无法被伪造）。
-        if not self.secret_key or self.secret_key == INSECURE_DEFAULT_SECRET:
+        if self.secret_key in PLACEHOLDER_SECRETS or len(self.secret_key) < MIN_SECRET_KEY_LENGTH:
             self.secret_key = secrets.token_urlsafe(48)
             logger.warning(
-                "未检测到有效的 SECRET_KEY，已为本次运行生成临时密钥。"
-                "所有登录会在重启后失效，请在 .env 中设置固定的 SECRET_KEY（openssl rand -hex 32）。"
+                "SECRET_KEY 缺失、仍在使用公开占位值或长度不足 %d 字符，已为本次运行生成临时密钥。"
+                "所有登录会在重启后失效，请在 .env 中设置固定的强随机 SECRET_KEY（openssl rand -hex 32）。",
+                MIN_SECRET_KEY_LENGTH,
             )
         # 接口允许携带凭证（Authorization / 未来可能的 Cookie），通配来源等于让任意站点
         # 带着访客的登录态调用本站接口，因此必须直接拒绝而不是静默生效。
@@ -131,7 +147,21 @@ class Settings(BaseSettings):
 
     @property
     def admin_password_is_default(self) -> bool:
-        return not self.admin_password or self.admin_password == INSECURE_DEFAULT_ADMIN_PASSWORD
+        return not self.admin_password or self.admin_password in PLACEHOLDER_ADMIN_PASSWORDS
+
+    @property
+    def trusted_proxy_networks(self) -> list[ipaddress.IPv4Network | ipaddress.IPv6Network]:
+        """解析受信代理网段；非法条目忽略并告警，避免一处笔误让来源 IP 全部失真。"""
+        networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = []
+        for raw in self.trusted_proxy_cidrs.split(","):
+            candidate = raw.strip()
+            if not candidate:
+                continue
+            try:
+                networks.append(ipaddress.ip_network(candidate, strict=False))
+            except ValueError:
+                logger.warning("TRUSTED_PROXY_CIDRS 中的 %r 不是合法网段，已忽略", candidate)
+        return networks
 
     @property
     def cors_origin_list(self) -> list[str]:

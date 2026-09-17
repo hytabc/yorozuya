@@ -2,6 +2,11 @@
 # 本文件是模板：容器启动时由 edge-entrypoint.sh 用 envsubst 只替换 ${DOMAIN}，
 # nginx 自身的 $host / $remote_addr 等运行时变量不受影响。
 
+# 入口层兜底限流：后端还有按业务的细粒度限流，这里只防止单 IP 洪泛。
+# 静态资源不计入，只对 /api/ 生效，避免正常的页面加载被误伤。
+limit_req_zone $binary_remote_addr zone=edge_api:10m rate=20r/s;
+limit_conn_zone $binary_remote_addr zone=edge_conn:10m;
+
 server {
     listen 80;
     server_name ${DOMAIN};
@@ -30,9 +35,17 @@ server {
     ssl_certificate_key     /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
     ssl_trusted_certificate /etc/letsencrypt/live/${DOMAIN}/chain.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
+    # 显式固化 TLS 1.2 套件（TLS 1.3 套件由 nginx 固定，无需配置），
+    # 避免依赖具体 OpenSSL 版本的编译默认值。
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
     ssl_prefer_server_ciphers off;
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 1d;
+    # OCSP 装订：客户端无需自行请求 CA 即可拿到吊销状态（也避免隐私泄露给 CA）。
+    # 需要 resolver 才能取 OCSP 响应；Docker 内嵌 DNS 是 127.0.0.11。
+    resolver 127.0.0.11 ipv6=off valid=300s;
+    ssl_stapling on;
+    ssl_stapling_verify on;
 
     # 刻意不加 includeSubDomains / preload：避免波及同域下其它子域且难以回退。
     add_header Strict-Transport-Security "max-age=31536000" always;
@@ -40,8 +53,37 @@ server {
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
-    # 与 frontend 容器一致，覆盖地图实拍 5 张 10 MB 的上传请求。
-    client_max_body_size 55m;
+    # 默认只允许较小的请求体，只有下面的上传入口放宽到 55m。
+    client_max_body_size 1m;
+
+    # 上传接口：放宽请求体并计入限流。
+    location ~ ^/api/(?:users/me/(?:avatar|photos)|sugar/profile|friends/profile|stories|vr-maps|virtual-life) {
+        client_max_body_size 55m;
+        limit_req zone=edge_api burst=40 nodelay;
+        limit_conn edge_conn 30;
+        proxy_pass http://frontend:80;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host $host;
+        proxy_http_version 1.1;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 120s;
+    }
+
+    # 其余接口：单 IP 限速限连，防止撞库/刷接口。
+    location /api/ {
+        limit_req zone=edge_api burst=40 nodelay;
+        limit_conn edge_conn 30;
+        proxy_pass http://frontend:80;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host $host;
+        proxy_http_version 1.1;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 60s;
+    }
 
     location / {
         proxy_pass http://frontend:80;
@@ -51,6 +93,7 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Host $host;
         proxy_http_version 1.1;
+        limit_conn edge_conn 60;
         proxy_connect_timeout 10s;
         proxy_read_timeout 60s;
     }

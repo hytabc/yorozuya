@@ -267,8 +267,12 @@ def test_duplicate_and_orphan_public_files_fail_closed(tmp_path, monkeypatch):
         assert not media.storage_file(key, public=True).exists()
         media.write_media("sugar/orphan.png", make_png(), public=True)
         assert client.get("/uploads/sugar/orphan.png").status_code == 404
-        media.write_media("life/asset.png", make_png(), public=True)
-        assert client.get("/uploads/life/asset.png").status_code == 200
+        # 生活素材只放行服务端 UUID 形态的文件名，杜绝任意文件借这条捷径公开。
+        asset_key = "life/" + "a" * 32 + ".png"
+        media.write_media(asset_key, make_png(), public=True)
+        assert client.get(f"/uploads/{asset_key}").status_code == 200
+        media.write_media("life/anything.png", make_png(), public=True)
+        assert client.get("/uploads/life/anything.png").status_code == 404
         assert client.get("/uploads/life/%2e%2e/sugar/orphan.png").status_code == 404
 
 
