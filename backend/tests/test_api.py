@@ -3062,6 +3062,9 @@ def test_story_photos_upload_and_moderation(tmp_path, monkeypatch):
 def test_turnstile_provider_delegates_to_siteverify(monkeypatch):
     captcha_module = _enable_captcha(monkeypatch, "turnstile")
     monkeypatch.setattr(settings, "turnstile_site_key", "test-site-key")
+    # Turnstile 两种 Key 缺一不可：没有 Secret Key 时服务端无法 siteverify，
+    # 因此「实际生效」的 provider 会回落到 builtin（见下一个用例）。
+    monkeypatch.setattr(settings, "turnstile_secret_key", "test-secret-key")
     seen_tokens = []
 
     async def fake_verify_turnstile(token, remote_ip):
@@ -3089,6 +3092,34 @@ def test_turnstile_provider_delegates_to_siteverify(monkeypatch):
         assert good.status_code == 200, good.text
 
     assert seen_tokens == ["bad-token", "good-token"]
+
+
+def test_captcha_falls_back_to_builtin_when_turnstile_keys_missing(monkeypatch):
+    """CAPTCHA_PROVIDER=turnstile 但缺 Site/Secret Key 时，两端都回落到图形验证码。
+
+    以前接口发的是内置图形验证码、服务端却按 turnstile 校验，
+    结果是登录/注册稳定 400 的死锁（改配置也救不回来）。
+    """
+    captcha_module = _enable_captcha(monkeypatch, "turnstile")
+    monkeypatch.setattr(settings, "turnstile_site_key", "")
+    monkeypatch.setattr(settings, "turnstile_secret_key", "")
+
+    with TestClient(app) as client:
+        challenge = client.get("/api/auth/captcha").json()
+        assert challenge["provider"] == "builtin"
+        assert challenge["captcha_id"]
+
+        answer = captcha_module.peek_answer(challenge["captcha_id"])
+        response = client.post(
+            "/api/auth/login",
+            json={
+                "username": "admin",
+                "password": "Admin123!",
+                "captcha_id": challenge["captcha_id"],
+                "captcha_code": answer,
+            },
+        )
+        assert response.status_code == 200, response.text
 
 
 def test_admin_summary_counts_and_permissions():

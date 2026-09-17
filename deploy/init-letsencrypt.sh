@@ -35,7 +35,9 @@ read_env() {
 DOMAIN=${DOMAIN:-$(read_env DOMAIN)}
 EMAIL=${LETSENCRYPT_EMAIL:-$(read_env LETSENCRYPT_EMAIL)}
 STAGING=${CERTBOT_STAGING:-$(read_env CERTBOT_STAGING)}
-STAGING=${STAGING:-0}
+# 默认走 staging：首次签发最容易因 DNS/防火墙/路径问题失败，直接打正式环境会消耗
+# Let's Encrypt 的速率限制额度（同一域名每周 5 次），试错成本高。确认链路后再改 0 正式签发。
+STAGING=${STAGING:-1}
 
 [ -n "$DOMAIN" ] || fail "未设置域名：请在 .env 中配置 DOMAIN，或用 DOMAIN=example.com $0 传入"
 

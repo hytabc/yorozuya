@@ -503,9 +503,10 @@ def sync_media_zones(db: Session) -> None:
             place_media(key, public=public)
 
 
-# 生产（反代部署）关闭交互式文档与 OpenAPI，避免把完整接口结构公之于众；
-# 本地开发仍保留，方便调试。
-_docs_enabled = not settings.behind_proxy
+# 交互式文档与 OpenAPI 默认关闭（ENABLE_DOCS=false），避免把完整接口结构公之于众。
+# 刻意不看 BEHIND_PROXY 单个标志：那个标志同时控制代理信任，误设一次就会连带暴露文档；
+# 这里要求「显式打开」且「确实不在代理后面」两个条件同时成立。
+_docs_enabled = settings.enable_docs and not settings.behind_proxy
 app = FastAPI(
     title=settings.app_name,
     version="0.1-beta",
@@ -1611,7 +1612,9 @@ def get_captcha(request: Request):
     enforce("captcha-ip", client_ip(request), 60, 300)
     if not captcha_required():
         return CaptchaChallenge(provider="off")
-    if settings.captcha_provider == "turnstile" and settings.turnstile_site_key:
+    # 用「实际生效」的 provider：Site Key/Secret Key 缺一个就回落到站内图形验证码，
+    # 避免前端拿到 builtin 图形验证码、服务端却按 turnstile 校验的死锁。
+    if settings.captcha_effective_provider == "turnstile":
         return CaptchaChallenge(provider="turnstile", site_key=settings.turnstile_site_key)
     captcha_id, png = create_image_captcha()
     return CaptchaChallenge(

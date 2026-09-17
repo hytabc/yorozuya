@@ -18,7 +18,8 @@ services:
       # 待审/被屏蔽媒体的私有目录：不在 /uploads 静态托管范围内，只能凭签名地址访问。
       MEDIA_PRIVATE_DIR: ${MEDIA_PRIVATE_DIR:-/data/private_media}
       # 私有媒体签名地址的有效期（秒）；越短则审核驳回后旧链接越快失效。
-      MEDIA_TOKEN_TTL_SECONDS: ${MEDIA_TOKEN_TTL_SECONDS:-3600}
+      # 签名不绑定用户，拿到地址的人在有效期内都能读取，默认 10 分钟。
+      MEDIA_TOKEN_TTL_SECONDS: ${MEDIA_TOKEN_TTL_SECONDS:-600}
       # 站点同源访问，正常不触发 CORS；默认留空，需要跨域时再在 .env 指定。
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       # 页脚备案信息：留空则前端不展示（真实值只放 .env，不入库）。
@@ -62,9 +63,11 @@ services:
       - ./backend/data:/data
     # 运行面加固：根文件系统只读，临时目录用内存盘，丢弃全部 Linux capability。
     # 应用只写 /data（bind mount）与 /tmp，不需要任何特权。
+    # ⚠️ tmpfs 必须显式限size：docker 默认给 tmpfs 宿主机内存的一半，
+    # 上传请求体（每个最大 55m）会暂存到 /tmp，不限size 时并发上传可吃掉整机内存。
     read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:size=512m
     cap_drop:
       - ALL
     security_opt:
@@ -84,11 +87,12 @@ services:
       - "80"
     # 根文件系统只读 + 内存临时目录。nginx master 需要绑定 80 并对 worker 执行
     # chown/setuid，因此只保留这几项必要 capability，其余全部丢弃。
+    # tmpfs 显式限size，避免上传走缓冲时把宿主内存吃满。
     read_only: true
     tmpfs:
-      - /var/cache/nginx
-      - /var/run
-      - /tmp
+      - /var/cache/nginx:size=256m
+      - /var/run:size=16m
+      - /tmp:size=64m
     cap_drop:
       - ALL
     cap_add:
@@ -116,6 +120,7 @@ services:
       - "443:443"
     volumes:
       - ./deploy/nginx/edge-entrypoint.sh:/opt/edge-entrypoint.sh:ro
+      - ./deploy/nginx/healthcheck.sh:/opt/healthcheck.sh:ro
       - ./deploy/nginx/edge.conf.template:/etc/nginx/templates/edge.conf.template:ro
       # 证书缺失时的引导配置（仅放行 ACME 挑战），避免 nginx 因缺少证书而启动失败。
       - ./deploy/nginx/edge-bootstrap.conf.template:/etc/nginx/templates/edge-bootstrap.conf.template:ro
@@ -124,12 +129,13 @@ services:
       - ./deploy/certbot/www:/var/www/certbot
     # 根文件系统只读：entrypoint 会把渲染后的配置写进 conf.d，因此必须把该目录挂成 tmpfs，
     # 否则 `mv` 会失败导致容器起不来。
+    # tmpfs 显式限size，避免上传走缓冲时把宿主内存吃满。
     read_only: true
     tmpfs:
-      - /etc/nginx/conf.d
-      - /var/cache/nginx
-      - /var/run
-      - /tmp
+      - /etc/nginx/conf.d:size=16m
+      - /var/cache/nginx:size=256m
+      - /var/run:size=16m
+      - /tmp:size=64m
     # 与 frontend 同理：只保留绑定 80/443 与切换 worker 用户所需的 capability。
     cap_drop:
       - ALL
@@ -141,6 +147,13 @@ services:
       - DAC_OVERRIDE
     security_opt:
       - no-new-privileges:true
+    # 健康检查走 127.0.0.1 的 HTTPS：TLS 终止 + 反代到后端整条链路一起验。
+    healthcheck:
+      test: ["CMD", "/bin/sh", "/opt/healthcheck.sh"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
     depends_on:
       - frontend
 
@@ -151,16 +164,28 @@ services:
     entrypoint: ["/bin/sh", "/opt/renew-loop.sh"]
     volumes:
       - ./deploy/certbot/renew-loop.sh:/opt/renew-loop.sh:ro
+      - ./deploy/certbot/renew-hook.sh:/opt/renew-hook.sh:ro
+      - ./deploy/certbot/healthcheck.sh:/opt/healthcheck.sh:ro
       - ./deploy/certbot/conf:/etc/letsencrypt
       - ./deploy/certbot/www:/var/www/certbot
     # 根文件系统只读：证书写在 bind mount 的 /etc/letsencrypt，
     # 临时/工作/日志目录改用内存盘。
     read_only: true
     tmpfs:
-      - /tmp
-      - /var/lib/letsencrypt
-      - /var/log/letsencrypt
+      - /tmp:size=64m
+      - /var/lib/letsencrypt:size=512m
+      # 续期日志同时写一份到 bind mount 的 /etc/letsencrypt/renew.log（重启后仍可查），
+      # 这里的内存盘只是 certbot 自己的日志目录。
+      - /var/log/letsencrypt:size=64m
     cap_drop:
       - ALL
     security_opt:
       - no-new-privileges:true
+    # 剩余有效期不足 10 天即报不健康：续期长期失败时不必等证书过期、站点掉线才发现。
+    # 续期结果同时写在 ./deploy/certbot/conf/renew.log（失败时会留 renew-failed 标记）。
+    healthcheck:
+      test: ["CMD", "/bin/sh", "/opt/healthcheck.sh"]
+      interval: 6h
+      timeout: 60s
+      retries: 1
+      start_period: 60s
