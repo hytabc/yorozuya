@@ -1,6 +1,7 @@
 import logging
 import secrets
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -73,7 +74,7 @@ class Settings(BaseSettings):
     # ⚠️ 必须是服务商后台已验证的发信地址（阿里云：发信域名需验证、发信地址需在控制台创建）。
     email_from_address: str = ""
     email_from_name: str = "万事屋委托站"
-    # 邮件里链接的前缀，例如 https://example.com；留空则按请求的 Host 推导。
+    # 邮件链接只允许使用此来源；本地开发显式填写 http://localhost:5173。
     site_base_url: str = ""
     # 邮箱验证链接有效期（小时）。
     email_verification_ttl_hours: int = 24
@@ -105,6 +106,18 @@ class Settings(BaseSettings):
                 "CORS_ORIGINS 不能包含 *：本站接口允许携带凭证，通配来源会让任意网站"
                 "以访客身份调用本站接口。请改为逐个列出真实来源，例如 https://example.com。"
             )
+        if self.site_base_url:
+            origin = urlsplit(self.site_base_url)
+            local = origin.hostname in ("localhost", "127.0.0.1", "::1")
+            if (
+                origin.scheme not in ("http", "https") or not origin.hostname
+                or (origin.scheme != "https" and (self.behind_proxy or not local))
+                or origin.username or origin.password or origin.query or origin.fragment
+                or origin.path not in ("", "/") or any(c.isspace() for c in self.site_base_url)
+            ):
+                raise RuntimeError("SITE_BASE_URL 必须是 HTTPS 站点来源；非代理本地开发可使用 HTTP 回环地址")
+        elif self.behind_proxy:
+            raise RuntimeError("代理部署必须在 .env 中配置 HTTPS SITE_BASE_URL")
         if self.email_delivery not in ("smtp", "log"):
             raise RuntimeError(
                 f"EMAIL_DELIVERY 只能是 smtp 或 log（当前 {self.email_delivery!r}）："

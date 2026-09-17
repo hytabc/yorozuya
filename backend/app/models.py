@@ -714,6 +714,7 @@ class EmailToken(Base):
     # verify_email / change_email / reset_password
     purpose: Mapped[str] = mapped_column(String(24), index=True)
     token_hash: Mapped[str] = mapped_column(String(64), index=True)
+    credential_version: Mapped[int] = mapped_column(default=0)
     salt: Mapped[str] = mapped_column(String(32))
     # 换绑邮箱时记录目标地址：该令牌只对这一地址有效，避免被拿去改绑别的邮箱。
     new_email: Mapped[str | None] = mapped_column(String(254), nullable=True)

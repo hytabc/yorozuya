@@ -36,8 +36,8 @@ services:
       # 必须是服务商已验证的发信地址，否则被拒收。
       EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-万事屋委托站}
-      # 邮件链接前缀（如 https://example.com）；留空则按请求 Host 推导。
-      SITE_BASE_URL: ${SITE_BASE_URL:-}
+      # 邮件链接的可信 HTTPS 来源，生产环境必须明确配置。
+      SITE_BASE_URL: ${SITE_BASE_URL:?请在 .env 中设置 HTTPS SITE_BASE_URL}
       EMAIL_VERIFICATION_TTL_HOURS: ${EMAIL_VERIFICATION_TTL_HOURS:-24}
       PASSWORD_RESET_TTL_MINUTES: ${PASSWORD_RESET_TTL_MINUTES:-30}
       EMAIL_SEND_COOLDOWN_SECONDS: ${EMAIL_SEND_COOLDOWN_SECONDS:-60}

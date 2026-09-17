@@ -69,8 +69,12 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def _testing() -> bool:
+    return "pytest" in sys.modules
+
+
 def enforce(bucket: str, key: str, limit: int, window_seconds: int) -> None:
     # 测试会从同一来源反复注册/登录，跳过节流以免干扰用例。
-    if "pytest" in sys.modules:
+    if _testing():
         return
     limiter.hit(f"{bucket}:{key[:120]}", limit, window_seconds)

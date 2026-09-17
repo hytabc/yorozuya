@@ -115,6 +115,7 @@ class PasswordResetConfirm(RequestModel):
 
 class EmailChangeRequest(RequestModel):
     email: str = Field(min_length=6, max_length=254, pattern=EMAIL_PATTERN)
+    current_password: str = Field(min_length=1, max_length=128)
 
 
 class NotifyEmailUpdate(RequestModel):

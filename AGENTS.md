@@ -163,3 +163,16 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - **发信失败是 fail-closed**：新增依赖邮件的写接口要沿用 `email_flow.deliver()`（未配置/失败 → 503 且不提交事务），只有事件通知用 `required=False` 的 best-effort 路径。
 - 本地若无 Python 3.12，用 3.14 跑测试需 SQLAlchemy>=2.0.44（2.0.38 与 3.14 不兼容）；生产 Docker 是 3.12，requirements.txt 版本锁定不要随意升级。
 - 前端登录缓存有版本号 `AUTH_CACHE_VERSION`（stores/auth.js），改 user 对象结构时递增可强制全员重新登录。
+
+## 2026-09 安全审计补充（覆盖上文旧的邮件来源与静态媒体约定）
+
+- 安全问题列表、验证结果及上线/回滚步骤见 `docs/security-audit.md`。
+- 首次绑定/换绑邮箱 `EmailChangeRequest` 必须带 `current_password`；两个前端入口均需同步。确认绑定后登录令牌失效，需要重新登录。
+- `EmailToken.credential_version` 绑定账号 `token_version`；`lock_credentials()` 条件 UPDATE 在 SQLite 上串行化凭证操作。自助/管理员/邮件改密和邮箱变更必须走 `revoke_credentials()`，在同一事务中递增版本、作废全部未使用邮箱令牌、清空 pending_email。首次 SQLite 迁移作废旧格式邮件链接。
+- 邮件来源只读 `SITE_BASE_URL`，不得从请求 Host/转发头推导；生产代理部署必须为 HTTPS origin，本机开发显式指定回环 origin。
+- 六类媒体审核统一调用 `commit_moderation()`，文件操作失败返回 503，不能先提交数据库再吞文件错误；删除先完成文件操作再提交。启动对账失败会阻止启动，需修复磁盘权限/空间后重试。
+- `/uploads/{key}` 校验路径及数据库可见性，禁止改回无鉴权静态托管；管理员净化导入的 `life/` 单层素材例外。公开和签名媒体均 `no-store`。已下载文件无法撤回，禁止宣称数据库与文件系统是同一原子事务。
+- 登录按账号 ID 合并用户名/邮箱/空白与大小写别名的限流；新增 `email-change-password`（10/300s）、`task-create`（20/600s）。测试通过替换 `ratelimit._testing` 开启真实限流，不操作 `sys.modules`。
+- `tests/conftest.py` 在导入应用前将存储与邮件来源隔离到测试环境；新增安全用例在 `test_security_audit.py`。
+- 游戏存档请求的异步凭证拦截器必须校验并固定 `ownerToken`，不得把旧页面快照发送给切换后的账号。
+- 本次因明确安全公告升级 FastAPI/Starlette、multipart、Pillow 和 pip/pytest；其它锁定版本保持。依赖复查脚本：`backend/scripts/audit_dependencies.py`。

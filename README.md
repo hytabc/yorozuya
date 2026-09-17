@@ -280,10 +280,11 @@ start.bat test
   按拍摄方向摆正、剥离 EXIF/GPS 等全部元数据、限制单张像素（约 25 MP，先看文件头再解码，挡下压缩炸弹）
   与长边（2560 px）、动图只保留首帧；文件名由服务端生成 UUID。
   上传目录与数据库目录强制隔离，避免 `wsw.db` 与备份被静态托管下载。
-- **待审媒体受控访问**：媒体分两个区 —— 已过审的文件在公开区 `backend/data/uploads/`，由 `/uploads` 静态托管；
+- **待审媒体受控访问**：媒体分两个区 —— 已过审的文件在公开区 `backend/data/uploads/`，由 `/uploads` 按数据库可见性提供，磁盘残留副本不会绕过审核；
   待审与被屏蔽的文件落在**公开目录之外**的 `backend/data/private_media/`，只能通过短时签名地址
   `/api/media/<key>?exp=&sig=` 访问（`<img>` 带不了 Bearer 令牌，所以签名即访问控制，默认有效期 6 小时）。
-  审核通过时文件搬进公开区，驳回/屏蔽时搬回私有区，因此**撤回后旧公开地址立即失效**。
+  审核通过时文件搬进公开区，驳回/屏蔽时搬回私有区；搬移和删除失败返回 503，不提交成功状态。
+  公开和签名媒体均使用 `Cache-Control: no-store`；已被下载的文件无法远程撤回。
   升级到本版本时后端会在启动阶段做一次对账，把历史遗留的"已屏蔽但仍在公开区"的文件搬进私有区。
 - **响应头**：Nginx 统一附加 `X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`，
   并下发 `Content-Security-Policy`（`default-src 'self'`，仅额外放行 Cloudflare Turnstile）；
@@ -310,7 +311,7 @@ start.bat test
 | 登录 | 登录名支持「用户名」或「邮箱」；通过密码与人机验证后直接登录，无需邮箱验证码 |
 | 存量账号 | 旧账号没有邮箱，登录后会被强制要求绑定并验证；未完成前除「绑定邮箱 / 改密码 / 浏览」外的写操作都会被拒绝 |
 | 忘记密码 | 用用户名或邮箱申请重置链接（30 分钟有效、一次性）；重置后所有旧登录立即失效 |
-| 换绑邮箱 | 先向新地址发确认链接，确认后才生效；旧邮箱会收到变更提醒 |
+| 换绑邮箱 | 首次绑定和换绑都需当前密码；新地址确认后生效，旧登录与邮箱操作链接全部失效，需重新登录；旧邮箱会收到提醒 |
 | 事件通知 | 委托被接取/开始/完成/取消、委托被隐藏、反馈收到回复、志愿者与内测申请审核结果 |
 
 通知邮件只发给「已验证邮箱 + 未关闭通知开关」的账号，正文不含 QQ 等联系方式。
@@ -331,13 +332,15 @@ start.bat test
    SMTP_PASSWORD=你的-SMTP密码
    EMAIL_FROM_ADDRESS=no-reply@mail.example.com
    EMAIL_FROM_NAME=万事屋委托站
-   SITE_BASE_URL=https://你的域名   # 邮件里链接的前缀，建议显式填写
+   SITE_BASE_URL=https://example.com   # 替换为实际站点来源；生产必填 HTTPS，不从 Host 推导
    ```
 
    `SMTP_ENCRYPTION` 可选 `ssl`（465，直接 TLS）/ `starttls`（80/25，先明文再升级）/ `none`（不加密）。
    阿里云 ECS 默认封禁 25 端口：**不加密用 80，加密用 465**。
 
 4. `docker compose up -d --build` 重启后端使配置生效。
+
+直接在本机开发需设置 `SITE_BASE_URL=http://localhost:5173`；Compose 开发覆盖文件使用本机 WEB_PORT。生产代理部署缺失来源或使用 HTTP 会拒绝启动。
 
 本地开发不想配 SMTP 时，设 `EMAIL_DELIVERY=log`：邮件不会真的发出，而是打印到后端日志里（可直接复制验证链接）。
 
@@ -360,7 +363,7 @@ start.bat test
 
 ### 相关约定
 
-- 邮件里的链接令牌**只以哈希入库**（`email_tokens` 表），一次性、限时，用后作废；
+- 邮件里的链接令牌**只以哈希入库**（`email_tokens` 表），同时绑定账号凭证版本，一次性、限时；改密和邮箱变更会撤销旧链接。升级时旧格式未使用邮件链接作废，需重新申请；
 - 重置密码等同确认了邮箱控制权，因此会把该邮箱标记为已验证，并使全部旧会话失效；
 - 「账号是否存在」不会被泄露：重发验证信与申请重置密码接口对不存在的账号同样返回成功。
 
@@ -398,3 +401,18 @@ docker compose up -d
 ```
 
 > 卷名通常是 `仓库名_wsw_data`，可用 `docker volume ls | grep wsw` 确认后再替换上文的卷名。
+
+## 安全审计与上线
+
+2026-09 安全问题、修复证据、剩余限制及部署/回滚步骤见 [安全审计清单](docs/security-audit.md)。
+
+后端测试在导入应用之前自动隔离数据库与媒体目录，邮件仅写测试信箱。使用 Python 3.12 安装 `backend/requirements.txt` 后执行：
+
+```bash
+cd backend
+.venv/bin/python -m pytest tests -q
+.venv/bin/python -m pip check
+.venv/bin/python scripts/audit_dependencies.py
+```
+
+依赖审计只查询 PyPI 包名和版本（包括当前虚拟环境的传递依赖），查询失败会返回非零；结果不等价于容器操作系统扫描。前端验证使用 `npm run build`、`node --test tests/*.test.mjs` 和 `npm audit`。

@@ -80,6 +80,29 @@ def email_taken(db: Session, address: str, *, exclude_user_id: int | None = None
 # ---- 发放 ----
 
 
+def lock_credentials(db: Session, user: User) -> None:
+    """以条件 UPDATE 串行化凭证操作，SQLite 上同样有效；拒绝过期会话快照。"""
+    result = db.execute(
+        update(User)
+        .where(User.id == user.id, User.token_version == user.token_version, User.is_active.is_(True))
+        .values(token_version=User.token_version)
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount != 1:
+        raise HTTPException(status_code=401, detail="登录状态已变更，请重新登录")
+
+
+def revoke_credentials(db: Session, user: User) -> None:
+    """调用方持有凭证锁；与密码/邮箱变更一起提交。"""
+    user.token_version += 1
+    user.pending_email = None
+    db.execute(
+        update(EmailToken)
+        .where(EmailToken.user_id == user.id, EmailToken.used_at.is_(None))
+        .values(used_at=datetime.utcnow())
+    )
+
+
 def _invalidate_previous(db: Session, user_id: int, purpose: str) -> None:
     """同账号同用途的旧令牌一律作废，避免同时存在多条可用链接。"""
     db.execute(
@@ -102,6 +125,7 @@ def issue_link_token(
     new_email: str | None = None,
 ) -> str:
     """发放一次性链接令牌，返回明文（只出现在邮件正文里一次）。"""
+    lock_credentials(db, user)
     now = datetime.utcnow()
     _prune(db, now)
     _invalidate_previous(db, user.id, purpose)
@@ -111,6 +135,7 @@ def issue_link_token(
             user_id=user.id,
             purpose=purpose,
             token_hash=hash_link_token(secret),
+            credential_version=user.token_version,
             salt="",
             new_email=new_email.lower() if new_email else None,
             expires_at=now + timedelta(minutes=ttl_minutes),
@@ -148,6 +173,10 @@ def consume_link_token(db: Session, purpose: str, secret: str) -> EmailToken:
     )
     if row is None or row.used_at is not None or row.expires_at <= datetime.utcnow():
         raise HTTPException(status_code=422, detail=INVALID_TOKEN_DETAIL)
+    user = db.get(User, row.user_id)
+    if user is None or not user.is_active or row.credential_version != user.token_version:
+        raise HTTPException(status_code=422, detail=INVALID_TOKEN_DETAIL)
+    lock_credentials(db, user)
     return _mark_used(db, row)
 
 
@@ -225,19 +254,10 @@ async def notify_address(
 
 
 def base_url(request: Request | None) -> str:
-    """邮件链接前缀：优先 .env 的 SITE_BASE_URL，否则按请求推导。
-
-    按请求推导时 Host 头由客户端提供，因此生产环境建议显式配置 SITE_BASE_URL，
-    否则伪造 Host 的请求可能把验证链接指向别的域名。
-    """
-    if settings.site_base_url:
-        return settings.site_base_url.rstrip("/")
-    if request is None:
-        return ""
-    forwarded = request.headers.get("x-forwarded-proto", "").split(",")[0].strip()
-    scheme = forwarded or request.url.scheme
-    host = request.headers.get("host") or request.url.netloc
-    return f"{scheme}://{host}".rstrip("/")
+    """只使用配置来源；开发环境也必须显式配置本地 origin。"""
+    if not settings.site_base_url:
+        raise HTTPException(status_code=503, detail="网站邮件链接未配置，请联系管理员")
+    return settings.site_base_url.rstrip("/")
 
 
 def verify_link(token: str, request: Request | None = None) -> str:
