@@ -2,8 +2,8 @@
 
 上传的图片分两个区存放：
 
-- **公开区**（``settings.sugar_upload_path``）：只有已过审（``is_visible`` / ``avatar_visible``
-  为真）的文件，由 ``/uploads`` 静态托管，URL 形如 ``/uploads/sugar/xxx.jpg``。
+- **公开区**（``settings.sugar_upload_path``）：已过审文件由 ``/uploads`` 提供，
+  每次读取仍校验数据库可见性，URL 形如 ``/uploads/sugar/xxx.jpg``。
 - **私有区**（``settings.media_private_path``）：待审与被屏蔽的文件，不参与任何静态挂载，
   只能凭 ``/api/media/{key}?exp=&sig=`` 的短时签名访问。
 
@@ -12,7 +12,7 @@ Bearer 令牌。因此签名本身就是访问控制，同时让「审核驳回�
 —— 审核翻转时把文件从一个区搬到另一个区，旧的公开 URL 直接 404。
 
 ``file_path`` 列里始终只存**逻辑 key**（如 ``sugar/xxx.jpg``），所在区由可见性推导，
-因此改可见性和搬文件是一次原子操作，不需要改库里的路径。
+文件与数据库无法原子提交；审核失败保持私有状态，公开读取另查数据库可见性。
 """
 
 from __future__ import annotations
@@ -24,6 +24,9 @@ import logging
 import shutil
 import time
 from pathlib import Path
+
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
 
 from .config import settings
 
@@ -99,31 +102,48 @@ def write_media(key: str, content: bytes, *, public: bool) -> Path:
 
 
 def place_media(key: str, *, public: bool) -> None:
-    """把文件放到与可见性匹配的区。
-
-    幂等：已在目标区则不动；在另一个区则搬过去；两处都没有则忽略。
-    启动对账与审核翻转都走这里，因此搬移失败只记日志，不影响业务请求。
-    """
+    """严格搬区：失败不能报告成功；两区都有副本时清除错误区副本。"""
     target = storage_file(key, public=public)
     source = storage_file(key, public=not public)
     if target is None or source is None:
-        return
-    if target.is_file() or not source.is_file():
-        return
+        raise HTTPException(status_code=503, detail="媒体路径异常，请联系管理员")
     try:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(source), str(target))
-    except OSError as error:  # noqa: BLE001 —— 搬移失败不能把业务请求带崩，但要留痕
-        logger.warning("媒体分区搬移失败 %s -> %s：%s", source, target, error)
+        if target.is_file():
+            source.unlink(missing_ok=True)
+        elif source.is_file():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(source), str(target))
+    except OSError as error:
+        logger.exception("媒体分区操作失败，需对账：%s", key)
+        raise HTTPException(status_code=503, detail="媒体文件操作失败，请稍后重试或联系管理员") from error
+
+
+def commit_moderation(db: Session, key: str, *, public: bool) -> None:
+    """搬区成功才提交审核；提交失败时尽可能收回公开文件。"""
+    try:
+        place_media(key, public=public)
+        db.commit()
+    except Exception as error:
+        logger.exception("媒体审核未提交，需核对状态：%s", key)
+        db.rollback()
+        # 不恢复公开状态。即使文件系统补偿也失败，公开读取仍检查数据库。
+        try:
+            place_media(key, public=False)
+        except HTTPException:
+            logger.exception("审核补偿失败，需对账：%s", key)
+        if isinstance(error, HTTPException):
+            raise
+        raise HTTPException(status_code=503, detail="媒体审核保存失败，请稍后重试或联系管理员") from error
 
 
 def delete_media(key: str) -> None:
-    """删除文件（两个区都尝试），用于记录被删除后的磁盘清理。"""
-    for public in (True, False):
-        path = storage_file(key, public=public)
-        if path is None:
-            continue
-        try:
-            path.unlink(missing_ok=True)
-        except OSError as error:  # noqa: BLE001 —— 清理失败不应阻塞删除接口
-            logger.warning("媒体文件删除失败 %s：%s", path, error)
+    """先撤回公开副本再删除；失败保留数据库记录以便重试。"""
+    place_media(key, public=False)
+    path = storage_file(key, public=False)
+    if path is None:
+        raise HTTPException(status_code=503, detail="媒体路径异常，请联系管理员")
+    try:
+        path.unlink(missing_ok=True)
+    except OSError as error:
+        logger.exception("媒体删除失败，需重试：%s", key)
+        raise HTTPException(status_code=503, detail="媒体文件删除失败，请稍后重试或联系管理员") from error

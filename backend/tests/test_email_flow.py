@@ -212,7 +212,7 @@ def test_email_change_takes_effect_only_after_confirmation():
         new_address = "changed@example.com"
         mailer.OUTBOX.clear()
 
-        requested = client.post("/api/users/me/email", headers=headers, json={"email": new_address})
+        requested = client.post("/api/users/me/email", headers=headers, json={"email": new_address, "current_password": "Password123!"})
         assert requested.status_code == 200, requested.text
 
         # 确认前：邮箱不变，只是 pending_email
@@ -229,6 +229,8 @@ def test_email_change_takes_effect_only_after_confirmation():
             "/api/auth/email/confirm", json={"token": token_from(new_address)}
         )
         assert confirmed.status_code == 200, confirmed.text
+        assert client.get("/api/auth/me", headers=headers).status_code == 401
+        headers = {"Authorization": f"Bearer {login(client, new_address).json()['access_token']}"}
         me = client.get("/api/auth/me", headers=headers).json()
         assert me["email"] == new_address
         assert me["pending_email"] is None
@@ -245,12 +247,12 @@ def test_email_change_rejects_address_owned_by_someone_else():
         headers, _ = auth(client, "owner_user")
         auth(client, "other_user", email="taken@example.com")
 
-        conflict = client.post("/api/users/me/email", headers=headers, json={"email": "taken@example.com"})
+        conflict = client.post("/api/users/me/email", headers=headers, json={"email": "taken@example.com", "current_password": "Password123!"})
         assert conflict.status_code == 409
         assert "已被其他账号使用" in conflict.json()["detail"]
 
         same = client.post(
-            "/api/users/me/email", headers=headers, json={"email": "owner_user@example.com"}
+            "/api/users/me/email", headers=headers, json={"email": "owner_user@example.com", "current_password": "Password123!"}
         )
         assert same.status_code == 409
 
@@ -280,7 +282,7 @@ def test_unverified_account_is_gated_but_super_admin_is_exempt():
 
         # 绑定邮箱这类动作仍然放行（这是唯一的出路）
         allowed = client.post(
-            "/api/users/me/email", headers=legacy_headers, json={"email": "legacy_user@example.com"}
+            "/api/users/me/email", headers=legacy_headers, json={"email": "legacy_user@example.com", "current_password": "Password123!"}
         )
         assert allowed.status_code == 200, allowed.text
 
@@ -288,6 +290,8 @@ def test_unverified_account_is_gated_but_super_admin_is_exempt():
         assert client.post(
             "/api/auth/email/confirm", json={"token": token_from("legacy_user@example.com")}
         ).status_code == 200
+        assert client.get("/api/auth/me", headers=legacy_headers).status_code == 401
+        legacy_headers = {"Authorization": f"Bearer {login(client, 'legacy_user').json()['access_token']}"}
         assert client.post("/api/board", headers=legacy_headers, json={"content": "验证后可以发帖"}).status_code == 201
 
         # 超级管理员（运维救援账号）不受闸门限制

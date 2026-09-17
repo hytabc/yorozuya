@@ -38,6 +38,8 @@ from .email_flow import (
     find_account,
     hash_link_token,
     issue_link_token,
+    lock_credentials,
+    revoke_credentials,
     notification_target,
     notify_address,
     reset_link,
@@ -54,7 +56,7 @@ from .mailer import (
     send_email,
     verification_message,
 )
-from .media import delete_media, media_url, place_media, storage_file, verify_media_signature, write_media
+from .media import commit_moderation, delete_media, media_url, place_media, storage_file, verify_media_signature, write_media
 from .ratelimit import client_ip, enforce
 from .dependencies import email_gate_required, get_admin, get_authenticated_user, get_beta_application_manager, get_content_moderator, get_current_user, get_operations_manager, get_optional_user, get_role_manager
 from .models import (
@@ -241,7 +243,8 @@ def initialize_database() -> None:
             # 已有管理员仍在使用公开的默认密码：强制轮换，避免被直接登录后台。
             rotated = secrets.token_urlsafe(15)
             admin.password_hash = hash_password(rotated)
-            admin.token_version = (admin.token_version or 0) + 1
+            lock_credentials(db, admin)
+            revoke_credentials(db, admin)
             db.commit()
             logger.warning(
                 "检测到超级管理员 %s 仍在使用默认密码，已自动轮换为：%s"
@@ -297,6 +300,13 @@ def migrate_schema() -> None:
                 text("CREATE INDEX IF NOT EXISTS ix_users_email_verified ON users (email_verified)")
             )
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_users_is_beta_tester ON users (is_beta_tester)"))
+        if inspector.has_table("email_tokens"):
+            token_columns = {column["name"] for column in inspector.get_columns("email_tokens")}
+            if "credential_version" not in token_columns:
+                # 旧令牌未绑定凭证版本，升级时作废，需重新获取邮件。
+                connection.execute(text("ALTER TABLE email_tokens ADD COLUMN credential_version INTEGER NOT NULL DEFAULT -1"))
+                connection.execute(text("UPDATE email_tokens SET used_at = CURRENT_TIMESTAMP WHERE used_at IS NULL"))
+                connection.execute(text("UPDATE users SET pending_email = NULL"))
         if not inspector.has_table("tasks"):
             return
         task_columns = {column["name"] for column in inspector.get_columns("tasks")}
@@ -477,7 +487,26 @@ async def security_headers(request: Request, call_next):
     return response
 
 
-app.mount("/uploads", StaticFiles(directory=settings.sugar_upload_path), name="uploads")
+@app.api_route("/uploads/{key:path}", methods=["GET", "HEAD"], include_in_schema=False)
+def read_public_media(key: str, db: Session = Depends(get_db)):
+    # 不能只凭磁盘所在区授权：搬移/提交之间崩溃或历史残留都可能留下公开副本。
+    if any(part in ("", ".", "..") for part in key.split("/")):
+        raise HTTPException(status_code=404, detail="文件不存在")
+    path = storage_file(key, public=True)
+    if path is None or not path.is_file():
+        raise HTTPException(status_code=404, detail="文件不存在")
+    # life/ 是管理员导入并净化的游戏素材，不属于用户待审媒体。
+    allowed = key.startswith("life/") and "/" not in key.removeprefix("life/")
+    if not allowed:
+        allowed = bool(db.scalar(select(User.id).where(User.avatar_path == key, User.avatar_visible.is_(True)).limit(1)))
+        for model in (UserPhoto, SugarPhoto, FriendPhoto, StoryPhoto, VrMapPhoto):
+            if allowed:
+                break
+            allowed = bool(db.scalar(select(model.id).where(model.file_path == key, model.is_visible.is_(True)).limit(1)))
+    if not allowed:
+        raise HTTPException(status_code=404, detail="文件不存在")
+    return FileResponse(path, headers={"Cache-Control": "no-store", "Content-Security-Policy": "default-src 'none'; sandbox"})
+
 
 # 万事屋看板娘(站内 AI 助手)
 from .mascot import router as mascot_router  # noqa: E402
@@ -1314,8 +1343,8 @@ def delete_friend_photo(photo_id: int, user: User = Depends(get_current_user), d
         raise HTTPException(status_code=409, detail="档案至少需要保留一张照片")
     file_path = photo.file_path
     db.delete(photo)
-    db.commit()
     delete_media(file_path)
+    db.commit()
     return present_friend_profile(get_friend_profile_or_404(db, user.id), db=db, viewer=user, detailed=True)
 
 
@@ -1326,9 +1355,9 @@ def delete_friend_profile(user: User = Depends(get_current_user), db: Session = 
         raise HTTPException(status_code=404, detail="交友厅资料不存在")
     photo_paths = [photo.file_path for photo in profile.photos]
     db.delete(profile)
-    db.commit()
     for file_path in photo_paths:
         delete_media(file_path)
+    db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -1491,7 +1520,7 @@ def read_gated_media(key: str, exp: int = 0, sig: str = ""):
     return FileResponse(
         path,
         headers={
-            "Cache-Control": "private, max-age=3600",
+            "Cache-Control": "no-store",
             # 即使有人直接打开这个地址，也让内容保持惰性，杜绝 polyglot 文件被当作页面执行。
             "Content-Security-Policy": "default-src 'none'; sandbox",
             "X-Content-Type-Options": "nosniff",
@@ -1603,7 +1632,7 @@ async def confirm_email_token(
         old_verified_email = user.email if user.email_verified else None
         user.email = address
         user.email_verified = True
-        user.pending_email = None
+        revoke_credentials(db, user)
     db.commit()
     # 换绑完成后通知老邮箱（best-effort：变更已经生效，不能因为通知失败而报错）
     if old_verified_email and old_verified_email != user.email:
@@ -1616,11 +1645,12 @@ async def confirm_email_token(
 async def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
     # 按来源 IP 与账号双维度限流，抵御暴力破解与撞库。
     enforce("login-ip", client_ip(request), 30, 300)
-    enforce("login-user", payload.username, 10, 300)
     # 验证码校验放在昂贵的 PBKDF2 校验之前，避免被撞库消耗 CPU。
     await verify_captcha(request, payload.captcha_id, payload.captcha_code)
     # 登录名既可以是用户名，也可以是邮箱。
     user = find_account(db, payload.username)
+    account_key = f"id:{user.id}" if user else "unknown:" + sha256(payload.username.strip().lower().encode()).hexdigest()
+    enforce("login-user", account_key, 10, 300)
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="用户名或密码错误")
     if not user.is_active:
@@ -1671,7 +1701,7 @@ async def confirm_password_reset(payload: PasswordResetConfirm, db: Session = De
         raise HTTPException(status_code=422, detail=INVALID_TOKEN_DETAIL)
     user.password_hash = hash_password(payload.password)
     # 自增令牌版本：所有已签发的会话作废（与自助改密一致）。
-    user.token_version = (user.token_version or 0) + 1
+    revoke_credentials(db, user)
     # 能点开重置链接就证明控制了该邮箱，顺带完成验证。
     if user.email:
         user.email_verified = True
@@ -1707,11 +1737,12 @@ def update_my_password(
 ):
     # 限流当前密码的尝试次数，避免令牌泄露后被用来爆破当前密码改号。
     enforce("password-change", str(user.id), 10, 300)
+    lock_credentials(db, user)
     if not verify_password(payload.current_password, user.password_hash):
         raise HTTPException(status_code=403, detail="当前密码不正确")
     user.password_hash = hash_password(payload.password)
     # 自增令牌版本：旧密码签发的所有会话立即失效，需用新密码重新登录。
-    user.token_version = (user.token_version or 0) + 1
+    revoke_credentials(db, user)
     db.commit()
     db.refresh(user)
     return present_user_self(user)
@@ -1728,6 +1759,10 @@ async def request_email_binding(
 
     这是未验证用户唯一能做的「正事」之一，因此不走验证闸门。
     """
+    enforce("email-change-password", str(user.id), 10, 300)
+    lock_credentials(db, user)
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(status_code=403, detail="当前密码不正确")
     address = payload.email.lower()
     if user.email_verified and user.email == address:
         raise HTTPException(status_code=409, detail="该邮箱已是当前邮箱")
@@ -1834,8 +1869,8 @@ def delete_user_photo(photo_id: int, user: User = Depends(get_current_user), db:
         raise HTTPException(status_code=404, detail="图片不存在")
     path = photo.file_path
     db.delete(photo)
-    db.commit()
     delete_media(path)
+    db.commit()
     db.refresh(user)
     return present_user_profile(user, user)
 
@@ -1905,9 +1940,7 @@ def moderate_avatar(
         raise HTTPException(status_code=404, detail="头像不存在")
     target.avatar_visible = payload.is_visible
     target.avatar_moderated_at = datetime.utcnow()
-    db.commit()
-    # 审核结果决定头像所在的区：通过则搬进公开区，驳回则搬回私有区（旧 URL 立即失效）。
-    place_media(target.avatar_path, public=payload.is_visible)
+    commit_moderation(db, target.avatar_path, public=payload.is_visible)
     db.refresh(target)
     return present_moderation_profile(target, manager)
 
@@ -2062,8 +2095,8 @@ def delete_sugar_photo(photo_id: int, user: User = Depends(get_current_user), db
         raise HTTPException(status_code=409, detail="档案至少需要保留一张照片")
     file_path = photo.file_path
     db.delete(photo)
-    db.commit()
     delete_media(file_path)
+    db.commit()
     return present_sugar_profile(get_sugar_profile_or_404(db, user.id), viewer=user, qq=user.qq, detailed=True)
 
 
@@ -2088,9 +2121,9 @@ def delete_sugar_profile(user: User = Depends(get_current_user), db: Session = D
         else:
             db.delete(pair)
     db.delete(profile)
-    db.commit()
     for file_path in photo_paths:
         delete_media(file_path)
+    db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -2797,9 +2830,9 @@ def delete_story(
         raise HTTPException(status_code=403, detail="只能删除自己发布的故事")
     photo_paths = [photo.file_path for photo in story.photos]
     db.delete(story)
-    db.commit()
     for file_path in photo_paths:
         remove_story_file(file_path)
+    db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -2881,9 +2914,7 @@ def moderate_story_photo(
     photo.is_visible = payload.is_visible
     photo.moderated_by_id = manager.id
     photo.moderated_at = datetime.utcnow()
-    db.commit()
-    # 审核结果决定文件所在的区：通过则搬进公开区，驳回则搬回私有区。
-    place_media(photo.file_path, public=payload.is_visible)
+    commit_moderation(db, photo.file_path, public=payload.is_visible)
     db.refresh(photo)
     return StoryPhotoAdminOut(
         id=photo.id,
@@ -3085,9 +3116,9 @@ def delete_vr_map(
         raise HTTPException(status_code=403, detail="只能删除自己发布的地图推荐")
     photo_paths = [photo.file_path for photo in vr_map.photos]
     db.delete(vr_map)
-    db.commit()
     for file_path in photo_paths:
         remove_vr_map_file(file_path)
+    db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -3190,12 +3221,12 @@ async def replace_vr_map_photo(
     record.moderated_by_id = None
     record.moderated_at = None
     try:
+        remove_vr_map_file(old_file_path)
         db.commit()
     except Exception:
         db.rollback()
         remove_vr_map_file(replacement.file_path)
         raise
-    remove_vr_map_file(old_file_path)
     db.refresh(vr_map)
     return present_vr_map(vr_map, viewer=user)
 
@@ -3216,8 +3247,8 @@ def delete_vr_map_photo(
         raise HTTPException(status_code=403, detail="只能删除自己上传的地图图片")
     file_path = record.file_path
     db.delete(record)
-    db.commit()
     remove_vr_map_file(file_path)
+    db.commit()
     db.refresh(vr_map)
     return present_vr_map(vr_map, viewer=user)
 
@@ -3329,9 +3360,7 @@ def moderate_vr_map_photo(
     photo.is_visible = payload.is_visible
     photo.moderated_by_id = manager.id
     photo.moderated_at = datetime.utcnow()
-    db.commit()
-    # 审核结果决定文件所在的区：通过则搬进公开区，驳回则搬回私有区。
-    place_media(photo.file_path, public=payload.is_visible)
+    commit_moderation(db, photo.file_path, public=payload.is_visible)
     db.refresh(photo)
     return VrMapPhotoAdminOut(
         id=photo.id,
@@ -3361,7 +3390,8 @@ def queue_task_notification(
     避免用户收到自己刚做的事件的邮件。收件地址在请求内取好
     （ORM 对象随后会脱离会话），因此后台任务只拿到字符串。
     """
-    link = f"{base_url(request)}/mine" if request is not None else None
+    # 事件通知是 best-effort；本地未配置来源时省略链接，不能让已提交操作报失败。
+    link = f"{base_url(request)}/mine" if settings.site_base_url else None
     recipients: list[User] = [task.publisher] if include_publisher else []
     recipients.extend(
         member.user for member in task.members if member.response_status == TaskMemberResponse.ACCEPTED
@@ -3477,6 +3507,7 @@ def task_detail(task_id: int, viewer: User | None = Depends(get_optional_user), 
 
 @app.post("/api/tasks", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
 def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    enforce("task-create", str(user.id), 20, 600)
     if not user.qq:
         raise HTTPException(status_code=422, detail="发布委托需要先填写联系方式（QQ），请在个人设置中添加后再发布")
     now = datetime.utcnow()
@@ -4346,9 +4377,7 @@ def moderate_user_photo(
     photo.is_visible = payload.is_visible
     photo.moderated_by_id = manager.id
     photo.moderated_at = datetime.utcnow()
-    db.commit()
-    # 审核结果决定文件所在的区：通过则搬进公开区，屏蔽则搬回私有区。
-    place_media(photo.file_path, public=payload.is_visible)
+    commit_moderation(db, photo.file_path, public=payload.is_visible)
     user = db.scalar(user_with_photos_query().where(User.id == photo.user_id))
     return present_moderation_profile(user, manager)
 
@@ -4392,9 +4421,7 @@ def moderate_sugar_photo(
     photo.admin_note = payload.admin_note.strip() if payload.admin_note and payload.admin_note.strip() else None
     photo.moderated_by_id = manager.id
     photo.moderated_at = datetime.utcnow()
-    db.commit()
-    # 审核结果决定文件所在的区：恢复则搬进公开区，屏蔽则搬回私有区。
-    place_media(photo.file_path, public=payload.is_visible)
+    commit_moderation(db, photo.file_path, public=payload.is_visible)
     db.refresh(photo)
     return present_sugar_photo_admin(photo)
 
@@ -4438,9 +4465,7 @@ def moderate_friend_photo(
     photo.admin_note = payload.admin_note.strip() if payload.admin_note and payload.admin_note.strip() else None
     photo.moderated_by_id = manager.id
     photo.moderated_at = datetime.utcnow()
-    db.commit()
-    # 审核结果决定文件所在的区：恢复则搬进公开区，屏蔽则搬回私有区。
-    place_media(photo.file_path, public=payload.is_visible)
+    commit_moderation(db, photo.file_path, public=payload.is_visible)
     db.refresh(photo)
     photo = db.scalar(
         select(FriendPhoto)
@@ -4476,9 +4501,10 @@ def reset_user_password(
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="用户不存在")
+    lock_credentials(db, user)
     user.password_hash = hash_password(payload.password)
     # 重置密码后立即吊销该用户已签发的全部登录令牌。
-    user.token_version = (user.token_version or 0) + 1
+    revoke_credentials(db, user)
     db.commit()
     db.refresh(user)
     return present_admin_user(db, user, manager)

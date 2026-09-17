@@ -11,7 +11,9 @@ export function useLifeSave(snapshot, hydrate, { autoLoad = true } = {}) {
   const api = axios.create({ baseURL: '/api', timeout: 15000 })
   api.interceptors.request.use(async (config) => {
     const token = await getToken()
-    if (token) config.headers.Authorization = `Bearer ${token}`
+    // 异步解密期间也可能切换账号；旧页面只能向原账号发请求。
+    if (!ownerValid() || token !== ownerToken) throw new Error('登录身份已变更，请重新进入游戏')
+    config.headers.Authorization = `Bearer ${ownerToken}`
     return config
   })
   function ownerValid() {

@@ -37,17 +37,18 @@ const form = reactive({
   bio: auth.user.bio || '',
 })
 const passwordForm = reactive({ current: '', password: '', confirm: '' })
-const emailForm = reactive({ email: '' })
+const emailForm = reactive({ email: '', currentPassword: '' })
 const emailBusy = ref(false)
 const notifyBusy = ref(false)
 const joined = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' }).format(new Date(auth.user.created_at))
 async function bindEmail() {
   const address = emailForm.email.trim()
   if (!address) return toast.error('请输入邮箱地址')
+  if (!emailForm.currentPassword) return toast.error('请输入当前密码')
   if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(address)) return toast.error('邮箱格式不正确')
   emailBusy.value = true
   try {
-    await api.post('/users/me/email', { email: address })
+    await api.post('/users/me/email', { email: address, current_password: emailForm.currentPassword })
     // 拉一次最新状态：pending_email 与验证进度都以后端为准
     const { data } = await api.get('/auth/me')
     auth.updateUser(data)
@@ -57,6 +58,7 @@ async function bindEmail() {
   } catch (error) {
     toast.error(errorMessage(error))
   } finally {
+    emailForm.currentPassword = ''
     emailBusy.value = false
   }
 }
@@ -197,7 +199,8 @@ async function deleteAvatar() {
           </div>
           <p v-if="auth.user.pending_email" class="email-pending">待确认的新邮箱：<strong>{{ auth.user.pending_email }}</strong>，请到该邮箱点击验证链接；确认前当前邮箱仍然有效。</p>
           <form class="form-stack" @submit.prevent="bindEmail">
-            <label>{{ auth.user.email_verified ? '更换邮箱' : '绑定邮箱' }}<input v-model.trim="emailForm.email" type="email" autocomplete="email" placeholder="example@example.com" /><small>我们会先向该地址发送确认链接，验证通过后才会生效。</small></label>
+            <label>{{ auth.user.email_verified ? '更换邮箱' : '绑定邮箱' }}<input v-model.trim="emailForm.email" type="email" autocomplete="email" placeholder="example@example.com" /><small>我们会先向该地址发送确认链接，验证通过后才会生效，并需要重新登录。</small></label>
+            <label>当前密码<input v-model="emailForm.currentPassword" type="password" autocomplete="current-password" maxlength="128" required /></label>
             <div><button class="button" :disabled="emailBusy"><Mail :size="17" />{{ emailBusy ? '发送中…' : '发送验证邮件' }}</button></div>
           </form>
           <label class="checkbox-inline email-notify-toggle">

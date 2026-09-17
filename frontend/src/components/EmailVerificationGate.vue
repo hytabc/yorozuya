@@ -10,6 +10,7 @@ import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
 const email = ref('')
+const currentPassword = ref('')
 const busy = ref(false)
 const error = ref('')
 const info = ref('')
@@ -27,14 +28,19 @@ async function sendBinding() {
     error.value = '请输入邮箱地址'
     return
   }
+  if (!currentPassword.value) {
+    error.value = '请输入当前密码'
+    return
+  }
   busy.value = true
   try {
-    await api.post('/users/me/email', { email: address })
+    await api.post('/users/me/email', { email: address, current_password: currentPassword.value })
     await auth.restore()
     info.value = `验证邮件已发送到 ${address}，请点击邮件里的链接完成验证。`
   } catch (err) {
     error.value = errorMessage(err, '发送失败，请稍后重试')
   } finally {
+    currentPassword.value = ''
     busy.value = false
   }
 }
@@ -74,8 +80,9 @@ function logout() {
         当前待验证邮箱：{{ currentEmail }}
       </p>
 
+      <label>当前密码<input v-model="currentPassword" type="password" autocomplete="current-password" maxlength="128" /></label>
       <div v-if="waiting" class="form-stack">
-        <p class="pending-note">验证邮件已发送到 <strong>{{ pending }}</strong>，请点击邮件里的链接。</p>
+        <p class="pending-note">验证邮件已发送到 <strong>{{ pending }}</strong>，请点击邮件里的链接，完成后重新登录。</p>
         <div class="email-gate-actions">
           <button class="button" :disabled="busy" @click="refresh">{{ busy ? '检查中…' : '我已完成验证' }}</button>
           <button class="button secondary" :disabled="busy" @click="sendBinding">重新发送</button>

@@ -5,6 +5,8 @@
 server {
     listen 80;
     server_name ${DOMAIN};
+    if ($host != "${DOMAIN}") { return 421; }
+    server_tokens off;
 
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;

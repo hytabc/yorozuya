@@ -7,6 +7,7 @@ import { onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { MailCheck, MailX } from 'lucide-vue-next'
 import { api, errorMessage } from '../api'
+import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
 const status = ref('working')
@@ -21,6 +22,8 @@ async function confirm() {
   }
   try {
     await api.post('/auth/email/confirm', { token })
+    const auth = useAuthStore()
+    if (auth.token) await auth.restore()
     status.value = 'ok'
   } catch (error) {
     status.value = 'failed'

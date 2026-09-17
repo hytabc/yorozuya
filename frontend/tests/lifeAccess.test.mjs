@@ -5,25 +5,25 @@ import vm from 'node:vm'
 
 const source = name => readFileSync(new URL('../src/' + name, import.meta.url), 'utf8')
 const route = source('router.js').split('router.beforeEach(async (to) => {')[1].split('\n})')[0]
-const createGuard = auth => vm.runInNewContext('(async (to) => {' + route + '})', { useAuthStore: () => auth })
-function createAuth(user) {
+const createGuard = auth => {
+  auth.hydrate ??= async () => {}
+  return vm.runInNewContext('(async (to) => {' + route + '})', { useAuthStore: () => auth, SERVER_VERIFIED_META: ['lifeOnly', 'lifeManager', 'roleManager', 'moderator', 'operations'] })
+}
+async function createAuth(user, restore = true) {
   const store = source('stores/auth.js').replace(/^import .*$/gm, '').replace('export const useAuthStore', 'const useAuthStore')
-  return vm.runInNewContext(store + '\nuseAuthStore()', {
+  const auth = vm.runInNewContext(store + '\nuseAuthStore()', {
     computed: getter => ({ get value() { return getter() } }),
     ref: value => ({ value }),
     defineStore: (_, setup) => setup,
-    localStorage: {
-      getItem: key => ({
-        wsw_token: 'test',
-        wsw_user: JSON.stringify(user),
-        wsw_auth_version: '5',
-        wsw_login_at: String(Date.now()),
-      }[key] ?? null),
-      setItem() {},
-      removeItem() {},
-    },
+    AUTH_CACHE_VERSION: 'test', LOGIN_MAX_AGE_MS: 86400000, REMEMBER_MAX_AGE_MS: 604800000,
+    loadAuth: async () => ({ token: 'test', user, loginAt: Date.now(), version: 'test' }),
+    saveAuth: async () => {}, clearAuth: async () => {},
+    api: { get: async () => ({ data: user }) },
     window: { addEventListener() {} },
   })
+  await auth.hydrate()
+  if (restore) await auth.restore()
+  return auth
 }
 
 test('life navigation and page guards split player and manager permissions', () => {
@@ -38,8 +38,8 @@ test('life navigation and page guards split player and manager permissions', () 
 })
 test('life-admin route uses the separate lifeManager guard', () => {
   const router = source('router.js')
-  assert.match(router, /path: '\/life'.*meta: \{ lifeOnly: true \}/)
-  assert.match(router, /path: '\/life-admin'.*meta: \{ lifeManager: true \}/)
+  assert.match(router, /path: '\/life'.*meta: \{ lifeOnly: true[, }]/)
+  assert.match(router, /path: '\/life-admin'.*meta: \{ lifeManager: true[, }]/)
   assert.match(source('views/LifeAdmin.vue'), /loadPacks/)
 })
 test('life routes refresh identity: any logged-in user may play, management stays staff-only', async () => {
@@ -67,10 +67,10 @@ test('life routes refresh identity: any logged-in user may play, management stay
     assert.equal(await createGuard(auth)({ meta }), '/')
   }
 })
-test('any logged-in user sees life navigation; beta flag is display-only and grants no management', () => {
+test('any logged-in user sees life navigation; beta flag is display-only and grants no management', async () => {
   const condition = source('components/AppHeader.vue').match(/v-if="([^"]+)" to="\/life"/)[1]
   for (const beta of [false, true]) {
-    const auth = createAuth({ role: 'user', is_admin: false, is_beta_tester: beta })
+    const auth = await createAuth({ role: 'user', is_admin: false, is_beta_tester: beta })
     assert.equal(auth.isBetaTester.value, beta)
     assert.equal(auth.canPlayLife.value, true)
     assert.equal(auth.canManageRoles.value, false)
@@ -82,7 +82,7 @@ test('any logged-in user sees life navigation; beta flag is display-only and gra
 test('logged-in users enter life regardless of beta flag, but not life-admin', async () => {
   for (const beta of [false, true]) {
     const auth = { token: 'test', isLoggedIn: true, canManageRoles: true, canPlayLife: true, restore: async () => {
-      const store = createAuth({ role: 'user', is_beta_tester: beta })
+      const store = await createAuth({ role: 'user', is_beta_tester: beta })
       auth.canManageRoles = store.canManageRoles.value
       auth.canPlayLife = store.canPlayLife.value
     } }
@@ -96,4 +96,15 @@ test('beta review stays in admin/operations only (profile/staff pages untouched)
   assert.match(admin, /api\.patch\(`\/admin\/users\/\$\{user\.id\}\/beta-tester`, \{ is_beta_tester: !user\.is_beta_tester \}\)/)
   assert.match(admin, /api\.post\(`\/admin\/beta-applications\/\$\{item\.id\}\/review`/)
   assert.match(source('views/OperationsView.vue'), /api\.post\(`\/operations\/beta-applications\/\$\{item\.id\}\/review`/)
+})
+
+test('cached admin flags cannot grant authority before server restoration', async () => {
+  const auth = await createAuth({ role: 'staff', is_admin: true, is_beta_tester: true }, false)
+  assert.equal(auth.verified.value, false)
+  assert.equal(auth.isAdmin.value, false)
+  assert.equal(auth.canManageRoles.value, false)
+  assert.equal(auth.isBetaTester.value, false)
+  await auth.restore()
+  assert.equal(auth.verified.value, true)
+  assert.equal(auth.isAdmin.value, true)
 })

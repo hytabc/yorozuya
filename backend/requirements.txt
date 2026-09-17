@@ -1,9 +1,13 @@
-fastapi==0.115.8
+# 构建工具安全修复；本地与 Docker 使用同一版本。
+pip==26.2.0
+fastapi==0.141.1
+# 文件响应、Host 与 multipart 安全修复；随 FastAPI 一起验证。
+starlette==1.6.0
 uvicorn[standard]==0.34.0
 SQLAlchemy==2.0.38
 pydantic-settings==2.7.1
-python-multipart==0.0.20
-pytest==8.3.4
+python-multipart==0.0.32
+pytest==9.0.3
 httpx==0.28.1
 # 站内图形验证码（CAPTCHA_PROVIDER=builtin）需要；Turnstile 模式不依赖它。
-Pillow==11.1.0
+Pillow==12.3.0
