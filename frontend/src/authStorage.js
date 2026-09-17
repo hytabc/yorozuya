@@ -210,6 +210,9 @@ export async function saveAuth({ token, user, loginAt, remember, version }) {
     version: version ?? AUTH_CACHE_VERSION,
   }
   hydrated = true
+  // 先清掉旧版明文键，再判断能否加密落盘：非安全上下文（纯 HTTP）下 isPersistent() 为 false
+  // 会提前返回，若把清理放在后面，迁移过来的明文 JWT 会一直留在 localStorage 里。
+  removeLegacy()
   if (!isPersistent()) return
   try {
     const key = await getKey()
@@ -219,7 +222,6 @@ export async function saveAuth({ token, user, loginAt, remember, version }) {
     const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext)
     writeItem(SW_AUTH_KEY, JSON.stringify({ v: AUTH_CACHE_VERSION, iv: toBase64(iv), data: toBase64(new Uint8Array(cipher)) }))
     writeItem(SW_AUTH_FORMAT_KEY, AUTH_CACHE_VERSION)
-    removeLegacy()
   } catch {
     // 加密或写入失败：丢弃落盘内容，保持仅内存，绝不写明文。
     removeItem(SW_AUTH_KEY)

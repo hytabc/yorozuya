@@ -179,10 +179,10 @@ async def verify_turnstile(token: str, remote_ip: str | None) -> None:
 
 
 async def verify_captcha(request: Request, captcha_id: str, captcha_code: str) -> None:
-    """按配置的 provider 校验人机验证；未启用时直接放行。"""
+    """按实际生效的 provider 校验人机验证；未启用时直接放行。"""
     if not captcha_required():
         return
-    if settings.captcha_provider == "turnstile":
+    if settings.captcha_effective_provider == "turnstile":
         await verify_turnstile(captcha_code, client_ip(request))
         return
     if not captcha_id or not captcha_store.consume(captcha_id, captcha_code):

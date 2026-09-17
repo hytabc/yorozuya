@@ -17,14 +17,13 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import event
 
-from .config import settings
+from .config import BACKUP_DIR_NAME, settings
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
-BACKUP_DIR_NAME = "backups"
 # 用于在会话内标记“本事务是否写入了数据库”的 key
 _CHANGED_KEY = "_yorozuya_db_changed"
 _SKIP_KEY = "_yorozuya_skip_snapshot"

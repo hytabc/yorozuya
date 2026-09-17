@@ -19,6 +19,8 @@ PLACEHOLDER_ADMIN_PASSWORDS = frozenset(
 )
 # 签名密钥的最小长度（字符）：短于该长度一律视为不安全并改为随机生成。
 MIN_SECRET_KEY_LENGTH = 32
+# 数据库自动快照的子目录名（与 backup.py、validate_storage_isolation 共用一处定义）。
+BACKUP_DIR_NAME = "backups"
 
 
 class Settings(BaseSettings):
@@ -42,7 +44,9 @@ class Settings(BaseSettings):
     media_private_dir: str = ""
     # 私有媒体签名 URL 的有效期（秒）。每次接口响应都会重新签发，因此可以设得较短：
     # 越短则「审核驳回后旧链接失效」越快，过长会削弱撤回效果。
-    media_token_ttl_seconds: int = 60 * 60
+    # 签名不绑定用户/IP/会话，本身就是可转发的 bearer 凭证（<img> 带不了 Authorization 头），
+    # 拿到地址的人在有效期内都能读取待审媒体，因此默认压到 10 分钟。
+    media_token_ttl_seconds: int = 10 * 60
     cors_origins: str = "http://localhost:5173,http://localhost:8080"
     # 反向代理后部署时（Docker/HTTPS 入口）设为 True，限流按真实客户端 IP 统计。
     behind_proxy: bool = False
@@ -64,6 +68,10 @@ class Settings(BaseSettings):
     # 关闭 CAPTCHA_ENABLED 则登录/注册不再要求验证码（不推荐生产环境关闭）。
     captcha_enabled: bool = True
     captcha_provider: str = "turnstile"
+    # 交互式文档（/docs、/redoc、/openapi.json）默认关闭。
+    # 刻意不复用 BEHIND_PROXY 当开关：那个标志同时控制代理信任，误设一次就会连带
+    # 把完整接口结构公开出去。本地调试在 .env 设 ENABLE_DOCS=true。
+    enable_docs: bool = False
     # builtin 验证码有效期（秒）
     captcha_ttl_seconds: int = 180
     # Turnstile 公开 Site Key 可入库；Secret Key 只能放服务端 .env。
@@ -144,6 +152,11 @@ class Settings(BaseSettings):
                 f"SMTP_ENCRYPTION 只能是 ssl / starttls / none（当前 {self.smtp_encryption!r}）："
                 "阿里云邮件推送用 465 + ssl，也可用 80/25 + starttls。"
             )
+        if self.captcha_provider not in ("turnstile", "builtin"):
+            raise RuntimeError(
+                f"CAPTCHA_PROVIDER 只能是 turnstile 或 builtin（当前 {self.captcha_provider!r}）："
+                "未知取值以前会被静默当作站内图形验证码，容易误以为 Turnstile 已生效。"
+            )
 
     @property
     def admin_password_is_default(self) -> bool:
@@ -168,6 +181,22 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
     @property
+    def captcha_effective_provider(self) -> str:
+        """实际生效的人机验证方式。
+
+        Turnstile 需要 Site Key（前端渲染组件）与 Secret Key（服务端 siteverify）同时具备；
+        缺任意一个就回落到站内图形验证码。否则会出现「接口发的是内置图形验证码、
+        服务端却按 Turnstile 校验」的死锁 —— 登录/注册会稳定返回 400。
+        """
+        if (
+            self.captcha_provider == "turnstile"
+            and self.turnstile_site_key
+            and self.turnstile_secret_key
+        ):
+            return "turnstile"
+        return "builtin"
+
+    @property
     def smtp_ready(self) -> bool:
         """当前配置能否真正发信：log 模式恒可（走 OUTBOX），smtp 模式需要四项齐全。"""
         if self.email_delivery != "smtp":
@@ -180,6 +209,11 @@ class Settings(BaseSettings):
         刻意不阻止启动：站点仍可浏览，只有依赖邮件的操作会 fail-closed 返回 503，
         这样运维仍能进站排查，而不是面对一个起不来的容器。
         """
+        if self.email_delivery == "smtp" and self.smtp_encryption == "none":
+            logger.error(
+                "SMTP_ENCRYPTION=none：SMTP 登录凭据与邮件正文会明文经过网络，"
+                "只适用于本机中继调试；生产请改回 ssl（465）或 starttls。"
+            )
         if self.email_delivery == "smtp" and not self.smtp_ready:
             logger.error(
                 "EMAIL_DELIVERY=smtp 但邮件配置不完整（需要 SMTP_USERNAME / SMTP_PASSWORD / "
@@ -271,6 +305,19 @@ class Settings(BaseSettings):
                 "MEDIA_PRIVATE_DIR 不能位于 SUGAR_UPLOAD_DIR（公开上传目录）之内，"
                 "否则待审/被屏蔽的图片仍会被 /uploads 公开下载。请改用与上传目录同级的独立目录。"
             )
+        # 自动快照写在 <数据库目录>/backups 下（见 backup.py），与数据库文件同级，
+        # 因此同样不能被配进任何一个媒体区：只要 SUGAR_UPLOAD_DIR 指到 <data>/backups，
+        # /uploads 就能命中整库快照。上面只比对了数据库文件本身，这里补上备份目录。
+        backups_path = db_path.parent / BACKUP_DIR_NAME
+        for zone, label, example in (
+            (upload_path, "SUGAR_UPLOAD_DIR（公开上传目录）", "<data>/uploads"),
+            (private_path, "MEDIA_PRIVATE_DIR（私有媒体目录）", "<data>/private_media"),
+        ):
+            if backups_path == zone or zone in backups_path.parents:
+                raise RuntimeError(
+                    f"{label} 不能指向数据库备份目录（或它的上级），"
+                    f"否则整库快照会被当作媒体读取。请改用独立的子目录，例如 {example}。"
+                )
 
     def validate_directories_writable(self) -> None:
         """启动自检：数据目录不可写时给出可执行的中文提示，而不是等 sqlite 抛出堆栈。"""

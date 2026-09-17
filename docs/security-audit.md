@@ -54,3 +54,31 @@
 ### 回滚
 
 优先修复配置或向前修复。确需回滚时，停止写入并保留失败现场，使用保存的旧镜像、匹配的前后端与代理配置；新增列可保留，但旧版本会重新暴露本清单问题，不能作为长期方案。若必须恢复数据，数据库与两区媒体应恢复同一备份时间点，并确认维护窗口后的数据损失可接受。不得只恢复数据库而遗留另一时点的公开媒体；恢复后核查已屏蔽图片，未确认前不要开放公网。
+
+## 二次评估：评分与加固（2026-09-17）
+
+在 S1–S8 修复之上，对当前代码与已部署站点做了一轮独立复核（源码审计 + 线上被动检查；未做主动渗透、未对线上账号执行写操作或压测）。**结论：0 严重 / 0 高危，综合 83/100（B+，良好）**；分项为认证与会话 16/18、授权与访问控制 16/18、输入处理 11/12、上传与媒体 11/14、密钥与配置 10/12、部署加固 10/12、滥用防护 5.5/8、可观测性 3.5/6。
+
+已确认做对（复核通过，勿回退）：手写 HS256 JWT 解码不读 header `alg`（无算法混淆 / 无 `alg:none`）；PBKDF2 310k + 随机盐 + 轮数钳制 + 未知账号计时均衡；`token_version` 强制比对；角色 `Literal` 不含 `is_admin` 且 `extra="forbid"`；邮件令牌 256-bit 只存哈希、条件 UPDATE 保证一次性、fail-closed；`normalize_image()` 魔数白名单 + 像素上限 + 剥元数据 + 重编码；媒体双区 + HMAC 常量时间校验 + 每次读取回查数据库可见性；前端零 `v-html`/`eval`、无 sourcemap、无密钥入包；仅 `edge` 暴露端口 + read_only + cap_drop ALL + 非 root；`client_ip()` 只在受信代理来源下落采信转发头。
+
+线上被动检查（未记录域名等私有信息）：HSTS/CSP/X-Frame-Options/Referrer-Policy/Permissions-Policy 均下发，`Server` 无版本号；未知 Host 返回 421；编码式 `..` 路径返回 400，未编码的 `..` 由 nginx 归一化后落到 SPA（非文件泄露）；`/openapi.json`、`/docs` 返回 SPA 而非接口结构；`/api/site-config` 仅返回备案字段；依赖审计 32 个安装包无已知漏洞（`backend/scripts/audit_dependencies.py`）。
+
+本轮修复（全部有回归用例或配置校验）：
+
+| 编号 | 问题 | 修复 |
+|---|---|---|
+| M1 | 私有媒体签名 URL 是无绑定 bearer，且签名会随 `$request` 落进访问日志 | `MEDIA_TOKEN_TTL_SECONDS` 默认由 1h 降到 10 分钟；两层 nginx 改用 `log_format yorozuya`（记 `$uri`，去掉查询串） |
+| M2 | 上传请求体先进 nginx 内存盘缓冲，且 tmpfs 未限 size（docker 默认给宿主内存一半） | 上传 location 加 `proxy_request_buffering off`（frontend 侧补 `proxy_http_version 1.1`）；所有 tmpfs 显式 `size=` |
+| M3 | 证书续期失败被 `--quiet \|\| true` 静默吞掉 | `renew-loop.sh` 写持久化 `renew.log`、失败留 `renew-failed` 标记、加 `--deploy-hook`；新增 `certbot`（余期 <10 天报不健康）与 `edge`（127.0.0.1 走 HTTPS 验整条链路）healthcheck |
+| M4 | `validate_storage_isolation()` 只比对数据库文件，未覆盖 `<data>/backups`（纵深防御缺口） | 增加对备份目录的互斥校验；`BACKUP_DIR_NAME` 收口到 `config.py`；新增 3 条用例 |
+| L1 | 非安全上下文下 `saveAuth()` 提前 return，旧版明文 `wsw_token` 不会被清除 | 把 `removeLegacy()` 提到持久化判断之前；新增 3 条前端用例 |
+| L2 | `CAPTCHA_PROVIDER=turnstile` 而缺 Site/Secret Key 时，接口发内置图形验证码、服务端却按 turnstile 校验（登录死锁） | 新增 `captcha_effective_provider` 属性，两端统一按实际生效的 provider 处理；未知 provider 启动即报错；新增用例 |
+| L3 | 文档开关与 `BEHIND_PROXY` 耦合，误设一次即公开完整接口结构 | 独立 `ENABLE_DOCS`（默认 false）且代理部署下仍不暴露，dev compose 显式打开 |
+| L4 | `edge` 未声明 `default_server`，依赖 tmpfs 覆盖镜像默认配置 | 两个 `listen` 显式 `default_server` |
+| L5 | 首次签发默认走生产 ACME，易消耗速率额度 | `.env.example` 与 `init-letsencrypt.sh` 默认 `CERTBOT_STAGING=1` |
+| L6 | `SMTP_ENCRYPTION=none` 会明文传输凭据 | `validate_email_config()` 输出 error 级告警 |
+| L7 | 测试未隔离环境变量，宿主机 export 过 `SITE_ICP` 时用例失败 | conftest 显式固定 `SITE_ICP` / `SITE_ICP_URL` |
+
+接受或未处理（不构成本轮阻塞）：签名 URL 本质仍是可转发的 bearer 凭证（只能靠短 TTL 收敛）；限流是进程内实现，依赖单 worker；基础镜像未按 digest 固定、`backend/Dockerfile` 硬编码第三方 pip 源、测试依赖仍在生产 `requirements.txt`；Turnstile 只校验 `success`，未比对 `hostname`/`action`；`GET /api/users/{id}/public` 无目录角色过滤与限流；内容审核未禁止作用于超管媒体；HSTS 刻意不含 `includeSubDomains`；`Server` 头无需额外隐藏（nginx 默认不转发上游 `Server`，线上已确认无版本号）。
+
+验证：后端 **172 项通过**（含本轮新增）、前端 **203 项通过**、`docker compose config --quiet`（prod + dev）通过、`sh -n` 校验续期脚本。**受限于本机 Docker 守护进程不可用，未执行 `nginx -t`、镜像构建与生产冒烟**，部署时按下方清单执行。

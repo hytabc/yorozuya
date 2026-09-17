@@ -7,11 +7,20 @@
 limit_req_zone $binary_remote_addr zone=edge_api:10m rate=20r/s;
 limit_conn_zone $binary_remote_addr zone=edge_conn:10m;
 
+# 访问日志刻意不记录查询串：/api/media/ 的短时签名（?exp=&sig=）本身就是访问控制凭证，
+# 用 $request 会把它持久化进日志，等于留下一串可重放的私有媒体地址。
+# $uri 是归一化后的路径，天然不含 query。
+log_format yorozuya '$remote_addr - $remote_user [$time_local] "$request_method $uri $server_protocol" '
+                    '$status $body_bytes_sent "$http_referer" "$http_user_agent"';
+
 server {
-    listen 80;
+    # 显式声明 default_server：即便镜像默认配置被覆盖，未知 Host / 直连 IP 也一定落到这里，
+    # 再被下面的 $host 判断拦成 421，而不是落到某个未受控的默认站点。
+    listen 80 default_server;
     server_name ${DOMAIN};
     if ($host != "${DOMAIN}") { return 421; }
     server_tokens off;
+    access_log /var/log/nginx/access.log yorozuya;
 
     # ACME webroot 挑战必须保持 HTTP 明文可达，不能跳转到这里。
     location /.well-known/acme-challenge/ {
@@ -25,11 +34,12 @@ server {
 }
 
 server {
-    listen 443 ssl;
+    listen 443 ssl default_server;
     http2 on;
     server_name ${DOMAIN};
     if ($host != "${DOMAIN}") { return 421; }
     server_tokens off;
+    access_log /var/log/nginx/access.log yorozuya;
 
     ssl_certificate         /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
     ssl_certificate_key     /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
@@ -59,6 +69,10 @@ server {
     # 上传接口：放宽请求体并计入限流。
     location ~ ^/api/(?:users/me/(?:avatar|photos)|sugar/profile|friends/profile|stories|vr-maps|virtual-life) {
         client_max_body_size 55m;
+        # 不缓冲请求体：否则每个并发上传的 55m 请求体都会先落进 /var/cache/nginx（内存盘），
+        # 几十个并发就能把宿主内存吃满。关掉后请求体直接流式转发给后端。
+        client_body_timeout 120s;
+        proxy_request_buffering off;
         limit_req zone=edge_api burst=40 nodelay;
         limit_conn edge_conn 30;
         proxy_pass http://frontend:80;

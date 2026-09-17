@@ -3,7 +3,7 @@
 - Wants environment-specific values (server IP, frpc domain, etc.) kept in a `.env` file rather than hardcoded in configs. Confidence: 0.85
 - Expects HTTPS via Let's Encrypt with automatic renewal (scheduled/renewing certbot-style) when exposing a site, served under a proper custom domain (e.g. `example.com`) rather than a bare IP. Confidence: 0.85
 - Wants database data persisted locally and preserved across updates, restorable/openable via an external path (bind mount / dump). Confidence: 0.7
-- Asks that operational/deployment procedures be written into the project README. Confidence: 0.8
+- Asks that operational/deployment procedures be written into the project README, and expects repo docs (README/AGENTS.md) to be kept in sync in the same pass as behaviour/config/deployment changes. Confidence: 0.8
 - Wants prototype/sub-project features integrated into the main project as a new page rendered inside the existing app layout, and explicitly open to all logged-in users rather than gated to specific roles. Confidence: 0.65
 - Prefers user/game progress persisted server-side as a per-user record (mirroring existing similar features) over browser localStorage. Confidence: 0.6
 - Communicates in Chinese and expects code comments, docs (README/AGENTS), and UI copy written in Chinese. Confidence: 0.7
@@ -17,5 +17,7 @@
 - Prefers the public entry to terminate TLS directly (edge reverse proxy on the host) and wants legacy plaintext network-tunneling setups (e.g. frp) fully removed — service, config, env vars, docs and comments — rather than kept as a toggleable option. Confidence: 0.5
 - Reports production/deployment failures by pasting the raw server logs (full stack traces, including the repeated output of a crash-looping container) behind a one-line Chinese description, with no hypothesis or extra context, and expects the agent to self-diagnose the root cause and come back with both the immediate host-level fix and the fix committed in the repo. Confidence: 0.55
 - For a China-hosted public site, wants ICP filing (备案) info shown in the site footer with behavior meeting domestic compliance (e.g. clickable link to the official registry), while keeping the filing number itself out of the public GitHub repo. Confidence: 0.6
- rather than risk burning the whole quota in one go. Confidence: 0.6
+- Defaults first-time certificate issuance to the ACME staging environment (explicit opt-in for real issuance) rather than risk burning the whole quota in one go. Confidence: 0.6
 - Wants comprehensive product analytics ("埋点"): page-view tracking on every page (including admin/operations/utility pages) plus per-action event tracking on detailed user interactions (open/accept/post/comment/like/report), to learn users' click and page-viewing preferences. Confidence: 0.6
+- Expects work to be verified against the project's own full test suites (backend `pytest`, frontend `node --test`) plus config/lint checks (`docker compose config`, `sh -n`), with security and storage fixes locked in by regression tests, and reports before/after pass counts. Confidence: 0.6
+- Expects tests to be isolated from the ambient shell environment: required env vars pinned explicitly in the test setup so a developer's exported variables can't flip test outcomes (e.g. a locally exported filing/ICP var breaking an assertion). Confidence: 0.5

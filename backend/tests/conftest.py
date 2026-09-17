@@ -12,6 +12,10 @@ os.environ.update(
     MEDIA_PRIVATE_DIR="",
     EMAIL_DELIVERY="log",
     SITE_BASE_URL="https://example.com",
+    # 备案号等站点信息也必须显式固定：宿主机 shell 里 export 过 SITE_ICP 时，
+    # 断言「未配置时为空」的用例会随环境飘（本地开发机就踩过这个坑）。
+    SITE_ICP="",
+    SITE_ICP_URL="https://beian.miit.gov.cn/",
     BEHIND_PROXY="false",
     # 显式声明测试模式：限流与人机验证据此关闭，不再依赖「进程里 import 了 pytest」。
     TESTING="true",
