@@ -10,6 +10,7 @@ derived from the ACTIVE pack stored in the database (virtual_life_packs).
 """
 from datetime import datetime, timezone
 import json
+import logging
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -22,6 +23,8 @@ from .database import Base, get_db
 from .dependencies import get_life_player
 from .models import User
 from .virtual_life_packs import get_save_rules
+
+logger = logging.getLogger("yorozuya.virtual_life")
 
 
 class VirtualLifeSave(Base):
@@ -177,7 +180,9 @@ def write_save(payload: SaveRequest, user: User = Depends(get_life_player), db: 
     try:
         validate_state_against_pack(payload.state, rules)
     except ValueError as exc:
-        raise HTTPException(422, str(exc))
+        # 内部校验细节只写日志，回给客户端的信息保持通用，避免泄露服务端结构。
+        logger.warning("虚拟人生存档校验失败：%s", exc)
+        raise HTTPException(422, "存档内容与当前内容包不一致")
     # Legacy v1 saves are upgraded to the active pack on write.
     payload.state.schemaVersion = 2
     payload.state.packId = rules['packId']

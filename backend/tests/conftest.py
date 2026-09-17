@@ -13,6 +13,8 @@ os.environ.update(
     EMAIL_DELIVERY="log",
     SITE_BASE_URL="https://example.com",
     BEHIND_PROXY="false",
+    # 显式声明测试模式：限流与人机验证据此关闭，不再依赖「进程里 import 了 pytest」。
+    TESTING="true",
 )
 
 

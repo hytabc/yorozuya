@@ -111,13 +111,22 @@ export const useAuthStore = defineStore('auth', () => {
     return saveAuth({ token: token.value, user: data, loginAt, remember, version: AUTH_CACHE_VERSION })
   }
 
+  // 登出 = 本地清理 + 服务端吊销。先清本地再请求，避免服务端 401 触发
+  // auth-expired 又重新进入 logout；请求显式带上刚捕获的令牌，失败静默。
   async function logout() {
+    const current = token.value
     token.value = null
     user.value = null
     verified.value = false
     loginAt = 0
     remember = false
     await clearAuth()
+    if (!current) return
+    try {
+      await api.post('/auth/logout', null, { headers: { Authorization: `Bearer ${current}` } })
+    } catch {
+      // 网络异常或令牌已失效都不影响本地登出。
+    }
   }
 
   window.addEventListener('auth-expired', logout)

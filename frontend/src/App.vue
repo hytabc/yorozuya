@@ -46,6 +46,7 @@ watch(
     <ToastHost />
     <!-- 未完成邮箱验证时的强制绑定浮层：/life、/life-admin 这类全屏页也要挡，故挂在根部 -->
     <EmailVerificationGate />
-    <KanbanNiang v-if="!route.meta.lifeOnly && !route.meta.lifeManager" />
+    <!-- 看板娘走付费大模型，后端要求登录；未登录时直接不渲染入口。 -->
+    <KanbanNiang v-if="auth.isLoggedIn && !route.meta.lifeOnly && !route.meta.lifeManager" />
   </div>
 </template>

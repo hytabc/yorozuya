@@ -26,10 +26,17 @@ class TokenPayload:
     token_version: int
 
 
+PBKDF2_ITERATIONS = 310_000
+# 允许校验的迭代次数范围：下限拦住「被篡改成 1 次」的弱哈希，
+# 上限拦住恶意超大迭代造成的 CPU 耗尽。
+MIN_PBKDF2_ITERATIONS = 100_000
+MAX_PBKDF2_ITERATIONS = 1_000_000
+
+
 def hash_password(password: str) -> str:
     salt = os.urandom(16)
-    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 310_000)
-    return f"pbkdf2_sha256$310000${base64.urlsafe_b64encode(salt).decode()}${base64.urlsafe_b64encode(digest).decode()}"
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, PBKDF2_ITERATIONS)
+    return f"pbkdf2_sha256${PBKDF2_ITERATIONS}${base64.urlsafe_b64encode(salt).decode()}${base64.urlsafe_b64encode(digest).decode()}"
 
 
 def verify_password(password: str, encoded: str) -> bool:
@@ -37,12 +44,33 @@ def verify_password(password: str, encoded: str) -> bool:
         algorithm, iterations, salt, expected = encoded.split("$", 3)
         if algorithm != "pbkdf2_sha256":
             return False
+        rounds = int(iterations)
+        if not MIN_PBKDF2_ITERATIONS <= rounds <= MAX_PBKDF2_ITERATIONS:
+            return False
         digest = hashlib.pbkdf2_hmac(
-            "sha256", password.encode(), base64.urlsafe_b64decode(salt), int(iterations)
+            "sha256", password.encode(), base64.urlsafe_b64decode(salt), rounds
         )
         return hmac.compare_digest(base64.urlsafe_b64encode(digest).decode(), expected)
     except (ValueError, TypeError):
         return False
+
+
+def password_needs_rehash(encoded: str) -> bool:
+    """哈希迭代次数低于当前标准时，登录成功后顺带升级。"""
+    try:
+        algorithm, iterations, _, _ = encoded.split("$", 3)
+        return algorithm != "pbkdf2_sha256" or int(iterations) < PBKDF2_ITERATIONS
+    except (ValueError, TypeError):
+        return True
+
+
+# 登录时对不存在的账号也执行一次同成本的校验，抹平「账号是否存在」的耗时差异。
+_TIMING_EQUALIZER_HASH = hash_password("yorozuya-timing-equalizer")
+
+
+def equalize_password_check(password: str) -> None:
+    """仅用于让「账号不存在」与「密码错误」两条分支耗时一致，返回值无意义。"""
+    verify_password(password, _TIMING_EQUALIZER_HASH)
 
 
 def _b64encode(data: bytes) -> str:

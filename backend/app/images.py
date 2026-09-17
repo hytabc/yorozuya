@@ -74,7 +74,7 @@ def normalize_image(
     try:
         with Image.open(BytesIO(content)) as probe:
             width, height = probe.size
-    except (UnidentifiedImageError, OSError, ValueError) as error:
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as error:
         raise HTTPException(status_code=422, detail=UNREADABLE_DETAIL) from error
     if width * height > MAX_IMAGE_PIXELS:
         raise HTTPException(status_code=422, detail=TOO_MANY_PIXELS_DETAIL)

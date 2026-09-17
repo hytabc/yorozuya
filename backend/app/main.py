@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import re
 import secrets
 import sys
 from contextlib import asynccontextmanager
@@ -20,7 +21,7 @@ from pydantic import BeforeValidator, ValidationError
 from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.orm import Session, joinedload
 
-from .config import INSECURE_DEFAULT_ADMIN_PASSWORD, settings
+from .config import PLACEHOLDER_ADMIN_PASSWORDS, settings
 from .backup import skip_next_snapshot
 from .captcha import captcha_required, create_image_captcha, verify_captcha
 from .database import Base, SessionLocal, engine, get_db
@@ -192,7 +193,13 @@ from .schemas import (
     VrMapReportOut,
     VrMapReportResolveRequest,
 )
-from .security import create_access_token, hash_password, verify_password
+from .security import (
+    create_access_token,
+    equalize_password_check,
+    hash_password,
+    password_needs_rehash,
+    verify_password,
+)
 from .sugar_frost import router as sugar_frost_router
 from .virtual_life import router as virtual_life_router
 from .virtual_life_packs import router as virtual_life_packs_router, seed_virtual_life_packs
@@ -203,10 +210,40 @@ TaskStatusFilter = Annotated[
     BeforeValidator(lambda value: None if value == "" else value),
 ]
 
+# 注册冲突统一提示：不区分「用户名已存在」与「邮箱已存在」，避免账号枚举。
+ACCOUNT_TAKEN_DETAIL = "用户名或邮箱已被使用，请换一个试试"
+
+# 生活素材（管理员导入并经净化的游戏资源）允许免数据库记录直接公开，
+# 但文件名必须是服务端生成的 UUID 形态，杜绝任意文件借这条捷径对外提供。
+LIFE_ASSET_PATTERN = re.compile(r"^life/[0-9a-f]{32}\.(?:png|jpg|jpeg)$")
+
+_main_logger = logging.getLogger("yorozuya.main")
+
 
 def _running_under_pytest() -> bool:
     """测试会触碰真实数据库，此时不要随机化/轮换管理员密码以免影响本地数据。"""
-    return "pytest" in sys.modules
+    return settings.testing
+
+
+def _write_initial_admin_password(password: str) -> Path | None:
+    """把首次生成/轮换的管理员密码写入数据目录下的 0600 文件。
+
+    直接打印到日志会把明文密码交给任何能读日志的人（容器日志、日志采集、
+    甚至把日志贴进 issue）；落盘的 0600 文件权限可控，且提示运维读后即删。
+    """
+    target = settings.sugar_upload_path.parent / "INITIAL_ADMIN_PASSWORD.txt"
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(
+            f"用户名：{settings.admin_username}\n密码：{password}\n"
+            "读取后请立即删除本文件，并在 .env 中设置固定的 ADMIN_PASSWORD。\n",
+            encoding="utf-8",
+        )
+        target.chmod(0o600)
+    except OSError as error:
+        _main_logger.error("无法写入初始管理员密码文件：%s", error)
+        return None
+    return target
 
 
 def initialize_database() -> None:
@@ -222,11 +259,12 @@ def initialize_database() -> None:
             password = settings.admin_password
             if settings.admin_password_is_default and harden_default_password:
                 password = secrets.token_urlsafe(15)
+                location = _write_initial_admin_password(password)
                 logger.warning(
-                    "未配置 ADMIN_PASSWORD，已为超级管理员 %s 生成随机密码：%s"
-                    "（请立即记录，并在 .env 中设置固定的 ADMIN_PASSWORD）",
+                    "ADMIN_PASSWORD 缺失或仍是公开占位值，已为超级管理员 %s 生成随机密码%s"
+                    "（请读取后删除该文件，并在 .env 中设置固定的强密码）",
                     settings.admin_username,
-                    password,
+                    f"，已写入 {location}（权限 0600）" if location else "，但写入失败，请手工重置",
                 )
             db.add(
                 User(
@@ -237,20 +275,22 @@ def initialize_database() -> None:
                 )
             )
             db.commit()
-        elif harden_default_password and verify_password(
-            INSECURE_DEFAULT_ADMIN_PASSWORD, admin.password_hash
+        elif harden_default_password and any(
+            verify_password(candidate, admin.password_hash)
+            for candidate in PLACEHOLDER_ADMIN_PASSWORDS
         ):
-            # 已有管理员仍在使用公开的默认密码：强制轮换，避免被直接登录后台。
+            # 已有管理员仍在使用公开的占位密码（含 .env.example 里的示例值）：强制轮换。
             rotated = secrets.token_urlsafe(15)
             admin.password_hash = hash_password(rotated)
             lock_credentials(db, admin)
             revoke_credentials(db, admin)
             db.commit()
+            location = _write_initial_admin_password(rotated)
             logger.warning(
-                "检测到超级管理员 %s 仍在使用默认密码，已自动轮换为：%s"
-                "（请立即记录，并在 .env 中设置固定的 ADMIN_PASSWORD）",
+                "检测到超级管理员 %s 仍在使用公开的占位密码，已自动轮换%s"
+                "（请读取后删除该文件，并在 .env 中设置固定的强密码）",
                 settings.admin_username,
-                rotated,
+                f"，新密码已写入 {location}（权限 0600）" if location else "，但写入失败，请手工重置",
             )
         seed_virtual_life_packs(db)
 
@@ -463,7 +503,17 @@ def sync_media_zones(db: Session) -> None:
             place_media(key, public=public)
 
 
-app = FastAPI(title=settings.app_name, version="0.1-beta", lifespan=lifespan)
+# 生产（反代部署）关闭交互式文档与 OpenAPI，避免把完整接口结构公之于众；
+# 本地开发仍保留，方便调试。
+_docs_enabled = not settings.behind_proxy
+app = FastAPI(
+    title=settings.app_name,
+    version="0.1-beta",
+    lifespan=lifespan,
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
@@ -487,6 +537,31 @@ async def security_headers(request: Request, call_next):
     return response
 
 
+_MEDIA_PHOTO_MODELS = (UserPhoto, SugarPhoto, FriendPhoto, StoryPhoto, VrMapPhoto)
+
+
+def media_key_is_public(key: str, db: Session) -> bool:
+    """key 在数据库里当前是否属于「已过审、可公开访问」的媒体。"""
+    if db.scalar(
+        select(User.id).where(User.avatar_path == key, User.avatar_visible.is_(True)).limit(1)
+    ):
+        return True
+    return any(
+        db.scalar(select(model.id).where(model.file_path == key, model.is_visible.is_(True)).limit(1))
+        for model in _MEDIA_PHOTO_MODELS
+    )
+
+
+def media_key_exists(key: str, db: Session) -> bool:
+    """key 是否仍是数据库中的一条媒体记录（不区分可见性）。"""
+    if db.scalar(select(User.id).where(User.avatar_path == key).limit(1)):
+        return True
+    return any(
+        db.scalar(select(model.id).where(model.file_path == key).limit(1))
+        for model in _MEDIA_PHOTO_MODELS
+    )
+
+
 @app.api_route("/uploads/{key:path}", methods=["GET", "HEAD"], include_in_schema=False)
 def read_public_media(key: str, db: Session = Depends(get_db)):
     # 不能只凭磁盘所在区授权：搬移/提交之间崩溃或历史残留都可能留下公开副本。
@@ -495,14 +570,9 @@ def read_public_media(key: str, db: Session = Depends(get_db)):
     path = storage_file(key, public=True)
     if path is None or not path.is_file():
         raise HTTPException(status_code=404, detail="文件不存在")
-    # life/ 是管理员导入并净化的游戏素材，不属于用户待审媒体。
-    allowed = key.startswith("life/") and "/" not in key.removeprefix("life/")
-    if not allowed:
-        allowed = bool(db.scalar(select(User.id).where(User.avatar_path == key, User.avatar_visible.is_(True)).limit(1)))
-        for model in (UserPhoto, SugarPhoto, FriendPhoto, StoryPhoto, VrMapPhoto):
-            if allowed:
-                break
-            allowed = bool(db.scalar(select(model.id).where(model.file_path == key, model.is_visible.is_(True)).limit(1)))
+    # 生活素材是管理员导入并净化的游戏资源，不属于用户待审媒体；
+    # 文件名限定为服务端 UUID 形态，避免任意文件借这条捷径公开。
+    allowed = LIFE_ASSET_PATTERN.match(key) is not None or media_key_is_public(key, db)
     if not allowed:
         raise HTTPException(status_code=404, detail="文件不存在")
     return FileResponse(path, headers={"Cache-Control": "no-store", "Content-Security-Policy": "default-src 'none'; sandbox"})
@@ -745,6 +815,9 @@ def present_members(task: Task, viewer: User | None) -> list[TaskMemberOut]:
 def present_task(task: Task, viewer: User | None = None) -> TaskOut:
     data = TaskOut.model_validate(task)
     data.reported = any(report.status == ReportStatus.PENDING for report in task.reports)
+    # 取消发起者属于内部协作信息，只对委托人/接单人/管理员组暴露。
+    if not (is_task_participant(task, viewer) or is_task_manager(viewer)):
+        data.cancel_requested_by = None
     can_see_hidden = viewer is not None and (
         viewer.is_admin or viewer.role == UserRole.STAFF or viewer.id == task.publisher_id
     )
@@ -918,10 +991,11 @@ def shares_task_with(db: Session, viewer_id: int, target_id: int) -> bool:
 
 
 def can_view_user_qq(db: Session, viewer: User | None, target: User) -> bool:
-    """管理员组及主动公开的志愿者对外可见；原有协作关系始终优先放行。"""
-    if target.role == UserRole.STAFF:
-        return True
-    if target.role == UserRole.VOLUNTEER and target.qq_public:
+    """只有本人主动开启公开（qq_public）才对外可见；原有协作关系始终优先放行。
+
+    不再对 staff 无条件放行：否则设置了「不公开」的工作人员 QQ 仍会被匿名抓取。
+    """
+    if target.qq_public:
         return True
     if viewer is None:
         return False
@@ -1097,14 +1171,14 @@ def image_storage_error_detail(error: OSError) -> str:
 
 
 def store_sugar_images(profile: SugarProfile, images: list[tuple[str, bytes]]) -> list[SugarPhoto]:
-    """砂糖社照片默认可见，落在公开区。"""
+    """砂糖社照片默认待审，落在私有区（先审后公开，需签名 URL 才能访问）。"""
     settings.ensure_storage_directory()
     keys: list[str] = []
     stored: list[Path] = []
     try:
         for extension, content in images:
             key = f"sugar/{uuid4().hex}{extension}"
-            stored.append(write_media(key, content, public=True))
+            stored.append(write_media(key, content, public=False))
             keys.append(key)
     except OSError as error:
         for destination in stored:
@@ -1506,13 +1580,16 @@ def site_config():
 
 
 @app.get("/api/media/{key:path}", include_in_schema=False)
-def read_gated_media(key: str, exp: int = 0, sig: str = ""):
-    """私有区媒体读取：必须携带未过期的签名。
+def read_gated_media(key: str, exp: int = 0, sig: str = "", db: Session = Depends(get_db)):
+    """私有区媒体读取：必须携带未过期的签名，且记录当前仍处于非公开状态。
 
     待审/被屏蔽的文件不在 /uploads 静态目录里；``<img>`` 又带不了 Bearer 令牌，
-    因此由接口响应签发短时签名 URL，这里只校验签名与有效期（校验失败一律 404）。
+    因此由接口响应签发短时签名 URL。除了验签与有效期，这里还回查数据库：
+    记录已删除、或已经过审（此时应改用公开地址）时，旧签名立即失效。
     """
     if not verify_media_signature(key, exp, sig):
+        raise HTTPException(status_code=404, detail="文件不存在")
+    if not media_key_exists(key, db) or media_key_is_public(key, db):
         raise HTTPException(status_code=404, detail="文件不存在")
     path = storage_file(key, public=False)
     if path is None or not path.is_file():
@@ -1554,11 +1631,14 @@ async def register(payload: RegisterRequest, request: Request, db: Session = Dep
     """
     enforce("register-ip", client_ip(request), 10, 3600)
     await verify_captcha(request, payload.captcha_id, payload.captcha_code)
-    if db.scalar(select(User).where(User.username == payload.username)):
-        raise HTTPException(status_code=409, detail="用户名已被使用")
+    # 用户名按大小写不敏感判重（否则可注册 Admin 之类与真实管理员仅差大小写的账号），
+    # 且用户名与邮箱共用同一句提示，不把「哪个已被注册」暴露成枚举预言机。
+    username_taken = db.scalar(
+        select(User.id).where(func.lower(User.username) == payload.username.lower()).limit(1)
+    )
     email = payload.email.lower()
-    if email_taken(db, email):
-        raise HTTPException(status_code=409, detail=EMAIL_TAKEN_DETAIL)
+    if username_taken or email_taken(db, email):
+        raise HTTPException(status_code=409, detail=ACCOUNT_TAKEN_DETAIL)
     user = User(
         username=payload.username,
         password_hash=hash_password(payload.password),
@@ -1651,8 +1731,16 @@ async def login(payload: LoginRequest, request: Request, db: Session = Depends(g
     user = find_account(db, payload.username)
     account_key = f"id:{user.id}" if user else "unknown:" + sha256(payload.username.strip().lower().encode()).hexdigest()
     enforce("login-user", account_key, 10, 300)
-    if user is None or not verify_password(payload.password, user.password_hash):
+    if user is None:
+        # 账号不存在时也做一次同成本的哈希校验，抹平「账号是否存在」的耗时旁路。
+        equalize_password_check(payload.password)
         raise HTTPException(status_code=401, detail="用户名或密码错误")
+    if not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="用户名或密码错误")
+    if password_needs_rehash(user.password_hash):
+        # 迭代次数落后于当前标准时，借登录成功顺带升级哈希。
+        user.password_hash = hash_password(payload.password)
+        db.commit()
     if not user.is_active:
         raise HTTPException(status_code=403, detail="账号已停用")
     # 注册即带邮箱但还没点验证链接：必须先验证。
@@ -1718,11 +1806,27 @@ def me(user: User = Depends(get_authenticated_user)):
     return present_user_self(user)
 
 
+@app.post("/api/auth/logout", response_model=ActionAckOut)
+def logout(user: User = Depends(get_authenticated_user), db: Session = Depends(get_db)):
+    """退出登录：递增令牌版本，使该账号已签发的全部会话立即失效。
+
+    Bearer 令牌无法在客户端「作废」，只有服务端递增 token_version 才能让被复制/
+    泄露的令牌立刻失效；因此登出必须是服务端动作，而不是只清本地缓存。
+    """
+    lock_credentials(db, user)
+    revoke_credentials(db, user)
+    db.commit()
+    return ActionAckOut()
+
+
 @app.patch("/api/users/me", response_model=UserSelf)
 def update_profile(payload: UserUpdate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     user.nickname = payload.nickname.strip()
     user.qq = payload.qq
-    user.qq_public = payload.qq_public if user.role == UserRole.VOLUNTEER else False
+    # 志愿者与管理员都可以自行决定是否在名录公开 QQ（其余角色一律不公开）。
+    user.qq_public = (
+        payload.qq_public if user.role in (UserRole.VOLUNTEER, UserRole.STAFF) else False
+    )
     user.bio = payload.bio.strip() if payload.bio else None
     db.commit()
     db.refresh(user)
@@ -1833,14 +1937,14 @@ async def save_user_photos(photos: list[UploadFile], user: User, db: Session) ->
 
 
 def store_user_images(user: User, images: list[tuple[str, bytes]]) -> list[UserPhoto]:
-    """用户介绍图片默认可见（UserPhoto.is_visible 默认 True），落在公开区。"""
+    """用户介绍图片默认待审（先审后公开），落在私有区。"""
     settings.ensure_storage_directory()
     keys: list[str] = []
     stored: list[Path] = []
     try:
         for extension, content in images:
             key = f"users/{user.id}/{uuid4().hex}{extension}"
-            stored.append(write_media(key, content, public=True))
+            stored.append(write_media(key, content, public=False))
             keys.append(key)
     except OSError as error:
         for destination in stored:
@@ -1948,20 +2052,29 @@ def moderate_avatar(
 @app.get("/api/users/{user_id}", response_model=UserProfileOut)
 def user_profile(user_id: int, viewer: User | None = Depends(get_optional_user), db: Session = Depends(get_db)):
     """名录成员允许匿名查看，QQ 仍按公开偏好和协作关系脱敏。"""
-    target = db.scalar(user_with_photos_query().where(User.id == user_id))
-    if target is None or not target.is_active:
-        raise HTTPException(status_code=404, detail="用户不存在")
-    data = present_user_profile(target, viewer)
     directory_roles = (
         UserRole.STAFF,
         UserRole.DISCIPLINARIAN,
         UserRole.MASCOT,
         UserRole.VOLUNTEER,
     )
-    if target.role not in directory_roles and viewer is None:
+    target = db.scalar(user_with_photos_query().where(User.id == user_id))
+    # 匿名访客对「不存在」与「存在但需登录」返回同一状态码，避免被用来枚举账号 id。
+    if viewer is None and (
+        target is None or not target.is_active or target.role not in directory_roles
+    ):
         raise HTTPException(status_code=401, detail="请先登录")
+    if target is None or not target.is_active:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    data = present_user_profile(target, viewer)
     if not can_view_user_qq(db, viewer, target):
         data.qq = None
+    # 是否超管属于敏感的运营信息，只对本人与管理组成员展示。
+    if not (
+        viewer is not None
+        and (viewer.is_admin or viewer.id == target.id or viewer.role == UserRole.STAFF)
+    ):
+        data.is_admin = False
     return data
 
 
@@ -1993,8 +2106,13 @@ def staff_directory(db: Session = Depends(get_db)):
     def profile_without_qq(user: User) -> UserProfileOut:
         return present_user_profile(user).model_copy(update={"qq": None})
 
+    def profile_with_optional_qq(user: User) -> UserProfileOut:
+        return present_user_profile(user).model_copy(
+            update={"qq": user.qq if user.qq_public else None}
+        )
+
     return StaffDirectoryOut(
-        staff=[present_user_profile(user) for user in staff],
+        staff=[profile_with_optional_qq(user) for user in staff],
         disciplinarians=[profile_without_qq(user) for user in disciplinarians],
         mascots=[profile_without_qq(user) for user in mascots],
         volunteers=[
@@ -2028,11 +2146,15 @@ def sugar_profile_detail(
         raise HTTPException(status_code=404, detail="用户不存在")
     profile = get_sugar_profile_or_404(db, user_id)
     relationship = pair_between(db, viewer.id, target.id) if viewer.id != target.id else None
-    # QQ 不出现在公共列表；此详情请求的查看者与资料主人构成唯一的可见双方。
+    # QQ 只在本人，或已与本人建立「进行中」砂糖关系的对方之间可见；
+    # 否则任何登录用户都能遍历 user_id 抓取他人联系方式。
+    can_see_qq = viewer.id == target.id or (
+        relationship is not None and relationship.status == SugarPairStatus.ACTIVE
+    )
     return present_sugar_profile(
         profile,
         viewer=viewer,
-        qq=target.qq,
+        qq=target.qq if can_see_qq else None,
         relationship=relationship,
         detailed=True,
     )
@@ -2702,6 +2824,15 @@ def remove_story_file(file_path: str) -> None:
     delete_media(file_path)
 
 
+def _discard_written_media(keys) -> None:
+    """尽力清理一批刚落盘、但因事务失败而失去引用的媒体文件（不掩盖原始异常）。"""
+    for key in keys:
+        try:
+            delete_media(key)
+        except HTTPException:
+            _main_logger.warning("事务失败后清理媒体文件失败，需人工对账：%s", key)
+
+
 async def save_story_photos(photos: list[UploadFile], story_id: int, user_id: int) -> list[StoryPhoto]:
     """先完整校验全部文件，再落盘；总量限制防止多文件绕过单图上限。
 
@@ -2811,9 +2942,15 @@ async def create_story(
     )
     db.add(story)
     db.flush()
-    if photos:
-        db.add_all(await save_story_photos(photos, story.id, user.id))
-    db.commit()
+    records = await save_story_photos(photos, story.id, user.id) if photos else []
+    db.add_all(records)
+    try:
+        db.commit()
+    except Exception:
+        # 提交失败时清掉刚落盘的配图，避免留下无人引用的孤儿文件。
+        db.rollback()
+        _discard_written_media(record.file_path for record in records)
+        raise
     db.refresh(story)
     return present_story_detail(story, user)
 
@@ -3081,10 +3218,15 @@ async def create_vr_map(
     )
     db.add(vr_map)
     db.flush()
-    if photos:
-        records = await save_vr_map_photos(photos, vr_map.id, user.id)
-        db.add_all(records)
-    db.commit()
+    records = await save_vr_map_photos(photos, vr_map.id, user.id) if photos else []
+    db.add_all(records)
+    try:
+        db.commit()
+    except Exception:
+        # 提交失败时清掉刚落盘的实拍，避免留下无人引用的孤儿文件。
+        db.rollback()
+        _discard_written_media(record.file_path for record in records)
+        raise
     db.refresh(vr_map)
     return present_vr_map(vr_map, viewer=user)
 
@@ -3192,7 +3334,13 @@ async def upload_vr_map_photo(
         raise HTTPException(status_code=422, detail="你在每张地图最多上传 5 张图片")
     records = await save_vr_map_photos(photos, map_id, user.id)
     db.add_all(records)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        # 提交失败时清掉刚落盘的实拍，避免留下无人引用的孤儿文件。
+        db.rollback()
+        _discard_written_media(record.file_path for record in records)
+        raise
     db.refresh(vr_map)
     return present_vr_map(vr_map, viewer=user)
 
@@ -4082,6 +4230,17 @@ def delete_announcement(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+def analytics_visitor_key(viewer: User | None, request: Request) -> str:
+    """统计用的访客标识：登录用户按账号，游客按来源 IP 摘要。
+
+    刻意不采用客户端传入的 session_id：否则伪造随机 session_id 就能无限抬高
+    「独立访客」数字，污染运营看板。
+    """
+    if viewer is not None:
+        return f"user:{viewer.id}"
+    return f"anon:{sha256(client_ip(request).encode()).hexdigest()}"
+
+
 @app.post("/api/analytics/page-view", status_code=status.HTTP_204_NO_CONTENT)
 def track_page_view(
     payload: PageViewCreate,
@@ -4091,7 +4250,7 @@ def track_page_view(
 ):
     # 游客也能写入，按 IP 限流，避免被用来放大 SQLite 写入量。
     enforce("page-view-ip", client_ip(request), 120, 60)
-    visitor_key = f"user:{viewer.id}" if viewer else f"anon:{sha256(payload.session_id.encode()).hexdigest()}"
+    visitor_key = analytics_visitor_key(viewer, request)
     now = datetime.utcnow()
     skip_next_snapshot(db)
     db.add(PageView(page_key=payload.page_key, visitor_key=visitor_key, user_id=viewer.id if viewer else None, viewed_at=now))
@@ -4111,7 +4270,7 @@ def track_event(
     enforce("analytics-event-ip", client_ip(request), 240, 60)
     if payload.event_key not in EVENT_LABELS:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
-    visitor_key = f"user:{viewer.id}" if viewer else f"anon:{sha256(payload.session_id.encode()).hexdigest()}"
+    visitor_key = analytics_visitor_key(viewer, request)
     now = datetime.utcnow()
     skip_next_snapshot(db)
     db.add(
@@ -4329,14 +4488,16 @@ def present_admin_user(db: Session, user: User, viewer: User) -> AdminUserOut:
 
     照片必须由 visible_user_photos 生成：直接 model_validate(user) 读 ORM 的 photos
     拿不到地址（ORM 上没有 image_url），而可见性判断也需要按查看者身份区分。
+    邮箱属于个人隐私，仅超级管理员可见：管理员组负责日常运营，不需要全站邮箱库。
     """
+    can_see_email = viewer.is_admin
     return AdminUserOut(
         id=user.id,
         username=user.username,
         nickname=user.nickname,
         title=user.title,
-        email=user.email,
-        email_verified=user.email_verified,
+        email=user.email if can_see_email else None,
+        email_verified=user.email_verified if can_see_email else False,
         is_admin=user.is_admin,
         is_active=user.is_active,
         role=user.role,
@@ -4526,7 +4687,9 @@ def update_user_role(
     protected_roles = (UserRole.STAFF, UserRole.MASCOT, UserRole.DISCIPLINARIAN)
     if not manager.is_admin and (payload.role in protected_roles or user.role in protected_roles):
         raise HTTPException(status_code=403, detail="只有超级管理员可以管理管理员、看板娘和风纪委员权限")
-    if payload.role == UserRole.VOLUNTEER and user.role != UserRole.VOLUNTEER:
+    # 离开可公开 QQ 的角色（志愿者 / 管理员）时，收回公开标记。
+    publishable_roles = (UserRole.VOLUNTEER, UserRole.STAFF)
+    if payload.role not in publishable_roles and user.role in publishable_roles:
         user.qq_public = False
     user.role = payload.role
     db.commit()

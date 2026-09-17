@@ -17,7 +17,6 @@ import html
 import logging
 import smtplib
 import ssl
-import sys
 from email.message import EmailMessage
 from email.utils import formataddr
 
@@ -45,9 +44,9 @@ class EmailDeliveryError(RuntimeError):
 def delivery_is_local() -> bool:
     """是否走本地信箱（不发真邮件）。
 
-    pytest 下强制走本地：测试不应依赖外网，也不该真的给人发信。
+    测试模式下强制走本地：测试不应依赖外网，也不该真的给人发信。
     """
-    return settings.email_delivery != "smtp" or "pytest" in sys.modules
+    return settings.email_delivery != "smtp" or settings.testing
 
 
 def mask_email(address: str | None) -> str:

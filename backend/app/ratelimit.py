@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-import sys
+import ipaddress
 import threading
 import time
 from collections import deque
@@ -57,20 +57,35 @@ class SlidingWindowLimiter:
 limiter = SlidingWindowLimiter()
 
 
+def _is_trusted_proxy(host: str) -> bool:
+    """来源地址是否落在受信代理网段内（容器私网 / 回环）。"""
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return any(address in network for network in settings.trusted_proxy_networks)
+
+
 def client_ip(request: Request) -> str:
-    """仅在信任反向代理时读取其透传的真实 IP，避免被伪造的请求头绕过限流。"""
-    if settings.behind_proxy:
+    """仅在「信任反向代理」且直连来源本身受信时，才读取其透传的真实 IP。
+
+    两个条件缺一不可：BEHIND_PROXY 声明部署形态，网段校验负责兜底 —— 即使
+    BEHIND_PROXY 被误设为 true，公网直连也无法用伪造的请求头绕过限流。
+    """
+    peer = request.client.host if request.client else ""
+    if settings.behind_proxy and _is_trusted_proxy(peer):
         real_ip = request.headers.get("x-real-ip")
         if real_ip:
             return real_ip.strip()
         forwarded = request.headers.get("x-forwarded-for")
         if forwarded:
             return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    return peer or "unknown"
 
 
 def _testing() -> bool:
-    return "pytest" in sys.modules
+    # 测试模式由 conftest 通过 TESTING=true 显式开启，不再探测 sys.modules。
+    return settings.testing
 
 
 def enforce(bucket: str, key: str, limit: int, window_seconds: int) -> None:

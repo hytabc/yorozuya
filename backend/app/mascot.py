@@ -10,15 +10,15 @@
 from __future__ import annotations
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from .config import settings
 from .database import get_db
-from .dependencies import get_optional_user
+from .dependencies import get_current_user
 from .models import User
-from .ratelimit import client_ip, enforce
+from .ratelimit import enforce
 
 MAX_HISTORY = 20  # 客户端一次最多携带的历史消息条数
 
@@ -56,8 +56,7 @@ def mascot_health() -> MascotHealthResponse:
 @router.post("/chat", response_model=MascotChatResponse)
 async def mascot_chat(
     req: MascotChatRequest,
-    request: Request,
-    user: User | None = Depends(get_optional_user),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> MascotChatResponse:
     if not settings.mascot_api_key or not settings.mascot_api_base:
@@ -65,11 +64,12 @@ async def mascot_chat(
             reply="呜…看板娘还没接上大脑呢,店长忘接线了。请稍后再来找我玩~",
             disabled=True,
         )
-    # 看板娘直达付费大模型，按登录身份/来源 IP 限制调用频率，避免被刷成本。
-    identity = f"u{user.id}" if user else client_ip(request)
+    # 看板娘直达付费大模型：要求登录（未验证邮箱的用户也被邮箱闸门挡在前面），
+    # 于是调用成本落在账号维度，匿名者无法刷。
+    identity = f"u{user.id}"
     enforce("mascot-chat", identity, 30, 600)
-    # 会话身份:登录用户用站内 id,游客统一 guest
-    user_key = str(user.id) if user else "guest"
+    # 会话身份：站内 user id，保证跨端记忆一致。
+    user_key = str(user.id)
     payload = {
         "token": settings.mascot_api_key,
         "user_key": user_key,
