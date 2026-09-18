@@ -308,6 +308,14 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .captcha-click-hint { color: #6a7a72; }
 .captcha-click-action { padding: 3px 10px; border: 1px solid #ccd2ce; border-radius: 4px; background: white; color: #3b4a43; font-size: 12px; cursor: pointer; }
 .captcha-click-action:hover { border-color: var(--green); color: var(--green); }
+.captcha-vaptcha { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.captcha-vaptcha-anchor { line-height: 0; }
+.captcha-vaptcha-verify { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid #ccd2ce; border-radius: 4px; background: white; color: #3b4a43; font-size: 13px; cursor: pointer; }
+.captcha-vaptcha-verify:hover { border-color: var(--green); color: var(--green); }
+.captcha-vaptcha-done { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.captcha-vaptcha-badge { display: inline-flex; align-items: center; gap: 6px; color: var(--green); font-weight: 600; }
+.captcha-vaptcha-retry { padding: 3px 10px; border: 1px solid #ccd2ce; border-radius: 4px; background: white; color: #3b4a43; font-size: 12px; cursor: pointer; }
+.captcha-vaptcha-retry:hover { border-color: var(--green); color: var(--green); }
 
 .page-title { align-items: center; margin-bottom: 38px; }
 .page-title > div { display: block; }

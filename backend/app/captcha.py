@@ -1,9 +1,12 @@
-"""登录/注册人机验证：站内图形验证码（builtin）、点击图形验证码（click）与 Cloudflare Turnstile（turnstile）。
+"""登录/注册人机验证：站内图形验证码（builtin）、点击图形验证码（click）、
+Cloudflare Turnstile（turnstile）与 VAPTCHA V4（vaptcha）。
 
 - builtin：Pillow 生成带干扰的 4 位字符图片，答案存进程内存（一次性消费 + 限时过期）。
 - click：Pillow 生成随机图形，按题面「颜色 + 形状 + 大小」依次点击目标；答案（目标中心点与顺序）
   只存服务端，前端仅拿到图片与题面文字，绝不回传坐标；一次性消费 + 限时 + 坐标容差。
 - turnstile：前端拿到 token 后由服务端调用 Cloudflare siteverify 校验（fail-closed）。
+- vaptcha：VAPTCHA V4，前端调用 SDK 的 validate() 得到 token/knock/dfu/ip，服务端用 VKEY
+  本地做 HMAC-SHA256 验签（不外呼官方接口），配合短 TTL 与一次性 token 缓存防重放；VKEY 只存服务端。
 - 通过 CAPTCHA_PROVIDER 互斥切换；CAPTCHA_ENABLED=false 可整体关闭。
 - pytest 下自动跳过校验（与 ratelimit.enforce 一致），避免干扰既有用例。
 
@@ -12,6 +15,9 @@ Pillow 采用延迟导入：未安装/未启用图像类 provider 时不影响�
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 import logging
 import math
 import random
@@ -426,6 +432,102 @@ async def verify_turnstile(token: str, remote_ip: str | None) -> None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="人机验证未通过，请重试")
 
 
+# ── VAPTCHA V4（本地 HMAC 验签）──
+# token 形如 timestamp.token_id.signature；signature 由 VKEY 对
+# "timestamp.ip.dfu.knock" 做 HMAC-SHA256 得到。VKEY 只存服务端，不外发、不记日志。
+_VAPTCHA_CODE_MAX_LENGTH = 4096
+# 单个字段（token/knock/dfu/ip）上限：留足余量（dfu 设备指纹可能是较长的 base64），
+# 同时受请求模型 captcha_code ≤4096 的总量约束。
+_VAPTCHA_FIELD_MAX_LENGTH = 2048
+_VAPTCHA_PRUNE_INTERVAL_SECONDS = 60.0
+
+
+class _UsedTokenCache:
+    """已通过验签的 VAPTCHA token 缓存：同一 token 在有效期内只放行一次（防重放）。"""
+
+    def __init__(self) -> None:
+        self._expiries: dict[str, float] = {}
+        self._lock = threading.Lock()
+        self._last_prune = time.monotonic()
+
+    def claim(self, token: str, ttl_seconds: float) -> bool:
+        now = time.monotonic()
+        with self._lock:
+            self._prune(now)
+            if token in self._expiries:
+                return False
+            self._expiries[token] = now + ttl_seconds
+            return True
+
+    def _prune(self, now: float) -> None:
+        if now - self._last_prune < _VAPTCHA_PRUNE_INTERVAL_SECONDS:
+            return
+        self._last_prune = now
+        for key in [key for key, expires in self._expiries.items() if expires <= now]:
+            del self._expiries[key]
+
+
+used_vaptcha_tokens = _UsedTokenCache()
+
+
+def _vaptcha_failure() -> HTTPException:
+    return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="人机验证未通过，请重试")
+
+
+def _parse_vaptcha_code(code: str) -> dict[str, str] | None:
+    """解析前端回传的 JSON（token/knock/dfu/ip）；任何畸形输入返回 None。"""
+    if not code or len(code) > _VAPTCHA_CODE_MAX_LENGTH:
+        return None
+    try:
+        payload = json.loads(code)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    token = payload.get("token")
+    if not isinstance(token, str) or not token or len(token) > _VAPTCHA_FIELD_MAX_LENGTH:
+        return None
+    result = {"token": token}
+    # knock/dfu/ip 允许为空（旧版 SDK 可能不带 ip），但类型与长度必须合法。
+    for key in ("knock", "dfu", "ip"):
+        value = payload.get(key) or ""
+        if not isinstance(value, str) or len(value) > _VAPTCHA_FIELD_MAX_LENGTH:
+            return None
+        result[key] = value
+    return result
+
+
+def verify_vaptcha(captcha_code: str) -> None:
+    """本地校验 VAPTCHA V4 token 签名；任何异常一律 400。
+
+    ip 使用 SDK 回传的签名快照（官方要求）——它本身被签名覆盖，篡改即验签失败，
+    因此无需再与服务端识别的来源 IP 比对（双栈/企业出口 IP 漂移会误拒）。
+    """
+    if not settings.vaptcha_vkey:
+        logger.error("未配置 VAPTCHA_VKEY，VAPTCHA 校验无法通过")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="人机验证未正确配置，请联系管理员")
+    payload = _parse_vaptcha_code(captcha_code)
+    if payload is None:
+        raise _vaptcha_failure()
+    parts = payload["token"].split(".")
+    if len(parts) != 3 or not all(parts):
+        raise _vaptcha_failure()
+    timestamp, _token_id, signature = parts
+    try:
+        issued_at = int(timestamp)
+    except ValueError:
+        raise _vaptcha_failure()
+    if abs(int(time.time()) - issued_at) > settings.vaptcha_token_ttl_seconds:
+        raise _vaptcha_failure()
+    signed = f"{timestamp}.{payload['ip']}.{payload['dfu']}.{payload['knock']}"
+    expected = hmac.new(settings.vaptcha_vkey.encode(), signed.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, signature):
+        raise _vaptcha_failure()
+    # 防重放：同一 token 在有效期内只放行一次。
+    if not used_vaptcha_tokens.claim(payload["token"], settings.vaptcha_token_ttl_seconds + 5):
+        raise _vaptcha_failure()
+
+
 async def verify_captcha(request: Request, captcha_id: str, captcha_code: str) -> None:
     """按实际生效的 provider 校验人机验证；未启用时直接放行。"""
     if not captcha_required():
@@ -436,6 +538,9 @@ async def verify_captcha(request: Request, captcha_id: str, captcha_code: str) -
         return
     if provider == "click":
         verify_click_captcha(request, captcha_id, captcha_code)
+        return
+    if provider == "vaptcha":
+        verify_vaptcha(captcha_code)
         return
     if not captcha_id or not captcha_store.consume_code(captcha_id, captcha_code):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码错误或已失效")

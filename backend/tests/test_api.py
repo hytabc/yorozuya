@@ -3023,6 +3023,83 @@ def test_click_captcha_rejects_malformed_code(monkeypatch):
             assert response.status_code == 400, (bad_code, response.text)
 
 
+def _vaptcha_code(vkey, *, timestamp=None, knock="knock-1", dfu="dfu-1", ip="203.0.113.7", signature=None):
+    """按官方规则构造 VAPTCHA V4 captcha_code（JSON）。"""
+    import hashlib
+    import hmac
+    import json
+    import time
+
+    ts = int(time.time()) if timestamp is None else timestamp
+    if signature is None:
+        data = f"{ts}.{ip}.{dfu}.{knock}"
+        signature = hmac.new(vkey.encode(), data.encode(), hashlib.sha256).hexdigest()
+    return json.dumps({"token": f"{ts}.token-id.{signature}", "knock": knock, "dfu": dfu, "ip": ip})
+
+
+def _enable_vaptcha(monkeypatch):
+    from app import captcha as captcha_module
+
+    _enable_captcha(monkeypatch, "vaptcha")
+    monkeypatch.setattr(settings, "vaptcha_vid", "test-vid")
+    monkeypatch.setattr(settings, "vaptcha_vkey", "test-vkey")
+    # 一次性 token 缓存是模块级状态，清空以免用例间互相影响。
+    captcha_module.used_vaptcha_tokens._expiries.clear()
+    return captcha_module
+
+
+def test_vaptcha_guards_login(monkeypatch):
+    import json
+    import time
+
+    _enable_vaptcha(monkeypatch)
+    with TestClient(app) as client:
+        challenge = client.get("/api/auth/captcha").json()
+        assert challenge["provider"] == "vaptcha"
+        assert challenge["vaptcha_vid"] == "test-vid"
+        # VKEY 绝不能出现在下发的挑战里。
+        assert "vaptcha_vkey" not in challenge
+
+        good = _vaptcha_code("test-vkey")
+        ok = client.post(
+            "/api/auth/login",
+            json={"username": "admin", "password": "Admin123!", "captcha_code": good},
+        )
+        assert ok.status_code == 200, ok.text
+
+        # 防重放：同一 token 再用一次 → 400。
+        replay = client.post(
+            "/api/auth/login",
+            json={"username": "admin", "password": "Admin123!", "captcha_code": good},
+        )
+        assert replay.status_code == 400
+
+    with TestClient(app) as client:
+        bad_cases = [
+            "",  # 空
+            "not-json",  # 非 JSON
+            json.dumps({"knock": "x"}),  # 缺 token
+            json.dumps({"token": "a.b"}),  # 段数不足
+            _vaptcha_code("test-vkey", signature="0" * 64),  # 篡改签名
+            _vaptcha_code("wrong-vkey"),  # 用错误 VKEY 签名
+            _vaptcha_code("test-vkey", timestamp=int(time.time()) - 3600),  # 过期
+        ]
+        for bad in bad_cases:
+            response = client.post(
+                "/api/auth/login",
+                json={"username": "admin", "password": "Admin123!", "captcha_code": bad},
+            )
+            assert response.status_code == 400, (bad, response.text)
+
+
+def test_vaptcha_falls_back_to_builtin_without_keys(monkeypatch):
+    _enable_captcha(monkeypatch, "vaptcha")
+    monkeypatch.setattr(settings, "vaptcha_vid", "")
+    monkeypatch.setattr(settings, "vaptcha_vkey", "")
+    # 缺 VID/VKEY 时不能停在 vaptcha（否则前端拿不到挑战、登录必然失败）。
+    assert settings.captcha_effective_provider == "builtin"
+
+
 def test_story_flow():
     with TestClient(app) as client:
         alice = auth(client, "story_alice")

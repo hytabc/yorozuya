@@ -209,6 +209,8 @@ class CaptchaChallenge(ApiModel):
     - provider="builtin"：前端显示 image（data URL）并要求填写 captcha_code。
     - provider="click"：前端显示 image（data URL）与 prompt，按顺序点选 target_count 个图形，
       点击坐标以 captcha_code 回传。**响应绝不包含目标坐标，答案只存服务端。**
+    - provider="vaptcha"：前端按 vaptcha_vid 初始化 VAPTCHA V4 SDK，调用 validate() 后把
+      token/knock/dfu/ip 以 JSON 放进 captcha_code 提交。**下发的只有公开 VID，VKEY 绝不下发。**
     """
 
     provider: str
@@ -219,6 +221,8 @@ class CaptchaChallenge(ApiModel):
     # click 专用：题面文字与需要点击的目标数量。
     prompt: str | None = None
     target_count: int = 0
+    # vaptcha 专用：公开的 VID（前端初始化 SDK 用）。
+    vaptcha_vid: str | None = None
 
 
 class TaskCreate(RequestModel):

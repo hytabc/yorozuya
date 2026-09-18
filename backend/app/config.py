@@ -64,9 +64,9 @@ class Settings(BaseSettings):
     mascot_max_tokens: int = 1500
     mascot_timeout_seconds: int = 120
 
-    # 登录/注册人机验证：turnstile=Cloudflare Turnstile；builtin=站内图形验证码；
-    # click=站内点击图形验证码（按题面颜色/形状/大小依次点击）。三者互斥，由本项切换。
-    # 关闭 CAPTCHA_ENABLED 则登录/注册不再要求验证码（不推荐生产环境关闭）。
+    # 登录/注册人机验证：turnstile=Cloudflare Turnstile；builtin=站内字符图形验证码；
+    # click=站内点击图形验证码（按题面颜色/形状/大小依次点击）；vaptcha=VAPTCHA V4。
+    # 四者互斥，由本项切换。关闭 CAPTCHA_ENABLED 则登录/注册不再要求验证码（不推荐生产环境关闭）。
     captcha_enabled: bool = True
     captcha_provider: str = "turnstile"
     # 交互式文档（/docs、/redoc、/openapi.json）默认关闭。
@@ -82,6 +82,12 @@ class Settings(BaseSettings):
     # Turnstile 公开 Site Key 可入库；Secret Key 只能放服务端 .env。
     turnstile_site_key: str = "0x4AAAAAAEwPP7x-AwVA_SVE"
     turnstile_secret_key: str = ""
+    # ── VAPTCHA V4 ──
+    # VID 公开（前端初始化 SDK 用），VKEY 只能放服务端 .env，用于本地 HMAC 验签。
+    vaptcha_vid: str = ""
+    vaptcha_vkey: str = ""
+    # token 本地验签有效期（秒）：官方窗口 30s，签到提交间隔通常很短，默认 30 足够。
+    vaptcha_token_ttl_seconds: int = 30
 
     # 网站备案号（页脚展示）。属于私有信息，只从 .env 读取，留空则页脚不展示。
     site_icp: str = ""
@@ -157,9 +163,9 @@ class Settings(BaseSettings):
                 f"SMTP_ENCRYPTION 只能是 ssl / starttls / none（当前 {self.smtp_encryption!r}）："
                 "阿里云邮件推送用 465 + ssl，也可用 80/25 + starttls。"
             )
-        if self.captcha_provider not in ("turnstile", "builtin", "click"):
+        if self.captcha_provider not in ("turnstile", "builtin", "click", "vaptcha"):
             raise RuntimeError(
-                f"CAPTCHA_PROVIDER 只能是 turnstile / builtin / click（当前 {self.captcha_provider!r}）："
+                f"CAPTCHA_PROVIDER 只能是 turnstile / builtin / click / vaptcha（当前 {self.captcha_provider!r}）："
                 "未知取值以前会被静默当作站内图形验证码，容易误以为 Turnstile 已生效。"
             )
 
@@ -192,7 +198,7 @@ class Settings(BaseSettings):
         Turnstile 需要 Site Key（前端渲染组件）与 Secret Key（服务端 siteverify）同时具备；
         缺任意一个就回落到站内图形验证码。否则会出现「接口发的是内置图形验证码、
         服务端却按 Turnstile 校验」的死锁 —— 登录/注册会稳定返回 400。
-        click 不依赖第三方密钥，配置即生效。
+        click 不依赖第三方密钥，配置即生效；vaptcha 需要 VID 与 VKEY 同时具备，缺一即回落。
         """
         if self.captcha_provider == "click":
             return "click"
@@ -202,6 +208,8 @@ class Settings(BaseSettings):
             and self.turnstile_secret_key
         ):
             return "turnstile"
+        if self.captcha_provider == "vaptcha" and self.vaptcha_vid and self.vaptcha_vkey:
+            return "vaptcha"
         return "builtin"
 
     @property
