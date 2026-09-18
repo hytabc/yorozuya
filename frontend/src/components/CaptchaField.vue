@@ -3,7 +3,7 @@ import { nextTick, onMounted, ref, watch } from 'vue'
 import { RefreshCw, ShieldCheck } from '@lucide/vue'
 import { useCaptcha } from '../composables/useCaptcha'
 
-const { captcha, load, attach, reset, payload, isSatisfied, selectPoint, clearClicks } = useCaptcha()
+const { captcha, load, attach, reset, payload, isSatisfied, selectPoint, clearClicks, validate } = useCaptcha()
 const container = ref(null)
 
 // click：把页面坐标换算成相对图片的归一化坐标（0..1），与渲染尺寸无关，避免泄露/依赖原图尺寸。
@@ -18,24 +18,24 @@ function onClick(event) {
 
 onMounted(() => { load() })
 
-// provider 确定后才渲染容器；等 DOM 更新完再挂载 Turnstile 组件。
+// provider 确定后才渲染容器；等 DOM 更新完再挂载 Turnstile / 初始化 VAPTCHA。
 watch(
   () => captcha.provider,
   async (value) => {
-    if (value !== 'turnstile') return
+    if (value !== 'turnstile' && value !== 'vaptcha') return
     await nextTick()
     attach(container.value)
   },
   { flush: 'post' },
 )
 
-defineExpose({ load, reset, payload, isSatisfied })
+defineExpose({ load, reset, payload, isSatisfied, validate })
 </script>
 
 <template>
-  <!-- click 分支内含按钮，若用 <label> 会把点击转发给首个可标注控件，故改用 <div>。 -->
+  <!-- click / vaptcha 分支内含按钮，若用 <label> 会把点击转发给首个可标注控件，故改用 <div>。 -->
   <component
-    :is="captcha.provider === 'click' ? 'div' : 'label'"
+    :is="captcha.provider === 'click' || captcha.provider === 'vaptcha' ? 'div' : 'label'"
     v-if="captcha.provider !== 'off'"
     class="captcha-field"
   >
@@ -70,6 +70,22 @@ defineExpose({ load, reset, payload, isSatisfied })
         <span class="captcha-click-hint">已选 {{ captcha.clicks.length }} / {{ captcha.targetCount }}</span>
         <button type="button" class="captcha-click-action" @click="clearClicks">重选</button>
         <button type="button" class="captcha-click-action" @click="load">换一张</button>
+      </div>
+    </div>
+    <div v-else-if="captcha.provider === 'vaptcha'" class="captcha-vaptcha">
+      <!-- VAPTCHA 不注入按钮：这里是 SDK 的挂载锚点，验证入口由下面这个按钮显式调用 validate()。 -->
+      <div ref="container" class="captcha-vaptcha-anchor" />
+      <button
+        v-if="!captcha.vaptcha.token"
+        type="button"
+        class="captcha-vaptcha-verify"
+        @click="validate"
+      >
+        <ShieldCheck :size="16" /> 点击进行人机验证
+      </button>
+      <div v-else class="captcha-vaptcha-done">
+        <span class="captcha-vaptcha-badge"><ShieldCheck :size="16" /> 已验证</span>
+        <button type="button" class="captcha-vaptcha-retry" @click="reset">重新验证</button>
       </div>
     </div>
     <small v-if="captcha.error" class="field-error" role="alert">{{ captcha.error }}</small>

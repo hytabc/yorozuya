@@ -57,6 +57,10 @@ services:
       CAPTCHA_PROVIDER: ${CAPTCHA_PROVIDER:-turnstile}
       TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-0x4AAAAAAEwPP7x-AwVA_SVE}
       TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
+      # VAPTCHA V4:VID 公开(前端初始化 SDK);VKEY 只存服务端,用于本地 HMAC 验签。
+      VAPTCHA_VID: ${VAPTCHA_VID:-}
+      VAPTCHA_VKEY: ${VAPTCHA_VKEY:-}
+      VAPTCHA_TOKEN_TTL_SECONDS: ${VAPTCHA_TOKEN_TTL_SECONDS:-30}
     volumes:
       # 数据库与上传图片持久化：宿主机 backend/data 与容器 /data 一致。
       # 容器以 UID 10001 运行，首次部署需在宿主机执行 chown -R 10001:10001 backend/data。
