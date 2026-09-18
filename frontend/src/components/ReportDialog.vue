@@ -1,6 +1,6 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { Flag, X } from 'lucide-vue-next'
+import { Flag, X } from '@lucide/vue'
 import { api, errorMessage } from '../api'
 import { track } from '../analytics'
 import { useToast } from '../composables/toast'

@@ -1,6 +1,6 @@
 <script setup>
 import { reactive, ref, computed, onMounted, onUnmounted } from 'vue'
-import { Check, TriangleAlert, X } from 'lucide-vue-next'
+import { Check, TriangleAlert, X } from '@lucide/vue'
 import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
 import { track } from '../analytics'

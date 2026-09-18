@@ -4,7 +4,7 @@
 // 令牌一次性：提交成功后所有旧登录会话都会失效，需要重新登录。
 import { computed, reactive, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { KeyRound } from 'lucide-vue-next'
+import { KeyRound } from '@lucide/vue'
 import { api, errorMessage } from '../api'
 
 const route = useRoute()

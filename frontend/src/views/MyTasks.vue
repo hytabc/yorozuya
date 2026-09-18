@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { ClipboardList, Plus } from 'lucide-vue-next'
+import { ClipboardList, Plus } from '@lucide/vue'
 import { api, errorMessage } from '../api'
 import { track } from '../analytics'
 import { useToast } from '../composables/toast'

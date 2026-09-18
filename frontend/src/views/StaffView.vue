@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { CalendarDays, Heart, HeartHandshake, MessageCircle, ShieldAlert, Sparkles, Store } from 'lucide-vue-next'
+import { CalendarDays, Heart, HeartHandshake, MessageCircle, ShieldAlert, Sparkles, Store } from '@lucide/vue'
 import { api, errorMessage } from '../api'
 import { track } from '../analytics'
 import { useAuthStore } from '../stores/auth'

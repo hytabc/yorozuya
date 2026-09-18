@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { MessagesSquare, Send, Trash2 } from 'lucide-vue-next'
+import { MessagesSquare, Send, Trash2 } from '@lucide/vue'
 import { api, errorMessage } from '../api'
 import { track } from '../analytics'
 import { useToast } from '../composables/toast'

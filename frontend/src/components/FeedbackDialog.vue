@@ -1,6 +1,6 @@
 <script setup>
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { MessageCircle, Send, X } from 'lucide-vue-next'
+import { MessageCircle, Send, X } from '@lucide/vue'
 import { api, errorMessage } from '../api'
 import { track } from '../analytics'
 import { useAuthStore } from '../stores/auth'

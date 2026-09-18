@@ -207,6 +207,8 @@ class CaptchaChallenge(ApiModel):
     - provider="off"：当前未启用验证码，前端不渲染任何控件。
     - provider="turnstile"：前端按 site_key 渲染 Cloudflare Turnstile。
     - provider="builtin"：前端显示 image（data URL）并要求填写 captcha_code。
+    - provider="click"：前端显示 image（data URL）与 prompt，按顺序点选 target_count 个图形，
+      点击坐标以 captcha_code 回传。**响应绝不包含目标坐标，答案只存服务端。**
     """
 
     provider: str
@@ -214,6 +216,9 @@ class CaptchaChallenge(ApiModel):
     image: str | None = None
     expires_in: int = 0
     site_key: str | None = None
+    # click 专用：题面文字与需要点击的目标数量。
+    prompt: str | None = None
+    target_count: int = 0
 
 
 class TaskCreate(RequestModel):

@@ -67,9 +67,13 @@ log "1/4 启动 edge（同时拉起 frontend 与 backend）；证书缺失时以
 docker compose up -d --build edge
 
 # 就绪探测同时验证了 /var/www/certbot 的挂载与挑战路径可达 —— ACME 失败最常见的原因就在这里。
+#
+# ⚠️ 必须显式带上 Host 头：edge 配置里 `if ($host != "${DOMAIN}") { return 421; }` 会拒绝
+# 一切 Host 不匹配的请求，而直连 127.0.0.1 时的默认 Host 是 127.0.0.1，会被判 421，
+# 导致探测永远拿不到 "ready"（真实的 ACME 校验同样以域名为 Host，所以这样探测才与线上一致）。
 log "2/4 等待 edge 就绪，并验证 ACME 挑战目录可达"
 n=0
-until [ "$(docker compose exec -T edge sh -c "wget -qO- http://127.0.0.1/.well-known/acme-challenge/$PROBE" 2>/dev/null)" = "ready" ]; do
+until [ "$(docker compose exec -T edge sh -c "wget -qO- --timeout=5 --header=\"Host: $DOMAIN\" http://127.0.0.1/.well-known/acme-challenge/$PROBE" 2>/dev/null)" = "ready" ]; do
     n=$((n + 1))
     [ "$n" -lt 30 ] || {
         rm -f "$CHALLENGE_DIR/$PROBE"

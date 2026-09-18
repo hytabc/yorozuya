@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
-import { Heart, Map as MapIcon, Plus, TriangleAlert, UserRound, X } from 'lucide-vue-next'
+import { Heart, Map as MapIcon, Plus, TriangleAlert, UserRound, X } from '@lucide/vue'
 import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
 import { track } from '../analytics'

@@ -1,5 +1,5 @@
 <script setup>
-import { CircleCheck, CircleAlert } from 'lucide-vue-next'
+import { CircleCheck, CircleAlert } from '@lucide/vue'
 import { toasts } from '../composables/toast'
 </script>
 

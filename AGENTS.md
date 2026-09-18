@@ -11,7 +11,7 @@
 | 层 | 技术 |
 |---|---|
 | 后端 | Python 3.12 + FastAPI + SQLAlchemy 2.0（ORM）+ Pydantic v2 + pydantic-settings，默认 SQLite（`data/wsw.db`），JWT（HTTPBearer）认证 |
-| 前端 | Vue 3（`<script setup>`）+ Pinia + Vue Router + Vite + axios + lucide-vue-next 图标 |
+| 前端 | Vue 3（`<script setup>`）+ Pinia + Vue Router + Vite + axios + `@lucide/vue` 图标 |
 | 部署 | Docker Compose（`docker-compose.yml`，prod/dev 两套）+ 边缘 Nginx 终止 HTTPS + certbot 自动续期（`deploy/nginx/`、`deploy/certbot/`、`deploy/init-letsencrypt.sh`）；根目录 `start.sh` / `start.bat` 一键启动 |
 | 测试 | 后端 pytest（`backend/tests/test_api.py` + `test_security_media.py` + `test_email_flow.py` 等，TestClient + 内存库，约 145 个用例） |
 
@@ -139,7 +139,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - **权限可信标记 `auth.verified`**：只有服务端响应（登录/注册或 `/auth/me`）才能把 `verified` 置为 true；`isAdmin/isStaff/isMascot/isDisciplinarian/role/canModerate/canManageRoles/canOperate/isBetaTester` 全部 `verified && ...`。组件里禁止直接读 `auth.user.role/is_admin`（用 `auth.role`/`auth.isAdmin`），这样改写 localStorage 也无法让界面误认为自己拥有权限。
 - **请求模型**：`RequestModel` 设 `extra="forbid"`，请求体夹带 `role`/`is_admin` 等多余字段会被 422 拒绝（后端另有显式白名单赋值与 `update_user_role` 的角色保护，`is_admin` 无法经任何接口写入）。
 - **本地凭证加密存储**：登录令牌/用户信息不再明文写 localStorage，改由 `frontend/src/authStorage.js` 用 Web Crypto AES-GCM 加密后写入 `wsw_auth`，密钥为不可导出的 `CryptoKey` 存于 IndexedDB；旧明文键（`wsw_token` 等）首次读取时自动迁移并删除。取 token 一律走 `getToken()/getTokenSync()`，禁止再直接读 localStorage。非安全上下文自动降级为“仅内存不落盘”。
-- **登录/注册人机验证**：`backend/app/captcha.py`，`CAPTCHA_PROVIDER` 可选 `turnstile`（Cloudflare，推荐）或 `builtin`（Pillow 图形验证码）；前端 `composables/useCaptcha.js` + `components/CaptchaField.vue`。`login/register` 在校验密码前先 `verify_captcha`（fail-closed），pytest 下自动跳过。Turnstile Secret Key 只放 `.env`（`TURNSTILE_SECRET_KEY`），Site Key 公开。
+- **登录/注册人机验证**：`backend/app/captcha.py`，`CAPTCHA_PROVIDER` 可选 `turnstile`（Cloudflare，推荐）、`builtin`（Pillow 字符图形验证码）或 `click`（Pillow 点击图形验证码，按题面颜色/形状/大小依次点击，答案只存服务端、一次性、限时限流）。三者互斥；前端统一走 `composables/useCaptcha.js` + `components/CaptchaField.vue`，新 provider 只需在 `GET /api/auth/captcha` 的 `provider` 字段里出现即可。`login/register` 在校验密码前先 `verify_captcha`（fail-closed），pytest 下自动跳过。Turnstile Secret Key 只放 `.env`（`TURNSTILE_SECRET_KEY`），Site Key 公开。
 - **公网入口只有 `edge`**：`docker-compose.yml` 中 `edge` 独占宿主机 80/443（TLS 终止 + HTTP 301 跳转 + HSTS），`frontend`/`backend` 一律不发布宿主机端口（dev 覆盖文件才把 `WEB_PORT` 加回 `frontend`）。**不要给 frontend/backend 增加 `ports`**，否则会绕过 HTTPS 出现明文入口。
 - **真实客户端 IP**：`edge` 写入 `X-Real-IP`，`frontend/nginx.conf` 用 `real_ip` 模块（信任私网网段）还原后透传给后端，限流才按真实 IP 计数。改动代理层时务必保留这条链路，否则所有用户会被算作同一个来源。
 - **响应头与 CSP**：`frontend/nginx.conf` 除基础安全头外下发 `Content-Security-Policy`（`default-src 'self'`，仅额外放行 Cloudflare Turnstile 的 script/connect/frame；`style-src` 需 `'unsafe-inline'` 供 Vue 的 `:style` 绑定；`img-src` 需 `data:` 供内置验证码、`blob:` 供上传前预览）。`/uploads/` 与 `/api/media/` 额外带 `default-src 'none'; sandbox`，使被直开的上传文件无法作为页面执行。**⚠️ nginx 的 `add_header` 不跨层级合并**：在 location 里加任何一个 `add_header`，server 层的其余安全头就全部失效，必须原样重复。后端也有一层 HTTP 中间件兜底（直连后端/Vite 代理场景）。改动站点引入第三方资源（字体、CDN 脚本）时必须同步放宽 CSP，否则会被浏览器拦截。
