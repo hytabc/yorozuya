@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { BookOpen, EyeOff, MessageCircle, Send, Trash2, UserRound, X } from 'lucide-vue-next'
+import { BookOpen, EyeOff, MessageCircle, Send, Trash2, UserRound, X } from '@lucide/vue'
 import { api, errorMessage } from '../api'
 import { track } from '../analytics'
 import { useToast } from '../composables/toast'

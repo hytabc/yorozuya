@@ -5,7 +5,7 @@
 // 令牌通过 POST 提交（不放进后续请求的 URL），避免被写进日志或 Referer。
 import { onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { MailCheck, MailX } from 'lucide-vue-next'
+import { MailCheck, MailX } from '@lucide/vue'
 import { api, errorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
 

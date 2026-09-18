@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { CalendarClock, Coins, EyeOff, Ghost, LockOpen, UserRound, UsersRound } from 'lucide-vue-next'
+import { CalendarClock, Coins, EyeOff, Ghost, LockOpen, UserRound, UsersRound } from '@lucide/vue'
 import StatusBadge from './StatusBadge.vue'
 import UserTitleTag from './UserTitleTag.vue'
 import { useAuthStore } from '../stores/auth'

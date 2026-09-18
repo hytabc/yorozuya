@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { CalendarDays, Megaphone } from 'lucide-vue-next'
+import { CalendarDays, Megaphone } from '@lucide/vue'
 import { api, errorMessage } from '../api'
 
 const announcements = ref([])

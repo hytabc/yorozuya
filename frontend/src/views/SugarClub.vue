@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { Camera, Crown, HeartHandshake, ImagePlus, EyeOff, MessageCircle, Pencil, Save, Trash2, X } from 'lucide-vue-next'
+import { Camera, Crown, HeartHandshake, ImagePlus, EyeOff, MessageCircle, Pencil, Save, Trash2, X } from '@lucide/vue'
 import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { track } from '../analytics'
 import { useAuthStore } from '../stores/auth'

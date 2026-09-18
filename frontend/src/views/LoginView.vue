@@ -1,7 +1,7 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { ArrowRight, Check, KeyRound, Mail, MailCheck, UserRound } from 'lucide-vue-next'
+import { ArrowRight, Check, KeyRound, Mail, MailCheck, UserRound } from '@lucide/vue'
 import { useAuthStore } from '../stores/auth'
 import { api, errorMessage } from '../api'
 import { track } from '../analytics'

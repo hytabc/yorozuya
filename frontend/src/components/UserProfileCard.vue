@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-import { CalendarDays, EyeOff, Heart, KeyRound, MessageCircle, ShieldCheck, Store, UserRound, X } from 'lucide-vue-next'
+import { CalendarDays, EyeOff, Heart, KeyRound, MessageCircle, ShieldCheck, Store, UserRound, X } from '@lucide/vue'
 import { api, errorMessage } from '../api'
 import { roleLabel } from '../constants'
 import UserAvatar from './UserAvatar.vue'

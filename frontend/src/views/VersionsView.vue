@@ -1,5 +1,5 @@
 <script setup>
-import { History } from 'lucide-vue-next'
+import { History } from '@lucide/vue'
 </script>
 
 <template>
