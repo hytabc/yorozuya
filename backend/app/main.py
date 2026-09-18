@@ -81,6 +81,7 @@ from .models import (
     FriendProfile,
     FriendRequest,
     FriendRequestStatus,
+    PageDwell,
     PageView,
     ReportStatus,
     SugarPair,
@@ -141,8 +142,10 @@ from .schemas import (
     LoginRequest,
     PasswordUpdate,
     PageMetric,
+    PageDwellCreate,
     PageViewCreate,
     EventMetric,
+    DeviceMetric,
     OperationsSummary,
     DailyMetric,
     ReportCreate,
@@ -352,6 +355,15 @@ def migrate_schema() -> None:
                 connection.execute(text("ALTER TABLE email_tokens ADD COLUMN credential_version INTEGER NOT NULL DEFAULT -1"))
                 connection.execute(text("UPDATE email_tokens SET used_at = CURRENT_TIMESTAMP WHERE used_at IS NULL"))
                 connection.execute(text("UPDATE users SET pending_email = NULL"))
+        # 埋点新增设备分档：存量页面访问事件没有设备信息，统一回填为 other。
+        # 必须放在下面 tasks 的提前 return 之前，否则缺表的老库会跳过这段迁移。
+        if inspector.has_table("page_views"):
+            page_view_columns = {column["name"] for column in inspector.get_columns("page_views")}
+            if "device" not in page_view_columns:
+                connection.execute(
+                    text("ALTER TABLE page_views ADD COLUMN device VARCHAR(16) NOT NULL DEFAULT 'other'")
+                )
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_page_views_device ON page_views (device)"))
         if not inspector.has_table("tasks"):
             return
         task_columns = {column["name"] for column in inspector.get_columns("tasks")}
@@ -676,6 +688,36 @@ EVENT_LABELS = {
     "frost.level_submit": "提交糖霜关卡解答",
     "life.start": "开始虚拟人生",
 }
+
+# 设备分档：只保存归类结果，不落库 UA 原文（与「不采集 IP/UA」的隐私原则一致）。
+DEVICE_LABELS = {
+    "desktop": "PC 端",
+    "mobile": "手机端",
+    "tablet": "平板",
+    "other": "其他",
+}
+
+# 顺序有意义：先判平板（Android 平板 UA 常含 "Android" 但不含 "Mobile"），再判手机。
+_DEVICE_TABLET = re.compile(r"(?i)(ipad|tablet|playbook|silk)|\bandroid\b(?!.*mobile)")
+_DEVICE_MOBILE = re.compile(r"(?i)(iphone|ipod|windows phone|blackberry|opera mini|\bmobile\b)")
+_DEVICE_DESKTOP = re.compile(r"(?i)(windows nt|macintosh|x11|cros|linux|windows)")
+
+
+def detect_device(request: Request) -> str:
+    """把请求头归类到 desktop/mobile/tablet/other；不保留 UA 原文。"""
+    # 优先采信 Client Hints（浏览器主动声明移动端时最可靠，例如 iPadOS 桌面模式）。
+    if request.headers.get("sec-ch-ua-mobile") == "?1":
+        return "mobile"
+    user_agent = request.headers.get("user-agent") or ""
+    if not user_agent:
+        return "other"
+    if _DEVICE_TABLET.search(user_agent):
+        return "tablet"
+    if _DEVICE_MOBILE.search(user_agent):
+        return "mobile"
+    if _DEVICE_DESKTOP.search(user_agent):
+        return "desktop"
+    return "other"
 
 
 def utc_naive(value: datetime | None) -> datetime | None:
@@ -4275,7 +4317,15 @@ def track_page_view(
     visitor_key = analytics_visitor_key(viewer, request)
     now = datetime.utcnow()
     skip_next_snapshot(db)
-    db.add(PageView(page_key=payload.page_key, visitor_key=visitor_key, user_id=viewer.id if viewer else None, viewed_at=now))
+    db.add(
+        PageView(
+            page_key=payload.page_key,
+            visitor_key=visitor_key,
+            user_id=viewer.id if viewer else None,
+            device=detect_device(request),
+            viewed_at=now,
+        )
+    )
     db.execute(delete(PageView).where(PageView.viewed_at < now - timedelta(days=180)))
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -4309,13 +4359,39 @@ def track_event(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@app.post("/api/analytics/page-dwell", status_code=status.HTTP_204_NO_CONTENT)
+def track_page_dwell(
+    payload: PageDwellCreate,
+    request: Request,
+    viewer: User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    """离页结算一次页面曝光时长；与 page-view 同样按 IP 限流并做 180 天清理。"""
+    enforce("page-dwell-ip", client_ip(request), 120, 60)
+    now = datetime.utcnow()
+    skip_next_snapshot(db)
+    db.add(
+        PageDwell(
+            page_key=payload.page_key,
+            visitor_key=analytics_visitor_key(viewer, request),
+            user_id=viewer.id if viewer else None,
+            device=detect_device(request),
+            seconds=payload.seconds,
+            recorded_at=now,
+        )
+    )
+    db.execute(delete(PageDwell).where(PageDwell.recorded_at < now - timedelta(days=180)))
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @app.get("/api/operations/analytics", response_model=AnalyticsOut)
 def operations_analytics(
     days: int = Query(default=7, ge=1, le=90),
     _: User = Depends(get_role_manager),
     db: Session = Depends(get_db),
 ):
-    """按北京时间统计页面浏览量、去重访客与关键行为事件，不暴露任何访客明细。"""
+    """按北京时间统计页面浏览、去重访客、曝光时长与设备分布，不暴露任何访客明细。"""
     utc_now = datetime.utcnow()
     local_today = (utc_now + timedelta(hours=8)).date()
     first_day = local_today - timedelta(days=days - 1)
@@ -4327,21 +4403,74 @@ def operations_analytics(
         .order_by(PageView.viewed_at.asc())
     ).all()
 
-    page_buckets = {key: {"views": 0, "visitors": set()} for key in PAGE_LABELS}
-    daily_buckets = {
-        first_day + timedelta(days=offset): {"views": 0, "visitors": set()}
-        for offset in range(days)
+    def new_bucket() -> dict:
+        # views/visitors 为整页口径；guest_*/user_* 为「游客 vs 登录用户」拆分。
+        return {
+            "views": 0,
+            "visitors": set(),
+            "guest_views": 0,
+            "user_views": 0,
+            "guest_visitors": set(),
+            "user_visitors": set(),
+        }
+
+    page_buckets = {key: new_bucket() for key in PAGE_LABELS}
+    daily_buckets = {first_day + timedelta(days=offset): new_bucket() for offset in range(days)}
+    device_buckets = {
+        key: {"views": 0, "visitors": set(), "dwell_sessions": 0, "dwell_seconds": 0}
+        for key in DEVICE_LABELS
     }
     all_visitors: set[str] = set()
+    guest_visitors: set[str] = set()
+    user_visitors: set[str] = set()
+    guest_views = 0
+    user_views = 0
     for event in events:
         local_day = (event.viewed_at + timedelta(hours=8)).date()
         if event.page_key not in page_buckets or local_day not in daily_buckets:
             continue
-        page_buckets[event.page_key]["views"] += 1
-        page_buckets[event.page_key]["visitors"].add(event.visitor_key)
-        daily_buckets[local_day]["views"] += 1
-        daily_buckets[local_day]["visitors"].add(event.visitor_key)
+        is_guest = event.user_id is None
+        for bucket in (page_buckets[event.page_key], daily_buckets[local_day]):
+            bucket["views"] += 1
+            bucket["visitors"].add(event.visitor_key)
+            if is_guest:
+                bucket["guest_views"] += 1
+                bucket["guest_visitors"].add(event.visitor_key)
+            else:
+                bucket["user_views"] += 1
+                bucket["user_visitors"].add(event.visitor_key)
+        # 未知设备（含历史的空值）统一并入「其他」，避免出现计划外的分档。
+        device_bucket = device_buckets.get(event.device) or device_buckets["other"]
+        device_bucket["views"] += 1
+        device_bucket["visitors"].add(event.visitor_key)
         all_visitors.add(event.visitor_key)
+        if is_guest:
+            guest_visitors.add(event.visitor_key)
+            guest_views += 1
+        else:
+            user_visitors.add(event.visitor_key)
+            user_views += 1
+
+    # 曝光时长行数可能远多于看板需要的粒度，直接用 SQL 聚合，避免把明细全读进内存。
+    page_dwell: dict[str, list[int]] = {}
+    total_sessions = 0
+    total_seconds = 0
+    for page_key, device, sessions, seconds in db.execute(
+        select(PageDwell.page_key, PageDwell.device, func.count(), func.sum(PageDwell.seconds))
+        .where(PageDwell.recorded_at >= range_start, PageDwell.recorded_at < range_end)
+        .group_by(PageDwell.page_key, PageDwell.device)
+    ).all():
+        sessions = int(sessions or 0)
+        seconds = int(seconds or 0)
+        if page_key in page_buckets:
+            bucket = page_dwell.setdefault(page_key, [0, 0])
+            bucket[0] += sessions
+            bucket[1] += seconds
+        device_bucket = device_buckets.get(device) or device_buckets["other"]
+        device_bucket["dwell_sessions"] += sessions
+        device_bucket["dwell_seconds"] += seconds
+        total_sessions += sessions
+        total_seconds += seconds
 
     event_counts: dict[tuple[str | None, str], int] = {}
     for row in db.scalars(
@@ -4363,20 +4492,52 @@ def operations_analytics(
     ]
     event_metrics.sort(key=lambda item: (-item.count, item.label))
 
-    pages = [
-        PageMetric(
-            page_key=key,
-            label=PAGE_LABELS[key],
-            views=bucket["views"],
-            visitors=len(bucket["visitors"]),
+    pages = []
+    for key, bucket in page_buckets.items():
+        sessions, seconds = page_dwell.get(key, (0, 0))
+        pages.append(
+            PageMetric(
+                page_key=key,
+                label=PAGE_LABELS[key],
+                views=bucket["views"],
+                visitors=len(bucket["visitors"]),
+                guest_views=bucket["guest_views"],
+                user_views=bucket["user_views"],
+                guest_visitors=len(bucket["guest_visitors"]),
+                user_visitors=len(bucket["user_visitors"]),
+                dwell_sessions=sessions,
+                total_seconds=seconds,
+                avg_seconds=round(seconds / sessions, 1) if sessions else 0,
+            )
         )
-        for key, bucket in page_buckets.items()
-    ]
     pages.sort(key=lambda item: (-item.visitors, -item.views, item.label))
     daily = [
-        DailyMetric(date=day.isoformat(), views=bucket["views"], visitors=len(bucket["visitors"]))
+        DailyMetric(
+            date=day.isoformat(),
+            views=bucket["views"],
+            visitors=len(bucket["visitors"]),
+            guest_views=bucket["guest_views"],
+            user_views=bucket["user_views"],
+            guest_visitors=len(bucket["guest_visitors"]),
+            user_visitors=len(bucket["user_visitors"]),
+        )
         for day, bucket in daily_buckets.items()
     ]
+    devices = [
+        DeviceMetric(
+            device=key,
+            label=DEVICE_LABELS[key],
+            views=bucket["views"],
+            visitors=len(bucket["visitors"]),
+            dwell_sessions=bucket["dwell_sessions"],
+            total_seconds=bucket["dwell_seconds"],
+            avg_seconds=round(bucket["dwell_seconds"] / bucket["dwell_sessions"], 1)
+            if bucket["dwell_sessions"]
+            else 0,
+        )
+        for key, bucket in device_buckets.items()
+    ]
+    devices.sort(key=lambda item: (-item.views, item.label))
     today_bucket = daily_buckets[local_today]
     return AnalyticsOut(
         days=days,
@@ -4384,8 +4545,15 @@ def operations_analytics(
         total_visitors=len(all_visitors),
         today_views=today_bucket["views"],
         today_visitors=len(today_bucket["visitors"]),
+        guest_views=guest_views,
+        user_views=user_views,
+        guest_visitors=len(guest_visitors),
+        user_visitors=len(user_visitors),
+        total_seconds=total_seconds,
+        avg_seconds=round(total_seconds / total_sessions, 1) if total_sessions else 0,
         pages=pages,
         daily=daily,
+        devices=devices,
         events=event_metrics,
     )
 

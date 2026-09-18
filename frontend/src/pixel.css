@@ -301,8 +301,10 @@ html[data-theme='pixel'] .metric-grid { border-block: 3px solid var(--ink); back
 html[data-theme='pixel'] th { background: #f7dfae; color: #6b4d26; border-bottom: 3px solid var(--ink); font-weight: 700; }
 html[data-theme='pixel'] td { border-top: 2px solid #ecd9b4; }
 html[data-theme='pixel'] tr.dimmed td { background: #f6ecd8; }
-html[data-theme='pixel'] .trend-column i { border: 2px solid var(--ink); }
 html[data-theme='pixel'] .ranking-row > div { border: 2px solid var(--ink); background: #f1e2c6; }
+/* 像素风：图例色块改成小方块并描边，与整体风格一致。 */
+html[data-theme='pixel'] .split-legend strong { color: var(--ink); }
+html[data-theme='pixel'] .split-legend .dot { border: 2px solid var(--ink); border-radius: 0; }
 
 /* ---------- 弹窗/浮层 ---------- */
 html[data-theme='pixel'] .modal-backdrop { background: rgba(59, 42, 30, .55); }

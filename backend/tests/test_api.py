@@ -182,6 +182,38 @@ def test_vr_map_photo_legacy_unique_constraint_migration(tmp_path, monkeypatch):
         assert connection.scalar(text("SELECT COUNT(*) FROM vr_map_photos")) == 1
 
 
+def test_page_view_device_column_legacy_migration(tmp_path, monkeypatch):
+    """旧库的 page_views 没有 device 列，升级后应补齐并把存量数据归入 other。
+
+    刻意不建 tasks 表：migrate_schema() 在缺 tasks 时会提前 return，
+    该断言同时锁住「设备列迁移必须放在早退之前」这条约束。
+    """
+    database_path = tmp_path / "legacy_views.db"
+    legacy_engine = create_engine(f"sqlite:///{database_path}")
+    with legacy_engine.begin() as connection:
+        connection.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY)"))
+        connection.execute(text("""
+            CREATE TABLE page_views (
+                id INTEGER PRIMARY KEY,
+                page_key VARCHAR(32) NOT NULL,
+                visitor_key VARCHAR(80) NOT NULL,
+                user_id INTEGER,
+                viewed_at DATETIME NOT NULL
+            )
+        """))
+        connection.execute(text(
+            "INSERT INTO page_views (id, page_key, visitor_key, user_id, viewed_at) "
+            "VALUES (1, 'hall', 'anon:legacy', NULL, '2026-09-08 00:00:00')"
+        ))
+    monkeypatch.setattr(main_module, "engine", legacy_engine)
+    monkeypatch.setattr(settings, "database_url", f"sqlite:///{database_path}")
+    main_module.migrate_schema()
+    columns = {column["name"] for column in inspect(legacy_engine).get_columns("page_views")}
+    assert "device" in columns
+    with legacy_engine.connect() as connection:
+        assert connection.scalar(text("SELECT device FROM page_views WHERE id = 1")) == "other"
+
+
 def test_mascot_operations_announcements_and_analytics():
     with TestClient(app) as client:
         mascot = auth(client, "ops_mascot")
@@ -301,6 +333,133 @@ def test_mascot_operations_announcements_and_analytics():
         deleted = client.delete(f"/api/operations/announcements/{announcement_id}", headers=mascot)
         assert deleted.status_code == 204
         assert client.get("/api/announcements").json() == []
+
+
+DESKTOP_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
+IPHONE_UA = (
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 "
+    "(KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1"
+)
+IPAD_UA = (
+    "Mozilla/5.0 (iPad; CPU OS 15_0 like Mac OS X) AppleWebKit/605.1.15 "
+    "(KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1"
+)
+
+
+def detect_device_for(headers):
+    """用最小 HTTP scope 直接调用后端设备归类函数。"""
+    from starlette.requests import Request
+
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/api/analytics/page-view",
+        "headers": [(key.lower().encode(), value.encode()) for key, value in headers.items()],
+    }
+    return main_module.detect_device(Request(scope))
+
+
+def test_detect_device_buckets():
+    assert detect_device_for({"user-agent": DESKTOP_UA}) == "desktop"
+    assert detect_device_for({"user-agent": IPHONE_UA}) == "mobile"
+    assert detect_device_for({"user-agent": IPAD_UA}) == "tablet"
+    # Android 平板：含 Android 但不含 Mobile，应归入平板而不是手机。
+    assert detect_device_for({"user-agent": "Mozilla/5.0 (Linux; Android 12; SM-T870) AppleWebKit/537.36"}) == "tablet"
+    assert detect_device_for({"user-agent": "curl/8.4.0"}) == "other"
+    assert detect_device_for({}) == "other"
+    # Client Hints 优先于 UA（iPadOS 桌面模式会把 UA 伪装成 Macintosh）。
+    assert detect_device_for({"sec-ch-ua-mobile": "?1", "user-agent": DESKTOP_UA}) == "mobile"
+
+
+def test_analytics_dwell_device_and_visitor_split():
+    with TestClient(app) as client:
+        admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
+        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+        staff = auth(client, "dwell_staff")
+        staff_id = client.get("/api/auth/me", headers=staff).json()["id"]
+        assert client.patch(
+            f"/api/admin/users/{staff_id}/role", headers=admin, json={"role": "staff"}
+        ).status_code == 200
+        regular = auth(client, "dwell_regular")
+
+        # 同一 IP（TestClient）下的匿名访问只算一个访客键，因此四台「设备」仍是同一位游客。
+        for page_key, session_id, user_agent, headers in [
+            ("hall", "dwell_session_aaa", DESKTOP_UA, None),
+            ("hall", "dwell_session_bbb", IPHONE_UA, None),
+            ("sugar", "dwell_session_ccc", IPAD_UA, None),
+            ("maps", "dwell_session_ddd", "curl/8.4.0", None),
+            ("hall", "dwell_session_eee", DESKTOP_UA, regular),
+        ]:
+            response = client.post(
+                "/api/analytics/page-view",
+                headers={**(headers or {}), "User-Agent": user_agent},
+                json={"page_key": page_key, "session_id": session_id},
+            )
+            assert response.status_code == 204, response.text
+
+        # 曝光时长：离页结算一次，游客/登录用户、不同设备分别写入。
+        for page_key, seconds, user_agent, headers in [
+            ("hall", 60, IPHONE_UA, None),
+            ("hall", 120, DESKTOP_UA, regular),
+            ("sugar", 30, IPAD_UA, None),
+        ]:
+            response = client.post(
+                "/api/analytics/page-dwell",
+                headers={**(headers or {}), "User-Agent": user_agent},
+                json={
+                    "page_key": page_key,
+                    "seconds": seconds,
+                    "session_id": "dwell_session_aaa",
+                },
+            )
+            assert response.status_code == 204, response.text
+
+        # 超长时长被 Pydantic 拦截（上限 2 小时），防止有人直接 POST 天文数字。
+        assert client.post(
+            "/api/analytics/page-dwell",
+            json={"page_key": "hall", "seconds": 999999, "session_id": "dwell_session_aaa"},
+        ).status_code == 422
+
+        report = client.get("/api/operations/analytics", headers=staff, params={"days": 7})
+        assert report.status_code == 200, report.text
+        data = report.json()
+
+        # 访客 / 实际用户拆分：4 次游客浏览 + 1 次登录浏览，去重后各 1 位。
+        assert (data["guest_views"], data["user_views"]) == (4, 1)
+        assert (data["guest_visitors"], data["user_visitors"]) == (1, 1)
+        assert data["total_views"] == 5
+
+        hall = next(item for item in data["pages"] if item["page_key"] == "hall")
+        assert (hall["views"], hall["guest_views"], hall["user_views"]) == (3, 2, 1)
+        assert (hall["guest_visitors"], hall["user_visitors"]) == (1, 1)
+
+        # 曝光时长：大厅 60+120 秒 / 2 次，均值 90；砂糖社 30 秒 / 1 次。
+        assert (hall["dwell_sessions"], hall["total_seconds"], hall["avg_seconds"]) == (2, 180, 90.0)
+        sugar = next(item for item in data["pages"] if item["page_key"] == "sugar")
+        assert (sugar["dwell_sessions"], sugar["total_seconds"], sugar["avg_seconds"]) == (1, 30, 30.0)
+
+        # 设备分布：PC 端 2 次浏览（含 1 位登录用户），其余三档各 1 次。
+        devices = {item["device"]: item for item in data["devices"]}
+        assert devices["desktop"]["views"] == 2
+        assert devices["desktop"]["visitors"] == 2
+        assert devices["desktop"]["total_seconds"] == 120
+        assert (devices["mobile"]["views"], devices["mobile"]["total_seconds"]) == (1, 60)
+        assert (devices["tablet"]["views"], devices["tablet"]["total_seconds"]) == (1, 30)
+        assert devices["other"]["views"] == 1
+        assert devices["other"]["label"] == "其他"
+
+        assert data["total_seconds"] == 210
+        assert data["avg_seconds"] == 70.0
+
+        # 未登录用户同样能上报曝光时长（受邮箱闸门不影响，走 get_optional_user）。
+        anonymous = client.post(
+            "/api/analytics/page-dwell",
+            json={"page_key": "board", "seconds": 15, "session_id": "dwell_session_fff"},
+        )
+        assert anonymous.status_code == 204
 
 
 def register_sugar_profile(client, headers, about="喜欢在周末散步"):

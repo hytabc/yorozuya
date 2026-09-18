@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     Enum as SqlEnum,
     ForeignKey,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -385,7 +386,24 @@ class PageView(Base):
     page_key: Mapped[str] = mapped_column(String(32), index=True)
     visitor_key: Mapped[str] = mapped_column(String(80), index=True)
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    # 粗粒度设备类别（desktop/mobile/tablet/other）：只落库归类结果，不保存 UA 原文。
+    device: Mapped[str] = mapped_column(String(16), default="other", index=True)
     viewed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
+class PageDwell(Base):
+    """页面曝光时长（离页结算）；device 与 PageView 一致，仅存粗粒度类别。"""
+
+    __tablename__ = "page_dwells"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    page_key: Mapped[str] = mapped_column(String(32), index=True)
+    visitor_key: Mapped[str] = mapped_column(String(80), index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    device: Mapped[str] = mapped_column(String(16), default="other", index=True)
+    # 单次结算的可见停留秒数；前端已在离页时截断超长（挂机）时长。
+    seconds: Mapped[int] = mapped_column(Integer, default=0)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
 
 class AnalyticsEvent(Base):

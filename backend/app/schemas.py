@@ -555,6 +555,15 @@ class PageViewCreate(RequestModel):
     session_id: str = Field(min_length=16, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
 
 
+class PageDwellCreate(RequestModel):
+    """页面曝光时长：离页结算一次，seconds 为本次可见停留秒数。"""
+
+    page_key: PageKeyLiteral
+    # 单次上限 2 小时：前端已截断，这里再兜底防止有人直接 POST 天文数字污染均值。
+    seconds: int = Field(ge=1, le=7200)
+    session_id: str = Field(min_length=16, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
+
+
 class AnalyticsEventCreate(RequestModel):
     """关键行为事件埋点：event_key 由后端白名单校验，未知事件直接忽略。"""
 
@@ -568,6 +577,15 @@ class PageMetric(BaseModel):
     label: str
     views: int
     visitors: int
+    # 游客（未登录）与登录用户拆分：views 按次数、visitors 按去重访客。
+    guest_views: int = 0
+    user_views: int = 0
+    guest_visitors: int = 0
+    user_visitors: int = 0
+    # 曝光时长：dwell_sessions 为结算次数，avg_seconds 为单次平均可见秒数。
+    dwell_sessions: int = 0
+    total_seconds: int = 0
+    avg_seconds: float = 0
 
 
 class EventMetric(BaseModel):
@@ -582,6 +600,22 @@ class DailyMetric(BaseModel):
     date: str
     views: int
     visitors: int
+    guest_views: int = 0
+    user_views: int = 0
+    guest_visitors: int = 0
+    user_visitors: int = 0
+
+
+class DeviceMetric(BaseModel):
+    """设备维度聚合：PC 端 / 手机端 / 平板 / 其他。"""
+
+    device: str
+    label: str
+    views: int
+    visitors: int
+    dwell_sessions: int = 0
+    total_seconds: int = 0
+    avg_seconds: float = 0
 
 
 class AnalyticsOut(BaseModel):
@@ -590,8 +624,17 @@ class AnalyticsOut(BaseModel):
     total_visitors: int
     today_views: int
     today_visitors: int
+    # 周期总量按游客 / 登录用户拆分。
+    guest_views: int = 0
+    user_views: int = 0
+    guest_visitors: int = 0
+    user_visitors: int = 0
+    # 周期总曝光时长与单次平均停留。
+    total_seconds: int = 0
+    avg_seconds: float = 0
     pages: list[PageMetric]
     daily: list[DailyMetric]
+    devices: list[DeviceMetric] = []
     # 关键行为事件计数（按事件 + 页面聚合），用于分析点击/使用偏好。
     events: list[EventMetric] = []
 
