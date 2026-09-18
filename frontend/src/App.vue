@@ -1,8 +1,10 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { Palette } from 'lucide-vue-next'
 import { api } from './api'
 import { useAuthStore } from './stores/auth'
+import { cycleTheme, theme } from './composables/theme'
 import AppHeader from './components/AppHeader.vue'
 import ToastHost from './components/ToastHost.vue'
 import KanbanNiang from './components/KanbanNiang.vue'
@@ -44,6 +46,18 @@ watch(
       </template>
     </footer>
     <ToastHost />
+    <!-- 风格切换:右上角悬浮,与左上角看板娘对称;全屏游戏页不显示 -->
+    <button
+      v-if="!route.meta.lifeOnly && !route.meta.lifeManager"
+      class="theme-toggle"
+      type="button"
+      :aria-pressed="theme === 'pixel'"
+      :title="`切换页面风格(当前:${theme === 'pixel' ? '像素风' : '经典风'})`"
+      @click="cycleTheme"
+    >
+      <Palette :size="16" />
+      <span>{{ theme === 'pixel' ? '经典风' : '像素风' }}</span>
+    </button>
     <!-- 未完成邮箱验证时的强制绑定浮层：/life、/life-admin 这类全屏页也要挡，故挂在根部 -->
     <EmailVerificationGate />
     <!-- 看板娘走付费大模型，后端要求登录；未登录时直接不渲染入口。 -->
