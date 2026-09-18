@@ -1621,6 +1621,9 @@ def get_captcha(request: Request):
     # 避免前端拿到 builtin 图形验证码、服务端却按 turnstile 校验的死锁。
     if settings.captcha_effective_provider == "turnstile":
         return CaptchaChallenge(provider="turnstile", site_key=settings.turnstile_site_key)
+    if settings.captcha_effective_provider == "vaptcha":
+        # 只下发公开的 VID；VKEY 仅存服务端，用于本地验签。
+        return CaptchaChallenge(provider="vaptcha", vaptcha_vid=settings.vaptcha_vid)
     if settings.captcha_effective_provider == "click":
         captcha_id, png, prompt, target_count = create_click_captcha()
         # 只回传图片与题面，目标坐标留在服务端（避免答案明文下发）。

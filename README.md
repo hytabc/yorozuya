@@ -55,7 +55,7 @@ MASCOT_MODEL=kimi-k2.7-code-highspeed
 
 ## 登录/注册人机验证
 
-登录与注册默认启用 **Cloudflare Turnstile**，用于拦截暴力破解与批量注册。三种方式由 `CAPTCHA_PROVIDER` **互斥切换**，所有配置都在项目根目录 `.env`：
+登录与注册默认启用 **Cloudflare Turnstile**，用于拦截暴力破解与批量注册。四种方式由 `CAPTCHA_PROVIDER` **互斥切换**，所有配置都在项目根目录 `.env`：
 
 ```env
 CAPTCHA_ENABLED=true
@@ -67,11 +67,14 @@ TURNSTILE_SECRET_KEY=你的secret
 | 配置 | 含义 |
 |---|---|
 | `CAPTCHA_ENABLED` | `false` 则登录/注册不再要求验证码（不推荐生产环境关闭） |
-| `CAPTCHA_PROVIDER` | `turnstile`（Cloudflare，推荐）、`builtin`（站内字符图形验证码）或 `click`（站内点击图形验证码），三者互斥 |
+| `CAPTCHA_PROVIDER` | `turnstile`（Cloudflare，推荐）、`builtin`（站内字符图形验证码）、`click`（站内点击图形验证码）或 `vaptcha`（VAPTCHA V4），四者互斥 |
 | `CAPTCHA_CLICK_TARGETS` | `click` 需要依次点击的目标数量（2..4，默认 3） |
 | `CAPTCHA_CLICK_MIN_SECONDS` | `click` 从出题到提交的最短间隔（秒，默认 0.5），过快视为脚本 |
 | `TURNSTILE_SITE_KEY` | Turnstile 公开 Site Key（可入库） |
 | `TURNSTILE_SECRET_KEY` | Turnstile Secret Key，**只能放服务端**；必填，否则校验永远失败 |
+| `VAPTCHA_VID` | VAPTCHA V4 公开 VID（可入库） |
+| `VAPTCHA_VKEY` | VAPTCHA V4 私钥，**只能放服务端**；必填，服务端用它本地验签 |
+| `VAPTCHA_TOKEN_TTL_SECONDS` | VAPTCHA token 本地验签有效期（秒，默认 30，官方窗口同为 30s） |
 
 注意事项：
 
@@ -79,6 +82,7 @@ TURNSTILE_SECRET_KEY=你的secret
 - 未配置 `TURNSTILE_SECRET_KEY` 时登录/注册会返回“人机验证未正确配置”；本地可用官方测试密钥 `1x0000000000000000000000000000000AA`（恒定通过）。
 - 选择 `builtin` 时无需第三方服务，后端用 Pillow 生成字符图形验证码；Turnstile token 为一次性，校验失败后前端会自动重新挑战。
 - 选择 `click` 时同样无需第三方：后端用 Pillow 生成含随机颜色/形状/大小图形的图片，题面要求**按顺序点击**指定目标（例：`请按顺序依次点击：红色的圆形（小）、蓝色的三角形（中）…`）。**答案（目标坐标）只存服务端**，接口只下发图片与题面，前端回传归一化点击坐标；挑战一次性（提交即作废）、限时、限流，并有最短解题耗时与坐标容差检查。
+- 选择 `vaptcha` 时前端加载官方 SDK（`c4.vaptcha.com/src/v4.js`），用户完成手势/AI 验证后把 `token/knock/dfu/ip` 提交给后端；后端用 `VKEY` **本地 HMAC-SHA256 验签**（不外呼官方接口），配合短 TTL 与一次性 token 缓存防重放。`VKEY` 绝不下发到前端；未配置 `VAPTCHA_VID`/`VAPTCHA_VKEY` 时会自动回落到 `builtin`。
 
 ## Docker Compose 部署
 
@@ -273,7 +277,7 @@ start.bat test
 - **会话令牌**：JWT 有效期 24 小时；浏览器端以 Web Crypto AES-GCM 加密后存入 localStorage（键名 `wsw_auth`），密钥为不可导出的 `CryptoKey` 存于 IndexedDB，不再明文落盘；修改密码会自增令牌版本，旧密码签发的所有登录立即失效。
 - **密码**：PBKDF2-HMAC-SHA256（31 万次迭代）；自助改密必须验证当前密码；超级管理员重置密码后对方需重新登录。
 - **登录限流**：登录（按来源 IP 与账号双维度）、注册、带密码委托接取、看板娘对话、反馈提交均有滑动窗口限流，超限返回 429。
-- **人机验证**：登录/注册默认要求 Cloudflare Turnstile（可切换站内字符 / 点击图形验证码），服务端通过 siteverify 或站内答案兜底校验，失败一律拒绝；站内点击验证码的答案只存服务端、挑战一次性、限时限流，配置见「登录/注册人机验证」。
+- **人机验证**：登录/注册默认要求 Cloudflare Turnstile（可切换站内字符 / 点击图形验证码，或 VAPTCHA V4），服务端通过 siteverify / 站内答案 / VAPTCHA 本地 HMAC 兜底校验，失败一律拒绝；站内点击验证码的答案只存服务端、挑战一次性、限时限流，VAPTCHA 的 `VKEY` 只存服务端并对 token 做防重放，配置见「登录/注册人机验证」。
 - **权限校验**：前端所有权限标记（`auth.isAdmin`/`auth.role`/`canModerate` 等）都带 `verified` 前缀，
   只有服务端响应（登录/注册或 `/auth/me`）才能置为可信；路由与页面会先向服务端复核身份。
   因此即便手工改写本地缓存也无法让界面误认为自己拥有管理员权限（后端对每个接口独立鉴权）。
