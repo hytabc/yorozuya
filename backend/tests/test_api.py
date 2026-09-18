@@ -2850,10 +2850,10 @@ def test_image_captcha_consume_is_single_use():
     assert answer and len(answer) == 4
 
     # 大小写不敏感，且取出即作废（一次性）。
-    assert captcha_module.captcha_store.consume(captcha_id, answer.lower()) is True
-    assert captcha_module.captcha_store.consume(captcha_id, answer) is False
+    assert captcha_module.captcha_store.consume_code(captcha_id, answer.lower()) is True
+    assert captcha_module.captcha_store.consume_code(captcha_id, answer) is False
     # 未知 id 一律不通过。
-    assert captcha_module.captcha_store.consume("not-a-real-id", answer) is False
+    assert captcha_module.captcha_store.consume_code("not-a-real-id", answer) is False
 
 
 def test_builtin_captcha_guards_login_and_register(monkeypatch):
@@ -2918,6 +2918,109 @@ def test_builtin_captcha_guards_login_and_register(monkeypatch):
         assert created.status_code == 201, created.text
         # 注册后不再下发登录令牌，必须先完成邮箱验证
         assert "access_token" not in created.json()
+
+
+def _click_code(points):
+    return ";".join(f"{x:.4f},{y:.4f}" for x, y in points)
+
+
+def test_click_captcha_challenge_does_not_leak_answer(monkeypatch):
+    _enable_captcha(monkeypatch, "click")
+    assert settings.captcha_effective_provider == "click"
+    with TestClient(app) as client:
+        challenge = client.get("/api/auth/captcha").json()
+        assert challenge["provider"] == "click"
+        assert challenge["captcha_id"]
+        assert challenge["image"].startswith("data:image/png;base64,")
+        assert challenge["prompt"]
+        assert challenge["target_count"] >= 2
+        # 答案只存服务端：响应不得包含任何目标坐标/明细字段。
+        for leaked in ("targets", "points", "answer", "solution", "coordinates"):
+            assert leaked not in challenge
+
+
+def test_click_captcha_guards_login_in_order(monkeypatch):
+    captcha_module = _enable_captcha(monkeypatch, "click")
+    with TestClient(app) as client:
+        challenge = client.get("/api/auth/captcha").json()
+        targets = captcha_module.peek_click_targets(challenge["captcha_id"])
+        assert targets and len(targets) == challenge["target_count"]
+
+        # 点位都对但顺序错误 → 400，且取出即作废（原挑战不能再复用）。
+        wrong_order = _click_code(list(reversed(targets)))
+        bad = client.post(
+            "/api/auth/login",
+            json={
+                "username": "admin",
+                "password": "Admin123!",
+                "captcha_id": challenge["captcha_id"],
+                "captcha_code": wrong_order,
+            },
+        )
+        assert bad.status_code == 400
+
+        replay = client.post(
+            "/api/auth/login",
+            json={
+                "username": "admin",
+                "password": "Admin123!",
+                "captcha_id": challenge["captcha_id"],
+                "captcha_code": _click_code(targets),
+            },
+        )
+        assert replay.status_code == 400
+
+        # 新挑战并按正确顺序点击 → 登录成功。
+        challenge = client.get("/api/auth/captcha").json()
+        targets = captcha_module.peek_click_targets(challenge["captcha_id"])
+        ok = client.post(
+            "/api/auth/login",
+            json={
+                "username": "admin",
+                "password": "Admin123!",
+                "captcha_id": challenge["captcha_id"],
+                "captcha_code": _click_code(targets),
+            },
+        )
+        assert ok.status_code == 200, ok.text
+
+        # 注册同样受 click 验证码保护。
+        missing = client.post(
+            "/api/auth/register",
+            json={
+                "username": "click_user",
+                "password": "Password123!",
+                "nickname": "点击用户",
+                "email": "click_user@example.com",
+            },
+        )
+        assert missing.status_code == 400
+
+
+def test_click_captcha_rejects_malformed_code(monkeypatch):
+    _enable_captcha(monkeypatch, "click")
+    bad_codes = [
+        "",
+        "abc",
+        "1.5,0.5",  # 越界
+        "0.5,0.5",  # 数量不足
+        "0.5,0.5;0.5",  # 段落畸形
+        "0.5,0.5,0.5",  # 分段畸形
+        "0.5,0.5;0.5,0.5;0.5,0.5;0.5,0.5;0.5,0.5;0.5,0.5",  # 数量过多
+    ]
+    with TestClient(app) as client:
+        for bad_code in bad_codes:
+            challenge = client.get("/api/auth/captcha").json()
+            response = client.post(
+                "/api/auth/login",
+                json={
+                    "username": "admin",
+                    "password": "Admin123!",
+                    "captcha_id": challenge["captcha_id"],
+                    "captcha_code": bad_code,
+                },
+            )
+            assert response.status_code == 400, (bad_code, response.text)
 
 
 def test_story_flow():
