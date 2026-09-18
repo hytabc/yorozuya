@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Palette } from 'lucide-vue-next'
+import { Palette } from '@lucide/vue'
 import { api } from './api'
 import { useAuthStore } from './stores/auth'
 import { cycleTheme, theme } from './composables/theme'
