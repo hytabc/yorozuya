@@ -567,3 +567,486 @@ html[data-theme='pixel'] .announcement-prompt-actions { border-top: 3px solid va
 html[data-theme='pixel'] .pending-note { border: 2px solid #ecd9b4; background: #fffdf6; }
 html[data-theme='pixel'] .link-button { color: #a05a10; font-weight: 700; }
 html[data-theme='pixel'] .u-avatar { border: 2px solid var(--ink); }
+
+
+/* ============================================================
+   主题打磨（依据设计评审：视觉权重分级 / 直角硬投影 / 字体分级）
+   本段为纯追加覆盖，全部限定在 html[data-theme=pixel] 下；
+   删除本段即可回到打磨前的像素主题。
+   ============================================================ */
+/* ========== pixel.css 追加覆盖：按钮分级 / 纸质面板 / 字体分级 ========== */
+
+/* 0. 变量与基础字体：正文回归常规渲染，像素字体仅留品牌与短标题 */
+html[data-theme='pixel'] {
+  --px-edge: #79583d;
+  --px-edge-soft: #c8ad83;
+  --px-depth: #a98255;
+  --px-control: #f5ead4;
+  --px-primary: #e8ba68;
+  --px-primary-hover: #f0ca85;
+  --px-readable-font:
+    "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --px-display-font:
+    "Fusion Pixel 12px Proportional SC",
+    "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: var(--px-readable-font);
+}
+
+html[data-theme='pixel'] :is(button, input, select, textarea) {
+  font-family: var(--px-readable-font);
+}
+
+/* 撤销既有全局像素字体（同特异性、后写胜出） */
+html[data-theme='pixel'] :is(
+  h1, h2, h3, h4, strong,
+  .hall-stats strong, .admin-stats strong, .metric-grid strong,
+  .pair-card p, .pair-rank, .empty-state > span
+) {
+  font-family: var(--px-readable-font);
+  text-shadow: none;
+}
+
+/* 像素字体只保留品牌与短标题 */
+html[data-theme='pixel'] :is(
+  .brand-mark, .section-heading h2,
+  .page-title h1, .dialog-heading h2, .hall-intro h1
+) {
+  font-family: var(--px-display-font);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-shadow: none;
+}
+
+html[data-theme='pixel'] :is(
+  .brand-mark, .section-heading h2, .page-title h1, .dialog-heading h2
+) {
+  font-size: 24px;
+  line-height: 32px;
+}
+
+html[data-theme='pixel'] .hall-intro h1 {
+  font-size: 48px;
+  line-height: 60px;
+}
+
+/* 长正文常规字号行高 */
+html[data-theme='pixel'] :is(
+  .task-description,
+  .disclaimer-part p,
+  .disclaimer-part ol
+) {
+  font-family: var(--px-readable-font);
+  font-size: 15px;
+  line-height: 26px;
+}
+
+/* 1. 按钮：先清除切角 / 滤镜 / 玻璃残留，再分三级 */
+html[data-theme='pixel'] :is(
+  .button, .icon-button, .theme-toggle, .captcha-image-button
+) {
+  clip-path: none;
+  filter: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 2px solid var(--px-edge);
+  border-radius: 0;
+  text-shadow: none;
+  transition: none;
+  transform: none;
+}
+
+/* 主按钮：蜂蜜黄 */
+html[data-theme='pixel'] .button {
+  min-height: 44px;
+  padding: 8px 16px;
+  gap: 8px;
+  background: var(--px-primary);
+  color: #3b2a1e;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  box-shadow:
+    inset 0 2px 0 #ffe3a7,
+    0 2px 0 var(--px-depth);
+}
+
+html[data-theme='pixel'] .button:hover:not(:disabled) {
+  background: var(--px-primary-hover);
+  filter: none;
+  transform: none;
+}
+
+html[data-theme='pixel'] .button:active:not(:disabled) {
+  transform: translateY(2px);
+  filter: none;
+  box-shadow: inset 0 2px 0 #cf9f50;
+}
+
+/* 次按钮：纸色 */
+html[data-theme='pixel'] .button.secondary {
+  border-color: var(--px-edge);
+  background: var(--px-control);
+  color: var(--ink);
+  box-shadow:
+    inset 0 2px 0 #fffaf0,
+    0 2px 0 var(--px-depth);
+}
+
+html[data-theme='pixel'] .button.secondary:hover:not(:disabled) {
+  background: #eee0c4;
+}
+
+/* 危险按钮：浅红底深红字 */
+html[data-theme='pixel'] .button.danger {
+  border-color: #984b3e;
+  background: #f6e1d9;
+  color: #87382e;
+  text-shadow: none;
+  box-shadow:
+    inset 0 2px 0 #fff0ea,
+    0 2px 0 #bd8773;
+}
+
+html[data-theme='pixel'] .button.danger:hover:not(:disabled) {
+  background: #efcfc4;
+}
+
+html[data-theme='pixel'] .button.small {
+  min-height: 36px;
+  padding: 4px 12px;
+  font-size: 14px;
+}
+
+/* 工具按钮：无常驻外投影 */
+html[data-theme='pixel'] :is(.icon-button, .theme-toggle) {
+  min-height: 40px;
+  background: var(--px-control);
+  color: var(--muted);
+  box-shadow: inset 0 2px 0 #fffaf0;
+}
+
+html[data-theme='pixel'] .icon-button {
+  width: 40px;
+  height: 40px;
+}
+
+html[data-theme='pixel'] .theme-toggle {
+  height: 40px;
+  padding: 0 12px;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+html[data-theme='pixel'] :is(.icon-button, .theme-toggle):hover:not(:disabled) {
+  background: #eee0c4;
+  color: var(--ink);
+  filter: none;
+  transform: none;
+}
+
+html[data-theme='pixel'] :is(.icon-button, .theme-toggle):active:not(:disabled) {
+  transform: translateY(1px);
+  filter: none;
+  box-shadow: inset 0 2px 0 #dac6a5;
+}
+
+html[data-theme='pixel'] :is(.button, .icon-button, .theme-toggle):disabled {
+  opacity: 1;
+  color: #877964;
+  background: #e5dccb;
+  border-color: #b7a78e;
+  box-shadow: none;
+  filter: none;
+  transform: none;
+  cursor: not-allowed;
+}
+
+/* 内置焦点框，避免被父容器裁切 */
+html[data-theme='pixel'] :is(
+  .button, .icon-button, .theme-toggle, .captcha-image-button
+):focus-visible {
+  outline: 2px solid #6f481f;
+  outline-offset: -6px;
+}
+
+/* 2. 卡片：直角纸面板，2px 边框 + 硬投影 */
+html[data-theme='pixel'] :is(
+  .task-card, .staff-card, .pair-card, .sugar-card,
+  .announcement-item, .announcement-admin-row,
+  .analytics-panel, .user-card, .disclaimer-part,
+  .board-composer, .board-item, .story-card, .maps-card,
+  .hall-notice, .sugar-status, .admin-table-section, .admin-stats
+) {
+  clip-path: none;
+  filter: none;
+  border: 2px solid var(--px-edge-soft);
+  border-radius: 0;
+  background: var(--paper);
+  box-shadow: 2px 2px 0 #dcc7a5;
+}
+
+/* 覆盖既有 hover 的 !important；卡片 hover 不位移 */
+html[data-theme='pixel'] :is(
+  .task-card,
+  .sugar-card:not(.skeleton),
+  .story-card,
+  .maps-card,
+  .staff-grid > button.staff-card
+):is(:hover, :focus-visible) {
+  transform: none !important;
+  filter: none !important;
+  border-color: var(--px-edge);
+  box-shadow: 2px 2px 0 #cbb18b;
+}
+
+html[data-theme='pixel'] :is(
+  .task-card, .sugar-card, .story-card, .maps-card,
+  .staff-grid > button.staff-card
+):focus-visible {
+  outline: 2px solid #6f481f;
+  outline-offset: -6px;
+}
+
+/* 恢复任务卡状态顶边（压过 hover 的 border-color） */
+html[data-theme='pixel'] .task-card {
+  border-top: 4px solid var(--green);
+}
+html[data-theme='pixel'] .task-card:is(.edge-accepted, .edge-awaiting) {
+  border-top-color: var(--yellow);
+}
+html[data-theme='pixel'] .task-card:is(.edge-expired, .edge-cancelling) {
+  border-top-color: var(--red);
+}
+html[data-theme='pixel'] .task-card.edge-completed {
+  border-top-color: var(--blue);
+}
+html[data-theme='pixel'] .task-card.edge-cancelled {
+  border-top-color: #928572;
+}
+html[data-theme='pixel'] .staff-card {
+  border-top: 4px solid var(--blue);
+}
+html[data-theme='pixel'] .pair-card {
+  border-top: 4px solid #a66e7d;
+}
+html[data-theme='pixel'] .announcement-item.pinned {
+  border-top: 4px solid var(--green);
+}
+html[data-theme='pixel'] .event-section .announcement-item.pinned {
+  border-top-color: #a66e7d;
+}
+
+/* 浮层比普通面板强一级，同时清掉玻璃残留 */
+html[data-theme='pixel'] :is(
+  .dialog, .directory-profile-dialog, .announcement-prompt,
+  .email-gate-card, .kanban-niang .panel,
+  .nav-more-menu, .mobile-panel,
+  .image-lightbox__frame, .tutorial-card
+) {
+  clip-path: none;
+  filter: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 2px solid var(--px-edge);
+  border-radius: 0;
+  background: var(--paper);
+  box-shadow:
+    inset 0 0 0 2px #ead7b2,
+    4px 4px 0 #a98b65;
+}
+
+html[data-theme='pixel'] :is(.topbar, .toast, .modal-backdrop) {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* 组控件无需切角 */
+html[data-theme='pixel'] .pay-toggle {
+  clip-path: none;
+  border: 2px solid var(--px-edge);
+  box-shadow: none;
+}
+html[data-theme='pixel'] .pay-toggle button + button {
+  border-left: 2px solid var(--px-edge);
+}
+html[data-theme='pixel'] .pay-toggle button.active {
+  background: var(--px-primary);
+  text-shadow: none;
+}
+
+/* 3. 静态内容去掉“按钮外观” */
+html[data-theme='pixel'] body {
+  background-color: #f6ecd9;
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(90, 65, 38, .018) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      rgba(90, 65, 38, .018) 1px,
+      transparent 1px
+    );
+  background-size: 16px 16px;
+}
+
+html[data-theme='pixel'] :is(.section-heading h2, .page-title h1) {
+  padding: 4px 0 4px 12px;
+  border: 0;
+  border-left: 4px solid #bc8a45;
+  background: transparent;
+  color: var(--ink);
+  box-shadow: none;
+  filter: none;
+  clip-path: none;
+  letter-spacing: 0;
+}
+
+html[data-theme='pixel'] .eyebrow {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #805d32;
+  font-size: 12px;
+  line-height: 20px;
+  letter-spacing: 0;
+}
+
+html[data-theme='pixel'] :is(
+  .status-badge, .category-tag, .pay-tag, .role-tag,
+  .title-tag, .admin-tag, .notice-kind, .fb-state, .mine-tag
+) {
+  border-width: 1px;
+  box-shadow: none;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+}
+
+html[data-theme='pixel'] .category-tag {
+  color: #6c573e;
+  background: #eee3ce;
+}
+html[data-theme='pixel'] .status-cancelled {
+  color: #716452;
+  background: #eae2d4;
+}
+
+/* * 不匹配伪元素，单独归零圆角 */
+html[data-theme='pixel'] *::before,
+html[data-theme='pixel'] *::after {
+  border-radius: 0 !important;
+}
+
+html[data-theme='pixel'] :is(.task-meta, .task-description) {
+  color: var(--muted);
+  border-color: var(--line);
+}
+html[data-theme='pixel'] .disclaimer-part :is(p, ol) {
+  color: var(--muted);
+}
+
+/* 4. 输入框：单层边框与焦点，16px 常规渲染；连续 :not 不得断开 */
+html[data-theme='pixel'] :is(
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']):not([type='color']),
+  select,
+  textarea,
+  .search-field,
+  .select-field,
+  .input-with-icon
+) {
+  border: 2px solid var(--px-edge-soft);
+  border-radius: 0;
+  background: #fffdf6;
+  color: var(--ink);
+  box-shadow: inset 0 2px 0 #eee2cc;
+  font-family: var(--px-readable-font);
+  font-size: 16px;
+}
+
+html[data-theme='pixel'] :is(
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']):not([type='color']),
+  select,
+  textarea
+):focus,
+html[data-theme='pixel'] :is(
+  .search-field, .select-field, .input-with-icon
+):focus-within {
+  border-color: #8c632f;
+  outline: 2px solid #8c632f;
+  outline-offset: 2px;
+  box-shadow: inset 0 2px 0 #eee2cc;
+}
+
+/* 内层控件不再重复画边框或焦点 */
+html[data-theme='pixel'] :is(
+  .search-field input,
+  .select-field select,
+  .input-with-icon input
+),
+html[data-theme='pixel'] :is(
+  .search-field input,
+  .select-field select,
+  .input-with-icon input
+):focus {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+  min-width: 0;
+}
+
+html[data-theme='pixel'] .input-with-icon.invalid {
+  border-color: var(--red);
+}
+html[data-theme='pixel'] .input-with-icon.invalid:focus-within {
+  outline-color: var(--red);
+}
+
+/* 5. 密集表格常规渲染 */
+html[data-theme='pixel'] :is(th, td) {
+  font-family: var(--px-readable-font);
+  font-size: 14px;
+  line-height: 20px;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid #e0c9a0;
+  box-shadow: none;
+  text-shadow: none;
+}
+html[data-theme='pixel'] th {
+  font-weight: 600;
+}
+html[data-theme='pixel'] td {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 照片与头像保持平滑采样，不做全局像素化 */
+html[data-theme='pixel'] :is(
+  .photo-grid img, .user-profile-photos img,
+  .moderation-photo-grid img, .story-photos img,
+  .map-photos img, .my-photo img,
+  .image-lightbox__frame img,
+  .avatar, .user-avatar-lg, .profile-avatar
+) {
+  image-rendering: auto;
+}
+
+/* 6. 小屏触达与标题收缩 */
+@media (max-width: 640px) {
+  html[data-theme='pixel'] .hall-intro h1 {
+    font-size: 36px;
+    line-height: 48px;
+  }
+
+  html[data-theme='pixel'] :is(.button.small, .icon-button) {
+    min-height: 44px;
+  }
+
+  html[data-theme='pixel'] .icon-button {
+    width: 44px;
+    height: 44px;
+  }
+}
