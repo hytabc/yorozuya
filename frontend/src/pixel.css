@@ -94,6 +94,9 @@ html[data-theme='pixel'] .mobile-panel {
 
 /* 其余元素保持直角(圆角归零) */
 html[data-theme='pixel'] * { border-radius: 0 !important; }
+/* 通配选择器不匹配伪元素, 状态点/指示点等 ::before/::after 需单独归零 */
+html[data-theme='pixel'] *::before,
+html[data-theme='pixel'] *::after { border-radius: 0 !important; }
 
 /* 焦点:虚线框,高可见 */
 html[data-theme='pixel'] :focus-visible {
@@ -395,9 +398,52 @@ html[data-theme='pixel'] .empty-state > span { border: 3px solid var(--ink); bac
 html[data-theme='pixel'] .skeleton { border: 3px solid #e0c9a0; }
 html[data-theme='pixel'] .skeleton-list > .skeleton-block { border: 3px solid #e0c9a0; }
 
-/* ---------- 登录/注册页 ---------- */
-html[data-theme='pixel'] .auth-story { background: #3a2a1e; box-shadow: inset 0 0 0 4px rgba(242, 169, 59, .18); }
-html[data-theme='pixel'] .auth-story li svg { color: #7ed491; }
+/* ---------- 登录/注册页：木质招牌（保留深色主视觉，不并入纸色面板） ---------- */
+html[data-theme='pixel'] .auth-story {
+  color: #f3e3c6;
+  background-color: #4a3220;
+  /* 像素木纹：横向板材 + 极淡竖向纤维 */
+  background-image:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, .22) 0 2px, transparent 2px 26px),
+    repeating-linear-gradient(90deg, rgba(255, 224, 178, .045) 0 3px, transparent 3px 11px);
+  box-shadow:
+    inset 0 0 0 4px #2a1a10,
+    inset 0 0 0 8px #a98255,
+    inset 0 0 0 11px #2a1a10;
+}
+/* 招牌铆钉：左上 / 右下各一枚 */
+html[data-theme='pixel'] .auth-story::before,
+html[data-theme='pixel'] .auth-story::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: var(--px-amber);
+  border: 3px solid #2a1a10;
+  box-shadow: inset 0 0 0 2px #8a5a12;
+}
+html[data-theme='pixel'] .auth-story::before { top: 22px; right: 22px; }
+html[data-theme='pixel'] .auth-story::after { bottom: 22px; left: 22px; }
+html[data-theme='pixel'] .auth-story .eyebrow { color: var(--px-amber); }
+html[data-theme='pixel'] .auth-story h1 {
+  margin: 16px 0 18px;
+  font-size: 32px;
+  line-height: 46px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-shadow: 2px 2px 0 #2a1a10;
+}
+html[data-theme='pixel'] .auth-story > p { color: #d9c3a2; font-size: 14px; line-height: 26px; }
+html[data-theme='pixel'] .auth-story ul { gap: 12px; margin-top: 26px; color: #e6d4b4; font-size: 14px; line-height: 22px; }
+html[data-theme='pixel'] .auth-story li svg { color: #8fd79b; }
+html[data-theme='pixel'] .auth-monogram { color: rgba(255, 232, 190, .10); }
+html[data-theme='pixel'] .auth-monogram span { font-size: 120px; }
+html[data-theme='pixel'] .auth-monogram small { color: #b39877; }
+@media (max-width: 900px) {
+  html[data-theme='pixel'] .auth-story h1 { font-size: 26px; line-height: 38px; }
+  html[data-theme='pixel'] .auth-story::before { top: 16px; right: 16px; }
+  html[data-theme='pixel'] .auth-story::after { bottom: 16px; left: 16px; }
+}
 
 /* ---------- 页脚 ---------- */
 html[data-theme='pixel'] .app-version { border-top: 3px solid var(--ink); }
@@ -410,7 +456,10 @@ html[data-theme='pixel'] ::-webkit-scrollbar-thumb { background: #d9a05b; border
 html[data-theme='pixel'] ::-webkit-scrollbar-thumb:hover { background: var(--px-amber); }
 
 /* ---------- 游戏/模拟器模块(独立全屏 UI):
-   不改配色,仅统一像素结构:直角 + 按压投影 ---------- */
+   不改配色,仅统一像素结构:直角 + 按压投影。
+   游戏内按钮的配色承载玩法语义,不套用纸色体系;
+   主站的 .send-btn / .story-author-btn / .photo-delete 原先误并入本组,
+   已移到下方「主站小按钮」单独处理。 ---------- */
 html[data-theme='pixel'] .btn,
 html[data-theme='pixel'] .btn-primary,
 html[data-theme='pixel'] .btn-ghost,
@@ -419,15 +468,12 @@ html[data-theme='pixel'] .icon-btn,
 html[data-theme='pixel'] .option-button,
 html[data-theme='pixel'] .primary-button,
 html[data-theme='pixel'] .choice-btn,
-html[data-theme='pixel'] .send-btn,
 html[data-theme='pixel'] .share-btn,
 html[data-theme='pixel'] .seed-btn,
 html[data-theme='pixel'] .menu-btn,
 html[data-theme='pixel'] .room-event-btn,
 html[data-theme='pixel'] .npc-avatar-btn,
 html[data-theme='pixel'] .history-icon-btn,
-html[data-theme='pixel'] .story-author-btn,
-html[data-theme='pixel'] .photo-delete,
 html[data-theme='pixel'] .frost-btn,
 html[data-theme='pixel'] .frost-tab,
 html[data-theme='pixel'] .la-pack-select,
@@ -449,7 +495,6 @@ html[data-theme='pixel'] .btn-warm:active,
 html[data-theme='pixel'] .option-button:active,
 html[data-theme='pixel'] .primary-button:active,
 html[data-theme='pixel'] .choice-btn:active,
-html[data-theme='pixel'] .send-btn:active,
 html[data-theme='pixel'] .share-btn:active,
 html[data-theme='pixel'] .seed-btn:active,
 html[data-theme='pixel'] .menu-btn:active,
@@ -964,6 +1009,77 @@ html[data-theme='pixel'] :is(
   box-shadow: inset 0 2px 0 #eee2cc;
   font-family: var(--px-readable-font);
   font-size: 16px;
+}
+
+/* ============================================================
+   主站小按钮：纳入纸色体系
+   .send-btn / .story-author-btn / .photo-delete 原先被误并入
+   「游戏/模拟器模块」组，只拿到按压阴影，配色仍停留在经典风。
+   放在文件末尾以确保覆盖前面的同名规则。
+   ============================================================ */
+html[data-theme='pixel'] .send-btn {
+  min-height: 34px;
+  padding: 4px 12px;
+  border: 2px solid var(--px-edge);
+  background: var(--px-primary);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  transition: none;
+  box-shadow:
+    inset 0 2px 0 #ffe3a7,
+    0 2px 0 var(--px-depth);
+}
+html[data-theme='pixel'] .send-btn:hover:not(:disabled) { background: var(--px-primary-hover, #f0ca85); }
+html[data-theme='pixel'] .send-btn:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 2px 0 #cf9f50; }
+html[data-theme='pixel'] .send-btn:disabled {
+  opacity: 1;
+  color: #8a7862;
+  background: #e5dccb;
+  border-color: #b7a78e;
+  box-shadow: none;
+}
+
+/* 故事作者署名：可点的是按钮，.static 保持纯文本外观 */
+html[data-theme='pixel'] .story-author-btn {
+  padding: 3px 9px;
+  border: 2px solid var(--px-edge-soft);
+  background: var(--px-control);
+  color: var(--ink);
+  font-weight: 700;
+  transition: none;
+  box-shadow: 2px 2px 0 #dcc7a5;
+}
+html[data-theme='pixel'] .story-author-btn:not(.static):hover { border-color: var(--px-edge); background: #eee0c4; }
+html[data-theme='pixel'] .story-author-btn:not(.static):active { transform: translateY(2px); box-shadow: none; }
+html[data-theme='pixel'] .story-author-btn.static {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* 照片删除：危险按钮配色（浅红底 + 深红字 + 深红描边） */
+html[data-theme='pixel'] .photo-delete {
+  width: 32px;
+  height: 32px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  color: #87382e;
+  border: 2px solid #984b3e;
+  background: #f6e1d9;
+  transition: none;
+  box-shadow: 0 2px 0 #bd8773;
+}
+html[data-theme='pixel'] .photo-delete:hover:not(:disabled) { background: #efcfc4; }
+html[data-theme='pixel'] .photo-delete:active:not(:disabled) { transform: translateY(2px); box-shadow: none; }
+html[data-theme='pixel'] .photo-delete:disabled {
+  opacity: 1;
+  color: #b3a08a;
+  border-color: #cbb99f;
+  background: #ece1cd;
+  box-shadow: none;
 }
 
 html[data-theme='pixel'] :is(

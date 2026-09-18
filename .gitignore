@@ -8,6 +8,8 @@ frontend/node_modules/
 frontend/dist/
 .DS_Store
 /data/uploads/
+# vrclife DLC1 合并产物（merge_dlc1.py 生成，源数据已在库）
+vrclife/DLC1/build/
 .mcp/
 # Let's Encrypt 证书与 ACME 状态(含私钥),绝不入库
 deploy/certbot/conf/
