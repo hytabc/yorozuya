@@ -64,7 +64,8 @@ class Settings(BaseSettings):
     mascot_max_tokens: int = 1500
     mascot_timeout_seconds: int = 120
 
-    # 登录/注册人机验证：turnstile=Cloudflare Turnstile；builtin=站内图形验证码。
+    # 登录/注册人机验证：turnstile=Cloudflare Turnstile；builtin=站内图形验证码；
+    # click=站内点击图形验证码（按题面颜色/形状/大小依次点击）。三者互斥，由本项切换。
     # 关闭 CAPTCHA_ENABLED 则登录/注册不再要求验证码（不推荐生产环境关闭）。
     captcha_enabled: bool = True
     captcha_provider: str = "turnstile"
@@ -72,8 +73,12 @@ class Settings(BaseSettings):
     # 刻意不复用 BEHIND_PROXY 当开关：那个标志同时控制代理信任，误设一次就会连带
     # 把完整接口结构公开出去。本地调试在 .env 设 ENABLE_DOCS=true。
     enable_docs: bool = False
-    # builtin 验证码有效期（秒）
+    # 图形/点击验证码有效期（秒）
     captcha_ttl_seconds: int = 180
+    # click 验证码需要依次点击的目标数量（超出 2..4 会被收敛到该区间）。
+    captcha_click_targets: int = 3
+    # click 验证码从出题到提交的最短间隔（秒）：过快视为脚本，测试模式下跳过。
+    captcha_click_min_seconds: float = 0.5
     # Turnstile 公开 Site Key 可入库；Secret Key 只能放服务端 .env。
     turnstile_site_key: str = "0x4AAAAAAEwPP7x-AwVA_SVE"
     turnstile_secret_key: str = ""
@@ -152,9 +157,9 @@ class Settings(BaseSettings):
                 f"SMTP_ENCRYPTION 只能是 ssl / starttls / none（当前 {self.smtp_encryption!r}）："
                 "阿里云邮件推送用 465 + ssl，也可用 80/25 + starttls。"
             )
-        if self.captcha_provider not in ("turnstile", "builtin"):
+        if self.captcha_provider not in ("turnstile", "builtin", "click"):
             raise RuntimeError(
-                f"CAPTCHA_PROVIDER 只能是 turnstile 或 builtin（当前 {self.captcha_provider!r}）："
+                f"CAPTCHA_PROVIDER 只能是 turnstile / builtin / click（当前 {self.captcha_provider!r}）："
                 "未知取值以前会被静默当作站内图形验证码，容易误以为 Turnstile 已生效。"
             )
 
@@ -187,7 +192,10 @@ class Settings(BaseSettings):
         Turnstile 需要 Site Key（前端渲染组件）与 Secret Key（服务端 siteverify）同时具备；
         缺任意一个就回落到站内图形验证码。否则会出现「接口发的是内置图形验证码、
         服务端却按 Turnstile 校验」的死锁 —— 登录/注册会稳定返回 400。
+        click 不依赖第三方密钥，配置即生效。
         """
+        if self.captcha_provider == "click":
+            return "click"
         if (
             self.captcha_provider == "turnstile"
             and self.turnstile_site_key

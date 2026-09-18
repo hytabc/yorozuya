@@ -1,8 +1,10 @@
 // 登录/注册人机验证状态管理。
 //
-// 支持两种 provider（由后端 /api/auth/captcha 决定）：
+// 支持多种 provider（由后端 /api/auth/captcha 决定，env 中互斥切换）：
 // - turnstile：Cloudflare Turnstile，显式渲染，token 作为 captcha_code 提交。
 // - builtin：站内图形验证码，captcha_id + 用户输入作为 captcha_code 提交。
+// - click：站内点击图形验证码，按题面依次点击，归一化坐标序列作为 captcha_code 提交。
+//   答案只存服务端，前端仅拿到图片与题面。
 // - off：未启用，不渲染任何控件、提交时也不带验证码字段。
 import { onUnmounted, reactive } from 'vue'
 import { api } from '../api'
@@ -50,6 +52,9 @@ export function useCaptcha() {
     captchaId: '',
     code: '',
     image: '',
+    prompt: '',
+    targetCount: 0,
+    clicks: [],
     error: '',
   })
   let widgetId = null
@@ -57,12 +62,15 @@ export function useCaptcha() {
   async function load() {
     captcha.error = ''
     captcha.code = ''
+    captcha.clicks = []
     try {
       const { data } = await api.get('/auth/captcha')
       captcha.provider = data.provider || 'off'
       captcha.siteKey = data.site_key || ''
       captcha.captchaId = data.captcha_id || ''
       captcha.image = data.image || ''
+      captcha.prompt = data.prompt || ''
+      captcha.targetCount = data.target_count || 0
     } catch {
       // 加载失败时置为 error：界面提示且阻止提交，避免绕过验证码。
       captcha.provider = 'error'
@@ -93,14 +101,26 @@ export function useCaptcha() {
     }
   }
 
-  // 失效后重新挑战：turnstile 重置组件，builtin 重新取图。
+  // click：记录一次归一化点击落点（0..1）；超出目标数量后忽略。
+  function selectPoint(x, y) {
+    if (captcha.provider !== 'click') return
+    if (captcha.clicks.length >= captcha.targetCount) return
+    captcha.clicks.push({ x, y })
+  }
+
+  // click：清空已选落点。
+  function clearClicks() {
+    captcha.clicks = []
+  }
+
+  // 失效后重新挑战：turnstile 重置组件，builtin/click 重新出题。
   function reset() {
     captcha.code = ''
     if (captcha.provider === 'turnstile') {
       if (typeof window !== 'undefined' && window.turnstile && widgetId !== null) {
         try { window.turnstile.reset(widgetId) } catch { /* ignore */ }
       }
-    } else if (captcha.provider === 'builtin') {
+    } else if (captcha.provider === 'builtin' || captcha.provider === 'click') {
       load()
     }
   }
@@ -108,6 +128,10 @@ export function useCaptcha() {
   function payload() {
     if (captcha.provider === 'turnstile') return { captcha_id: '', captcha_code: captcha.code || '' }
     if (captcha.provider === 'builtin') return { captcha_id: captcha.captchaId, captcha_code: captcha.code.trim() }
+    if (captcha.provider === 'click') {
+      const code = captcha.clicks.map((point) => `${point.x.toFixed(4)},${point.y.toFixed(4)}`).join(';')
+      return { captcha_id: captcha.captchaId, captcha_code: code }
+    }
     return { captcha_id: '', captcha_code: '' }
   }
 
@@ -115,6 +139,9 @@ export function useCaptcha() {
     if (captcha.provider === 'off') return true
     if (captcha.provider === 'turnstile') return Boolean(captcha.code)
     if (captcha.provider === 'builtin') return Boolean(captcha.captchaId && captcha.code.trim())
+    if (captcha.provider === 'click') {
+      return captcha.targetCount > 0 && captcha.clicks.length === captcha.targetCount
+    }
     return false
   }
 
@@ -127,5 +154,5 @@ export function useCaptcha() {
 
   onUnmounted(destroy)
 
-  return { captcha, load, attach, reset, payload, isSatisfied }
+  return { captcha, load, attach, reset, payload, isSatisfied, selectPoint, clearClicks }
 }

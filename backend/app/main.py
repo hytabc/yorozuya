@@ -23,7 +23,12 @@ from sqlalchemy.orm import Session, joinedload
 
 from .config import PLACEHOLDER_ADMIN_PASSWORDS, settings
 from .backup import skip_next_snapshot
-from .captcha import captcha_required, create_image_captcha, verify_captcha
+from .captcha import (
+    captcha_required,
+    create_click_captcha,
+    create_image_captcha,
+    verify_captcha,
+)
 from .database import Base, SessionLocal, engine, get_db
 from .email_flow import (
     CHANGE_EMAIL,
@@ -1616,6 +1621,17 @@ def get_captcha(request: Request):
     # 避免前端拿到 builtin 图形验证码、服务端却按 turnstile 校验的死锁。
     if settings.captcha_effective_provider == "turnstile":
         return CaptchaChallenge(provider="turnstile", site_key=settings.turnstile_site_key)
+    if settings.captcha_effective_provider == "click":
+        captcha_id, png, prompt, target_count = create_click_captcha()
+        # 只回传图片与题面，目标坐标留在服务端（避免答案明文下发）。
+        return CaptchaChallenge(
+            provider="click",
+            captcha_id=captcha_id,
+            image="data:image/png;base64," + base64.b64encode(png).decode(),
+            prompt=prompt,
+            target_count=target_count,
+            expires_in=settings.captcha_ttl_seconds,
+        )
     captcha_id, png = create_image_captcha()
     return CaptchaChallenge(
         provider="builtin",

@@ -294,6 +294,18 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .captcha-image-button { display: inline-flex; align-items: center; justify-content: center; padding: 0; overflow: hidden; border: 1px solid #ccd2ce; border-radius: 4px; background: white; cursor: pointer; }
 .captcha-image-button:hover { border-color: var(--green); }
 .captcha-image { display: block; height: 44px; width: auto; }
+.captcha-field { display: flex; flex-direction: column; gap: 8px; color: #46504b; font-size: 12px; font-weight: 650; }
+.captcha-field small.field-error { align-self: flex-start; margin-top: -2px; color: var(--red); font-size: 11px; line-height: 1.45; }
+.captcha-click { display: flex; flex-direction: column; gap: 8px; }
+.captcha-click-prompt { margin: 0; color: #3b4a43; font-size: 12px; line-height: 1.5; }
+.captcha-click-canvas { position: relative; display: inline-block; align-self: flex-start; max-width: 100%; line-height: 0; border: 1px solid #ccd2ce; border-radius: 6px; overflow: hidden; cursor: crosshair; touch-action: manipulation; }
+.captcha-click-canvas.done { cursor: default; }
+.captcha-click-canvas img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
+.captcha-click-marker { position: absolute; display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; transform: translate(-50%, -50%); border: 2px solid white; border-radius: 50%; background: var(--green); color: white; font-size: 11px; font-weight: 600; line-height: 1; box-shadow: 0 1px 4px rgba(0, 0, 0, .35); pointer-events: none; }
+.captcha-click-actions { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.captcha-click-hint { color: #6a7a72; }
+.captcha-click-action { padding: 3px 10px; border: 1px solid #ccd2ce; border-radius: 4px; background: white; color: #3b4a43; font-size: 12px; cursor: pointer; }
+.captcha-click-action:hover { border-color: var(--green); color: var(--green); }
 
 .page-title { align-items: center; margin-bottom: 38px; }
 .page-title > div { display: block; }
