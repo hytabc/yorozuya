@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { CalendarClock, Coins, Flag, KeyRound, LockOpen, MessageCircle, UserRound, UsersRound, X } from 'lucide-vue-next'
+import { CalendarClock, Coins, Flag, KeyRound, LockOpen, MessageCircle, UserRound, UsersRound, X } from '@lucide/vue'
 import { useAuthStore } from '../stores/auth'
 import ReportDialog from './ReportDialog.vue'
 import StatusBadge from './StatusBadge.vue'

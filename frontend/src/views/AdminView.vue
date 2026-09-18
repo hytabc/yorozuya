@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, Flag, HeartHandshake, Image as ImageIcon, KeyRound, Map as MapIcon, MessageCircle, RotateCcw, Save, Search, ShieldCheck, Sparkles, Store, UsersRound, X } from 'lucide-vue-next'
+import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, Flag, HeartHandshake, Image as ImageIcon, KeyRound, Map as MapIcon, MessageCircle, RotateCcw, Save, Search, ShieldCheck, Sparkles, Store, UsersRound, X } from '@lucide/vue'
 import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'

@@ -1,5 +1,5 @@
 <script setup>
-import { Award } from 'lucide-vue-next'
+import { Award } from '@lucide/vue'
 
 defineProps({
   title: { type: String, default: '' },

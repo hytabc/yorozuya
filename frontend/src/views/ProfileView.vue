@@ -1,6 +1,6 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
-import { CalendarDays, EyeOff, Heart, ImagePlus, KeyRound, Mail, Save, ShieldCheck, Store, Trash2, UserRound } from 'lucide-vue-next'
+import { CalendarDays, EyeOff, Heart, ImagePlus, KeyRound, Mail, Save, ShieldCheck, Store, Trash2, UserRound } from '@lucide/vue'
 import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { track } from '../analytics'
 import { useAuthStore } from '../stores/auth'

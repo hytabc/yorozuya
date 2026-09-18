@@ -4,7 +4,7 @@
 // 服务端对这些账号的写操作一律 403，因此这里必须挡住界面，避免用户到处点都失败。
 // 「重新发送」走的是同一个绑定接口；完成验证后点「我已验证」重新拉取 /auth/me 即可解除。
 import { computed, ref } from 'vue'
-import { MailWarning } from 'lucide-vue-next'
+import { MailWarning } from '@lucide/vue'
 import { api, errorMessage } from '../api'
 import { useAuthStore } from '../stores/auth'
 

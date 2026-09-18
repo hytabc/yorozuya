@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { FileImage, ImagePlus, X } from 'lucide-vue-next'
+import { FileImage, ImagePlus, X } from '@lucide/vue'
 
 const props = defineProps({
   modelValue: { type: Array, default: () => [] },

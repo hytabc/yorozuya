@@ -5,7 +5,7 @@
 // 不要根据响应去推断账号是否存在。
 import { reactive, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ArrowRight, KeyRound } from 'lucide-vue-next'
+import { ArrowRight, KeyRound } from '@lucide/vue'
 import { api, errorMessage } from '../api'
 import CaptchaField from '../components/CaptchaField.vue'
 

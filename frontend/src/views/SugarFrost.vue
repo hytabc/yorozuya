@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Snowflake } from 'lucide-vue-next'
+import { Snowflake } from '@lucide/vue'
 import '../frost/frost.css'
 import { useFrostGame } from '../frost/useFrostGame.js'
 import { track } from '../analytics'

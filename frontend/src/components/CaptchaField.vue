@@ -1,6 +1,6 @@
 <script setup>
 import { nextTick, onMounted, ref, watch } from 'vue'
-import { RefreshCw, ShieldCheck } from 'lucide-vue-next'
+import { RefreshCw, ShieldCheck } from '@lucide/vue'
 import { useCaptcha } from '../composables/useCaptcha'
 
 const { captcha, load, attach, reset, payload, isSatisfied } = useCaptcha()

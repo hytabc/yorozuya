@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { MessageCircle, Plus, Search, SlidersHorizontal, Sparkles, TriangleAlert } from 'lucide-vue-next'
+import { MessageCircle, Plus, Search, SlidersHorizontal, Sparkles, TriangleAlert } from '@lucide/vue'
 import { api, errorMessage } from '../api'
 import { track } from '../analytics'
 import { useAuthStore } from '../stores/auth'

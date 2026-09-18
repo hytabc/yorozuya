@@ -1,6 +1,6 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { HeartHandshake, X } from 'lucide-vue-next'
+import { HeartHandshake, X } from '@lucide/vue'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
 

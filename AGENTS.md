@@ -11,7 +11,7 @@
 | 层 | 技术 |
 |---|---|
 | 后端 | Python 3.12 + FastAPI + SQLAlchemy 2.0（ORM）+ Pydantic v2 + pydantic-settings，默认 SQLite（`data/wsw.db`），JWT（HTTPBearer）认证 |
-| 前端 | Vue 3（`<script setup>`）+ Pinia + Vue Router + Vite + axios + lucide-vue-next 图标 |
+| 前端 | Vue 3（`<script setup>`）+ Pinia + Vue Router + Vite + axios + `@lucide/vue` 图标 |
 | 部署 | Docker Compose（`docker-compose.yml`，prod/dev 两套）+ 边缘 Nginx 终止 HTTPS + certbot 自动续期（`deploy/nginx/`、`deploy/certbot/`、`deploy/init-letsencrypt.sh`）；根目录 `start.sh` / `start.bat` 一键启动 |
 | 测试 | 后端 pytest（`backend/tests/test_api.py` + `test_security_media.py` + `test_email_flow.py` 等，TestClient + 内存库，约 145 个用例） |
 

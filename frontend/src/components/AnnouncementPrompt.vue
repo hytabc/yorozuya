@@ -1,6 +1,6 @@
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { CalendarDays, Check, Megaphone, Pin } from 'lucide-vue-next'
+import { CalendarDays, Check, Megaphone, Pin } from '@lucide/vue'
 
 defineProps({
   announcements: { type: Array, required: true },

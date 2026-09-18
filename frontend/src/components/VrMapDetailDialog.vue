@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { EyeOff, Flag, Heart, ImagePlus, LogIn, Map as MapIcon, Pencil, Send, Trash2, X } from 'lucide-vue-next'
+import { EyeOff, Flag, Heart, ImagePlus, LogIn, Map as MapIcon, Pencil, Send, Trash2, X } from '@lucide/vue'
 import { useRouter } from 'vue-router'
 import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { track } from '../analytics'

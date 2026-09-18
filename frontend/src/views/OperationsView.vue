@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { BarChart3, Check, Edit3, Eye, EyeOff, Megaphone, Pin, Plus, Save, Sparkles, Trash2, UsersRound, X } from 'lucide-vue-next'
+import { BarChart3, Check, Edit3, Eye, EyeOff, Megaphone, Pin, Plus, Save, Sparkles, Trash2, UsersRound, X } from '@lucide/vue'
 import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
