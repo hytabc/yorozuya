@@ -543,7 +543,7 @@ class AnnouncementOut(ApiModel):
 
 # 全站埋点覆盖的页面 key：前端 router 的 meta.analyticsKey 必须与这里保持一致。
 PageKeyLiteral = Literal[
-    "hall", "staff", "board", "maps", "friends", "stories", "sugar",
+    "hall", "staff", "board", "talk", "maps", "friends", "stories", "sugar",
     "announcements", "versions", "mine", "profile", "login", "frost",
     "operations", "admin", "life", "life-admin",
     "verify-email", "forgot-password", "reset-password",
@@ -838,6 +838,78 @@ class BoardMessageOut(ApiModel):
     user: UserPublic
     comments: list[BoardCommentOut] = []
     can_delete: bool = False
+
+
+# ---- 交流大厅·疑难解答区 ----
+# 子版块 key 与 main.py 的 TALK_BOARDS 保持一致。
+TalkBoardLiteral = Literal["newbie", "tech", "vrc", "resource", "chat", "other"]
+
+
+class TalkThreadCreate(RequestModel):
+    board: TalkBoardLiteral
+    title: str = Field(min_length=2, max_length=80)
+    content: str = Field(min_length=5, max_length=5000)
+    is_anonymous: bool = False
+
+
+class TalkReplyCreate(RequestModel):
+    content: str = Field(min_length=1, max_length=2000)
+    is_anonymous: bool = False
+
+
+class TalkAcceptRequest(RequestModel):
+    """采纳最佳回答；reply_id 为 null 表示取消采纳。"""
+
+    reply_id: int | None = None
+
+
+class TalkReplyOut(BaseModel):
+    id: int
+    floor: int
+    content: str
+    created_at: datetime
+    user: UserPublic
+    is_anonymous: bool = False
+    accepted: bool = False
+    can_delete: bool = False
+
+
+class TalkThreadCardOut(BaseModel):
+    id: int
+    board: str
+    board_label: str
+    title: str
+    excerpt: str = ""
+    user: UserPublic
+    is_anonymous: bool = False
+    reply_count: int = 0
+    solved: bool = False
+    last_reply_at: datetime
+    created_at: datetime
+    can_delete: bool = False
+
+
+class TalkThreadDetailOut(TalkThreadCardOut):
+    content: str
+    accepted_reply_id: int | None = None
+    can_accept: bool = False
+
+
+class TalkThreadListOut(BaseModel):
+    """列表分页：全站首个分页约定，字段名统一为 total/page/page_size/items。"""
+
+    total: int
+    page: int
+    page_size: int
+    items: list[TalkThreadCardOut] = []
+
+
+class TalkThreadDetailPageOut(BaseModel):
+    thread: TalkThreadDetailOut
+    reply_total: int
+    reply_page: int
+    reply_page_size: int
+    replies: list[TalkReplyOut] = []
 
 
 class StoryCreate(RequestModel):

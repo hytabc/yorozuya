@@ -538,6 +538,9 @@ tr.dimmed td { color: #89918d; background: #fafafa; }
 .split-legend li:nth-child(2) .dot { background: var(--blue); }
 .split-legend li:nth-child(3) .dot { background: #c98b3b; }
 .split-legend li:nth-child(4) .dot { background: #8a6fbf; }
+/* 列表分页控件（疑难解答区等分页列表共用）。 */
+.pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 22px; }
+.pager .muted { font-size: 12px; }
 .announcement-admin-list { display: grid; gap: 10px; }
 .announcement-admin-row { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 24px; padding: 22px; border: 1px solid var(--line); border-radius: 6px; background: white; }
 .announcement-admin-main h2 { margin: 12px 0 7px; overflow-wrap: anywhere; font-size: 17px; }

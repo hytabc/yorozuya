@@ -175,7 +175,7 @@ def test_task_create_limit_stops_writes(monkeypatch):
         headers, _ = email_tests.auth(client, "task_rate")
         assert client.patch("/api/users/me", headers=headers, json={"nickname": "限流用户", "qq": "12345678"}).status_code == 200
         enable_limits(monkeypatch)
-        payload = {"title": "限流测试", "description": "用于确认超限不再写入数据库", "category": "other", "expires_in_days": 2}
+        payload = {"title": "限流测试", "description": "用于确认超限不再写入数据库", "category": "技术疑难", "expires_in_days": 2}
         for _ in range(20):
             response = client.post("/api/tasks", headers=headers, json=payload)
             assert response.status_code == 201, response.text

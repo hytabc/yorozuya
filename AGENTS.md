@@ -41,12 +41,15 @@ backend/app/
   sugar_frost.py # 糖霜世界（/frost）存档：GET/PUT /api/sugar-frost/save，per-user 乐观锁
 frontend/src/
   api.js         # axios 实例：自动带 token、401 时清缓存并派发 auth-expired
-  constants.js   # 角色显示名 ROLE_LABELS / ROLE_HINTS / roleLabel()（⚠️ 改角色文案先看这里）
+  constants.js   # 角色显示名 ROLE_LABELS / ROLE_HINTS / roleLabel()；委托分类 CATEGORIES（⚠️ 改分类看 constants.js + main.py:TASK_CATEGORIES）
+                 # 还含地图类型 MAP_CATEGORIES、疑难解答子版块 TALK_BOARDS（均需与后端常量同步）
+  navigation.js  # 顶部导航归属：六个大厅 HALLS + 管理入口 MORE_LINKS + itemVisible/visibleItems（⚠️ 改导航先看这里）
   stores/auth.js # Pinia：凭证经 authStorage.js 加密存于 localStorage/IndexedDB；isAdmin / isStaff / canManageRoles
   router.js      # 路由守卫（auth / guestOnly / roleManager）
   views/         # TaskHall(大厅) AdminView(后台) OperationsView(运营台) AnnouncementsView(公告) StoryHall(故事会)
-                 # SugarClub(砂糖社) FriendHall(交友厅) VrMaps(地图推荐) 等
+                 # BoardView(留言板) TalkHall(疑难解答) SugarClub(砂糖社) FriendHall(交友厅) VrMaps(地图推荐) 等
   components/    # TaskDialog(委托详情+接取) CreateTaskDialog ReportDialog FeedbackDialog StoryDetailDialog(故事会详情)
+                 # TalkThreadDialog(疑难解答详情：主楼+楼层+采纳+回复)
                  # UserProfileCard StatusBadge KanbanNiang(AI看板娘) AppHeader ToastHost TaskCard
                  # VrMapDetailDialog(地图详情) ImageLightbox(全屏图片放大，支持滚轮/双指缩放)
   frost/         # 糖霜世界(/frost) 因果解谜游戏：engine/(纯函数判定引擎，移植自 vrcWill)
@@ -63,7 +66,8 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - `Announcement`：网站/活动公告，支持草稿、置顶和起止展示时间；`PageView` 保存隐私化页面访问事件（含 `device` 粗粒度设备分档，180 天留存）；`PageDwell` 保存页面曝光时长（离页结算的 `seconds`，同样 180 天留存）；`AnalyticsEvent` 保存关键行为事件（`event_key` + `page_key`，白名单见 `main.py` 的 `EVENT_LABELS`，同样 180 天留存）。三者都只存账号 ID 或匿名会话摘要 + 设备类别，不记录 IP/UA 原文或内容明细。
 - 埋点写入：`POST /api/analytics/page-view`、`POST /api/analytics/page-dwell`（曝光时长，离页结算）、`POST /api/analytics/event`，均 `get_optional_user` + 按 IP 限流 + `skip_next_snapshot` + 行内 180 天清理。`device` 由 `main.py` 的 `detect_device()` 从 `Sec-CH-UA-Mobile`/UA 归类为 `desktop/mobile/tablet/other`（`DEVICE_LABELS`）。`GET /api/operations/analytics` 额外返回游客/登录用户拆分（`guest_*`/`user_*`）、`total_seconds`/`avg_seconds` 与 `devices` 列表；曝光时长用 SQL `GROUP BY` 聚合。
 - ⚠️ `page_views.device` 是新增列，已在 `migrate_schema()` 于 **tasks 提前 return 之前**补 `ALTER`（存量归 `other`）；`page_dwells` 为新表，由 `create_all` 创建、无需迁移。
-- `Task`：`status`（published→accepted→awaiting→completed；另有 cancelling/expired/cancelled）、`accept_password_hash`（只存哈希，便捷属性 `requires_password`）、`is_designated`（指定委托，designated_user_ids）、`is_anonymous`、`required_takers`、`is_visible/admin_note`（后台屏蔽）、`expires_at`（查询时惰性过期 `expire_due_tasks`）。
+- `TalkThread`/`TalkReply`：**交流大厅·疑难解答区**（贴吧式盖楼）。主楼（1 楼）记 `board`（子版块 key，白名单见 `main.py` 的 `TALK_BOARDS`）、`title`/`content`、`is_anonymous`、`accepted_reply_id`（**不建外键**，删除楼层时业务清空）、`last_reply_at`；楼层记 `floor`（从 2 起，删除不回收）、`is_anonymous`。两张新表由 `create_all` 创建、无需迁移。回复数不冗余存储，列表用分组子查询统计。匿名展示走 `talk_author()` + `ANONYMOUS_TALK_AUTHOR`（仅本人与管理员组可见），删除权限 = 作者本人或 `can_moderate`，限流桶 `talk-post`（用户，20/600s）。接口在 `/api/talk/*`。
+- `Task`：`status`（published→accepted→awaiting→completed；另有 cancelling/expired/cancelled）、`category`（**白名单** `main.py:TASK_CATEGORIES` = 萌新上路/心理倾听/技术疑难/VRC寻图/搭子召集/其他委托，创建时校验，非法返回 422）、`accept_password_hash`（只存哈希，便捷属性 `requires_password`）、`is_designated`（指定委托，designated_user_ids）、`is_anonymous`、`required_takers`、`is_visible/admin_note`（后台屏蔽）、`expires_at`（查询时惰性过期 `expire_due_tasks`）。⚠️ 改分类要同时改 `constants.js:CATEGORIES` + `TASK_CATEGORIES`，并在 `migrate_schema()` 维护历史值映射（已含倾听/解惑/建模/聊天/陪玩/陪睡/拍摄/其他的归并，未知值兜底为「其他委托」，用 `if "category" in task_columns` 守卫以免老库缺列报错）。
 - `TaskMember`：接单人及 `response_status`（pending/accepted/declined）+ 完成确认 `confirmed_at` + 取消确认。
 - 其余：`TaskReport`（举报）、`Feedback`（反馈）、`SugarProfile`/`SugarPair`（砂糖社）、`Story`/`StoryComment`/`StoryPhoto`（故事会：`Story.is_anonymous`；`StoryPhoto.is_visible` 默认 `False` 表示上传即待审，评论不匿名）、用户图片等。
 
@@ -109,6 +113,8 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
    - **骨架屏**：全局工具类在 `frontend/src/styles.css`（`.skeleton` 卡片 / `.skeleton-block` / `.skeleton-line` / `.skeleton-list`），各页加载期一律渲染骨架，不再用「正在加载…」纯文字。
    - **按需请求**：监管台 `/admin` 与运营台 `/operations` 均为**按标签页懒加载**（切换标签才请求，`loaded` 标记防重复）。监管台统计卡与各标签角标统一走 `GET /api/admin/summary`（`get_content_moderator`：超管 / `staff` / 风纪委员；仅超管返回用户与委托总量），它只做 COUNT 查询、不返回列表；运营台内测角标取自 `GET /api/operations/summary`（`get_beta_application_manager`，看板娘也能取），数据看板单独用 `/api/operations/analytics`（仅管理员组）。运营台三个标签按角色显示：数据看板 = 管理员组，公告管理 = 超管/看板娘，内测申请 = 超管/管理员/看板娘。**注意 `/api/admin/stats` 仍是超管专属（`get_admin`），不要放宽**，测试已断言 `staff` 访问返回 403。
    - **路由分包**：`frontend/src/router.js` 全部页面用 `() => import()` 动态导入，不要改回静态 import。
+18. **导航归属（六个大厅）**：顶部导航按大厅分组——委托大厅（`/` + `/mine`）、交流大厅（`/board` + `/talk`）、游戏大厅（`/life` + `/frost`）、分享大厅（`/stories` + `/maps`）、交友大厅（`/friends` + `/sugar`）、官方大厅（`/staff` + `/announcements` + `/versions`），管理入口（监管台/运营台）收进「更多」。分组只是前端行为，不改路由；配置集中在 `frontend/src/navigation.js`（纯数据、`node --test` 直接覆盖），`AppHeader.vue` 只负责渲染与图标映射（桌面下拉、移动端折叠分组）。大厅内可见条目剩一条时渲染为直达链接、为空时整组隐藏；`/life` 沿用 `ready + isLoggedIn + canPlayLife` 守卫。
+19. **交流大厅·疑难解答区**（`/talk`，游客可读）：贴吧式盖楼——主楼 1 楼、楼层从 2 起、支持子版块筛选、分页、采纳最佳回答与匿名发帖/回复。接口 `/api/talk/threads*`（见上「领域模型速查」）；列表/楼层分页统一用 `page`/`page_size`（默认 20、上限 50），响应为 `{total,page,page_size,items}`——这是全站首个分页约定，新分页列表沿用。详情用弹窗（`TalkThreadDialog.vue`）而非独立路由。
 
 ## 安全加固（2026-09 起）
 
