@@ -91,6 +91,8 @@ from .models import (
     Story,
     StoryComment,
     StoryPhoto,
+    TalkReply,
+    TalkThread,
     Task,
     TaskMember,
     TaskMemberResponse,
@@ -154,6 +156,14 @@ from .schemas import (
     ReportResolveRequest,
     RegisterRequest,
     SiteConfigOut,
+    TalkAcceptRequest,
+    TalkReplyCreate,
+    TalkReplyOut,
+    TalkThreadCardOut,
+    TalkThreadCreate,
+    TalkThreadDetailOut,
+    TalkThreadDetailPageOut,
+    TalkThreadListOut,
     TaskCreate,
     TaskMemberOut,
     TaskOut,
@@ -398,6 +408,27 @@ def migrate_schema() -> None:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN is_visible BOOLEAN NOT NULL DEFAULT 1"))
         if "admin_note" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN admin_note VARCHAR(200)"))
+        # 委托分类改版：老值按语义归并，无法映射的一律归「其他委托」。
+        # 重复执行幂等（老值第一次跑完就消失）；极端老库可能还没有 category 列，跳过即可。
+        if "category" in task_columns:
+            for old_category, new_category in (
+                ("倾听", "心理倾听"),
+                ("解惑", "技术疑难"),
+                ("建模", "技术疑难"),
+                ("聊天", "搭子召集"),
+                ("陪玩", "搭子召集"),
+                ("陪睡", "搭子召集"),
+                ("拍摄", "其他委托"),
+                ("其他", "其他委托"),
+            ):
+                connection.execute(
+                    text("UPDATE tasks SET category = :new WHERE category = :old"),
+                    {"new": new_category, "old": old_category},
+                )
+            allowed_categories = ", ".join(f"'{value}'" for value in TASK_CATEGORIES)  # 常量拼接，无用户输入
+            connection.execute(
+                text(f"UPDATE tasks SET category = '其他委托' WHERE category NOT IN ({allowed_categories})")
+            )
         if inspector.has_table("task_members"):
             member_columns = {column["name"] for column in inspector.get_columns("task_members")}
             if "cancel_confirmed_at" not in member_columns:
@@ -618,8 +649,19 @@ def expire_due_tasks(db: Session) -> None:
         db.commit()
 
 
+# 疑难解答区子版块：key 落库、label 展示；前端 constants.js 的 TALK_BOARDS 需保持一致。
+TALK_BOARDS = {
+    "newbie": "萌新求助",
+    "tech": "技术疑难",
+    "vrc": "VRC 相关",
+    "resource": "资源分享",
+    "chat": "闲聊水区",
+    "other": "其他",
+}
+
 PAGE_LABELS = {
     "hall": "委托大厅",
+    "talk": "疑难解答",
     "staff": "成员名录",
     "board": "留言板",
     "maps": "地图推荐",
@@ -687,6 +729,10 @@ EVENT_LABELS = {
     "frost.enter_level": "进入糖霜关卡",
     "frost.level_submit": "提交糖霜关卡解答",
     "life.start": "开始虚拟人生",
+    "talk.create": "发布疑难帖",
+    "talk.reply": "回复楼层",
+    "talk.accept": "采纳最佳回答",
+    "talk.delete": "删除疑难帖/楼层",
 }
 
 # 设备分档：只保存归类结果，不落库 UA 原文（与「不采集 IP/UA」的隐私原则一致）。
@@ -1075,6 +1121,9 @@ MAX_VR_MAP_PHOTO_BYTES = 10 * 1024 * 1024
 MAX_VR_MAP_UPLOAD_TOTAL_BYTES = 50 * 1024 * 1024
 MAX_VR_MAP_PHOTOS = 5
 MAP_CATEGORIES = ("游戏", "休闲", "恐怖", "风景", "解谜", "社交", "其他")
+
+# 委托分类白名单：与前端 constants.js 的 CATEGORIES 保持一致，改这里要同步前端。
+TASK_CATEGORIES = ("萌新上路", "心理倾听", "技术疑难", "VRC寻图", "搭子召集", "其他委托")
 
 MAX_FRIEND_PHOTOS = 5
 
@@ -2797,6 +2846,284 @@ def delete_board_comment(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+# ---- 交流大厅·疑难解答区 ----
+
+ANONYMOUS_TALK_AUTHOR = UserPublic(id=0, nickname="匿名用户", bio=None, photos=[])
+
+TALK_PAGE_SIZE_DEFAULT = 20
+TALK_PAGE_SIZE_MAX = 50
+
+
+def talk_author(author: User, is_anonymous: bool, viewer: User | None) -> UserPublic:
+    """匿名帖/匿名楼层只对本人与管理员组揭示作者，其余人只看到匿名哨兵。"""
+    if is_anonymous and not (viewer is not None and (viewer.id == author.id or can_moderate(viewer))):
+        return ANONYMOUS_TALK_AUTHOR
+    return present_user_public(author, viewer)
+
+
+def can_delete_talk(user_id: int, viewer: User | None) -> bool:
+    return viewer is not None and (can_moderate(viewer) or viewer.id == user_id)
+
+
+def present_talk_reply(thread: TalkThread, reply: TalkReply, viewer: User | None) -> TalkReplyOut:
+    return TalkReplyOut(
+        id=reply.id,
+        floor=reply.floor,
+        content=reply.content,
+        created_at=reply.created_at,
+        user=talk_author(reply.author, reply.is_anonymous, viewer),
+        is_anonymous=reply.is_anonymous,
+        accepted=thread.accepted_reply_id == reply.id,
+        can_delete=can_delete_talk(reply.user_id, viewer),
+    )
+
+
+def present_talk_detail(thread: TalkThread, viewer: User | None, reply_count: int) -> TalkThreadDetailOut:
+    return TalkThreadDetailOut(
+        id=thread.id,
+        board=thread.board,
+        board_label=TALK_BOARDS.get(thread.board, thread.board),
+        title=thread.title,
+        excerpt=thread.content[:120],
+        user=talk_author(thread.author, thread.is_anonymous, viewer),
+        is_anonymous=thread.is_anonymous,
+        reply_count=reply_count,
+        solved=thread.accepted_reply_id is not None,
+        last_reply_at=thread.last_reply_at,
+        created_at=thread.created_at,
+        can_delete=can_delete_talk(thread.user_id, viewer),
+        content=thread.content,
+        accepted_reply_id=thread.accepted_reply_id,
+        can_accept=viewer is not None and viewer.id == thread.user_id,
+    )
+
+
+def present_talk_card(thread: TalkThread, viewer: User | None, reply_count: int) -> TalkThreadCardOut:
+    return TalkThreadCardOut(
+        id=thread.id,
+        board=thread.board,
+        board_label=TALK_BOARDS.get(thread.board, thread.board),
+        title=thread.title,
+        excerpt=thread.content[:120],
+        user=talk_author(thread.author, thread.is_anonymous, viewer),
+        is_anonymous=thread.is_anonymous,
+        reply_count=reply_count,
+        solved=thread.accepted_reply_id is not None,
+        last_reply_at=thread.last_reply_at,
+        created_at=thread.created_at,
+        can_delete=can_delete_talk(thread.user_id, viewer),
+    )
+
+
+def talk_reply_counts(db: Session, thread_ids: list[int]) -> dict[int, int]:
+    """一次分组查询取出多个帖子的回复数，避免逐条 N+1。"""
+    if not thread_ids:
+        return {}
+    rows = db.execute(
+        select(TalkReply.thread_id, func.count())
+        .where(TalkReply.thread_id.in_(thread_ids))
+        .group_by(TalkReply.thread_id)
+    ).all()
+    return {thread_id: count for thread_id, count in rows}
+
+
+def get_talk_thread_or_404(db: Session, thread_id: int) -> TalkThread:
+    thread = db.scalar(
+        select(TalkThread).options(joinedload(TalkThread.author)).where(TalkThread.id == thread_id)
+    )
+    if thread is None:
+        raise HTTPException(status_code=404, detail="帖子不存在或已被删除")
+    return thread
+
+
+@app.get("/api/talk/threads", response_model=TalkThreadListOut)
+def list_talk_threads(
+    board: str = Query(default=""),
+    search: str = Query(default="", max_length=80),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=TALK_PAGE_SIZE_DEFAULT, ge=1, le=TALK_PAGE_SIZE_MAX),
+    viewer: User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    """疑难解答区帖子列表：游客可读，按最后回复时间倒序分页。"""
+    filters = []
+    if board and board in TALK_BOARDS:
+        filters.append(TalkThread.board == board)
+    if search:
+        filters.append(or_(TalkThread.title.contains(search), TalkThread.content.contains(search)))
+    total = db.scalar(select(func.count()).select_from(TalkThread).where(*filters)) or 0
+    threads = (
+        db.scalars(
+            select(TalkThread)
+            .options(joinedload(TalkThread.author))
+            .where(*filters)
+            .order_by(TalkThread.last_reply_at.desc(), TalkThread.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        .unique()
+        .all()
+    )
+    counts = talk_reply_counts(db, [thread.id for thread in threads])
+    return TalkThreadListOut(
+        total=total,
+        page=page,
+        page_size=page_size,
+        items=[present_talk_card(thread, viewer, counts.get(thread.id, 0)) for thread in threads],
+    )
+
+
+@app.get("/api/talk/threads/{thread_id}", response_model=TalkThreadDetailPageOut)
+def talk_thread_detail(
+    thread_id: int,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=TALK_PAGE_SIZE_DEFAULT, ge=1, le=TALK_PAGE_SIZE_MAX),
+    viewer: User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    """主楼内容 + 楼层分页（按楼层号升序）。"""
+    thread = get_talk_thread_or_404(db, thread_id)
+    reply_total = (
+        db.scalar(select(func.count()).select_from(TalkReply).where(TalkReply.thread_id == thread_id)) or 0
+    )
+    replies = (
+        db.scalars(
+            select(TalkReply)
+            .options(joinedload(TalkReply.author))
+            .where(TalkReply.thread_id == thread_id)
+            .order_by(TalkReply.floor.asc(), TalkReply.id.asc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        .unique()
+        .all()
+    )
+    return TalkThreadDetailPageOut(
+        thread=present_talk_detail(thread, viewer, reply_total),
+        reply_total=reply_total,
+        reply_page=page,
+        reply_page_size=page_size,
+        replies=[present_talk_reply(thread, reply, viewer) for reply in replies],
+    )
+
+
+@app.post("/api/talk/threads", response_model=TalkThreadDetailOut, status_code=status.HTTP_201_CREATED)
+def create_talk_thread(
+    payload: TalkThreadCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    enforce("talk-post", str(user.id), 20, 600)
+    now = datetime.utcnow()
+    thread = TalkThread(
+        board=payload.board,
+        title=payload.title.strip(),
+        content=payload.content.strip(),
+        user_id=user.id,
+        is_anonymous=payload.is_anonymous,
+        last_reply_at=now,
+    )
+    db.add(thread)
+    db.commit()
+    db.refresh(thread)
+    return present_talk_detail(thread, user, 0)
+
+
+@app.post(
+    "/api/talk/threads/{thread_id}/replies",
+    response_model=TalkReplyOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_talk_reply(
+    thread_id: int,
+    payload: TalkReplyCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """盖楼：楼层号在行锁下取「当前最大楼层 + 1」，并发时不会重号（1 楼是主楼）。"""
+    enforce("talk-post", str(user.id), 20, 600)
+    thread = db.scalar(select(TalkThread).where(TalkThread.id == thread_id).with_for_update())
+    if thread is None:
+        raise HTTPException(status_code=404, detail="帖子不存在或已被删除")
+    max_floor = db.scalar(select(func.max(TalkReply.floor)).where(TalkReply.thread_id == thread_id)) or 1
+    now = datetime.utcnow()
+    reply = TalkReply(
+        thread_id=thread_id,
+        user_id=user.id,
+        is_anonymous=payload.is_anonymous,
+        floor=max_floor + 1,
+        content=payload.content.strip(),
+        created_at=now,
+    )
+    thread.last_reply_at = now
+    db.add(reply)
+    db.commit()
+    db.refresh(reply)
+    return present_talk_reply(thread, reply, user)
+
+
+@app.post("/api/talk/threads/{thread_id}/accept", response_model=TalkThreadDetailOut)
+def accept_talk_reply(
+    thread_id: int,
+    payload: TalkAcceptRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """楼主采纳/取消采纳最佳回答。"""
+    thread = get_talk_thread_or_404(db, thread_id)
+    if thread.user_id != user.id:
+        raise HTTPException(status_code=403, detail="只有楼主可以采纳最佳回答")
+    if payload.reply_id is not None:
+        belongs = db.scalar(
+            select(TalkReply.id).where(TalkReply.id == payload.reply_id, TalkReply.thread_id == thread_id)
+        )
+        if belongs is None:
+            raise HTTPException(status_code=422, detail="该楼层不属于本帖")
+    thread.accepted_reply_id = payload.reply_id
+    db.commit()
+    db.refresh(thread)
+    reply_total = (
+        db.scalar(select(func.count()).select_from(TalkReply).where(TalkReply.thread_id == thread_id)) or 0
+    )
+    return present_talk_detail(thread, user, reply_total)
+
+
+@app.delete("/api/talk/threads/{thread_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_talk_thread(
+    thread_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    thread = db.get(TalkThread, thread_id)
+    if thread is None:
+        raise HTTPException(status_code=404, detail="帖子不存在或已被删除")
+    if not can_delete_talk(thread.user_id, user):
+        raise HTTPException(status_code=403, detail="只能删除自己的帖子或楼层")
+    db.delete(thread)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.delete("/api/talk/replies/{reply_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_talk_reply(
+    reply_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    reply = db.get(TalkReply, reply_id)
+    if reply is None:
+        raise HTTPException(status_code=404, detail="楼层不存在或已被删除")
+    if not can_delete_talk(reply.user_id, user):
+        raise HTTPException(status_code=403, detail="只能删除自己的帖子或楼层")
+    thread = db.get(TalkThread, reply.thread_id)
+    # 被采纳的楼层被删除时清空采纳标记，避免留下悬空引用。
+    if thread is not None and thread.accepted_reply_id == reply.id:
+        thread.accepted_reply_id = None
+    db.delete(reply)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 # ---- 故事会 ----
 
 
@@ -3738,6 +4065,8 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
         ).all()
         if len(designated_users) != len(designated_user_ids):
             raise HTTPException(status_code=422, detail="只能指定当前可用的管理员或志愿者")
+    if payload.category not in TASK_CATEGORIES:
+        raise HTTPException(status_code=422, detail="委托分类不正确")
     task = Task(
         title=payload.title.strip(),
         description=payload.description.strip(),

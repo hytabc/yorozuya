@@ -2,8 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
+import { HALLS, visibleItems } from '../src/navigation.js'
 
 const source = name => readFileSync(new URL('../src/' + name, import.meta.url), 'utf8')
+const gamesHall = HALLS.find((hall) => hall.id === 'games')
 const route = source('router.js').split('router.beforeEach(async (to) => {')[1].split('\n})')[0]
 const createGuard = auth => {
   auth.hydrate ??= async () => {}
@@ -27,8 +29,16 @@ async function createAuth(user, restore = true) {
 }
 
 test('life navigation and page guards split player and manager permissions', () => {
-  const nav = source('components/AppHeader.vue')
-  assert.match(nav, /auth\.ready && auth\.isLoggedIn && auth\.canPlayLife" to="\/life"/)
+  // 导航归属集中在 navigation.js：虚拟人生属于游戏大厅，且必须身份确认后才显示。
+  assert.deepEqual(
+    visibleItems(gamesHall, { ready: true, isLoggedIn: true, canPlayLife: true }).map((item) => item.to),
+    ['/life', '/frost'],
+  )
+  assert.deepEqual(
+    visibleItems(gamesHall, { ready: false, isLoggedIn: true, canPlayLife: true }).map((item) => item.to),
+    ['/frost'],
+  )
+  assert.deepEqual(visibleItems(gamesHall, { ready: true, isLoggedIn: false, canPlayLife: false }), [])
   const app = source('App.vue')
   assert.match(app, /v-if="\(!route\.meta\.lifeOnly \|\| \(auth\.isLoggedIn && auth\.canPlayLife\)\) && \(!route\.meta\.lifeManager \|\| \(auth\.isLoggedIn && auth\.canManageRoles\)\)"/)
   assert.match(app, /route\.meta\.lifeOnly && \(!auth\.isLoggedIn \|\| !auth\.canPlayLife\)/)
@@ -68,15 +78,14 @@ test('life routes refresh identity: any logged-in user may play, management stay
   }
 })
 test('any logged-in user sees life navigation; beta flag is display-only and grants no management', async () => {
-  const condition = source('components/AppHeader.vue').match(/v-if="([^"]+)" to="\/life"/)[1]
   for (const beta of [false, true]) {
-    const auth = await createAuth({ role: 'user', is_admin: false, is_beta_tester: beta })
-    assert.equal(auth.isBetaTester.value, beta)
-    assert.equal(auth.canPlayLife.value, true)
-    assert.equal(auth.canManageRoles.value, false)
-    const unwrapped = Object.fromEntries(Object.entries(auth).map(([key, value]) => [key, value?.value]))
-    unwrapped.ready = true
-    assert.equal(vm.runInNewContext(condition, { auth: unwrapped }), true)
+    const store = await createAuth({ role: 'user', is_admin: false, is_beta_tester: beta })
+    assert.equal(store.isBetaTester.value, beta)
+    assert.equal(store.canPlayLife.value, true)
+    assert.equal(store.canManageRoles.value, false)
+    const auth = { ready: true, isLoggedIn: store.isLoggedIn.value, canPlayLife: store.canPlayLife.value }
+    // 内测标记不影响导航：所有登录用户都能看到虚拟人生。
+    assert.deepEqual(visibleItems(gamesHall, auth).map((item) => item.to), ['/life', '/frost'])
   }
 })
 test('logged-in users enter life regardless of beta flag, but not life-admin', async () => {

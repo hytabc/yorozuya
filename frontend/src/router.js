@@ -19,6 +19,7 @@ const router = createRouter({
     { path: '/profile', component: () => import('./views/ProfileView.vue'), meta: { auth: true, analyticsKey: 'profile' } },
     { path: '/staff', component: () => import('./views/StaffView.vue'), meta: { analyticsKey: 'staff' } },
     { path: '/board', component: () => import('./views/BoardView.vue'), meta: { analyticsKey: 'board' } },
+    { path: '/talk', component: () => import('./views/TalkHall.vue'), meta: { analyticsKey: 'talk' } },
     { path: '/maps', component: () => import('./views/VrMaps.vue'), meta: { analyticsKey: 'maps' } },
     { path: '/stories', component: () => import('./views/StoryHall.vue'), meta: { auth: true, analyticsKey: 'stories' } },
     { path: '/friends', component: () => import('./views/FriendHall.vue'), meta: { auth: true, analyticsKey: 'friends' } },

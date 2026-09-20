@@ -455,6 +455,52 @@ class BoardComment(Base):
     user: Mapped[User] = relationship(foreign_keys=[user_id])
 
 
+class TalkThread(Base):
+    """交流大厅·疑难解答区的主楼（1 楼）。
+
+    匿名帖只隐藏作者展示，仍保留 user_id，便于本人删除与管理员处置。
+    """
+
+    __tablename__ = "talk_threads"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # 子版块 key（TALK_BOARDS 的键），展示用中文标签在 main.py 里映射。
+    board: Mapped[str] = mapped_column(String(16), index=True)
+    title: Mapped[str] = mapped_column(String(80), index=True)
+    content: Mapped[str] = mapped_column(Text)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    is_anonymous: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # 采纳的最佳楼层：刻意不建外键，删除该楼层时由业务代码清空，避免悬空引用。
+    accepted_reply_id: Mapped[int | None] = mapped_column(nullable=True)
+    # 最后回复时间：列表按它倒序（无人回复时创建即等于发布时间）。
+    last_reply_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+    author: Mapped[User] = relationship(foreign_keys=[user_id])
+    replies: Mapped[list["TalkReply"]] = relationship(
+        back_populates="thread",
+        cascade="all, delete-orphan",
+        order_by="(TalkReply.floor, TalkReply.id)",
+    )
+
+
+class TalkReply(Base):
+    """疑难解答区的楼层：floor 从 2 起（1 楼是主楼），删除后楼层号不回收。"""
+
+    __tablename__ = "talk_replies"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    thread_id: Mapped[int] = mapped_column(ForeignKey("talk_threads.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    is_anonymous: Mapped[bool] = mapped_column(Boolean, default=False)
+    floor: Mapped[int] = mapped_column(default=2, index=True)
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+    thread: Mapped[TalkThread] = relationship(back_populates="replies")
+    author: Mapped[User] = relationship(foreign_keys=[user_id])
+
+
 class Story(Base):
     """故事会：登录用户发布，可匿名；作者本人或管理员组可删除（级联删评论与配图）。"""
 
