@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
 import { useAuthStore } from '../stores/auth'
+import AnalyticsChart from '../components/AnalyticsChart.vue'
 import UserTitleTag from '../components/UserTitleTag.vue'
 
 const toast = useToast()
@@ -29,12 +30,67 @@ const announcements = ref([])
 const betaApplications = ref([])
 const reviewBetaAppId = ref(null)
 const rangeDays = ref(7)
-const analytics = ref({ days: 7, total_views: 0, total_visitors: 0, today_views: 0, today_visitors: 0, pages: [], daily: [], events: [] })
+const analytics = ref({
+  days: 7, total_views: 0, total_visitors: 0, today_views: 0, today_visitors: 0,
+  guest_views: 0, user_views: 0, guest_visitors: 0, user_visitors: 0,
+  total_seconds: 0, avg_seconds: 0,
+  pages: [], daily: [], devices: [], events: [],
+})
 const editing = ref(false)
 const saving = ref(false)
 const form = reactive({ id: null, kind: 'site', title: '', content: '', is_published: false, is_pinned: false, starts_at: '', ends_at: '' })
-const maxDailyViews = computed(() => Math.max(1, ...analytics.value.daily.map((item) => item.views)))
 const maxEventCount = computed(() => Math.max(1, ...analytics.value.events.map((item) => item.count)))
+
+// 秒 → 人类可读时长（图表 tooltip 与摘要文案共用）。
+function formatSeconds(value) {
+  const seconds = Math.max(0, Math.round(Number(value) || 0))
+  if (seconds < 60) return `${seconds} 秒`
+  const minutes = Math.floor(seconds / 60)
+  const rest = seconds % 60
+  if (minutes < 60) return rest ? `${minutes} 分 ${rest} 秒` : `${minutes} 分`
+  return `${Math.floor(minutes / 60)} 小时 ${minutes % 60} 分`
+}
+
+// 每日趋势：游客 / 登录用户浏览堆叠柱。
+const dailyChart = computed(() => ({
+  labels: analytics.value.daily.map((item) => item.date.slice(5)),
+  datasets: [
+    { label: '游客浏览', data: analytics.value.daily.map((item) => item.guest_views) },
+    { label: '登录用户浏览', data: analytics.value.daily.map((item) => item.user_views) },
+  ],
+}))
+// 访客构成环形图：游客 vs 登录用户（去重访客）。
+const visitorSplitChart = computed(() => ({
+  labels: ['游客', '登录用户'],
+  datasets: [{ data: [analytics.value.guest_visitors, analytics.value.user_visitors] }],
+}))
+// 页面活跃：按访客数取前 10 个页面，拆出游客 / 登录用户。
+const pageChart = computed(() => {
+  const pages = [...analytics.value.pages].sort((a, b) => b.visitors - a.visitors).slice(0, 10)
+  return {
+    labels: pages.map((item) => item.label),
+    datasets: [
+      { label: '游客访客', data: pages.map((item) => item.guest_visitors) },
+      { label: '登录访客', data: pages.map((item) => item.user_visitors) },
+    ],
+  }
+})
+// 停留时长：按平均停留降序，只有产生过曝光结算的页面才上榜。
+const dwellChart = computed(() => {
+  const pages = analytics.value.pages
+    .filter((item) => item.dwell_sessions)
+    .sort((a, b) => b.avg_seconds - a.avg_seconds)
+    .slice(0, 12)
+  return {
+    labels: pages.map((item) => item.label),
+    datasets: [{ label: '平均停留', data: pages.map((item) => item.avg_seconds) }],
+  }
+})
+// 设备分布：按浏览次数拆分 PC 端 / 手机端 / 平板 / 其他。
+const deviceChart = computed(() => ({
+  labels: analytics.value.devices.map((item) => item.label),
+  datasets: [{ data: analytics.value.devices.map((item) => item.views) }],
+}))
 // 内测申请角标走独立轻量接口（看板娘也能取），数据看板不再承担该角标。
 const pendingBetaApplications = ref(0)
 
@@ -174,6 +230,8 @@ watch(activeTab, (tab) => loadTab(tab))
       <div v-if="isFirstLoad('analytics')" aria-hidden="true">
         <section class="metric-grid"><div v-for="i in 4" :key="i" class="skeleton-block" /></section>
         <div class="analytics-layout"><section class="analytics-panel skeleton" /><section class="analytics-panel skeleton" /></div>
+        <div class="analytics-layout"><section class="analytics-panel skeleton" /><section class="analytics-panel skeleton" /></div>
+        <section class="analytics-panel skeleton" />
       </div>
       <template v-else>
       <div class="analytics-toolbar"><div><h2>活跃概览</h2><span>按北京时间统计，访客按账号或匿名会话去重</span></div><select v-model.number="rangeDays" aria-label="统计周期" @change="changeRange"><option :value="7">近 7 天</option><option :value="30">近 30 天</option><option :value="90">近 90 天</option></select></div>
@@ -186,20 +244,46 @@ watch(activeTab, (tab) => loadTab(tab))
 
       <div class="analytics-layout">
         <section class="analytics-panel">
-          <header><h2>每日趋势</h2><span>浏览次数</span></header>
-          <div class="trend-chart">
-            <div v-for="item in analytics.daily" :key="item.date" class="trend-column" :title="`${item.date}：${item.views} 次浏览，${item.visitors} 位访客`">
-              <span class="trend-value">{{ item.views }}</span><i :style="{ height: item.views ? `${Math.max(4, item.views / maxDailyViews * 100)}%` : '0' }" /><small>{{ item.date.slice(5) }}</small>
-            </div>
-          </div>
+          <header><h2>每日趋势</h2><span>游客 / 登录用户浏览</span></header>
+          <AnalyticsChart type="bar" :data="dailyChart" stacked :height="240" />
         </section>
-        <section class="analytics-panel page-ranking">
-          <header><h2>页面活跃</h2><span>访客 / 浏览</span></header>
-          <div v-for="item in analytics.pages" :key="item.page_key" class="ranking-row">
-            <span>{{ item.label }}</span><div><i :style="{ width: `${analytics.total_visitors ? item.visitors / Math.max(...analytics.pages.map((page) => page.visitors), 1) * 100 : 0}%` }" /></div><strong>{{ item.visitors }} / {{ item.views }}</strong>
-          </div>
+        <section class="analytics-panel">
+          <header><h2>访客构成</h2><span>去重访客（{{ rangeDays }} 天）</span></header>
+          <AnalyticsChart type="doughnut" :data="visitorSplitChart" :height="190" />
+          <ul class="split-legend">
+            <li><i class="dot" />游客<strong>{{ analytics.guest_visitors }}</strong> 位 · {{ analytics.guest_views }} 次浏览</li>
+            <li><i class="dot" />登录用户<strong>{{ analytics.user_visitors }}</strong> 位 · {{ analytics.user_views }} 次浏览</li>
+          </ul>
         </section>
       </div>
+
+      <div class="analytics-layout">
+        <section class="analytics-panel">
+          <header><h2>页面活跃</h2><span>游客 / 登录用户访客</span></header>
+          <AnalyticsChart type="bar" :data="pageChart" index-axis="y" stacked :height="280" />
+        </section>
+        <section class="analytics-panel">
+          <header><h2>设备分布</h2><span>浏览次数</span></header>
+          <AnalyticsChart type="doughnut" :data="deviceChart" :height="190" />
+          <ul class="split-legend">
+            <li v-for="item in analytics.devices" :key="item.device"><i class="dot" />{{ item.label }}<strong>{{ item.views }}</strong> 次 · 平均停留 {{ formatSeconds(item.avg_seconds) }}</li>
+          </ul>
+        </section>
+      </div>
+
+      <section class="analytics-panel">
+        <header><h2>页面停留时长</h2><span>平均每次曝光 {{ formatSeconds(analytics.avg_seconds) }}，共 {{ formatSeconds(analytics.total_seconds) }}</span></header>
+        <AnalyticsChart
+          v-if="dwellChart.labels.length"
+          type="bar"
+          :data="dwellChart"
+          index-axis="y"
+          :height="Math.max(160, dwellChart.labels.length * 34)"
+          :value-formatter="formatSeconds"
+        />
+        <p v-else class="muted">暂无停留时长数据</p>
+      </section>
+
       <section class="analytics-panel page-ranking">
         <header><h2>热门操作</h2><span>次数</span></header>
         <div v-for="item in analytics.events" :key="`${item.page_key}-${item.event_key}`" class="ranking-row">
