@@ -441,6 +441,16 @@ html[data-theme='pixel'] .auth-story li svg { color: #8fd79b; }
 html[data-theme='pixel'] .auth-monogram { color: rgba(255, 232, 190, .10); }
 html[data-theme='pixel'] .auth-monogram span { font-size: 120px; }
 html[data-theme='pixel'] .auth-monogram small { color: #b39877; }
+/* 招牌精灵图标：仅像素主题显示（经典风在组件 scoped 中为 display:none） */
+html[data-theme='pixel'] .auth-sprites { display: flex; gap: 14px; margin-top: 34px; color: var(--px-amber); }
+html[data-theme='pixel'] .auth-sprites svg {
+  width: 22px;
+  height: 22px;
+  padding: 6px;
+  background: rgba(255, 224, 178, .08);
+  border: 2px solid #a98255;
+  box-shadow: 2px 2px 0 #2a1a10;
+}
 @media (max-width: 900px) {
   html[data-theme='pixel'] .auth-story h1 { font-size: 26px; line-height: 38px; }
   html[data-theme='pixel'] .auth-story::before { top: 16px; right: 16px; }
@@ -1168,3 +1178,164 @@ html[data-theme='pixel'] :is(
     height: 44px;
   }
 }
+
+/* ============================================================
+   像素主题动效增强包（deepseek-v4-pro 出稿，人工审校修订）
+   分组：1.按钮 hover 微抬 2.弹窗/提示条入场 3.页签指示条展开
+        4.骨架屏明暗 5.主题切换图标翻正 6.招牌精灵图标循环
+   只用 transform/opacity；逐帧用 steps()；reduced-motion 全关。
+   审校：hover 一律 :not(:active) 防压住按压态；入场 backwards 填充
+   避免盖住 Vue 离场过渡；图标翻正只转 svg；页签 ::after 补全
+   content/定位并接管原 border 指示条；剔除已有自有入场动画的元素
+   （.kanban-niang .panel / .image-lightbox__frame）。
+   ============================================================ */
+@media (prefers-reduced-motion: no-preference) {
+  /* 1. 按钮/工具按钮 hover 微抬（150ms steps(2)） */
+  html[data-theme='pixel'] .button,
+  html[data-theme='pixel'] .icon-button,
+  html[data-theme='pixel'] .theme-toggle,
+  html[data-theme='pixel'] .captcha-image-button,
+  html[data-theme='pixel'] .btn,
+  html[data-theme='pixel'] .btn-primary,
+  html[data-theme='pixel'] .btn-ghost,
+  html[data-theme='pixel'] .btn-warm,
+  html[data-theme='pixel'] .icon-btn,
+  html[data-theme='pixel'] .option-button,
+  html[data-theme='pixel'] .primary-button,
+  html[data-theme='pixel'] .choice-btn,
+  html[data-theme='pixel'] .share-btn,
+  html[data-theme='pixel'] .seed-btn,
+  html[data-theme='pixel'] .menu-btn,
+  html[data-theme='pixel'] .room-event-btn,
+  html[data-theme='pixel'] .npc-avatar-btn,
+  html[data-theme='pixel'] .history-icon-btn,
+  html[data-theme='pixel'] .drawer-close,
+  html[data-theme='pixel'] .cf-primary,
+  html[data-theme='pixel'] .cf-ghost,
+  html[data-theme='pixel'] .kanban-niang .send-btn,
+  html[data-theme='pixel'] .kanban-niang .fab,
+  html[data-theme='pixel'] .send-btn,
+  html[data-theme='pixel'] .story-author-btn,
+  html[data-theme='pixel'] .photo-delete {
+    transition: transform 150ms steps(2);
+  }
+  html[data-theme='pixel'] .button:hover:not(:active):not(:disabled),
+  html[data-theme='pixel'] .icon-button:hover:not(:active):not(:disabled),
+  html[data-theme='pixel'] .theme-toggle:hover:not(:active),
+  html[data-theme='pixel'] .captcha-image-button:hover:not(:active),
+  html[data-theme='pixel'] .btn:hover:not(:active):not(:disabled),
+  html[data-theme='pixel'] .btn-primary:hover:not(:active):not(:disabled),
+  html[data-theme='pixel'] .btn-ghost:hover:not(:active):not(:disabled),
+  html[data-theme='pixel'] .btn-warm:hover:not(:active):not(:disabled),
+  html[data-theme='pixel'] .icon-btn:hover:not(:active):not(:disabled),
+  html[data-theme='pixel'] .option-button:hover:not(:active):not(:disabled),
+  html[data-theme='pixel'] .primary-button:hover:not(:active):not(:disabled),
+  html[data-theme='pixel'] .choice-btn:hover:not(:active):not(:disabled),
+  html[data-theme='pixel'] .share-btn:hover:not(:active):not(:disabled),
+  html[data-theme='pixel'] .seed-btn:hover:not(:active):not(:disabled),
+  html[data-theme='pixel'] .menu-btn:hover:not(:active):not(:disabled),
+  html[data-theme='pixel'] .room-event-btn:hover:not(:active):not(:disabled),
+  html[data-theme='pixel'] .npc-avatar-btn:hover:not(:active):not(:disabled),
+  html[data-theme='pixel'] .history-icon-btn:hover:not(:active):not(:disabled),
+  html[data-theme='pixel'] .drawer-close:hover:not(:active),
+  html[data-theme='pixel'] .cf-primary:hover:not(:active):not(:disabled),
+  html[data-theme='pixel'] .cf-ghost:hover:not(:active):not(:disabled),
+  html[data-theme='pixel'] .kanban-niang .send-btn:hover:not(:active):not(:disabled),
+  html[data-theme='pixel'] .kanban-niang .fab:hover:not(:active),
+  html[data-theme='pixel'] .send-btn:hover:not(:active):not(:disabled),
+  html[data-theme='pixel'] .story-author-btn:hover:not(:active):not(.static),
+  html[data-theme='pixel'] .photo-delete:hover:not(:active):not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  /* 2. 弹窗/提示条入场（≤260ms，steps，backwards 填充） */
+  @keyframes pixel-dialog-in {
+    0% { opacity: 0; transform: scale(0.96); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes pixel-toast-in {
+    0% { opacity: 0; transform: translateY(8px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pixel-pop-in {
+    0% { opacity: 0; transform: scale(0.92); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes pixel-skeleton-pulse {
+    0% { opacity: 0.6; }
+    100% { opacity: 1; }
+  }
+  @keyframes pixel-theme-flip {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  html[data-theme='pixel'] .dialog,
+  html[data-theme='pixel'] .directory-profile-dialog,
+  html[data-theme='pixel'] .email-gate-card {
+    animation: pixel-dialog-in 260ms steps(6) backwards;
+  }
+  html[data-theme='pixel'] .announcement-prompt { animation: pixel-pop-in 260ms steps(4) backwards; }
+  html[data-theme='pixel'] .toast { animation: pixel-toast-in 260ms steps(6) backwards; }
+
+  /* 3. 页签 active 指示条从中心展开（200ms steps(3)） */
+  html[data-theme='pixel'] .operations-tabs button,
+  html[data-theme='pixel'] .admin-tabs button,
+  html[data-theme='pixel'] .auth-switch button { position: relative; }
+  html[data-theme='pixel'] .operations-tabs button::after,
+  html[data-theme='pixel'] .admin-tabs button::after,
+  html[data-theme='pixel'] .auth-switch button::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 4px;
+    background: #d97e1f;
+    transform: scaleX(0);
+    transform-origin: center;
+    transition: transform 200ms steps(3);
+  }
+  html[data-theme='pixel'] .operations-tabs button.active::after,
+  html[data-theme='pixel'] .admin-tabs button.active::after,
+  html[data-theme='pixel'] .auth-switch button.active::after { transform: scaleX(1); }
+  /* 原 border 指示条转透明（占位不位移），指示交给 ::after */
+  html[data-theme='pixel'] .operations-tabs button.active,
+  html[data-theme='pixel'] .admin-tabs button.active,
+  html[data-theme='pixel'] .auth-switch button.active { border-bottom-color: transparent; }
+
+  /* 4. 骨架屏像素明暗（2.4s steps(3) 极慢循环，替换经典风 shimmer） */
+  html[data-theme='pixel'] .skeleton,
+  html[data-theme='pixel'] .skeleton-line,
+  html[data-theme='pixel'] .skeleton-list > .skeleton-block {
+    animation: pixel-skeleton-pulse 2.4s steps(3) infinite alternate;
+  }
+
+  /* 5. 主题切换：Palette 图标 steps(4) 翻正（只转图标，不转文字） */
+  html[data-theme='pixel'] .theme-toggle:active svg {
+    animation: pixel-theme-flip 200ms steps(4);
+  }
+
+  /* 6. 登录招牌精灵图标：逐帧上下点头（1.8s steps(3)，逐图标错位） */
+  @keyframes pixel-sprite-bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+  }
+  html[data-theme='pixel'] .auth-sprites svg {
+    animation: pixel-sprite-bob 1.8s steps(3) infinite;
+  }
+  html[data-theme='pixel'] .auth-sprites svg:nth-child(2) { animation-delay: .36s; }
+  html[data-theme='pixel'] .auth-sprites svg:nth-child(3) { animation-delay: .72s; }
+  html[data-theme='pixel'] .auth-sprites svg:nth-child(4) { animation-delay: 1.08s; }
+  html[data-theme='pixel'] .auth-sprites svg:nth-child(5) { animation-delay: 1.44s; }
+}
+
+/* 减少动态偏好：关闭以上全部动画与过渡 */
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme='pixel'] *,
+  html[data-theme='pixel'] *::before,
+  html[data-theme='pixel'] *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+

@@ -1,7 +1,7 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { ArrowRight, Check, KeyRound, Mail, MailCheck, UserRound } from '@lucide/vue'
+import { ArrowRight, Check, Gamepad2, HeartHandshake, KeyRound, Mail, MailCheck, Map, MessagesSquare, Sparkles, UserRound } from '@lucide/vue'
 import { useAuthStore } from '../stores/auth'
 import { api, errorMessage } from '../api'
 import { track } from '../analytics'
@@ -182,6 +182,13 @@ function switchMode(next) {
         <li><Check :size="17" />登录后可见委托人 QQ，直接联系洽谈</li>
         <li><Check :size="17" />绑定邮箱后可接收委托进展通知、也能用它找回密码</li>
       </ul>
+      <div class="auth-sprites" aria-hidden="true">
+        <Gamepad2 :size="20" />
+        <MessagesSquare :size="20" />
+        <HeartHandshake :size="20" />
+        <Map :size="20" />
+        <Sparkles :size="20" />
+      </div>
       <div class="auth-monogram"><span>万</span><small>事事有回音</small></div>
     </section>
     <section class="auth-form-wrap">
@@ -232,4 +239,6 @@ function switchMode(next) {
 .auth-notice { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; margin-bottom: 16px; border-radius: 10px; background: #f4f7f4; color: #3c4046; font-size: 13px; line-height: 1.6; }
 .auth-back { text-align: center; color: var(--muted, #6b6f76); font-size: 13px; }
 .form-hint-success { color: #2f6f4f; font-size: 13px; }
+/* 招牌精灵图标：经典风不显示；像素风由 pixel.css 展示并驱动循环动画 */
+.auth-sprites { display: none; }
 </style>
