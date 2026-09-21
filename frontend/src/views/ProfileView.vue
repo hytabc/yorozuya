@@ -1,10 +1,11 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
-import { CalendarDays, EyeOff, Heart, ImagePlus, KeyRound, Mail, Save, ShieldCheck, Store, Trash2, UserRound } from '@lucide/vue'
+import { CalendarDays, EyeOff, Heart, ImagePlus, KeyRound, Mail, Moon, Save, ShieldCheck, Store, Sun, Trash2, UserRound } from '@lucide/vue'
 import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { track } from '../analytics'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
+import { MODE_SOURCES, THEMES, applyThemeById, mode, modeSource, setModeSource, theme } from '../composables/theme'
 import { roleLabel, ROLE_HINTS } from '../constants'
 import UserAvatar from '../components/UserAvatar.vue'
 import UserTitleTag from '../components/UserTitleTag.vue'
@@ -20,6 +21,7 @@ const busy = ref(false)
 const passwordBusy = ref(false)
 const photoBusy = ref(false)
 const avatarBusy = ref(false)
+const appearanceBusy = ref(false)
 const photos = ref(auth.user.photos || [])
 const viewerSrc = ref('')
 const viewerAlt = ref('')
@@ -74,6 +76,30 @@ async function toggleNotify() {
   } finally {
     notifyBusy.value = false
   }
+}
+
+// 外观偏好落到账号上：路径与悬浮按钮一致，都走 PATCH /users/me/theme。
+async function saveAppearance(partial) {
+  appearanceBusy.value = true
+  try {
+    const { data } = await api.patch('/users/me/theme', partial)
+    await auth.patchUser({ theme_mode: data.theme_mode, theme_style: data.theme_style })
+  } catch (error) {
+    toast.error(errorMessage(error))
+  } finally {
+    appearanceBusy.value = false
+  }
+}
+
+// 先本地生效再落库：切换不该等网络往返，失败时提示但不回滚（下次登录会回到服务端的值）。
+function chooseTheme(id) {
+  applyThemeById(id)
+  saveAppearance({ theme_style: id })
+}
+
+function chooseMode(id) {
+  setModeSource(id)
+  saveAppearance({ theme_mode: id })
 }
 
 async function save() {
@@ -231,6 +257,29 @@ async function deleteAvatar() {
             </label>
           </div>
         </div>
+        <div class="profile-appearance-section">
+          <div class="section-heading compact"><div><span class="section-index">05</span><h2>外观</h2><p>页面风格与深色模式偏好保存在账号上，换设备登录依然生效</p></div></div>
+          <p class="appearance-label">页面风格</p>
+          <div class="mode-options">
+            <label v-for="item in THEMES" :key="item.id" class="mode-option" :class="{ active: theme === item.id }">
+              <input type="radio" name="page-theme" :value="item.id" :checked="theme === item.id" @change="chooseTheme(item.id)" />
+              <span class="mode-option-text"><strong>{{ item.label }}</strong><small>{{ item.id === 'pixel' ? '像素木质招牌与直角硬面板' : '默认的纸色与圆角风格' }}</small></span>
+            </label>
+          </div>
+          <p class="appearance-label">深色模式</p>
+          <div class="mode-options">
+            <label v-for="item in MODE_SOURCES" :key="item.id" class="mode-option" :class="{ active: modeSource === item.id }">
+              <input type="radio" name="color-mode" :value="item.id" :checked="modeSource === item.id" @change="chooseMode(item.id)" />
+              <span class="mode-option-text"><strong>{{ item.label }}</strong><small>{{ item.hint }}</small></span>
+            </label>
+          </div>
+          <p class="mode-current">
+            <component :is="mode === 'night' ? Moon : Sun" :size="15" />
+            当前显示：{{ theme === 'pixel' ? '像素风' : '经典风' }} · {{ mode === 'night' ? '夜间模式' : '日间模式' }}
+            <span v-if="modeSource === 'day' || modeSource === 'night'">（已固定，不再自动切换）</span>
+            <span v-if="appearanceBusy">保存中…</span>
+          </p>
+        </div>
       </section>
     </div>
 
@@ -241,6 +290,72 @@ async function deleteAvatar() {
 <style scoped>
 .zoomable {
   cursor: zoom-in;
+}
+
+/* 外观设置：与「公开资料 / 邮箱 / 重置密码 / 介绍图片」同级的第 05 区 */
+.profile-appearance-section {
+  margin-top: 42px;
+  padding-top: 35px;
+  border-top: 1px solid var(--line);
+}
+
+.mode-options {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0 14px;
+}
+
+/* 「页面风格」「深色模式」两组之间的分组标签 */
+.appearance-label {
+  margin: 20px 0 -6px;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.mode-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.mode-option:hover {
+  border-color: var(--muted);
+}
+
+.mode-option.active {
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+
+.mode-option input {
+  width: auto;
+  margin-top: 2px;
+}
+
+.mode-option-text {
+  display: grid;
+  gap: 2px;
+}
+
+.mode-option-text strong {
+  font-size: 13px;
+}
+
+.mode-option-text small,
+.mode-current {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.mode-current {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .profile-summary .u-avatar {

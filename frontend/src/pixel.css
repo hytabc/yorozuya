@@ -58,7 +58,7 @@ html[data-theme='pixel'] body {
 /* 阶梯切角模板(clip-path 会裁掉外侧 box-shadow,故外投影一律用 drop-shadow) */
 html[data-theme='pixel'] .button,
 html[data-theme='pixel'] .icon-button,
-html[data-theme='pixel'] .theme-toggle,
+html[data-theme='pixel'] :is(.theme-toggle, .mode-toggle),
 html[data-theme='pixel'] .captcha-image-button,
 html[data-theme='pixel'] .pay-toggle {
   clip-path: polygon(var(--px-cut-sm) 0, calc(100% - var(--px-cut-sm)) 0, 100% var(--px-cut-sm), 100% calc(100% - var(--px-cut-sm)), calc(100% - var(--px-cut-sm)) 100%, var(--px-cut-sm) 100%, 0 calc(100% - var(--px-cut-sm)), 0 var(--px-cut-sm));
@@ -185,7 +185,7 @@ html[data-theme='pixel'] .button.danger {
 html[data-theme='pixel'] .button.danger:hover:not(:disabled) { background: linear-gradient(180deg, #ea7060 0%, #cf4433 100%); }
 
 html[data-theme='pixel'] .icon-button,
-html[data-theme='pixel'] .theme-toggle {
+html[data-theme='pixel'] :is(.theme-toggle, .mode-toggle) {
   border: 3px solid var(--ink);
   background: linear-gradient(180deg, #fffdf6, #f7e8c8);
   color: var(--ink);
@@ -194,10 +194,10 @@ html[data-theme='pixel'] .theme-toggle {
   transition: none;
 }
 html[data-theme='pixel'] .icon-button:hover:not(:disabled),
-html[data-theme='pixel'] .theme-toggle:hover { background: linear-gradient(180deg, #fff3d9, #f9e0ab); color: var(--ink); }
+html[data-theme='pixel'] :is(.theme-toggle, .mode-toggle):hover { background: linear-gradient(180deg, #fff3d9, #f9e0ab); color: var(--ink); }
 html[data-theme='pixel'] .icon-button:active:not(:disabled),
-html[data-theme='pixel'] .theme-toggle:active { transform: translateY(2px); filter: drop-shadow(0 1px 0 var(--ink)); }
-html[data-theme='pixel'] .theme-toggle { background: linear-gradient(180deg, #ffe9bd, #fbd38a); font-weight: 700; }
+html[data-theme='pixel'] :is(.theme-toggle, .mode-toggle):active { transform: translateY(2px); filter: drop-shadow(0 1px 0 var(--ink)); }
+html[data-theme='pixel'] :is(.theme-toggle, .mode-toggle) { background: linear-gradient(180deg, #ffe9bd, #fbd38a); font-weight: 700; }
 
 html[data-theme='pixel'] .text-link { color: #a05a10; font-weight: 700; }
 html[data-theme='pixel'] .text-link:hover { text-decoration: underline; text-underline-offset: 4px; }
@@ -699,7 +699,7 @@ html[data-theme='pixel'] :is(
 
 /* 1. 按钮：先清除切角 / 滤镜 / 玻璃残留，再分三级 */
 html[data-theme='pixel'] :is(
-  .button, .icon-button, .theme-toggle, .captcha-image-button
+  .button, .icon-button, .theme-toggle, .mode-toggle, .captcha-image-button
 ) {
   clip-path: none;
   filter: none;
@@ -775,7 +775,7 @@ html[data-theme='pixel'] .button.small {
 }
 
 /* 工具按钮：无常驻外投影 */
-html[data-theme='pixel'] :is(.icon-button, .theme-toggle) {
+html[data-theme='pixel'] :is(.icon-button, .theme-toggle, .mode-toggle) {
   min-height: 40px;
   background: var(--px-control);
   color: var(--muted);
@@ -787,7 +787,7 @@ html[data-theme='pixel'] .icon-button {
   height: 40px;
 }
 
-html[data-theme='pixel'] .theme-toggle {
+html[data-theme='pixel'] :is(.theme-toggle, .mode-toggle) {
   height: 40px;
   padding: 0 12px;
   gap: 8px;
@@ -795,20 +795,20 @@ html[data-theme='pixel'] .theme-toggle {
   font-weight: 400;
 }
 
-html[data-theme='pixel'] :is(.icon-button, .theme-toggle):hover:not(:disabled) {
+html[data-theme='pixel'] :is(.icon-button, .theme-toggle, .mode-toggle):hover:not(:disabled) {
   background: #eee0c4;
   color: var(--ink);
   filter: none;
   transform: none;
 }
 
-html[data-theme='pixel'] :is(.icon-button, .theme-toggle):active:not(:disabled) {
+html[data-theme='pixel'] :is(.icon-button, .theme-toggle, .mode-toggle):active:not(:disabled) {
   transform: translateY(1px);
   filter: none;
   box-shadow: inset 0 2px 0 #dac6a5;
 }
 
-html[data-theme='pixel'] :is(.button, .icon-button, .theme-toggle):disabled {
+html[data-theme='pixel'] :is(.button, .icon-button, .theme-toggle, .mode-toggle):disabled {
   opacity: 1;
   color: #877964;
   background: #e5dccb;
@@ -821,7 +821,7 @@ html[data-theme='pixel'] :is(.button, .icon-button, .theme-toggle):disabled {
 
 /* 内置焦点框，避免被父容器裁切 */
 html[data-theme='pixel'] :is(
-  .button, .icon-button, .theme-toggle, .captcha-image-button
+  .button, .icon-button, .theme-toggle, .mode-toggle, .captcha-image-button
 ):focus-visible {
   outline: 2px solid #6f481f;
   outline-offset: -6px;
@@ -1193,7 +1193,7 @@ html[data-theme='pixel'] :is(
   /* 1. 按钮/工具按钮 hover 微抬（150ms steps(2)） */
   html[data-theme='pixel'] .button,
   html[data-theme='pixel'] .icon-button,
-  html[data-theme='pixel'] .theme-toggle,
+  html[data-theme='pixel'] :is(.theme-toggle, .mode-toggle),
   html[data-theme='pixel'] .captcha-image-button,
   html[data-theme='pixel'] .btn,
   html[data-theme='pixel'] .btn-primary,
@@ -1221,7 +1221,7 @@ html[data-theme='pixel'] :is(
   }
   html[data-theme='pixel'] .button:hover:not(:active):not(:disabled),
   html[data-theme='pixel'] .icon-button:hover:not(:active):not(:disabled),
-  html[data-theme='pixel'] .theme-toggle:hover:not(:active),
+  html[data-theme='pixel'] :is(.theme-toggle, .mode-toggle):hover:not(:active),
   html[data-theme='pixel'] .captcha-image-button:hover:not(:active),
   html[data-theme='pixel'] .btn:hover:not(:active):not(:disabled),
   html[data-theme='pixel'] .btn-primary:hover:not(:active):not(:disabled),

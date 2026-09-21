@@ -122,6 +122,13 @@ class NotifyEmailUpdate(RequestModel):
     notify_email: bool
 
 
+class ThemePreferenceUpdate(RequestModel):
+    """外观偏好。两个字段都可选：只传要改的那个，避免前端为了改明暗把风格也一并覆盖。"""
+
+    theme_mode: Literal["auto", "system", "day", "night"] | None = None
+    theme_style: Literal["classic", "pixel"] | None = None
+
+
 class UserPhotoOut(ApiModel):
     id: int
     # 默认空串：万一有人把 ORM 的 UserPhoto 直接塞进来（from_attributes），
@@ -170,6 +177,9 @@ class UserSelf(UserPublic):
     # 换绑待确认的新地址（有值时前端提示「待确认」）。
     pending_email: str | None = None
     notify_email: bool = True
+    # 外观偏好：跟着账号走，登录后前端以服务端值为准。
+    theme_mode: Literal["auto", "system", "day", "night"] = "auto"
+    theme_style: Literal["classic", "pixel"] | None = None
     # 服务端算好的「需要先完成邮箱验证」标记：前端据此弹强制绑定框，
     # 避免把 require_email_verification 这类策略在前端重写一遍。
     email_gate_required: bool = False

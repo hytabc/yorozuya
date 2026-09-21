@@ -111,6 +111,13 @@ export const useAuthStore = defineStore('auth', () => {
     return saveAuth({ token: token.value, user: data, loginAt, remember, version: AUTH_CACHE_VERSION })
   }
 
+  // 局部更新：接口回传的是完整 UserSelf，但只合并这些字段，
+  // 避免旧响应覆盖掉本地更新的其它字段（外观偏好用它）。
+  function patchUser(partial) {
+    if (!user.value) return Promise.resolve()
+    return updateUser({ ...user.value, ...partial })
+  }
+
   // 登出 = 本地清理 + 服务端吊销。先清本地再请求，避免服务端 401 触发
   // auth-expired 又重新进入 logout；请求显式带上刚捕获的令牌，失败静默。
   async function logout() {
@@ -130,5 +137,5 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   window.addEventListener('auth-expired', logout)
-  return { token, user, verified, ready, isLoggedIn, isAdmin, isStaff, isMascot, isDisciplinarian, role, canModerate, canManageRoles, canOperate, isBetaTester, emailVerified, emailGateRequired, canPlayLife, login, register, restore, updateUser, logout, hydrate }
+  return { token, user, verified, ready, isLoggedIn, isAdmin, isStaff, isMascot, isDisciplinarian, role, canModerate, canManageRoles, canOperate, isBetaTester, emailVerified, emailGateRequired, canPlayLife, login, register, restore, updateUser, patchUser, logout, hydrate }
 })
