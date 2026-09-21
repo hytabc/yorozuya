@@ -540,6 +540,9 @@ tr.dimmed td { color: #89918d; background: #fafafa; }
 .split-legend li:nth-child(2) .dot { background: var(--blue); }
 .split-legend li:nth-child(3) .dot { background: #c98b3b; }
 .split-legend li:nth-child(4) .dot { background: #8a6fbf; }
+/* 列表分页控件（疑难解答区等分页列表共用）。 */
+.pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 22px; }
+.pager .muted { font-size: 12px; }
 .announcement-admin-list { display: grid; gap: 10px; }
 .announcement-admin-row { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 24px; padding: 22px; border: 1px solid var(--line); border-radius: 6px; background: white; }
 .announcement-admin-main h2 { margin: 12px 0 7px; overflow-wrap: anywhere; font-size: 17px; }
@@ -606,6 +609,10 @@ tr.dimmed td { color: #89918d; background: #fafafa; }
   .mobile-menu { display: inline-grid; }
   .mobile-panel { position: absolute; top: 64px; left: 0; right: 0; display: flex; flex-direction: column; padding: 10px 14px 15px; border-bottom: 1px solid var(--line); background: #f7f8f6; box-shadow: 0 15px 25px rgba(20,30,25,.12); }
   .mobile-panel a, .mobile-panel button { min-height: 46px; display: flex; align-items: center; gap: 10px; padding: 0 12px; border: 0; border-bottom: 1px solid #e4e7e5; color: #3e4843; background: transparent; text-align: left; font-size: 14px; }
+  .mobile-panel .mobile-group-toggle { justify-content: flex-start; font-weight: 700; }
+  .mobile-panel .mobile-group-caret { margin-left: auto; transition: transform .16s; }
+  .mobile-panel .mobile-group-caret.open { transform: rotate(180deg); }
+  .mobile-panel .mobile-group a { padding-left: 32px; }
   .inner-page { padding: 38px 0 70px; }
   .hall-intro { min-height: 330px; padding: 45px 2px 38px; }
   .hall-intro h1 { margin-top: 14px; font-size: 38px; }

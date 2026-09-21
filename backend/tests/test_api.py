@@ -214,6 +214,180 @@ def test_page_view_device_column_legacy_migration(tmp_path, monkeypatch):
         assert connection.scalar(text("SELECT device FROM page_views WHERE id = 1")) == "other"
 
 
+def test_task_category_legacy_migration(tmp_path, monkeypatch):
+    """旧委托分类按语义归并，无法映射的一律归「其他委托」。"""
+    database_path = tmp_path / "legacy_categories.db"
+    legacy_engine = create_engine(f"sqlite:///{database_path}")
+    with legacy_engine.begin() as connection:
+        connection.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY)"))
+        # 必须含 reward 列：pay_type 回填迁移会读取它（与 vr_map_photos 迁移测试同因）。
+        connection.execute(text("CREATE TABLE tasks (id INTEGER PRIMARY KEY, reward VARCHAR(60), category VARCHAR(24))"))
+        for task_id, category in enumerate(["倾听", "解惑", "拍摄", "其他", "学习", "技术疑难"], start=1):
+            connection.execute(
+                text("INSERT INTO tasks (id, category) VALUES (:id, :category)"),
+                {"id": task_id, "category": category},
+            )
+    monkeypatch.setattr(main_module, "engine", legacy_engine)
+    monkeypatch.setattr(settings, "database_url", f"sqlite:///{database_path}")
+    main_module.migrate_schema()
+    with legacy_engine.connect() as connection:
+        migrated = dict(connection.execute(text("SELECT id, category FROM tasks")).all())
+    assert migrated == {
+        1: "心理倾听",   # 倾听
+        2: "技术疑难",   # 解惑
+        3: "其他委托",   # 拍摄
+        4: "其他委托",   # 其他
+        5: "其他委托",   # 学习（不在映射表中，走兜底）
+        6: "技术疑难",   # 已是新分类，保持不变
+    }
+
+
+def test_create_task_rejects_unknown_category():
+    with TestClient(app) as client:
+        headers = auth(client, "category_user")
+        set_qq(client, headers, "12345678")
+        payload = {
+            "title": "分类校验委托",
+            "description": "用于验证委托分类白名单会拒绝未知分类。",
+            "category": "乱填的分类",
+            "expires_in_days": 2,
+        }
+        rejected = client.post("/api/tasks", headers=headers, json=payload)
+        assert rejected.status_code == 422, rejected.text
+        assert "委托分类不正确" in rejected.json()["detail"]
+        payload["category"] = "技术疑难"
+        assert client.post("/api/tasks", headers=headers, json=payload).status_code == 201
+
+
+def test_talk_hall_threads_replies_accept_and_permissions():
+    with TestClient(app) as client:
+        author = auth(client, "talk_author")
+        helper = auth(client, "talk_helper")
+        stranger = auth(client, "talk_stranger")
+        admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
+        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        # 游客也能浏览；非法子版块与新帖校验由 Pydantic 拦截。
+        assert client.get("/api/talk/threads").status_code == 200
+        assert client.post(
+            "/api/talk/threads", headers=author, json={"board": "不存在", "title": "标题", "content": "正文内容"}
+        ).status_code == 422
+        assert client.post(
+            "/api/talk/threads", headers=author, json={"board": "tech", "title": "标题", "content": "短"}
+        ).status_code == 422
+
+        created = client.post(
+            "/api/talk/threads",
+            headers=author,
+            json={"board": "tech", "title": "如何缩放模型？", "content": "导入后模型比例总是不对，求排查思路。"},
+        )
+        assert created.status_code == 201, created.text
+        thread_id = created.json()["id"]
+        assert created.json()["board_label"] == "技术疑难"
+        assert created.json()["can_accept"] is True
+        assert created.json()["user"]["nickname"] == "用户talk_author"
+
+        first = client.post(
+            f"/api/talk/threads/{thread_id}/replies", headers=helper,
+            json={"content": "先确认导入时是否勾选了单位换算。"},
+        )
+        assert first.status_code == 201, first.text
+        second = client.post(
+            f"/api/talk/threads/{thread_id}/replies", headers=stranger,
+            json={"content": "也可以在 Blender 里先统一缩放再导入。"},
+        )
+        assert second.status_code == 201, second.text
+        # 1 楼是主楼，楼层从 2 开始递增。
+        assert (first.json()["floor"], second.json()["floor"]) == (2, 3)
+        first_reply_id = first.json()["id"]
+        second_reply_id = second.json()["id"]
+
+        listing = client.get("/api/talk/threads", params={"board": "tech"}).json()
+        assert listing["total"] == 1
+        assert listing["items"][0]["reply_count"] == 2
+        assert listing["items"][0]["solved"] is False
+
+        detail = client.get(f"/api/talk/threads/{thread_id}").json()
+        assert [reply["floor"] for reply in detail["replies"]] == [2, 3]
+        assert detail["reply_total"] == 2
+
+        # 只有楼主能采纳，且必须是本帖楼层。
+        assert client.post(
+            f"/api/talk/threads/{thread_id}/accept", headers=helper, json={"reply_id": first_reply_id}
+        ).status_code == 403
+        assert client.post(
+            f"/api/talk/threads/{thread_id}/accept", headers=author, json={"reply_id": 999999}
+        ).status_code == 422
+        accepted = client.post(
+            f"/api/talk/threads/{thread_id}/accept", headers=author, json={"reply_id": first_reply_id}
+        )
+        assert accepted.status_code == 200, accepted.text
+        assert accepted.json()["accepted_reply_id"] == first_reply_id
+        assert accepted.json()["solved"] is True
+
+        detail = client.get(f"/api/talk/threads/{thread_id}", headers=author).json()
+        accepted_flags = {reply["id"]: reply["accepted"] for reply in detail["replies"]}
+        assert accepted_flags == {first_reply_id: True, second_reply_id: False}
+
+        # 删除被采纳的楼层会清空采纳标记。
+        assert client.delete(f"/api/talk/replies/{first_reply_id}", headers=helper).status_code == 204
+        assert client.get(f"/api/talk/threads/{thread_id}").json()["thread"]["solved"] is False
+        # 别人的楼层不能删。
+        assert client.delete(f"/api/talk/replies/{second_reply_id}", headers=helper).status_code == 403
+        # 管理员组可以删。
+        assert client.delete(f"/api/talk/replies/{second_reply_id}", headers=admin).status_code == 204
+
+
+def test_talk_hall_anonymity_and_pagination():
+    with TestClient(app) as client:
+        author = auth(client, "talk_anon")
+        other = auth(client, "talk_other")
+
+        for index in range(3):
+            response = client.post(
+                "/api/talk/threads",
+                headers=author,
+                json={
+                    "board": "newbie",
+                    "title": f"匿名提问 {index}",
+                    "content": "这是用于验证匿名与分页的正文内容。",
+                    "is_anonymous": True,
+                },
+            )
+            assert response.status_code == 201, response.text
+        thread_id = response.json()["id"]
+
+        reply = client.post(
+            f"/api/talk/threads/{thread_id}/replies", headers=other,
+            json={"content": "匿名回复一下。", "is_anonymous": True},
+        )
+        assert reply.status_code == 201, reply.text
+
+        # 游客与他人只看到匿名哨兵；本人仍能看到自己的昵称。
+        guest_view = client.get(f"/api/talk/threads/{thread_id}").json()
+        assert guest_view["thread"]["user"]["nickname"] == "匿名用户"
+        assert guest_view["thread"]["is_anonymous"] is True
+        assert guest_view["replies"][0]["user"]["nickname"] == "匿名用户"
+        assert client.get(f"/api/talk/threads/{thread_id}", headers=author).json()["thread"]["user"]["nickname"] == "用户talk_anon"
+        assert client.get(f"/api/talk/threads/{thread_id}", headers=other).json()["replies"][0]["user"]["nickname"] == "用户talk_other"
+
+        # 分页约定：total/page/page_size/items。
+        page_one = client.get("/api/talk/threads", params={"page": 1, "page_size": 2}).json()
+        assert (page_one["total"], page_one["page"], page_one["page_size"]) == (3, 1, 2)
+        assert len(page_one["items"]) == 2
+        page_two = client.get("/api/talk/threads", params={"page": 2, "page_size": 2}).json()
+        assert len(page_two["items"]) == 1
+
+        # 搜索命中标题。
+        found = client.get("/api/talk/threads", params={"search": "匿名提问 1"}).json()
+        assert found["total"] == 1
+
+        # 删除主楼会级联删掉楼层。
+        assert client.delete(f"/api/talk/threads/{thread_id}", headers=author).status_code == 204
+        assert client.get(f"/api/talk/threads/{thread_id}").status_code == 404
+        assert client.get("/api/talk/threads").json()["total"] == 2
+
+
 def test_mascot_operations_announcements_and_analytics():
     with TestClient(app) as client:
         mascot = auth(client, "ops_mascot")
@@ -491,7 +665,7 @@ def create_task(client, headers, password="接取密码123", required=None, titl
     payload = {
         "title": title,
         "description": "需要将十条记录整理成清晰的表格文件",
-        "category": "学习",
+        "category": "技术疑难",
         "reward": "30 元",
         "accept_password": password,
         "expires_in_days": expiry_days,
@@ -513,7 +687,7 @@ def test_create_task_requires_contact():
         payload = {
             "title": "没有联系方式的委托",
             "description": "发布者尚未填写 QQ，不应允许发布",
-            "category": "其他",
+            "category": "其他委托",
             "pay_type": "free",
             "accept_password": "pw-no-contact",
             "required_takers": 1,
@@ -1641,7 +1815,7 @@ def test_expired_task_is_updated_when_listed():
                 Task(
                     title="已经过期的任务",
                     description="这是一个用于验证自动过期行为的任务",
-                    category="其他",
+                    category="其他委托",
                     publisher_id=user.id,
                     expires_at=datetime.utcnow() - timedelta(minutes=1),
                 )
@@ -1672,7 +1846,7 @@ def test_task_expiry_only_accepts_fixed_day_options():
             json={
                 "title": "非法有效期委托",
                 "description": "这个委托使用了固定选项之外的有效期",
-                "category": "其他",
+                "category": "其他委托",
                 "expires_in_days": 4,
             },
         )
@@ -1710,7 +1884,7 @@ def test_pay_type_create_and_filter():
             json={
                 "title": "无偿互助委托",
                 "description": "需要有人帮忙翻译一段英文说明",
-                "category": "学习",
+                "category": "技术疑难",
                 "pay_type": "free",
                 "reward": None,
                 "accept_password": "pw-free-1",
@@ -2435,7 +2609,7 @@ def test_designated_single_member_accepts_or_declines_without_password():
             json={
                 "title": "指定单人委托",
                 "description": "请完成一项指定人员才能处理的工作内容",
-                "category": "其他",
+                "category": "其他委托",
                 "pay_type": "free",
                 "accept_password": "should-not-apply",
                 "designated_user_ids": [volunteer_id],
@@ -2461,7 +2635,7 @@ def test_designated_multiple_waits_for_all_and_cancels_when_all_decline():
         payload = {
             "title": "指定多人委托",
             "description": "请完成一项需要多人响应后才能开始的工作内容",
-            "category": "其他",
+            "category": "其他委托",
             "pay_type": "free",
             "designated_user_ids": ids,
             "expires_in_days": 2,
@@ -2501,7 +2675,7 @@ def test_anonymous_task_hides_publisher_until_accepted_then_reveals_contacts():
             json={
                 "title": "匿名整理的委托",
                 "description": "这是一份不公开发布人身份的匿名委托内容说明",
-                "category": "其他",
+                "category": "其他委托",
                 "pay_type": "free",
                 "accept_password": "pw-anon-1",
                 "is_anonymous": True,
@@ -2569,7 +2743,7 @@ def test_anonymous_free_task_accept_shows_publisher_contact_to_regular_user():
             json={
                 "title": "匿名无偿委托",
                 "description": "一份无需密码即可接取的匿名委托内容说明",
-                "category": "其他",
+                "category": "其他委托",
                 "pay_type": "free",
                 "accept_password": None,
                 "is_anonymous": True,
@@ -2599,7 +2773,7 @@ def test_anonymous_designated_task_shows_only_own_pending_status_until_accept():
             json={
                 "title": "匿名指定委托",
                 "description": "一份指定专人响应的匿名委托内容说明",
-                "category": "其他",
+                "category": "其他委托",
                 "pay_type": "free",
                 "designated_user_ids": [volunteer_id, other_id],
                 "is_anonymous": True,

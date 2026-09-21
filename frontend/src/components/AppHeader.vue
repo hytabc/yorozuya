@@ -1,8 +1,9 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { BarChart3, BookOpen, BriefcaseBusiness, ChevronDown, HeartHandshake, History, LogOut, Map, Megaphone, Menu, MessagesSquare, ShieldCheck, Snowflake, Sparkles, Store, UserPlus, UserRound, X } from '@lucide/vue'
+import { BarChart3, BookOpen, BriefcaseBusiness, ChevronDown, CircleQuestionMark, Gamepad2, HeartHandshake, History, LogOut, Map, Megaphone, Menu, MessagesSquare, ShieldCheck, Snowflake, Sparkles, Store, UserPlus, UserRound, Users, X } from '@lucide/vue'
 import { useAuthStore } from '../stores/auth'
+import { HALLS, hallContainsPath, moreLinks, visibleItems } from '../navigation'
 import UserAvatar from './UserAvatar.vue'
 import UserTitleTag from './UserTitleTag.vue'
 
@@ -10,13 +11,40 @@ const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 const open = ref(false)
-const moreOpen = ref(false)
+// 桌面展开的下拉 id（大厅 id 或 'more'）；同一时刻只开一个。
+const openMenu = ref(null)
+// 移动端折叠的分组 id。
+const mobileGroup = ref(null)
 
-const MORE_PATHS = ['/announcements', '/versions', '/admin', '/operations']
-const moreActive = computed(() => MORE_PATHS.includes(route.path))
+// 图标名 → 组件：navigation.js 只存名字，保持那份配置可被 node:test 直接加载。
+const ICONS = {
+  BriefcaseBusiness, MessagesSquare, CircleQuestionMark, Gamepad2, Sparkles, Snowflake,
+  BookOpen, Map, UserPlus, HeartHandshake, Users, Store, Megaphone, History,
+  ShieldCheck, BarChart3,
+}
 
-function closeMore() {
-  moreOpen.value = false
+// 六个大厅，按当前身份过滤条目；整组无可见条目时隐藏。
+const halls = computed(() =>
+  HALLS.map((hall) => ({ ...hall, items: visibleItems(hall, auth) })).filter((hall) => hall.items.length),
+)
+const manageLinks = computed(() => moreLinks(auth))
+const moreActive = computed(() => manageLinks.value.some((link) => link.to === route.path))
+
+const hallActive = (hall) => hallContainsPath(hall, route.path)
+
+function toggleMenu(id) {
+  openMenu.value = openMenu.value === id ? null : id
+}
+function toggleMobileGroup(id) {
+  mobileGroup.value = mobileGroup.value === id ? null : id
+}
+function closeMenus() {
+  openMenu.value = null
+}
+// 监管台在不同角色下叫法不同（超管=监管台，风纪委员=审核台，管理员=权限管理）。
+function linkLabel(link) {
+  if (link.to === '/admin') return auth.isAdmin ? '监管台' : auth.isDisciplinarian ? '审核台' : '权限管理'
+  return link.label
 }
 
 function logout() {
@@ -28,11 +56,12 @@ function logout() {
 // 切换页面时收起下拉与移动端面板。
 watch(() => route.fullPath, () => {
   open.value = false
-  moreOpen.value = false
+  openMenu.value = null
+  mobileGroup.value = null
 })
 
-onMounted(() => document.addEventListener('click', closeMore))
-onBeforeUnmount(() => document.removeEventListener('click', closeMore))
+onMounted(() => document.addEventListener('click', closeMenus))
+onBeforeUnmount(() => document.removeEventListener('click', closeMenus))
 </script>
 
 <template>
@@ -44,30 +73,33 @@ onBeforeUnmount(() => document.removeEventListener('click', closeMore))
       </RouterLink>
 
       <nav class="desktop-nav" aria-label="主导航">
-        <RouterLink to="/">委托大厅</RouterLink>
-        <RouterLink to="/board">留言板</RouterLink>
-        <RouterLink to="/maps">地图推荐</RouterLink>
-        <RouterLink v-if="auth.isLoggedIn" to="/stories">故事会</RouterLink>
-        <RouterLink to="/friends">交友厅</RouterLink>
-        <RouterLink to="/sugar">砂糖社</RouterLink>
-        <RouterLink v-if="auth.isLoggedIn" to="/mine">我的委托</RouterLink>
-        <RouterLink v-if="auth.ready && auth.isLoggedIn && auth.canPlayLife" to="/life">虚拟人生</RouterLink>
-        <RouterLink v-if="auth.isLoggedIn" to="/frost">糖霜世界</RouterLink>
-        <RouterLink to="/staff">成员名录</RouterLink>
-        <div class="nav-more-wrap">
+        <template v-for="hall in halls" :key="hall.id">
+          <RouterLink v-if="hall.items.length === 1" :to="hall.items[0].to">{{ hall.items[0].label }}</RouterLink>
+          <div v-else class="nav-more-wrap">
+            <button
+              class="nav-more"
+              :class="{ active: hallActive(hall) }"
+              type="button"
+              aria-haspopup="menu"
+              :aria-expanded="openMenu === hall.id"
+              @click.stop="toggleMenu(hall.id)"
+            >{{ hall.label }}<ChevronDown :size="14" /></button>
+            <div v-if="openMenu === hall.id" class="nav-more-menu" role="menu">
+              <RouterLink v-for="item in hall.items" :key="item.to" role="menuitem" :to="item.to" @click="closeMenus">{{ item.label }}</RouterLink>
+            </div>
+          </div>
+        </template>
+        <div v-if="manageLinks.length" class="nav-more-wrap">
           <button
             class="nav-more"
             :class="{ active: moreActive }"
             type="button"
             aria-haspopup="menu"
-            :aria-expanded="moreOpen"
-            @click.stop="moreOpen = !moreOpen"
+            :aria-expanded="openMenu === 'more'"
+            @click.stop="toggleMenu('more')"
           >更多<ChevronDown :size="14" /></button>
-          <div v-if="moreOpen" class="nav-more-menu" role="menu">
-            <RouterLink role="menuitem" to="/announcements" @click="moreOpen = false">公告中心</RouterLink>
-            <RouterLink role="menuitem" to="/versions" @click="moreOpen = false">版本更新</RouterLink>
-            <RouterLink v-if="auth.canModerate" role="menuitem" to="/admin" @click="moreOpen = false">{{ auth.isAdmin ? '监管台' : auth.isDisciplinarian ? '审核台' : '权限管理' }}</RouterLink>
-            <RouterLink v-if="auth.canOperate" role="menuitem" to="/operations" @click="moreOpen = false">运营台</RouterLink>
+          <div v-if="openMenu === 'more'" class="nav-more-menu" role="menu">
+            <RouterLink v-for="link in manageLinks" :key="link.to" role="menuitem" :to="link.to" @click="closeMenus">{{ linkLabel(link) }}</RouterLink>
           </div>
         </div>
       </nav>
@@ -92,20 +124,41 @@ onBeforeUnmount(() => document.removeEventListener('click', closeMore))
       </div>
     </div>
     <div v-if="open" class="mobile-panel">
-      <RouterLink to="/" @click="open = false"><BriefcaseBusiness :size="18" />委托大厅</RouterLink>
-      <RouterLink to="/board" @click="open = false"><MessagesSquare :size="18" />留言板</RouterLink>
-      <RouterLink to="/maps" @click="open = false"><Map :size="18" />地图推荐</RouterLink>
-      <RouterLink v-if="auth.isLoggedIn" to="/stories" @click="open = false"><BookOpen :size="18" />故事会</RouterLink>
-      <RouterLink to="/friends" @click="open = false"><UserPlus :size="18" />交友厅</RouterLink>
-      <RouterLink to="/sugar" @click="open = false"><HeartHandshake :size="18" />砂糖社</RouterLink>
-      <RouterLink v-if="auth.isLoggedIn" to="/mine" @click="open = false"><BriefcaseBusiness :size="18" />我的委托</RouterLink>
-      <RouterLink v-if="auth.isLoggedIn" to="/frost" @click="open = false"><Snowflake :size="18" />糖霜世界</RouterLink>
-      <RouterLink v-if="auth.ready && auth.isLoggedIn && auth.canPlayLife" to="/life" @click="open = false"><Sparkles :size="18" />虚拟人生</RouterLink>
-      <RouterLink to="/staff" @click="open = false"><Store :size="18" />成员名录</RouterLink>
-      <RouterLink to="/announcements" @click="open = false"><Megaphone :size="18" />公告中心</RouterLink>
-      <RouterLink to="/versions" @click="open = false"><History :size="18" />版本更新</RouterLink>
-      <RouterLink v-if="auth.canModerate" to="/admin" @click="open = false"><ShieldCheck :size="18" />{{ auth.isAdmin ? '监管台' : auth.isDisciplinarian ? '审核台' : '权限管理' }}</RouterLink>
-      <RouterLink v-if="auth.canOperate" to="/operations" @click="open = false"><BarChart3 :size="18" />社区运营</RouterLink>
+      <template v-for="hall in halls" :key="hall.id">
+        <RouterLink v-if="hall.items.length === 1" :to="hall.items[0].to" @click="open = false">
+          <component :is="ICONS[hall.items[0].icon]" v-if="ICONS[hall.items[0].icon]" :size="18" />{{ hall.items[0].label }}
+        </RouterLink>
+        <template v-else>
+          <button
+            class="mobile-group-toggle"
+            type="button"
+            :aria-expanded="mobileGroup === hall.id"
+            @click.stop="toggleMobileGroup(hall.id)"
+          >
+            <component :is="ICONS[hall.icon]" v-if="ICONS[hall.icon]" :size="18" />{{ hall.label }}<ChevronDown :size="16" class="mobile-group-caret" :class="{ open: mobileGroup === hall.id }" />
+          </button>
+          <div v-if="mobileGroup === hall.id" class="mobile-group">
+            <RouterLink v-for="item in hall.items" :key="item.to" :to="item.to" @click="open = false">
+              <component :is="ICONS[item.icon]" v-if="ICONS[item.icon]" :size="18" />{{ item.label }}
+            </RouterLink>
+          </div>
+        </template>
+      </template>
+      <template v-if="manageLinks.length">
+        <button
+          class="mobile-group-toggle"
+          type="button"
+          :aria-expanded="mobileGroup === 'more'"
+          @click.stop="toggleMobileGroup('more')"
+        >
+          <ShieldCheck :size="18" />更多<ChevronDown :size="16" class="mobile-group-caret" :class="{ open: mobileGroup === 'more' }" />
+        </button>
+        <div v-if="mobileGroup === 'more'" class="mobile-group">
+          <RouterLink v-for="link in manageLinks" :key="link.to" :to="link.to" @click="open = false">
+            <component :is="ICONS[link.icon]" v-if="ICONS[link.icon]" :size="18" />{{ linkLabel(link) }}
+          </RouterLink>
+        </div>
+      </template>
       <RouterLink v-if="auth.isLoggedIn" to="/profile" @click="open = false"><UserRound :size="18" />个人设置</RouterLink>
       <button v-if="auth.isLoggedIn" @click="logout"><LogOut :size="18" />退出登录</button>
       <RouterLink v-else to="/login" @click="open = false"><UserRound :size="18" />登录 / 注册</RouterLink>
