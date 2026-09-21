@@ -95,6 +95,11 @@ class User(Base):
     notify_email: Mapped[bool] = mapped_column(Boolean, default=True)
     # 自定义称号：由超级管理员/管理员设置，仅展示用途，不参与权限判定。
     title: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # 外观偏好（跟着账号走，换设备/清缓存后依然生效）。
+    # theme_mode: auto=按时间(21:00-06:00 夜间) / system=跟随系统 / day / night。
+    # theme_style: classic / pixel；NULL 表示用户没显式选过，前端回落到本地默认。
+    theme_mode: Mapped[str] = mapped_column(String(16), default="auto")
+    theme_style: Mapped[str | None] = mapped_column(String(16), nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     role: Mapped[UserRole] = mapped_column(

@@ -58,8 +58,10 @@ main { min-height: calc(100vh - 72px); }
 .avatar { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; color: white; background: var(--blue); font-size: 13px; font-weight: 700; }
 .icon-button { display: inline-grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid var(--line); border-radius: 4px; color: #515d57; background: transparent; }
 .icon-button:hover { color: var(--ink); background: #e9ece9; }
-.theme-toggle { position: fixed; z-index: 40; top: 88px; right: 16px; display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 6px; color: #515d57; background: rgba(255, 255, 255, .92); box-shadow: var(--shadow); font-size: 13px; backdrop-filter: blur(10px); }
-.theme-toggle:hover { color: var(--ink); background: #ffffff; }
+:is(.theme-toggle, .mode-toggle) { position: fixed; z-index: 40; top: 88px; right: 16px; display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 6px; color: #515d57; background: rgba(255, 255, 255, .92); box-shadow: var(--shadow); font-size: 13px; backdrop-filter: blur(10px); }
+:is(.theme-toggle, .mode-toggle):hover { color: var(--ink); background: #ffffff; }
+/* 明暗切换排在风格切换下方一列,按钮本体沿用 :is(.theme-toggle, .mode-toggle) 的样式 */
+.mode-toggle { top: 136px; }
 .text-link { padding: 8px; color: #4f5a55; font-size: 14px; }
 .mobile-menu, .mobile-panel { display: none; }
 
@@ -526,14 +528,14 @@ tr.dimmed td { color: #89918d; background: #fafafa; }
 .ranking-row > div { height: 7px; overflow: hidden; border-radius: 2px; background: #edf0ee; }
 .ranking-row i { display: block; height: 100%; background: var(--blue); }
 .ranking-row strong { color: #4d5953; font-size: 10px; text-align: right; }
-/* Chart.js 画布需要一个有确定高度的容器才能正确自适应。 */
+/* Chart.js 鐢诲竷闇€瑕佷竴涓湁纭畾楂樺害鐨勫鍣ㄦ墠鑳芥纭嚜閫傚簲銆?*/
 .chart-box { position: relative; width: 100%; }
 .analytics-panel .chart-box { margin-top: 16px; }
 .split-legend { display: grid; gap: 7px; margin: 14px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: 11px; }
 .split-legend li { display: flex; align-items: center; gap: 7px; }
 .split-legend strong { color: #2c362f; font-size: 13px; }
 .split-legend .dot { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; background: var(--muted); }
-/* 图例圆点顺序与环形图的数据顺序一致（见 AnalyticsChart 的 seriesColors）。 */
+/* 鍥句緥鍦嗙偣椤哄簭涓庣幆褰㈠浘鐨勬暟鎹『搴忎竴鑷达紙瑙?AnalyticsChart 鐨?seriesColors锛夈€?*/
 .split-legend li:nth-child(1) .dot { background: var(--green); }
 .split-legend li:nth-child(2) .dot { background: var(--blue); }
 .split-legend li:nth-child(3) .dot { background: #c98b3b; }
@@ -598,7 +600,9 @@ tr.dimmed td { color: #89918d; background: #fafafa; }
   .topbar { height: 64px; }
   main { min-height: calc(100vh - 64px); }
   .desktop-nav, .desktop-only, .user-chip > span:last-child { display: none; }
-  .theme-toggle { top: 76px; right: 10px; height: 36px; padding: 0 10px; font-size: 12px; }
+  :is(.theme-toggle, .mode-toggle) { right: 10px; height: 36px; padding: 0 10px; font-size: 12px; }
+  .theme-toggle { top: 76px; }
+  .mode-toggle { top: 120px; }
   .mobile-menu { display: inline-grid; }
   .mobile-panel { position: absolute; top: 64px; left: 0; right: 0; display: flex; flex-direction: column; padding: 10px 14px 15px; border-bottom: 1px solid var(--line); background: #f7f8f6; box-shadow: 0 15px 25px rgba(20,30,25,.12); }
   .mobile-panel a, .mobile-panel button { min-height: 46px; display: flex; align-items: center; gap: 10px; padding: 0 12px; border: 0; border-bottom: 1px solid #e4e7e5; color: #3e4843; background: transparent; text-align: left; font-size: 14px; }

@@ -1,10 +1,10 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Palette } from '@lucide/vue'
+import { Moon, Palette, Sun } from '@lucide/vue'
 import { api } from './api'
 import { useAuthStore } from './stores/auth'
-import { cycleTheme, theme } from './composables/theme'
+import { cycleTheme, mode, setModeSource, theme } from './composables/theme'
 import AppHeader from './components/AppHeader.vue'
 import ToastHost from './components/ToastHost.vue'
 import KanbanNiang from './components/KanbanNiang.vue'
@@ -30,6 +30,27 @@ watch(
     if (route.meta.lifeManager && (!auth.isLoggedIn || !auth.canManageRoles)) router.replace('/')
   },
 )
+
+// 两个悬浮按钮与个人设置里的「外观」是同一份偏好：登录后一并落库，
+// 换设备/清缓存后依然生效；未登录就只改本地（接口需要登录）。
+async function persistTheme(partial) {
+  if (!auth.isLoggedIn) return
+  try {
+    const { data } = await api.patch('/users/me/theme', partial)
+    await auth.patchUser({ theme_mode: data.theme_mode, theme_style: data.theme_style })
+  } catch { /* 保存失败不影响本次切换，仅下次登录回落到服务端的旧值 */ }
+}
+
+function switchTheme() {
+  cycleTheme()
+  persistTheme({ theme_style: theme.value })
+}
+
+function switchMode() {
+  const next = mode.value === 'night' ? 'day' : 'night'
+  setModeSource(next)
+  persistTheme({ theme_mode: next })
+}
 </script>
 
 <template>
@@ -53,10 +74,22 @@ watch(
       type="button"
       :aria-pressed="theme === 'pixel'"
       :title="`切换页面风格(当前:${theme === 'pixel' ? '像素风' : '经典风'})`"
-      @click="cycleTheme"
+      @click="switchTheme"
     >
       <Palette :size="16" />
       <span>{{ theme === 'pixel' ? '经典风' : '像素风' }}</span>
+    </button>
+    <!-- 明暗切换:与风格切换同列;「根据时间切换」等档位在个人设置的「外观」里选 -->
+    <button
+      v-if="!route.meta.lifeOnly && !route.meta.lifeManager"
+      class="theme-toggle mode-toggle"
+      type="button"
+      :aria-pressed="mode === 'night'"
+      :title="`切换深色模式(当前:${mode === 'night' ? '夜间' : '日间'})`"
+      @click="switchMode"
+    >
+      <component :is="mode === 'night' ? Sun : Moon" :size="16" />
+      <span>{{ mode === 'night' ? '日间' : '夜间' }}</span>
     </button>
     <!-- 未完成邮箱验证时的强制绑定浮层：/life、/life-admin 这类全屏页也要挡，故挂在根部 -->
     <EmailVerificationGate />

@@ -1,0 +1,525 @@
+/* ============================================================
+   夜间模式（深色）—— 由 <html data-mode="night"> 启用
+   ------------------------------------------------------------
+   明暗与风格是正交的两维：本文件只管"亮还是暗"，不管"经典风还是像素风"。
+   因此选择器统一是 html[data-mode='night']，像素风叠加时再用
+   html[data-theme='pixel'][data-mode='night'] 覆盖像素自己的木色/奶油色。
+
+   为什么需要逐条覆盖：styles.css / pixel.css 里有大量硬编码的浅色
+   （#fffdf6 / #ecd9b4 / #f7e8c8 / white / #f3f5f2 …），它们不经过
+   CSS 变量，所以换一套 :root 变量不足以变暗。下面按"变量层 → 硬编码层"
+   两层处理：变量层负责整体基调，硬编码层负责那些漏出来的亮块。
+
+   游戏全屏页（/life、/life-admin）与 vrclife 不在范围内：
+   App.vue 本身不给它们渲染主题控件，颜色也承载玩法语义。
+   ============================================================ */
+
+/* ---------- 1. 经典风：变量层 ---------- */
+html[data-mode='night'] {
+  --ink: #e6ece9;
+  --muted: #97a49e;
+  --line: #33403a;
+  --paper: #161d1a;
+  --green: #5cbd8e;
+  --green-soft: #1e2f27;
+  --yellow: #d7ab4c;
+  --yellow-soft: #322a15;
+  --red: #e5767f;
+  --red-soft: #351f23;
+  --blue: #6aa8c4;
+  --blue-soft: #16282f;
+  --shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* ---------- 2. 经典风：页面基调与既有硬编码浅色 ----------
+   html 与 body 必须分开写：合并成一条选择器时，html 命中后规则集里的
+   body 声明会把后续 html 声明挤掉，画布底色就会留在浅色上。
+   同样地，正文颜色必须显式声明 color，不能只靠 --ink：
+   实测只改 --ink 时 html 上的 color 仍沿用日间的深色，全站正文变成
+   深色压深色（对比度 1.01），因此这里显式给顶层与常用文本元素定色。 */
+html[data-mode='night'] { background: #101614; color: var(--ink); }
+html[data-mode='night'] body { background: #101614; color: var(--ink); }
+
+/* 顶栏（半透明浅色 + 毛玻璃） */
+html[data-mode='night'] .topbar { border-bottom-color: var(--line); background: rgba(18, 25, 22, .94); }
+/* 普通导航与登录原来沿用日间 #56615c / #4f5a55，压在 #121916 顶栏上
+   只有约 2.5–2.8:1；夜间提亮为冷灰绿，激活态仍由 --ink 接管。 */
+html[data-mode='night'] .desktop-nav > a:not(.router-link-active),
+html[data-mode='night'] .desktop-nav .nav-more { color: #aebbb5 !important; }
+html[data-mode='night'] .header-actions .text-link { color: #b9c6c0 !important; }
+
+/* 按钮与工具按钮 */
+/* 主题按钮用 var(--ink) 做底 + 白字：夜间 --ink 反转为浅色后，
+   白字会落在浅底上。这里给主按钮明确固定"深底 + 浅字"，与日间观感一致。 */
+html[data-mode='night'] .button { color: #f2f6f4; background: #2f3a36; border-color: #43514b; }
+html[data-mode='night'] .button:hover:not(:disabled) { background: #3a4741; }
+html[data-mode='night'] .button.secondary { color: var(--ink); border-color: #3a4741; background: #1c2522; }
+html[data-mode='night'] .button.secondary:hover:not(:disabled) { background: #263230; }
+/* 「登录后可见联系方式」这类只在夜间需要压暗的浅色小按钮 */
+html[data-mode='night'] .button.small.desktop-only { border-color: #3a4741; color: var(--ink); background: #212b27; }
+html[data-mode='night'] .feedback-entry { color: var(--ink); background: #212b27; }
+html[data-mode='night'] .icon-button:hover { background: #263230; }
+html[data-mode='night'] .user-chip:hover { background: #263230; }
+html[data-mode='night'] .desktop-nav .nav-more-menu a:hover,
+html[data-mode='night'] .desktop-nav .nav-more-menu a.router-link-active { background: #263230; }
+html[data-mode='night'] .theme-toggle { color: #b9c6c0; border-color: var(--line); background: rgba(24, 33, 30, .92); }
+html[data-mode='night'] .theme-toggle:hover { color: var(--ink); background: #263230; }
+
+/* 表单控件 */
+html[data-mode='night'] input,
+html[data-mode='night'] select,
+html[data-mode='night'] textarea,
+html[data-mode='night'] .search-field,
+html[data-mode='night'] .select-field,
+html[data-mode='night'] .input-with-icon { border-color: #3a4741; background: #131a18; }
+html[data-mode='night'] .pay-toggle { border-color: #3a4741; }
+html[data-mode='night'] .pay-toggle button { background: #1c2522; }
+html[data-mode='night'] .captcha-click-action,
+html[data-mode='night'] .captcha-vaptcha-retry { border-color: #3a4741; background: #1c2522; color: #b9c6c0; }
+html[data-mode='night'] .captcha-vaptcha-verify { border-color: #3a4741; }
+html[data-mode='night'] .input-with-icon.invalid { background: #2a1a1d; }
+/* 占位符原来由浏览器默认灰色渲染，在 #131a18 输入底上约 3.8:1；
+   自动登录标签则沿用日间 #46504b，只有约 2.2:1。 */
+html[data-mode='night'] input::placeholder,
+html[data-mode='night'] textarea::placeholder { color: #97a49e; opacity: 1; }
+html[data-mode='night'] .checkbox-inline { color: #b9c6c0; }
+
+/* 面板、卡片、弹窗（styles.css 里写的是 white） */
+html[data-mode='night'] .dialog,
+html[data-mode='night'] .directory-profile-dialog,
+html[data-mode='night'] .email-gate-card,
+html[data-mode='night'] .admin-table-section,
+html[data-mode='night'] .admin-stats > div,
+html[data-mode='night'] .analytics-panel,
+html[data-mode='night'] .announcement-item,
+html[data-mode='night'] .announcement-admin-row,
+html[data-mode='night'] .pair-card,
+html[data-mode='night'] .sugar-card,
+html[data-mode='night'] .task-card,
+html[data-mode='night'] .staff-card,
+html[data-mode='night'] .story-card,
+html[data-mode='night'] .maps-card,
+html[data-mode='night'] .board-item,
+html[data-mode='night'] .board-composer,
+html[data-mode='night'] .user-card,
+html[data-mode='night'] .disclaimer-part { background: #19211e; }
+
+/* 次级面板与占位块 */
+html[data-mode='night'] .designated-list { background: #141b19; }
+html[data-mode='night'] .user-card { border-color: #2b3631; }
+html[data-mode='night'] th { color: #9aa8a2; background: #1b2421; }
+html[data-mode='night'] tr.dimmed td { color: #7d8a85; background: #141b19; }
+html[data-mode='night'] .sugar-status { background: #1e1a1d; }
+html[data-mode='night'] .sugar-status.active { background: #16231d; }
+html[data-mode='night'] .sugar-status.skeleton { background: #1b2421; }
+html[data-mode='night'] .sugar-card > img,
+html[data-mode='night'] .user-profile-photos figure,
+html[data-mode='night'] .moderation-photo-grid figure,
+html[data-mode='night'] .photo-grid figure { background: #1b2421; }
+html[data-mode='night'] .photo-add { border-color: #46534d; background: #1a2320; }
+html[data-mode='night'] .photo-delete { border-color: #4a2a2e; background: rgba(20, 27, 25, .92); }
+html[data-mode='night'] .moderation-photo-grid .button { background: rgba(20, 27, 25, .94); }
+html[data-mode='night'] .ranking-row > div { background: #242f2b; }
+html[data-mode='night'] .mobile-panel { background: #161d1a; }
+
+/* 骨架屏：经典风的 shimmer 动画把背景写到浅灰，这里的夜间底色选择器
+   权重更高（0,1,1 对 0,1,0），因此动画自动失效——不需要重写 @keyframes。 */
+html[data-mode='night'] .skeleton { border-top-color: #263230; background: #1a2320; }
+html[data-mode='night'] .skeleton-block { background: #202b27; }
+html[data-mode='night'] .skeleton-line { background: #263230; }
+
+/* 语义色：成功 / 失败 / 警示 / 提示条 */
+html[data-mode='night'] .success-notice { color: #8fd7b0; border-color: #275338; background: #16261e; }
+html[data-mode='night'] .risk-notice { color: #e0c98a; border-color: #574a22; background: #2a2413; }
+html[data-mode='night'] .hall-notice { border-color: #574a22; }
+/* 内容规范提醒原来是 #76520a / #6d5a23 压在深黄褐底上，只有约 2.0:1；
+   标题与正文统一提亮成暖米色，保留警示语义并满足小字阅读。 */
+html[data-mode='night'] .hall-notice strong,
+html[data-mode='night'] .hall-notice p { color: #e0c98a; }
+html[data-mode='night'] .toast { color: #8fd7b0; border-color: #275338; background: #16261e; }
+html[data-mode='night'] .toast.error { color: #f0a0a8; border-color: #5a2b31; background: #26151a; }
+html[data-mode='night'] .notice-kind.event,
+html[data-mode='night'] .role-tag,
+html[data-mode='night'] .role-tag.role-mascot { color: #dda8c0; background: #2c1d26; }
+/* 公告小徽章：日间是深绿字（#237a57 系）压在浅绿底上，夜间底变深后
+   深绿字实测只有 2.2:1，必须换成亮绿字。 */
+html[data-mode='night'] .notice-kind { color: #8fd7b0; background: #1e2f27; }
+html[data-mode='night'] .notice-kind.event { color: #dda8c0; }
+html[data-mode='night'] .role-tag.anon-tag { color: #b6a6dd; background: #241f33; }
+html[data-mode='night'] .role-tag.role-disciplinarian { color: #e0a894; background: #2e1e19; }
+html[data-mode='night'] .role-tag.role-user,
+html[data-mode='night'] .status-badge,
+html[data-mode='night'] .category-tag { color: #9db0a8; background: #212b27; }
+html[data-mode='night'] .status-cancelled { color: #97a49e; background: #232c29; }
+html[data-mode='night'] .pay-tag.pay-paid { color: #e8b482; background: #2e2114; }
+html[data-mode='night'] .title-tag { border-color: #574a22; color: #dcc07e; background: #2a2413; }
+
+/* 日间硬编码的次要正文（#4e5954 / #55605a / #707a75）不会跟随变量，
+   夜间落到深卡片后只有约 2.3–3.7:1；统一回收到 --muted。 */
+html[data-mode='night'] .announcement-item > p,
+html[data-mode='night'] .task-card .task-meta,
+html[data-mode='night'] .task-card .task-meta > span,
+html[data-mode='night'] .disclaimer-part p,
+html[data-mode='night'] .disclaimer-part ol,
+html[data-mode='night'] .disclaimer-part li,
+html[data-mode='night'] .version-entry ul { color: var(--muted); }
+
+/* 登录页左侧深色招牌本来就是深色底，夜间只压暗背景、不动配色 */
+html[data-mode='night'] .auth-story { background: #131d19; }
+html[data-mode='night'] .modal-backdrop { background: rgba(0, 0, 0, .68); }
+
+/* ---------- 2b. 组件内硬编码浅色（scoped 样式，不经过全局变量） ----------
+   这些在各自 .vue 的 <style scoped> 里写死：公告弹窗底栏、看板娘聊天区、
+   上传列表、好友申请行、看板占位等。不处理会在夜间留出刺眼的亮块。 */
+html[data-mode='night'] .announcement-prompt-actions { border-top-color: var(--line); background: #19211e; }
+html[data-mode='night'] .kanban-niang .message-list { background: #131a18; }
+html[data-mode='night'] .kanban-niang textarea { color: var(--ink); background: #131a18; border-color: var(--line); }
+html[data-mode='night'] .image-dropzone-files li { background: #1c2522; }
+html[data-mode='night'] .pending-note { background: #1e2a24; }
+html[data-mode='night'] .friend-request-row { background: #19211e; }
+html[data-mode='night'] .friend-rank-card > .friend-rank-placeholder,
+html[data-mode='night'] .friend-card-placeholder { background: #2c1d26; }
+html[data-mode='night'] .email-gate-card { background: #19211e; }
+html[data-mode='night'] .sugar-photos figure.skeleton-block,
+html[data-mode='night'] .vrmap-photo-grid figure.skeleton-block { background: #1b2421; }
+html[data-mode='night'] .board-comments { background: #1b2421; }
+
+/* 登录后页面细小文字：原日间深灰色落在夜间暗底上，亮度不足。
+   统一使用亮灰绿，确保 11–14px 正文达到至少 4.5:1。 */
+html[data-mode='night'] .page-title .eyebrow { color: #afc5ba; }
+html[data-mode='night'] .kanban-niang .send-btn { color: #f3f5f2; }
+html[data-mode='night'] .sugar-status > div > small { color: #52635c; }
+html[data-mode='night'] .sugar-status > div > span,
+html[data-mode='night'] .pair-card > p { color: #aebbb5; }
+html[data-mode='night'] .friend-rank-card p { color: #9fa9a5; }
+html[data-mode='night'] .friend-page .sugar-card-body .vrc-nickname,
+html[data-mode='night'] .friend-page .sugar-card-body em { color: #d58ea8; }
+
+/* 故事会经典风：卡片标题与弹窗字段原为近黑色，叠在夜间暗面板上几乎不可见。 */
+html[data-mode='night'] .story-card .story-body h3 { color: #f1ede4; }
+html[data-mode='night'] .create-dialog .form-stack > label:nth-of-type(1),
+html[data-mode='night'] .create-dialog .form-stack > label:nth-of-type(2),
+html[data-mode='night'] .create-dialog .story-photo-field > span { color: #d8d2c7; }
+
+/* ---------- 3. 像素风：变量层 ---------- */
+html[data-theme='pixel'][data-mode='night'] {
+  --ink: #f0e2c6;
+  --muted: #b79f7c;
+  --line: #4a3a28;
+  --paper: #241a12;
+
+  /* 琥珀色是像素风的标识，夜里保留，只把"柔和底"压暗 */
+  --px-amber-soft: #33281a;
+  --px-control: #2a1f16;
+  --px-edge-soft: #5c4732;
+  --px-depth: #7a5c3c;
+}
+
+/* ---------- 4. 像素风：面板与奶油色硬编码 ----------
+   这些值在 pixel.css 里是写死的：#fffdf6 / #fff9ec 是面板底、
+   #f7e8c8 与 #eee0c4 是套装面/表头、#ecd9b4 与 #e0c9a0 是描边。
+   夜间统一换成暗木色系，保持"深色木头 + 琥珀"的同一套语言。 */
+html[data-theme='pixel'][data-mode='night'] body { background: #140f0a; }
+html[data-theme='pixel'][data-mode='night'] { background: #140f0a; }
+html[data-theme='pixel'][data-mode='night'] .topbar { background: rgba(22, 15, 9, .94); border-bottom-color: #4a3a28; }
+
+/* 像素风日间导航 #6b553c 与强调链接 #a05a10 在 #160f09 顶栏上
+   分别只有约 2.7:1 / 3.6:1；夜间改用亮木色与琥珀色。 */
+html[data-theme='pixel'][data-mode='night'] .desktop-nav > a:not(.router-link-active),
+html[data-theme='pixel'][data-mode='night'] .desktop-nav .nav-more { color: var(--muted) !important; }
+html[data-theme='pixel'][data-mode='night'] .header-actions .text-link,
+html[data-theme='pixel'][data-mode='night'] .hall-notice .text-link { color: #f2a93b !important; }
+
+/* 面板底（原 #fffdf6 / 白） */
+html[data-theme='pixel'][data-mode='night'] .task-card,
+html[data-theme='pixel'][data-mode='night'] .staff-card,
+html[data-theme='pixel'][data-mode='night'] .pair-card,
+html[data-theme='pixel'][data-mode='night'] .sugar-card,
+html[data-theme='pixel'][data-mode='night'] .announcement-item,
+html[data-theme='pixel'][data-mode='night'] .announcement-admin-row,
+html[data-theme='pixel'][data-mode='night'] .analytics-panel,
+html[data-theme='pixel'][data-mode='night'] .user-card,
+html[data-theme='pixel'][data-mode='night'] .disclaimer-part,
+html[data-theme='pixel'][data-mode='night'] .board-composer,
+html[data-theme='pixel'][data-mode='night'] .board-item,
+html[data-theme='pixel'][data-mode='night'] .story-card,
+html[data-theme='pixel'][data-mode='night'] .maps-card,
+html[data-theme='pixel'][data-mode='night'] .dialog,
+html[data-theme='pixel'][data-mode='night'] .directory-profile-dialog,
+html[data-theme='pixel'][data-mode='night'] .announcement-prompt,
+html[data-theme='pixel'][data-mode='night'] .email-gate-card,
+html[data-theme='pixel'][data-mode='night'] .kanban-niang .panel,
+html[data-theme='pixel'][data-mode='night'] .nav-more-menu,
+html[data-theme='pixel'][data-mode='night'] .mobile-panel,
+html[data-theme='pixel'][data-mode='night'] .image-lightbox__frame,
+html[data-theme='pixel'][data-mode='night'] .tutorial-card,
+html[data-theme='pixel'][data-mode='night'] .designated-list,
+html[data-theme='pixel'][data-mode='night'] .crew-list li,
+html[data-theme='pixel'][data-mode='night'] .pending-sugar-row,
+html[data-theme='pixel'][data-mode='night'] .friend-request-row,
+html[data-theme='pixel'][data-mode='night'] .board-comment,
+html[data-theme='pixel'][data-mode='night'] .comment-item,
+html[data-theme='pixel'][data-mode='night'] .sugar-status,
+html[data-theme='pixel'][data-mode='night'] .pending-note { background: #241a12; }
+
+/* 表头与套装面（原 #f7dfae / #f7e8c8 / #eee0c4 / #f1e2c6） */
+html[data-theme='pixel'][data-mode='night'] th { background: #33261a; color: #e0c9a0; }
+html[data-theme='pixel'][data-mode='night'] td { border-top-color: #3d2e20; }
+html[data-theme='pixel'][data-mode='night'] tr.dimmed td { background: #1e160f; }
+html[data-theme='pixel'][data-mode='night'] .ranking-row > div { background: #2e2317; }
+html[data-theme='pixel'][data-mode='night'] ::-webkit-scrollbar-track { background: #1e160f; }
+
+/* 描边与分隔线（原 #ecd9b4 / #e0c9a0 / #e8cf9f / #f3e2bd） */
+html[data-theme='pixel'][data-mode='night'] .mobile-panel a,
+html[data-theme='pixel'][data-mode='night'] .mobile-panel button,
+html[data-theme='pixel'][data-mode='night'] .feedback-admin-list > li,
+html[data-theme='pixel'][data-mode='night'] .announcement-prompt-item,
+html[data-theme='pixel'][data-mode='night'] .version-entry,
+html[data-theme='pixel'][data-mode='night'] .moderation-user { border-color: #4a3a28; }
+html[data-theme='pixel'][data-mode='night'] .crew-list li { border-color: #4a3a28; }
+html[data-theme='pixel'][data-mode='night'] .pending-sugar-row,
+html[data-theme='pixel'][data-mode='night'] .board-comment,
+html[data-theme='pixel'][data-mode='night'] .comment-item,
+html[data-theme='pixel'][data-mode='night'] .pending-note { border-color: #4a3a28; }
+html[data-theme='pixel'][data-mode='night'] .skeleton,
+html[data-theme='pixel'][data-mode='night'] .skeleton-list > .skeleton-block { border-color: #3d2e20; }
+
+/* 控件与按钮的浅色渐变（原 #fffdf6→#f7e8c8 / #ffe9bd→#fbd38a） */
+html[data-theme='pixel'][data-mode='night'] .button,
+html[data-theme='pixel'][data-mode='night'] .button.secondary,
+html[data-theme='pixel'][data-mode='night'] .icon-button,
+html[data-theme='pixel'][data-mode='night'] .theme-toggle,
+html[data-theme='pixel'][data-mode='night'] .mode-toggle,
+html[data-theme='pixel'][data-mode='night'] .btn,
+html[data-theme='pixel'][data-mode='night'] .btn-primary,
+html[data-theme='pixel'][data-mode='night'] .btn-ghost,
+html[data-theme='pixel'][data-mode='night'] .btn-warm,
+html[data-theme='pixel'][data-mode='night'] .icon-btn,
+html[data-theme='pixel'][data-mode='night'] .option-button,
+html[data-theme='pixel'][data-mode='night'] .primary-button,
+html[data-theme='pixel'][data-mode='night'] .choice-btn,
+html[data-theme='pixel'][data-mode='night'] .share-btn,
+html[data-theme='pixel'][data-mode='night'] .seed-btn,
+html[data-theme='pixel'][data-mode='night'] .menu-btn,
+html[data-theme='pixel'][data-mode='night'] .room-event-btn,
+html[data-theme='pixel'][data-mode='night'] .npc-avatar-btn,
+html[data-theme='pixel'][data-mode='night'] .history-icon-btn,
+html[data-theme='pixel'][data-mode='night'] .drawer-close,
+html[data-theme='pixel'][data-mode='night'] .cf-primary,
+html[data-theme='pixel'][data-mode='night'] .cf-ghost,
+html[data-theme='pixel'][data-mode='night'] .kanban-niang .fab,
+html[data-theme='pixel'][data-mode='night'] .pay-toggle button,
+html[data-theme='pixel'][data-mode='night'] .captcha-click-action,
+html[data-theme='pixel'][data-mode='night'] .captcha-vaptcha-retry,
+html[data-theme='pixel'][data-mode='night'] .photo-add {
+  background: linear-gradient(180deg, #2e2317 0%, #241a12 100%);
+  color: var(--ink);
+  border-color: #4a3a28;
+}
+html[data-theme='pixel'][data-mode='night'] .button:hover:not(:disabled),
+html[data-theme='pixel'][data-mode='night'] .button.secondary:hover:not(:disabled),
+html[data-theme='pixel'][data-mode='night'] .icon-button:hover:not(:disabled),
+html[data-theme='pixel'][data-mode='night'] .theme-toggle:hover,
+html[data-theme='pixel'][data-mode='night'] .mode-toggle:hover,
+html[data-theme='pixel'][data-mode='night'] .photo-add:hover {
+  background: linear-gradient(180deg, #3a2c1c 0%, #2e2317 100%);
+  color: var(--ink);
+}
+/* 明暗切换按钮原来没有进入夜间控件组，仍保留日间奶油渐变；现与风格
+   切换按钮共用上面的深木色底和奶油色字。 */
+
+/* 危险操作按钮在像素风里是红底白字（同样依赖"深色 ink"的假设），夜间保持红底 */
+html[data-theme='pixel'][data-mode='night'] .button.danger {
+  color: #fdeceb;
+  border-color: #7a2f24;
+  background: linear-gradient(180deg, #9c3a2c 0%, #7a2b21 100%);
+}
+html[data-theme='pixel'][data-mode='night'] .button.danger:hover:not(:disabled) {
+  background: linear-gradient(180deg, #b04534 0%, #8a3125 100%);
+}
+
+/* 输入控件（原 #fffdf6 底 + #e8cf9f 内描边） */
+html[data-theme='pixel'][data-mode='night'] input,
+html[data-theme='pixel'][data-mode='night'] select,
+html[data-theme='pixel'][data-mode='night'] textarea,
+html[data-theme='pixel'][data-mode='night'] .search-field,
+html[data-theme='pixel'][data-mode='night'] .select-field,
+html[data-theme='pixel'][data-mode='night'] .input-with-icon,
+html[data-theme='pixel'][data-mode='night'] .captcha-image-button,
+html[data-theme='pixel'][data-mode='night'] .image-dropzone-area {
+  background: #1c140d;
+  color: var(--ink);
+  border-color: #4a3a28;
+  box-shadow: inset 0 0 0 2px #33261a;
+}
+
+/* 分区标题带（原 linear-gradient(#ffe9bd, #fbd38a)）与强调面 */
+html[data-theme='pixel'][data-mode='night'] .eyebrow { background: #33261a; color: var(--px-amber); }
+/* 后加载的像素规则把标题重新写成日间深色，导致序号、标题与说明只有
+   约 1.5–2.1:1；在暗木背景上分别恢复琥珀、奶油与亮木色。 */
+html[data-theme='pixel'][data-mode='night'] .section-heading .section-index { color: #e29a42 !important; }
+html[data-theme='pixel'][data-mode='night'] .section-heading h2 { color: var(--ink) !important; }
+html[data-theme='pixel'][data-mode='night'] .section-heading p { color: var(--muted) !important; }
+
+/* 悬停底色（原 #fdf3dd / --px-amber-soft 的浅色） */
+html[data-theme='pixel'][data-mode='night'] .desktop-nav a:hover,
+html[data-theme='pixel'][data-mode='night'] .nav-more-menu a:hover,
+html[data-theme='pixel'][data-mode='night'] .nav-more-menu a.router-link-active,
+html[data-theme='pixel'][data-mode='night'] .mobile-panel a:hover,
+html[data-theme='pixel'][data-mode='night'] .mobile-panel button:hover,
+html[data-theme='pixel'][data-mode='night'] .user-chip:hover,
+html[data-theme='pixel'][data-mode='night'] .designated-option:hover { background: #33261a; }
+
+/* 悬挂的标记与小徽章：深底上把文字与描边提亮 */
+html[data-theme='pixel'][data-mode='night'] th,
+html[data-theme='pixel'][data-mode='night'] .rank-score,
+html[data-theme='pixel'][data-mode='night'] .empty-state > span { border-color: #4a3a28; }
+html[data-theme='pixel'][data-mode='night'] .notice { box-shadow: 3px 3px 0 rgba(0, 0, 0, .4); }
+html[data-theme='pixel'][data-mode='night'] .toast { background: #241a12; }
+html[data-theme='pixel'][data-mode='night'] .modal-backdrop { background: rgba(0, 0, 0, .7); }
+
+/* 卡片正文与徽章在像素样式里另有高权重的日间深色：标题、摘要、元信息、
+   免责声明和用户名曾出现 1.0–2.0:1。这里按语义给出夜间前景，并保留暗底。 */
+html[data-theme='pixel'][data-mode='night'] .task-card h3,
+html[data-theme='pixel'][data-mode='night'] .disclaimer-part h3,
+html[data-theme='pixel'][data-mode='night'] .board-user strong { color: var(--ink); }
+html[data-theme='pixel'][data-mode='night'] .task-card .task-summary,
+html[data-theme='pixel'][data-mode='night'] .task-card .task-meta,
+html[data-theme='pixel'][data-mode='night'] .task-card .task-meta span,
+html[data-theme='pixel'][data-mode='night'] .disclaimer-part p,
+html[data-theme='pixel'][data-mode='night'] .disclaimer-part ol,
+html[data-theme='pixel'][data-mode='night'] .disclaimer-part li,
+html[data-theme='pixel'][data-mode='night'] .announcement-item > p,
+html[data-theme='pixel'][data-mode='night'] .version-entry ul,
+html[data-theme='pixel'][data-mode='night'] .site-footer a,
+html[data-theme='pixel'][data-mode='night'] .checkbox-inline { color: var(--muted) !important; }
+html[data-theme='pixel'][data-mode='night'] .task-card .status-badge.status-published {
+  color: #8fd7b0 !important;
+  background: #1e2f27 !important;
+}
+html[data-theme='pixel'][data-mode='night'] .task-card .pay-tag.pay-free {
+  color: #8fd7b0 !important;
+  background: #1e2f27 !important;
+}
+html[data-theme='pixel'][data-mode='night'] .task-card .pay-tag.pay-paid {
+  color: #f6d08a !important;
+  background: #2e2114 !important;
+}
+html[data-theme='pixel'][data-mode='night'] .task-card .role-tag.open-access-tag {
+  color: #d8bdd0 !important;
+  background: #2c1d26 !important;
+}
+html[data-theme='pixel'][data-mode='night'] .task-card .category-tag {
+  color: var(--ink) !important;
+  background: #33261a !important;
+}
+
+/* 公告提醒原为日间暗黄褐字压深棕底，约 2.4–2.6:1；提高到亮金与米色。 */
+html[data-theme='pixel'][data-mode='night'] .hall-notice .notice-content strong { color: #f0d17a !important; }
+html[data-theme='pixel'][data-mode='night'] .hall-notice .notice-content p { color: #e6d29a !important; }
+
+/* 登录页招牌：夜间把深棕面板再压一点，精灵图标底衬同步 */
+html[data-theme='pixel'][data-mode='night'] .auth-story { background: #1a120b; }
+html[data-theme='pixel'][data-mode='night'] .auth-sprites svg { background: rgba(255, 224, 178, .06); }
+
+/* 组件内硬编码浅色：与上半部分同一批选择器，像素风换成暗木色 */
+html[data-theme='pixel'][data-mode='night'] .announcement-prompt-actions { border-top-color: #4a3a28; background: #2a1f16; }
+html[data-theme='pixel'][data-mode='night'] .kanban-niang .message-list { background: #1c140d; }
+html[data-theme='pixel'][data-mode='night'] .kanban-niang textarea { color: var(--ink); background: #1c140d; border-color: #4a3a28; }
+html[data-theme='pixel'][data-mode='night'] .image-dropzone-files li { background: #2a1f16; }
+html[data-theme='pixel'][data-mode='night'] .pending-note { background: #2a1f16; }
+html[data-theme='pixel'][data-mode='night'] .friend-request-row { background: #2a1f16; }
+html[data-theme='pixel'][data-mode='night'] .friend-rank-card > .friend-rank-placeholder,
+html[data-theme='pixel'][data-mode='night'] .friend-card-placeholder { background: #2c1d26; }
+html[data-theme='pixel'][data-mode='night'] .sugar-photos figure.skeleton-block,
+html[data-theme='pixel'][data-mode='night'] .vrmap-photo-grid figure.skeleton-block { background: #2a1f16; }
+html[data-theme='pixel'][data-mode='night'] .board-comments { background: #2a1f16; }
+
+/* 像素风登录后页面：原日间棕黑文字压在暗木色上，对比度不足。
+   改用亮木色/奶油色；按钮文字保持浅色，避免深底上的图形与文字变暗。 */
+html[data-theme='pixel'][data-mode='night'] .friend-rank-card > p { color: #b79f7c; }
+html[data-theme='pixel'][data-mode='night'] .sugar-card-body .vrc-nickname,
+html[data-theme='pixel'][data-mode='night'] .sugar-card-body em { color: #d8a9ba; }
+html[data-theme='pixel'][data-mode='night'] .stories-grid .story-card .story-body h3 { color: #f0e2c6; }
+html[data-theme='pixel'][data-mode='night'] .create-dialog .story-photo-field > span { color: #f0e2c6; }
+html[data-theme='pixel'][data-mode='night'] .dialog .dialog-heading .eyebrow { color: #f2b85b; }
+
+/* ---------- 4b. 像素风打磨段的长尾浅色 ----------
+   pixel.css 后半段用高特异性的 :is(...):not(...) 重写了输入框，并给卡片、
+   浮层和小按钮补了纸色高光/硬阴影；前面的通用夜间规则压不过这些声明。
+   这里按实际渲染结果收口，避免 #fffdf6 输入框和米白硬阴影重新露出来。 */
+html[data-theme='pixel'][data-mode='night'] :is(
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']):not([type='color']),
+  select,
+  textarea,
+  .search-field,
+  .select-field,
+  .input-with-icon
+) {
+  background: #1c140d;
+  color: var(--ink);
+  border-color: #4a3a28;
+  box-shadow: inset 0 2px 0 #33261a;
+}
+html[data-theme='pixel'][data-mode='night'] :is(
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']):not([type='color']),
+  select,
+  textarea
+):focus,
+html[data-theme='pixel'][data-mode='night'] :is(
+  .search-field, .select-field, .input-with-icon
+):focus-within {
+  border-color: #8f693f;
+  outline-color: #8f693f;
+  box-shadow: inset 0 2px 0 #33261a;
+}
+
+/* 纸面板原 #dcc7a5 / #cbb18b 硬阴影，浮层原 #ead7b2 内沿 + #a98b65 外影。 */
+html[data-theme='pixel'][data-mode='night'] :is(
+  .task-card, .staff-card, .pair-card, .sugar-card,
+  .announcement-item, .announcement-admin-row,
+  .analytics-panel, .user-card, .disclaimer-part,
+  .board-composer, .board-item, .story-card, .maps-card,
+  .hall-notice, .sugar-status, .admin-table-section, .admin-stats
+) { box-shadow: 2px 2px 0 #17100a; }
+html[data-theme='pixel'][data-mode='night'] :is(
+  .task-card, .sugar-card, .story-card, .maps-card,
+  .staff-grid > button.staff-card
+):is(:hover, :focus-visible) { box-shadow: 2px 2px 0 #21170e; }
+html[data-theme='pixel'][data-mode='night'] :is(
+  .dialog, .directory-profile-dialog, .announcement-prompt,
+  .email-gate-card, .kanban-niang .panel,
+  .nav-more-menu, .mobile-panel,
+  .image-lightbox__frame, .tutorial-card
+) {
+  box-shadow: inset 0 0 0 2px #3d2e20, 4px 4px 0 #17100a;
+}
+html[data-theme='pixel'][data-mode='night'] .story-author-btn { box-shadow: 2px 2px 0 #17100a; }
+html[data-theme='pixel'][data-mode='night'] .photo-delete { box-shadow: 0 2px 0 #4a2a2e; }
+
+/* pixel.css 早段中未纳入面板组的独立纸色块（原 #fffdf6）。 */
+html[data-theme='pixel'][data-mode='night'] .kanban-niang .message-bubble,
+html[data-theme='pixel'][data-mode='night'] .upload-limit,
+html[data-theme='pixel'][data-mode='night'] .tutorial-controls button { background: #241a12; }
+html[data-theme='pixel'][data-mode='night'] .image-lightbox__toolbar button,
+html[data-theme='pixel'][data-mode='night'] .image-lightbox__close {
+  background: linear-gradient(180deg, #2e2317 0%, #241a12 100%);
+  color: var(--ink);
+  border-color: #4a3a28;
+}
+
+/* 地图封面容器由组件 scoped 样式写死 #eef1ef；图片加载前会形成 281×130 的亮块。 */
+html[data-theme='pixel'][data-mode='night'] .maps-cover { background: #2a1f16; }
+
+/* 禁用态原 #e5dccb / #ece1cd，夜间改为低饱和暗木色，同时保留可辨识文字。 */
+html[data-theme='pixel'][data-mode='night'] :is(.button, .icon-button, .theme-toggle, .mode-toggle):disabled,
+html[data-theme='pixel'][data-mode='night'] .send-btn:disabled {
+  color: #a99578;
+  background: #2a2118;
+  border-color: #4a3a28;
+}
+html[data-theme='pixel'][data-mode='night'] .photo-delete:disabled {
+  color: #a99578;
+  border-color: #57483a;
+  background: #2a2118;
+}

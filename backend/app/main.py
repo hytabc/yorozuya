@@ -112,6 +112,7 @@ from .schemas import (
     EmailChangeRequest,
     EmailVerifyRequest,
     NotifyEmailUpdate,
+    ThemePreferenceUpdate,
     PasswordResetConfirm,
     RegisterPendingOut,
     AnalyticsEventCreate,
@@ -341,6 +342,11 @@ def migrate_schema() -> None:
                 connection.execute(text("ALTER TABLE users ADD COLUMN pending_email VARCHAR(254)"))
             if "notify_email" not in user_columns:
                 connection.execute(text("ALTER TABLE users ADD COLUMN notify_email BOOLEAN NOT NULL DEFAULT 1"))
+            # 外观偏好：存量账号默认按时间切换（21:00-06:00 夜间），风格留空表示没选过。
+            if "theme_mode" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN theme_mode VARCHAR(16) NOT NULL DEFAULT 'auto'"))
+            if "theme_style" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN theme_style VARCHAR(16)"))
             # SQLite 的 ALTER 不能加唯一约束，因此单独建唯一索引；
             # 唯一索引不限制 NULL，存量账号在被强制补充绑定前 email 为空，彼此不冲突。
             connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (email)"))
@@ -810,6 +816,8 @@ def present_user_self(user: User) -> UserSelf:
         email_verified=user.email_verified,
         pending_email=user.pending_email,
         notify_email=user.notify_email,
+        theme_mode=user.theme_mode or "auto",
+        theme_style=user.theme_style,
         email_gate_required=email_gate_required(user),
         is_admin=user.is_admin,
         is_active=user.is_active,
@@ -1968,6 +1976,27 @@ def update_email_notify(
 ):
     """事件通知邮件开关（账号安全类邮件不受此开关影响）。"""
     user.notify_email = payload.notify_email
+    db.commit()
+    db.refresh(user)
+    return present_user_self(user)
+
+
+@app.patch("/api/users/me/theme", response_model=UserSelf)
+def update_theme_preference(
+    payload: ThemePreferenceUpdate,
+    user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+):
+    """外观偏好（深色模式档位与页面风格）。
+
+    跟着账号落库，换设备或清掉浏览器缓存后依然生效；只传要改的字段，
+    未传的字段保持原值。风格传 null 表示"清除显式选择"，前端回落到本地默认。
+    """
+    fields = payload.model_dump(exclude_unset=True)
+    if "theme_mode" in fields and fields["theme_mode"] is not None:
+        user.theme_mode = fields["theme_mode"]
+    if "theme_style" in fields:
+        user.theme_style = fields["theme_style"]
     db.commit()
     db.refresh(user)
     return present_user_self(user)
