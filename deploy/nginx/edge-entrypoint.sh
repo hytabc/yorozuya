@@ -22,6 +22,10 @@ render() {
     if [ -s "$CERT_DIR/fullchain.pem" ] && [ -s "$CERT_DIR/privkey.pem" ]; then
         echo "edge: 已找到 $DOMAIN 证书，使用 HTTPS 配置"
         envsubst '${DOMAIN}' < "$TEMPLATE_DIR/edge.conf.template" > "$CONF.tmp"
+        # 可选游戏入口与主站共用证书，每次续期 reload 时一并更新。
+        if [ -f "$TEMPLATE_DIR/ff14.conf.template" ]; then
+            envsubst '${DOMAIN}' < "$TEMPLATE_DIR/ff14.conf.template" >> "$CONF.tmp"
+        fi
     else
         echo "edge: 未找到 $DOMAIN 证书，临时使用 HTTP 引导配置（仅 ACME 挑战可用）"
         envsubst '${DOMAIN}' < "$TEMPLATE_DIR/edge-bootstrap.conf.template" > "$CONF.tmp"

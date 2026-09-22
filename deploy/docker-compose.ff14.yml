@@ -1,0 +1,15 @@
+# 在万事屋根目录叠加使用；完整步骤见 deploy/ff14-https.md。
+services:
+  edge:
+    ports:
+      - "19999:19999"
+    volumes:
+      - ./deploy/nginx/ff14.conf.template:/etc/nginx/templates/ff14.conf.template:ro
+    networks:
+      - default
+      - ff14_https
+
+networks:
+  ff14_https:
+    external: true
+    name: yorozuya-ff14-https
