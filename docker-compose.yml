@@ -86,6 +86,11 @@ services:
   frontend:
     build: ./frontend
     restart: unless-stopped
+    # edge 同时连接游戏网络时，不能使用两项目共有的 frontend 服务名。
+    networks:
+      default:
+        aliases:
+          - yorozuya-web
     # 仅供 edge 在内网访问，不映射宿主机端口（开发直连见 docker-compose.dev.yml）。
     expose:
       - "80"
