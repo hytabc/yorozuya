@@ -80,10 +80,11 @@ for container_id in $(docker ps -q --no-trunc --filter publish=19999); do
     [ "$container_id" = "$EDGE_ID" ] || [ "$container_id" = "$GAME_ID" ] \
         || fail "19999 已被其他容器占用：$container_id。"
 done
-# 从本机 443 验证现有正式证书、SNI 和主站后端；不跳过证书校验。
-curl --noproxy '*' --fail --silent --show-error --connect-timeout 5 --max-time 15 \
+# 此处仅检查 TLS：旧版 DNS 冲突可能让主站接口已不可用，不能阻止修复。
+# 不使用 --fail，允许当前错误上游返回 404/502；证书校验仍然开启。
+curl --noproxy '*' --silent --show-error --connect-timeout 5 --max-time 15 \
     --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/api/health" >/dev/null \
-    || fail "主站 HTTPS/证书检查失败，尚未修改部署。"
+    || fail "现有入口 TLS/证书检查失败，尚未修改部署。"
 
 log "2/5 创建共享网络并保存自动加载配置"
 docker network inspect yorozuya-ff14-https >/dev/null 2>&1 \
@@ -100,20 +101,62 @@ on_exit() {
     fi
 }
 trap on_exit EXIT
-log "3/5 游戏前端加入内网并释放旧 HTTP 端口"
+log "3/5 应用主站专用网络别名，游戏前端加入内网"
+# 必须先更新主站 frontend 的网络别名，再启动引用新别名的 edge。
+main_compose up -d --no-deps frontend
 game_compose up -d --no-deps frontend
 log "4/5 edge 接管 19999 HTTPS（主站连接会短暂中断）"
 main_compose up -d --no-deps --force-recreate edge
 
-log "5/5 等待 HTTPS 与游戏后端就绪（最多约 90 秒）"
+check_endpoint() {
+    port=$1
+    endpoint=$2
+    kind=$3
+    body=$(curl --noproxy '*' --fail --silent --show-error --connect-timeout 2 --max-time 3 \
+        --resolve "$DOMAIN:$port:127.0.0.1" "https://$DOMAIN:$port$endpoint") || {
+        log "$port$endpoint 请求失败" >&2
+        return 1
+    }
+    # SPA 回退页也会返回 200，必须解析响应内容，不能只看状态码。
+    printf '%s' "$body" | python3 -c '
+import json, sys
+kind = sys.argv[1]
+raw = sys.stdin.read()
+try:
+    if kind == "game-frontend":
+        valid = raw.strip() == "ok"
+    else:
+        data = json.loads(raw)
+        valid = (data == {"status": "ok"} if kind == "main" else
+                 data == {"status": "ok", "service": "eorzea-idle-backend"})
+except (ValueError, TypeError):
+    valid = False
+sys.exit(0 if valid else 1)
+' "$kind" || {
+        log "${port}${endpoint} 返回内容不属于预期服务 ${kind}（可能代理串站）" >&2
+        return 1
+    }
+}
+check_redirect() {
+    port=$1
+    expected=$2
+    actual=$(curl --noproxy '*' --silent --show-error --connect-timeout 2 --max-time 3 \
+        --resolve "$DOMAIN:$port:127.0.0.1" -o /dev/null -w '%{http_code} %{redirect_url}' \
+        "http://$DOMAIN:$port/") || return 1
+    [ "$actual" = "301 $expected" ] || {
+        log "$port HTTP 跳转异常：$actual" >&2
+        return 1
+    }
+}
+
+log "5/5 检查主站和游戏的服务身份、HTTPS 与 HTTP 跳转（最多约 2 分钟）"
 ready=0
 for attempt in 1 2 3 4 5 6; do
-    if curl --noproxy '*' --fail --silent --connect-timeout 2 --max-time 3 \
-        --resolve "$DOMAIN:19999:127.0.0.1" "https://$DOMAIN:19999/healthz" >/dev/null \
-        && curl --noproxy '*' --fail --silent --connect-timeout 2 --max-time 3 \
-        --resolve "$DOMAIN:19999:127.0.0.1" "https://$DOMAIN:19999/health" >/dev/null \
-        && curl --noproxy '*' --fail --silent --connect-timeout 2 --max-time 3 \
-        --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/api/health" >/dev/null; then
+    if check_endpoint 443 /api/health main \
+        && check_endpoint 19999 /healthz game-frontend \
+        && check_endpoint 19999 /health game-backend \
+        && check_redirect 80 "https://$DOMAIN/" \
+        && check_redirect 19999 "https://$DOMAIN:19999/"; then
         ready=1
         break
     fi

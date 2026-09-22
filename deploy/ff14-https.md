@@ -5,6 +5,24 @@
 TLS 证书验证域名而非端口，直接使用万事屋已有正式证书，无需重新签发或复制私钥。
 edge 的定时 reload 会同时加载主站和游戏的新证书。游戏联机 WebSocket 自动使用 WSS。
 
+## 修复旧版主站显示游戏的问题
+
+旧版 edge 同时连接主站与游戏网络，两个 Compose 项目均自动注册 `frontend` DNS 名，
+导致 443 的 `proxy_pass http://frontend:80` 可能落到游戏容器。
+当前版本将主站上游固定为仅在主站网络注册的 `yorozuya-web`，游戏仍使用 `ff14-frontend`。
+80 只跳转到主站 443，19999 独立服务游戏。
+
+服务器已运行过旧版脚本时，**同步更新根目录 `docker-compose.yml` 以及整个 `deploy/` 目录**，
+不能只替换脚本。保留服务器现有 `.env` 与两个 `docker-compose.override.yml`，然后重跑：
+
+```sh
+sh /home/admin/web/yorozuya/deploy/enable-ff14-https.sh
+```
+
+脚本兼容旧版生成的覆盖文件，会先更新主站前端网络别名，再重建 edge。
+主站当前返回游戏页面或 HTTP 404/502 不会阻止修复，只要入口 TLS 证书仍有效即可。
+修复后检查服务响应内容与两个 HTTP 跳转目标；游戏首页返回 200 不再会被当成主站健康。
+
 ## 已部署服务器切换
 
 要求 Docker Compose >= 2.24.4（使用 `!reset` 清除旧端口映射），主站 HTTPS 证书有效。
@@ -19,9 +37,10 @@ sh /home/admin/web/yorozuya/deploy/enable-ff14-https.sh
 `.env` 中的 `DOMAIN`，不需要再次填写域名。要求服务器有 `docker`、`python3` 和 `curl`。
 如游戏在其他目录，可使用 `FF14_DIR=/其他路径/FF14Push sh deploy/enable-ff14-https.sh`。
 
-脚本会先校验 Compose 版本、两套配置、运行中的容器、19999 容器端口占用，以及主站正式证书和健康接口。
+脚本会先校验 Compose 版本、两套配置、运行中的容器、19999 容器端口占用，以及入口正式证书。
 检查通过后创建共享网络，在两个项目根目录各保存 `docker-compose.override.yml`，
-重建游戏前端以释放旧 HTTP 端口，再重建 edge 接管 19999，最后校验主站、游戏前端及游戏后端的 HTTPS。
+更新主站前端网络别名、重建游戏前端以释放旧 HTTP 端口，再重建 edge 接管 19999，
+最后校验主站、游戏前端及游戏后端的 HTTPS 响应内容，以及 80/19999 的 HTTP 跳转目标。
 不构建镜像，不重建游戏数据库或后端。可重复运行；若存在不同内容的覆盖文件则停止，避免覆盖部署定制。
 需保留原 Compose 项目名；若原来通过 `-p` 指定项目名，应在各自 `.env` 中设置相应 `COMPOSE_PROJECT_NAME`。
 
