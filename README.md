@@ -4,7 +4,7 @@
 
 ## 功能
 
-- 用户注册、登录与 JWT 会话；登录会话有效期为 24 小时，超过后需重新验证密码；登录时可勾选**自动登录**，勾选后 7 天内免登录（令牌有效期硬上限 7 天，改密或管理员重置密码会立即使其失效）；升级前浏览器遗留的登录缓存会自动失效；权限等级包括普通用户（默认，凭正确密码可接取带密码委托）、志愿者（可接取全部委托）与管理员（拥有志愿者权限并可管理用户等级、处理反馈）
+- 用户注册、登录与 JWT 会话；登录会话有效期为 24 小时，超过后需重新验证密码；升级前浏览器遗留的登录缓存会自动失效；权限等级包括普通用户（默认，凭正确密码可接取带密码委托）、志愿者（可接取全部委托）与管理员（拥有志愿者权限并可管理用户等级、处理反馈）
 - 超级管理员（监管台账号）可设置普通用户、志愿者与管理员；管理员只能把非管理员账号设置为普通用户或志愿者，不能授予管理员权限
 - 发布委托时可选**有偿/无偿**、设置**需要几人接取**（1 人至不限人数）及固定有效期（1、2、3、5、10 天），并选择密码接取或无密码公开接取；选择无密码时会显示风险提示
 - 发布委托时可选**匿名发布**：大厅中不公开昵称与个人资料，仅显示标题和内容；接取后联系方式仅委托人与接单人双方可见
@@ -20,10 +20,9 @@
 - 成员名录和委托详情支持查看用户图片；管理员及超级管理员可在后台屏蔽或恢复不适合展示的图片
 - 砂糖社：登记带照片的公开档案，查看卡片后通过仅对查看双方开放的 QQ 线下交流；双方确认后成为砂糖，任一方可结束关系，展示维持最久的前三对（含已结束记录）
 - 交友厅：登记个人介绍与最多 5 张经审核照片，发起好友申请并查看好友数量排行榜
-- 故事会：登录用户可发布匿名或公开的故事，同一人可写多篇；可附最多 3 张配图（单张不超过 10 MB），配图经管理员审核后公开；其他用户可评论，评论由评论者本人或故事作者删除，故事由作者本人或管理员删除
 - 管理员统计、委托隐藏与恢复；隐藏原因对相关用户可见
 - 看板娘「小白」：PC 端左上角常驻的站内 AI 助手，可聊天、答疑，自带倾听与心理支持模式（可配置，见下文）
-- Docker Compose 一键部署：边缘 Nginx 终止 HTTPS（HTTP 强制跳转 + HSTS），Let's Encrypt 证书自动续期
+- Docker Compose 一键部署与 FRP TCP 内网穿透
 
 ## 🤖 看板娘「小白」（可选 AI 助手）
 
@@ -53,43 +52,10 @@ MASCOT_MODEL=kimi-k2.7-code-highspeed
 - 人设与开场白修改：后端 `backend/app/mascot.py` 的 `PERSONA`、前端 `frontend/src/components/KanbanNiang.vue`
 - 会向模型发送最近的 16 条消息；本功能**不读取数据库**，不会泄露任何委托/用户数据
 
-## 登录/注册人机验证
-
-登录与注册默认启用 **Cloudflare Turnstile**，用于拦截暴力破解与批量注册。四种方式由 `CAPTCHA_PROVIDER` **互斥切换**，所有配置都在项目根目录 `.env`：
-
-```env
-CAPTCHA_ENABLED=true
-CAPTCHA_PROVIDER=turnstile
-TURNSTILE_SITE_KEY=0x4AAAAAAEwPP7x-AwVA_SVE
-TURNSTILE_SECRET_KEY=你的secret
-```
-
-| 配置 | 含义 |
-|---|---|
-| `CAPTCHA_ENABLED` | `false` 则登录/注册不再要求验证码（不推荐生产环境关闭） |
-| `CAPTCHA_PROVIDER` | `turnstile`（Cloudflare，推荐）、`builtin`（站内字符图形验证码）、`click`（站内点击图形验证码）或 `vaptcha`（VAPTCHA V4），四者互斥 |
-| `CAPTCHA_CLICK_TARGETS` | `click` 需要依次点击的目标数量（2..4，默认 3） |
-| `CAPTCHA_CLICK_MIN_SECONDS` | `click` 从出题到提交的最短间隔（秒，默认 0.5），过快视为脚本 |
-| `TURNSTILE_SITE_KEY` | Turnstile 公开 Site Key（可入库） |
-| `TURNSTILE_SECRET_KEY` | Turnstile Secret Key，**只能放服务端**；必填，否则校验永远失败 |
-| `VAPTCHA_VID` | VAPTCHA V4 公开 VID（可入库） |
-| `VAPTCHA_VKEY` | VAPTCHA V4 私钥，**只能放服务端**；必填，服务端用它本地验签 |
-| `VAPTCHA_TOKEN_TTL_SECONDS` | VAPTCHA token 本地验签有效期（秒，默认 30，官方窗口同为 30s） |
-
-注意事项：
-
-- 在 Cloudflare Turnstile 控制台把实际访问域名加入 Widget 的 **Allowed domains**（本地开发记得加 `localhost`），否则组件会报域名不匹配。
-- 未配置 `TURNSTILE_SECRET_KEY` 时登录/注册会返回“人机验证未正确配置”；本地可用官方测试密钥 `1x0000000000000000000000000000000AA`（恒定通过）。
-- 选择 `builtin` 时无需第三方服务，后端用 Pillow 生成字符图形验证码；Turnstile token 为一次性，校验失败后前端会自动重新挑战。
-- 选择 `click` 时同样无需第三方：后端用 Pillow 生成含随机颜色/形状/大小图形的图片，题面要求**按顺序点击**指定目标（例：`请按顺序依次点击：红色的圆形（小）、蓝色的三角形（中）…`）。**答案（目标坐标）只存服务端**，接口只下发图片与题面，前端回传归一化点击坐标；挑战一次性（提交即作废）、限时、限流，并有最短解题耗时与坐标容差检查。
-- 选择 `vaptcha` 时前端加载官方 SDK（`c4.vaptcha.com/src/v4.js`），用户完成手势/AI 验证后把 `token/knock/dfu/ip` 提交给后端；后端用 `VKEY` **本地 HMAC-SHA256 验签**（不外呼官方接口），配合短 TTL 与一次性 token 缓存防重放。`VKEY` 绝不下发到前端；未配置 `VAPTCHA_VID`/`VAPTCHA_VKEY` 时会自动回落到 `builtin`。
-
 ## Docker Compose 部署
 
 默认部署会在构建镜像时将 Vue 前端编译为静态文件，并由 Nginx 提供服务及代理 `/api`。
 浏览器首次访问不再等待 Vite 实时转换模块，静态资源也可直接缓存。
-
-对外入口是 `edge` 容器（终止 TLS + 强制 HTTPS）；`frontend`、`backend` 只在内网互通，不映射宿主机端口。
 
 1. 创建环境配置：
 
@@ -106,82 +72,33 @@ TURNSTILE_SECRET_KEY=你的secret
    openssl rand -hex 32
    ```
 
-3. 在 `.env` 中配置域名、证书邮箱与页脚备案号：
-
-   ```env
-   DOMAIN=example.com
-   LETSENCRYPT_EMAIL=you@example.com
-   CORS_ORIGINS=
-   SITE_ICP=
-   ```
-
-   > ⚠️ 真实域名与备案号属于私有信息，**只写进 `.env`**（已被 `.gitignore` 忽略）。
-   > 不要写进 `.env.example`、compose、README 等任何会提交到仓库的文件。
-
-   同时确认该域名的 A/AAAA 记录已指向本机公网 IP，且云厂商安全组与主机防火墙已放行
-   **80 与 443**（80 用于 ACME 挑战与跳转，不可关闭）。
-
-4. 准备数据目录并授予容器用户写权限（**必须在首次启动前执行**，从旧版本升级时同样要执行一次）：
+3. 启动（首次或重新部署）：
 
    ```bash
-   mkdir -p backend/data
-   chown -R 10001:10001 backend/data
+   docker compose up -d --build
    ```
 
-   `backend/data` 被绑定挂载为容器内的 `/data`，而后端容器以非 root 用户（UID 10001）运行。
-   跳过这一步容器会起不来并反复重启，日志里是：
+   浏览器访问 `http://localhost:<WEB_PORT>`（默认 `8080`）。首次启动会自动创建 `.env` 中配置的管理员账号。
 
-   ```
-   PermissionError: [Errno 13] Permission denied: '/data/private_media'
-   ```
-
-   之后新增的数据库、备份与上传文件都由该用户创建，无需再改权限。
-
-5. 首次申请证书并启动：
-
-   ```bash
-   ./deploy/init-letsencrypt.sh
-   ```
-
-   脚本会先以「仅 HTTP」引导模式拉起 `edge`（同时启动 `frontend` 与 `backend`），校验 ACME 挑战目录可达后，
-   通过 HTTP 挑战向 Let's Encrypt 申请正式证书，最后重启 `edge` 切换为 HTTPS。
-
-   为避免反复调试触发 Let's Encrypt 速率限制，可先用 staging 试跑：
-
-   ```bash
-   CERTBOT_STAGING=1 ./deploy/init-letsencrypt.sh
-   ```
-
-   确认无误后把 `.env` 的 `CERTBOT_STAGING` 改回 `0` 并重新执行，换成浏览器信任的正式证书。
-
-   浏览器访问 `https://<你的域名>`（即 `.env` 里的 `DOMAIN`）。首次启动会自动创建 `.env` 中配置的管理员账号。
-
-   - 数据持久化：整个 `backend/data/` 绑定挂载到容器 `/data` —— 数据库 `wsw.db`、自动快照 `backups/`、
-     已过审的公开图片 `uploads/`、待审的私有图片 `private_media/` 都在其中（该目录已被 `.gitignore` 忽略）。
-     详情见下方「数据存储与备份」；
+   - 数据持久化：数据库通过绑定挂载保存在宿主机 `backend/data/wsw.db`，用户资料及砂糖社上传图片保存在同目录的 `backend/data/uploads/`
+     （该目录已被 `.gitignore` 忽略）。详情见下方「数据存储与备份」；
    - 部署代码更新后，运行 `docker compose up -d --build` 重新生成静态文件和镜像；
-   - 证书已存在时可直接用 `docker compose up -d --build` 启动或更新，无需再跑初始化脚本；
    - 前端入口不缓存，带内容哈希的 JS/CSS 长期缓存，更新部署后浏览器会加载新版本。
 
-### HTTPS 与证书续期
+4. 启用 FRP 内网穿透（可选）：先在 `.env` 填写 `FRP_SERVER_ADDR`、`FRP_TOKEN` 和远端端口，再运行：
 
-公网入口是 `edge`（配置模板 `deploy/nginx/edge.conf.template`）：80 端口只处理 ACME 挑战并 301 跳转 HTTPS，
-443 终止 TLS 后转发给内网 `frontend`，并附加 `Strict-Transport-Security` 等安全响应头。
+   ```bash
+   docker compose --profile tunnel up -d
+   ```
 
-- **自动续期**：`certbot` 容器常驻，每 12 小时执行一次 `certbot renew`。Let's Encrypt 证书有效期 90 天，
-  certbot 只在到期前 30 天内真正续期，因此大多数轮次是空跑，属正常现象。
-- **新证书生效**：`edge` 容器内每 6 小时重新渲染配置并 `nginx -s reload`，加载续期后的证书（不依赖 docker socket）。
-- **证书缺失时的行为**：`edge` 会自动切到「仅 HTTP」引导配置（只放行 ACME 挑战，其余请求返回 503），
-  不会崩溃重启；重新签发证书后重启 `edge` 即恢复 HTTPS。
-- **手动检查续期链路**：`docker compose exec certbot certbot renew --dry-run`
-- **强制重签**：删除 `deploy/certbot/conf/live/<域名>`、`archive/<域名>`、`renewal/<域名>.conf` 后，
-  重新执行 `./deploy/init-letsencrypt.sh`。
-- **证书存放**：宿主机 `deploy/certbot/conf/`（已在 `.gitignore` 中忽略，**含私钥，注意权限与备份**）。
-- **排查思路**：签发失败多半是 80 端口不通或 DNS 未生效，可先 `curl -I http://<你的域名>/.well-known/acme-challenge/测试文件` 验证；
-  仓库中的 `deploy/certbot/www/` 就是 webroot 目录，可放个测试文件自测。
-  触发速率限制时改用 `CERTBOT_STAGING=1` 试跑。
+   `frpc`（仅该 profile 启动）会把远端 `FRP_REMOTE_PORT` 转发到前端容器的 80 端口。
+   对应的 `frps` 服务端需允许该 TCP 端口。
 
 ## Docker Compose 热部署开发
+
+已通过 edge 部署 HTTPS 的服务器，如需为同级目录 `FF14Push` 的 19999 端口复用证书，可运行
+`sh /home/admin/web/yorozuya/deploy/enable-ff14-https.sh`。
+脚本读取现有 `.env` 并保存自动加载的部署配置，详见 [FF14Push HTTPS 接入](deploy/ff14-https.md)。
 
 开发时叠加 `docker-compose.dev.yml`，即可保留原来的源码同步和页面自动刷新能力：
 
@@ -192,8 +109,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 - 后端挂载 `./backend/app` 并通过 `uvicorn --reload` 运行，Python 文件变化后自动重载；
 - 前端挂载 `./frontend` 并通过 Vite 运行，Vue、JavaScript、CSS 等文件变化后通过 HMR
   自动更新页面；`/api` 代理到 Compose 网络内的后端；
-- 访问地址为 `http://localhost:<WEB_PORT>`（默认 `8080`）。该模式**只有明文 HTTP**（`edge`/`certbot` 已通过 profile 排除），
-  仅供本机开发，绝不可用于公网；
+- 访问地址仍为 `http://localhost:<WEB_PORT>`（默认 `8080`）；
 - `node_modules` 保留在容器卷中，避免宿主机与 Linux 容器的依赖不兼容；
 - 修改依赖清单后需要再次加 `--build`，只改源码无需重建镜像。
 
@@ -274,105 +190,19 @@ start.bat test
 
 ## 安全说明
 
-- **会话令牌**：JWT 有效期 24 小时；浏览器端以 Web Crypto AES-GCM 加密后存入 localStorage（键名 `wsw_auth`），密钥为不可导出的 `CryptoKey` 存于 IndexedDB，不再明文落盘；修改密码会自增令牌版本，旧密码签发的所有登录立即失效。
+- **会话令牌**：JWT 存于浏览器 localStorage，有效期 24 小时；修改密码会自增令牌版本，旧密码签发的所有登录立即失效。
 - **密码**：PBKDF2-HMAC-SHA256（31 万次迭代）；自助改密必须验证当前密码；超级管理员重置密码后对方需重新登录。
 - **登录限流**：登录（按来源 IP 与账号双维度）、注册、带密码委托接取、看板娘对话、反馈提交均有滑动窗口限流，超限返回 429。
-- **人机验证**：登录/注册默认要求 Cloudflare Turnstile（可切换站内字符 / 点击图形验证码，或 VAPTCHA V4），服务端通过 siteverify / 站内答案 / VAPTCHA 本地 HMAC 兜底校验，失败一律拒绝；站内点击验证码的答案只存服务端、挑战一次性、限时限流，VAPTCHA 的 `VKEY` 只存服务端并对 token 做防重放，配置见「登录/注册人机验证」。
 - **权限校验**：前端所有权限标记（`auth.isAdmin`/`auth.role`/`canModerate` 等）都带 `verified` 前缀，
   只有服务端响应（登录/注册或 `/auth/me`）才能置为可信；路由与页面会先向服务端复核身份。
-  因此即便手工改写本地缓存也无法让界面误认为自己拥有管理员权限（后端对每个接口独立鉴权）。
+  因此手工改写 localStorage 中的 `wsw_user` 也无法让界面误认为自己拥有管理员权限（后端对每个接口独立鉴权）。
 - **拒绝越权字段**：请求模型启用 `extra="forbid"`，请求体夹带 `role`/`is_admin` 等额外字段会返回 422；
   `is_admin` 无法通过任何接口写入，只有超级管理员能通过 `PATCH /admin/users/{id}/role` 调整 `staff`/`mascot`/`disciplinarian`。
-- **上传与文件**：图片会先按文件头校验真实类型，再用 Pillow **真正解码**一次后重新编码：
-  按拍摄方向摆正、剥离 EXIF/GPS 等全部元数据、限制单张像素（约 25 MP，先看文件头再解码，挡下压缩炸弹）
-  与长边（2560 px）、动图只保留首帧；文件名由服务端生成 UUID。
+- **上传与文件**：图片按文件头校验真实类型、由服务端生成 UUID 文件名，头像/实拍等需审核后才公开；
   上传目录与数据库目录强制隔离，避免 `wsw.db` 与备份被静态托管下载。
-- **待审媒体受控访问**：媒体分两个区 —— 已过审的文件在公开区 `backend/data/uploads/`，由 `/uploads` 按数据库可见性提供，磁盘残留副本不会绕过审核；
-  待审与被屏蔽的文件落在**公开目录之外**的 `backend/data/private_media/`，只能通过短时签名地址
-  `/api/media/<key>?exp=&sig=` 访问（`<img>` 带不了 Bearer 令牌，所以签名即访问控制，默认有效期 6 小时）。
-  审核通过时文件搬进公开区，驳回/屏蔽时搬回私有区；搬移和删除失败返回 503，不提交成功状态。
-  公开和签名媒体均使用 `Cache-Control: no-store`；已被下载的文件无法远程撤回。
-  升级到本版本时后端会在启动阶段做一次对账，把历史遗留的"已屏蔽但仍在公开区"的文件搬进私有区。
-- **响应头**：Nginx 统一附加 `X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`，
-  并下发 `Content-Security-Policy`（`default-src 'self'`，仅额外放行 Cloudflare Turnstile）；
-  `/uploads/` 与 `/api/media/` 额外带 `default-src 'none'; sandbox`，使任何被直接打开的上传文件都无法作为页面执行。
-- **传输加密**：对外入口 `edge` 已内置 HTTPS（Let's Encrypt 自动续期）、HTTP 强制跳转与 HSTS，
-  令牌与密码不再明文过网。部署时务必按上文配置 `DOMAIN` 与证书，不要绕过 `edge` 直接把前端/后端暴露到公网。
-- **运行面加固**：`backend` 容器以非 root（UID 10001）运行，根文件系统只读、`/tmp` 为内存盘、丢弃全部 Linux
-  capability 并禁止提权；`frontend`/`edge` 为只读根文件系统 + 内存临时目录（`edge` 的 `/etc/nginx/conf.d`
-  必须挂 tmpfs，entrypoint 要写入渲染后的配置）。开发覆盖文件 `docker-compose.dev.yml` 会显式取消只读，
-  仅用于本机且不可用于公网。
-- **生产建议**：务必在 `.env` 设置足够随机的 `SECRET_KEY` 与强 `ADMIN_PASSWORD`。
-
-## 邮箱验证与邮件通知
-
-本站用邮箱做账号体系的一部分：注册必须验证邮箱、存量账号登录后强制补充绑定、可以用邮箱找回密码与换绑邮箱。
-登录只靠「密码 + 人机验证」，**不再发送登录邮箱验证码**（避免每次登录都消耗邮件额度）。
-邮件通过 **SMTP 服务商发送（示例配置为阿里云邮件推送）**。
-
-### 功能一览
-
-| 场景 | 行为 |
-|---|---|
-| 注册 | 必须填邮箱；注册成功后**不会直接登录**，需点击邮件里的验证链接 |
-| 登录 | 登录名支持「用户名」或「邮箱」；通过密码与人机验证后直接登录，无需邮箱验证码 |
-| 存量账号 | 旧账号没有邮箱，登录后会被强制要求绑定并验证；未完成前除「绑定邮箱 / 改密码 / 浏览」外的写操作都会被拒绝 |
-| 忘记密码 | 用用户名或邮箱申请重置链接（30 分钟有效、一次性）；重置后所有旧登录立即失效 |
-| 换绑邮箱 | 首次绑定和换绑都需当前密码；新地址确认后生效，旧登录与邮箱操作链接全部失效，需重新登录；旧邮箱会收到提醒 |
-| 事件通知 | 委托被接取/开始/完成/取消、委托被隐藏、反馈收到回复、志愿者与内测申请审核结果 |
-
-通知邮件只发给「已验证邮箱 + 未关闭通知开关」的账号，正文不含 QQ 等联系方式。
-公告类**不做群发**（会按用户数消耗邮箱配额且有滥用风险）。
-
-### 配置（阿里云邮件推送示例）
-
-1. 阿里云控制台 → **邮件推送 → 发信域名**：添加你的发信域名（如 `mail.example.com`），按其提示配置 DNS（TXT 所有权验证 + SPF）。
-2. **发信地址**：创建发信地址（如 `no-reply@mail.example.com`，类型选**触发邮件**），并设置该地址的 **SMTP 密码**。
-3. 把凭据写进根目录 `.env`（**该文件已被 `.gitignore` 忽略，密钥绝不要写进任何入库文件**）：
-
-   ```bash
-   EMAIL_DELIVERY=smtp
-   SMTP_HOST=smtpdm.aliyun.com
-   SMTP_PORT=465
-   SMTP_ENCRYPTION=ssl          # 465 用 ssl；若改用 80/25 端口则设为 starttls 或 none
-   SMTP_USERNAME=no-reply@mail.example.com   # 阿里云的用户名就是发信地址
-   SMTP_PASSWORD=你的-SMTP密码
-   EMAIL_FROM_ADDRESS=no-reply@mail.example.com
-   EMAIL_FROM_NAME=万事屋委托站
-   SITE_BASE_URL=https://example.com   # 替换为实际站点来源；生产必填 HTTPS，不从 Host 推导
-   ```
-
-   `SMTP_ENCRYPTION` 可选 `ssl`（465，直接 TLS）/ `starttls`（80/25，先明文再升级）/ `none`（不加密）。
-   阿里云 ECS 默认封禁 25 端口：**不加密用 80，加密用 465**。
-
-4. `docker compose up -d --build` 重启后端使配置生效。
-
-直接在本机开发需设置 `SITE_BASE_URL=http://localhost:5173`；Compose 开发覆盖文件使用本机 WEB_PORT。生产代理部署缺失来源或使用 HTTP 会拒绝启动。
-
-本地开发不想配 SMTP 时，设 `EMAIL_DELIVERY=log`：邮件不会真的发出，而是打印到后端日志里（可直接复制验证链接）。
-
-### 策略开关
-
-| 变量 | 默认 | 说明 |
-|---|---|---|
-| `REQUIRE_EMAIL_VERIFICATION` | `true` | 未验证邮箱是否封锁写操作 |
-| `NOTIFY_EMAIL_ENABLED` | `true` | 事件通知邮件总开关 |
-| `EMAIL_VERIFICATION_TTL_HOURS` | `24` | 验证/换绑链接有效期 |
-| `PASSWORD_RESET_TTL_MINUTES` | `30` | 重置密码链接有效期 |
-| `EMAIL_SEND_COOLDOWN_SECONDS` | `60` | 同一账号同一用途的最小发信间隔 |
-
-> 登录只靠「密码 + 人机验证」，不再发送登录邮箱验证码，避免每次都消耗邮件额度。
-
-### ⚠️ 被锁住时的救援步骤
-
-邮件服务出问题时（授权码失效、发件地址被拒收、配额用尽），会影响注册、邮箱验证与找回密码。
-**超级管理员（`is_admin`）不受验证闸门限制**，可直接登录后台处理日常事务（登录不依赖邮箱验证码）。若大量存量用户被卡在邮箱验证上，可临时 `REQUIRE_EMAIL_VERIFICATION=false` 放行写操作，修好后再改回 `true`。
-
-### 相关约定
-
-- 邮件里的链接令牌**只以哈希入库**（`email_tokens` 表），同时绑定账号凭证版本，一次性、限时；改密和邮箱变更会撤销旧链接。升级时旧格式未使用邮件链接作废，需重新申请；
-- 重置密码等同确认了邮箱控制权，因此会把该邮箱标记为已验证，并使全部旧会话失效；
-- 「账号是否存在」不会被泄露：重发验证信与申请重置密码接口对不存在的账号同样返回成功。
+- **响应头**：Nginx 统一附加 `X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`。
+- **生产建议**：务必在 `.env` 设置足够随机的 `SECRET_KEY` 与强 `ADMIN_PASSWORD`；对外建议在 Nginx 前增加 HTTPS（如 Let's Encrypt），
+  当前示例仅监听 80 端口，令牌与密码在链路上为明文。
 
 ## 数据存储与备份
 
@@ -408,18 +238,3 @@ docker compose up -d
 ```
 
 > 卷名通常是 `仓库名_wsw_data`，可用 `docker volume ls | grep wsw` 确认后再替换上文的卷名。
-
-## 安全审计与上线
-
-2026-09 安全问题、修复证据、剩余限制及部署/回滚步骤见 [安全审计清单](docs/security-audit.md)。
-
-后端测试在导入应用之前自动隔离数据库与媒体目录，邮件仅写测试信箱。使用 Python 3.12 安装 `backend/requirements.txt` 后执行：
-
-```bash
-cd backend
-.venv/bin/python -m pytest tests -q
-.venv/bin/python -m pip check
-.venv/bin/python scripts/audit_dependencies.py
-```
-
-依赖审计只查询 PyPI 包名和版本（包括当前虚拟环境的传递依赖），查询失败会返回非零；结果不等价于容器操作系统扫描。前端验证使用 `npm run build`、`node --test tests/*.test.mjs` 和 `npm audit`。

@@ -1,4 +1,6 @@
 .env
+# 一键 HTTPS 脚本生成的服务器本地 Compose 覆盖配置
+/docker-compose.override.yml
 *.db
 backend/data/
 backend/.venv/
