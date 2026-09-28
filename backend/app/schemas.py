@@ -648,8 +648,9 @@ class OperationsSummary(BaseModel):
 class SugarPhotoOut(BaseModel):
     id: int
     image_url: str
-    # is_visible=False 的照片仅主人和管理员组会收到；admin_note 为屏蔽理由
+    # is_visible=False 的照片仅主人和管理员组会收到；moderated 为空表示待审核，admin_note 为屏蔽理由
     is_visible: bool = True
+    moderated: bool = False
     admin_note: str | None = None
 
 
@@ -657,6 +658,7 @@ class SugarPhotoAdminOut(ApiModel):
     id: int
     image_url: str
     is_visible: bool
+    moderated: bool = False
     admin_note: str | None = None
     created_at: datetime
     user: UserPublic
