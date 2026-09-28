@@ -1011,6 +1011,46 @@ def test_sugar_club_profiles_pairing_and_ranking(tmp_path, monkeypatch):
         assert after_end == []
 
 
+def test_sugar_pair_request_can_be_cancelled(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "sugar_upload_dir", str(tmp_path / "uploads"))
+    with TestClient(app) as client:
+        alice = auth(client, "sugar_cancel_a")
+        bob = auth(client, "sugar_cancel_b")
+        carol = auth(client, "sugar_cancel_c")
+        alice_id = register_sugar_profile(client, alice)["user"]["id"]
+        bob_id = register_sugar_profile(client, bob)["user"]["id"]
+        register_sugar_profile(client, carol)
+
+        # 发起人提交申请 → pending
+        pending = client.post(f"/api/sugar/pairs/{bob_id}/confirm", headers=alice)
+        assert pending.status_code == 201, pending.text
+        assert pending.json()["status"] == "pending"
+        pair_id = pending.json()["id"]
+        assert [pair["id"] for pair in client.get("/api/sugar/pairs/mine", headers=alice).json()] == [pair_id]
+
+        # 无关第三人不能取消
+        assert client.post(f"/api/sugar/pairs/{pair_id}/cancel", headers=carol).status_code == 403
+
+        # 发起人撤回 → 204，申请从双方列表消失；再取消 → 404
+        removed = client.post(f"/api/sugar/pairs/{pair_id}/cancel", headers=alice)
+        assert removed.status_code == 204, removed.text
+        assert client.get("/api/sugar/pairs/mine", headers=alice).json() == []
+        assert client.get("/api/sugar/pairs/mine", headers=bob).json() == []
+        assert client.post(f"/api/sugar/pairs/{pair_id}/cancel", headers=alice).status_code == 404
+
+        # 被邀请方也可拒绝收到的申请
+        invited = client.post(f"/api/sugar/pairs/{alice_id}/confirm", headers=bob)
+        assert invited.status_code == 201 and invited.json()["status"] == "pending"
+        declined = client.post(f"/api/sugar/pairs/{invited.json()['id']}/cancel", headers=alice)
+        assert declined.status_code == 204, declined.text
+
+        # 进行中的关系不能被「取消」，只能结束
+        client.post(f"/api/sugar/pairs/{bob_id}/confirm", headers=alice)
+        active = client.post(f"/api/sugar/pairs/{alice_id}/confirm", headers=bob)
+        assert active.status_code == 201 and active.json()["status"] == "active"
+        assert client.post(f"/api/sugar/pairs/{active.json()['id']}/cancel", headers=alice).status_code == 409
+
+
 def test_friend_hall_profiles_moderation_requests_and_ranking(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "sugar_upload_dir", str(tmp_path / "uploads"))
     with TestClient(app) as client:
@@ -1500,6 +1540,7 @@ def test_sugar_photo_moderation():
 
         # 先审后公开：新上传的砂糖照片默认为待审，落在私有区。
         assert profile["photos"][0]["is_visible"] is False
+        assert profile["photos"][0]["moderated"] is False
         assert profile["photos"][0]["image_url"].startswith("/api/media/")
 
         # 管理端能看到待审砂糖照片及主人
@@ -1508,6 +1549,7 @@ def test_sugar_photo_moderation():
         assert listed.json()[0]["id"] == photo_id
         assert listed.json()[0]["user"]["nickname"] == "用户sugar_own"
         assert listed.json()[0]["is_visible"] is False
+        assert listed.json()[0]["moderated"] is False
 
         # 他人看不到待审照片
         assert client.get("/api/sugar/profiles", headers=bob).json()[0]["photos"] == []
@@ -1516,6 +1558,7 @@ def test_sugar_photo_moderation():
         approved = client.patch(f"/api/admin/sugar/photos/{photo_id}", headers=admin, json={"is_visible": True})
         assert approved.status_code == 200, approved.text
         assert approved.json()["is_visible"] is True
+        assert approved.json()["moderated"] is True
         assert len(client.get("/api/sugar/profiles", headers=bob).json()[0]["photos"]) == 1
 
         # 屏蔽时不填理由 → 422
@@ -1531,12 +1574,14 @@ def test_sugar_photo_moderation():
         )
         assert hidden.status_code == 200, hidden.text
         assert hidden.json()["is_visible"] is False
+        assert hidden.json()["moderated"] is True
         assert hidden.json()["admin_note"] == "照片包含无关广告水印"
 
-        # 主人详情里照片仍在原位，且能拿到屏蔽理由
+        # 主人详情里照片仍在原位，且能拿到屏蔽理由与已审核标记
         own_detail = client.get(f"/api/sugar/profiles/{profile['user']['id']}", headers=alice).json()
         assert len(own_detail["photos"]) == 1
         assert own_detail["photos"][0]["is_visible"] is False
+        assert own_detail["photos"][0]["moderated"] is True
         assert own_detail["photos"][0]["admin_note"] == "照片包含无关广告水印"
 
         # 其他用户的名片列表与详情都看不到被屏蔽照片

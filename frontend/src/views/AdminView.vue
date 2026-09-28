@@ -610,13 +610,14 @@ watch(activeTab, (tab) => loadTab(tab))
         <div v-if="sugarPhotos.length" class="moderation-photo-grid sugar-photos">
           <figure v-for="photo in sugarPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
             <LazyImage :src="photo.image_url" :alt="`${photo.user.nickname} 的砂糖社照片`" />
-            <span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.admin_note }}</span>
+            <span v-if="!photo.moderated" class="photo-blocked sugar-blocked"><Clock3 :size="14" />审核中</span>
+            <span v-else-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.admin_note }}</span>
             <div class="sugar-photo-actions">
-              <button class="button secondary small" type="button" :disabled="moderatingSugarId === photo.id" @click="moderateSugarPhoto(photo, false)">
-                <EyeOff :size="15" />屏蔽
-              </button>
               <button v-if="!photo.is_visible" class="button secondary small" type="button" :disabled="moderatingSugarId === photo.id" @click="moderateSugarPhoto(photo, true)">
-                <Eye :size="15" />恢复
+                <Check :size="15" />通过
+              </button>
+              <button v-else class="button secondary small" type="button" :disabled="moderatingSugarId === photo.id" @click="moderateSugarPhoto(photo, false)">
+                <EyeOff :size="15" />屏蔽
               </button>
             </div>
             <figcaption class="muted">{{ photo.user.nickname }}</figcaption>

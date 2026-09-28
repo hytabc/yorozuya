@@ -719,6 +719,7 @@ EVENT_LABELS = {
     "sugar.save_profile": "保存砂糖社档案",
     "sugar.open_profile": "查看砂糖社档案",
     "sugar.confirm": "确认结为砂糖",
+    "sugar.cancel": "取消砂糖申请",
     "sugar.end": "结束砂糖关系",
     "friend.save_profile": "保存交友资料",
     "friend.open_profile": "查看交友资料",
@@ -1157,7 +1158,13 @@ def present_sugar_photos(profile: SugarProfile, viewer: User | None) -> list[Sug
     """被屏蔽的照片仅主人和管理员组可见（附带屏蔽理由），对其他查看者隐藏。"""
     can_manage = viewer is not None and (viewer.id == profile.user_id or can_review_content(viewer))
     return [
-        SugarPhotoOut(id=photo.id, image_url=photo_url(photo), is_visible=photo.is_visible, admin_note=photo.admin_note)
+        SugarPhotoOut(
+            id=photo.id,
+            image_url=photo_url(photo),
+            is_visible=photo.is_visible,
+            moderated=photo.moderated_at is not None,
+            admin_note=photo.admin_note,
+        )
         for photo in profile.photos
         if photo.is_visible or can_manage
     ]
@@ -2486,6 +2493,21 @@ def end_sugar_pair(pair_id: int, user: User = Depends(get_current_user), db: Ses
     pair.ended_at = datetime.utcnow()
     db.commit()
     return present_sugar_pair(pair)
+
+
+@app.post("/api/sugar/pairs/{pair_id}/cancel", status_code=status.HTTP_204_NO_CONTENT)
+def cancel_sugar_pair(pair_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """撤回/拒绝一条待确认的砂糖申请：仅 pending 状态可取消，双方均可操作。"""
+    pair = db.scalar(sugar_pair_query().where(SugarPair.id == pair_id))
+    if pair is None:
+        raise HTTPException(status_code=404, detail="砂糖申请不存在")
+    if user.id not in (pair.first_user_id, pair.second_user_id):
+        raise HTTPException(status_code=403, detail="只有砂糖申请双方可以取消申请")
+    if pair.status != SugarPairStatus.PENDING:
+        raise HTTPException(status_code=409, detail="当前申请不能取消")
+    db.delete(pair)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.post("/api/feedback", response_model=FeedbackOut, status_code=status.HTTP_201_CREATED)
@@ -5096,6 +5118,7 @@ def present_sugar_photo_admin(photo: SugarPhoto) -> SugarPhotoAdminOut:
         id=photo.id,
         image_url=photo_url(photo),
         is_visible=photo.is_visible,
+        moderated=photo.moderated_at is not None,
         admin_note=photo.admin_note,
         created_at=photo.created_at,
         user=present_user_public(photo.profile.user),
