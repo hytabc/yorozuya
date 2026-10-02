@@ -42,7 +42,7 @@ backend/app/
 frontend/src/
   api.js         # axios 实例：自动带 token、401 时清缓存并派发 auth-expired
   constants.js   # 角色显示名 ROLE_LABELS / ROLE_HINTS / roleLabel()；委托分类 CATEGORIES（⚠️ 改分类看 constants.js + main.py:TASK_CATEGORIES）
-                 # 还含地图类型 MAP_CATEGORIES、疑难解答子版块 TALK_BOARDS（均需与后端常量同步）
+                 # 还含地图类型 MAP_CATEGORIES、疑难解答子版块 TALK_BOARDS（均需与后端常量同步）、官方群号 OFFICIAL_GROUP
   navigation.js  # 顶部导航归属：六个大厅 HALLS + 管理入口 MORE_LINKS + itemVisible/visibleItems（⚠️ 改导航先看这里）
   stores/auth.js # Pinia：凭证经 authStorage.js 加密存于 localStorage/IndexedDB；isAdmin / isStaff / canManageRoles
   router.js      # 路由守卫（auth / guestOnly / roleManager）

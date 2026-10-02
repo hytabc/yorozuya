@@ -1,13 +1,16 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { BarChart3, BookOpen, BriefcaseBusiness, ChevronDown, CircleQuestionMark, Gamepad2, HeartHandshake, History, LogOut, Map, Megaphone, Menu, MessagesSquare, ShieldCheck, Snowflake, Sparkles, Store, UserPlus, UserRound, Users, X } from '@lucide/vue'
+import { BarChart3, BookOpen, BriefcaseBusiness, Check, ChevronDown, CircleQuestionMark, Gamepad2, HeartHandshake, History, LogOut, Map, Megaphone, Menu, MessageCircle, MessagesSquare, ShieldCheck, Snowflake, Sparkles, Store, UserPlus, UserRound, Users, X } from '@lucide/vue'
 import { useAuthStore } from '../stores/auth'
+import { useToast } from '../composables/toast'
+import { OFFICIAL_GROUP } from '../constants'
 import { HALLS, hallContainsPath, moreLinks, visibleItems } from '../navigation'
 import UserAvatar from './UserAvatar.vue'
 import UserTitleTag from './UserTitleTag.vue'
 
 const auth = useAuthStore()
+const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 const open = ref(false)
@@ -47,6 +50,32 @@ function linkLabel(link) {
   return link.label
 }
 
+// 官方群聊：点击复制群号，非安全上下文（http 局域网访问）退回 execCommand。
+const groupCopied = ref(false)
+let groupCopyTimer = 0
+async function copyGroupId() {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(OFFICIAL_GROUP.id)
+    } else {
+      const input = document.createElement('textarea')
+      input.value = OFFICIAL_GROUP.id
+      input.style.position = 'fixed'
+      input.style.opacity = '0'
+      document.body.appendChild(input)
+      input.select()
+      document.execCommand('copy')
+      document.body.removeChild(input)
+    }
+    groupCopied.value = true
+    clearTimeout(groupCopyTimer)
+    groupCopyTimer = setTimeout(() => { groupCopied.value = false }, 1600)
+    toast.success(`已复制官方群号：${OFFICIAL_GROUP.id}`)
+  } catch (_e) {
+    toast.error(`复制失败，官方群号：${OFFICIAL_GROUP.id}`)
+  }
+}
+
 function logout() {
   auth.logout()
   open.value = false
@@ -61,7 +90,10 @@ watch(() => route.fullPath, () => {
 })
 
 onMounted(() => document.addEventListener('click', closeMenus))
-onBeforeUnmount(() => document.removeEventListener('click', closeMenus))
+onBeforeUnmount(() => {
+  document.removeEventListener('click', closeMenus)
+  clearTimeout(groupCopyTimer)
+})
 </script>
 
 <template>
@@ -105,6 +137,17 @@ onBeforeUnmount(() => document.removeEventListener('click', closeMenus))
       </nav>
 
       <div class="header-actions">
+        <button
+          class="group-chat-chip desktop-only"
+          :class="{ copied: groupCopied }"
+          type="button"
+          :title="`点击复制官方群号 ${OFFICIAL_GROUP.id}`"
+          :aria-label="`${OFFICIAL_GROUP.label} ${OFFICIAL_GROUP.id}，点击复制群号`"
+          @click="copyGroupId"
+        >
+          <Check v-if="groupCopied" :size="15" /><MessageCircle v-else :size="15" />
+          <span class="gc-label">{{ OFFICIAL_GROUP.label }}：</span><strong>{{ OFFICIAL_GROUP.id }}</strong>
+        </button>
         <template v-if="auth.isLoggedIn">
           <RouterLink to="/profile" class="user-chip">
             <UserAvatar :user="auth.user" :size="30" />
@@ -159,6 +202,10 @@ onBeforeUnmount(() => document.removeEventListener('click', closeMenus))
           </RouterLink>
         </div>
       </template>
+      <button type="button" class="group-chat-row" @click="copyGroupId">
+        <Check v-if="groupCopied" :size="18" /><MessageCircle v-else :size="18" />
+        <span>{{ groupCopied ? '已复制群号' : OFFICIAL_GROUP.label }}：{{ OFFICIAL_GROUP.id }}</span>
+      </button>
       <RouterLink v-if="auth.isLoggedIn" to="/profile" @click="open = false"><UserRound :size="18" />个人设置</RouterLink>
       <button v-if="auth.isLoggedIn" @click="logout"><LogOut :size="18" />退出登录</button>
       <RouterLink v-else to="/login" @click="open = false"><UserRound :size="18" />登录 / 注册</RouterLink>

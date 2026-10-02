@@ -61,6 +61,13 @@ main { min-height: calc(100vh - 72px); }
 .theme-toggle { position: fixed; z-index: 40; top: 88px; right: 16px; display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 6px; color: #515d57; background: rgba(255, 255, 255, .92); box-shadow: var(--shadow); font-size: 13px; backdrop-filter: blur(10px); }
 .theme-toggle:hover { color: var(--ink); background: #ffffff; }
 .text-link { padding: 8px; color: #4f5a55; font-size: 14px; }
+/* 官方群聊：顶栏常驻，点击复制群号 */
+.group-chat-chip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; height: 38px; padding: 0 11px; border: 1px solid var(--line); border-radius: 4px; color: #4f5a55; background: transparent; white-space: nowrap; font-size: 13px; transition: color .16s, background .16s, border-color .16s; }
+.group-chat-chip:hover { color: var(--ink); background: #e9ece9; }
+.group-chat-chip.copied { color: var(--green); border-color: var(--green); }
+.group-chat-chip .gc-label { color: var(--muted); }
+.group-chat-chip.copied .gc-label { color: inherit; }
+.group-chat-chip strong { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 650; letter-spacing: .4px; }
 .mobile-menu, .mobile-panel { display: none; }
 
 .button { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 18px; border: 1px solid var(--ink); border-radius: 4px; color: white; background: var(--ink); font-size: 14px; font-weight: 650; transition: transform .16s, background .16s; }
@@ -572,6 +579,15 @@ tr.dimmed td { color: #89918d; background: #fafafa; }
 .version-entry h2 { margin: 0 0 8px; font-size: 19px; }
 .version-entry time { color: var(--muted); font-size: 12px; }
 .version-entry ul { margin: 14px 0 0; padding-left: 20px; color: #4d5953; line-height: 1.9; }
+
+/* 顶栏空间不足时官方群聊逐级收起：先去文字、再只留图标（群号仍在提示与复制结果里）。 */
+@media (max-width: 1093px) {
+  .group-chat-chip .gc-label { display: none; }
+}
+@media (max-width: 1023px) {
+  .group-chat-chip { width: 38px; padding: 0; justify-content: center; }
+  .group-chat-chip strong { display: none; }
+}
 
 @media (max-width: 900px) {
   .desktop-nav { margin-left: 35px; gap: 22px; }

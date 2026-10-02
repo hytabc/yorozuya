@@ -1,3 +1,6 @@
+// 官方群聊（QQ 群）：顶部导航常驻展示，点击复制群号
+export const OFFICIAL_GROUP = { label: '官方群聊', id: '187814540' }
+
 // 委托分类：与后端 main.py 的 TASK_CATEGORIES 白名单保持一致
 export const CATEGORIES = ['萌新上路', '心理倾听', '技术疑难', 'VRC寻图', '搭子召集', '其他委托']
 

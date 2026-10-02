@@ -199,6 +199,20 @@ html[data-theme='pixel'] .icon-button:active:not(:disabled),
 html[data-theme='pixel'] .theme-toggle:active { transform: translateY(2px); filter: drop-shadow(0 1px 0 var(--ink)); }
 html[data-theme='pixel'] .theme-toggle { background: linear-gradient(180deg, #ffe9bd, #fbd38a); font-weight: 700; }
 
+html[data-theme='pixel'] .group-chat-chip {
+  border: 3px solid var(--ink);
+  background: linear-gradient(180deg, #fffdf6, #f7e8c8);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6);
+  filter: drop-shadow(0 3px 0 var(--ink));
+  transition: none;
+}
+html[data-theme='pixel'] .group-chat-chip:hover { background: linear-gradient(180deg, #fff3d9, #f9e0ab); color: var(--ink); }
+html[data-theme='pixel'] .group-chat-chip:active { transform: translateY(2px); filter: drop-shadow(0 1px 0 var(--ink)); }
+html[data-theme='pixel'] .group-chat-chip .gc-label { color: #6b553c; }
+html[data-theme='pixel'] .group-chat-chip.copied { color: #a05a10; }
+
 html[data-theme='pixel'] .text-link { color: #a05a10; font-weight: 700; }
 html[data-theme='pixel'] .text-link:hover { text-decoration: underline; text-underline-offset: 4px; }
 
