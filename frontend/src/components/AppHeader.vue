@@ -50,10 +50,13 @@ function linkLabel(link) {
   return link.label
 }
 
-// 官方群聊：点击复制群号，非安全上下文（http 局域网访问）退回 execCommand。
+// 官方群聊：平时只显示「官方群聊」避免挤压导航，点击时展开群号并复制。
+// 非安全上下文（http 局域网访问）没有 navigator.clipboard，退回 execCommand。
 const groupCopied = ref(false)
+const groupRevealed = ref(false)
 let groupCopyTimer = 0
 async function copyGroupId() {
+  groupRevealed.value = true
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(OFFICIAL_GROUP.id)
@@ -68,12 +71,16 @@ async function copyGroupId() {
       document.body.removeChild(input)
     }
     groupCopied.value = true
-    clearTimeout(groupCopyTimer)
-    groupCopyTimer = setTimeout(() => { groupCopied.value = false }, 1600)
     toast.success(`已复制官方群号：${OFFICIAL_GROUP.id}`)
   } catch (_e) {
+    groupCopied.value = false
     toast.error(`复制失败，官方群号：${OFFICIAL_GROUP.id}`)
   }
+  clearTimeout(groupCopyTimer)
+  groupCopyTimer = setTimeout(() => {
+    groupCopied.value = false
+    groupRevealed.value = false
+  }, 4000)
 }
 
 function logout() {
@@ -87,6 +94,9 @@ watch(() => route.fullPath, () => {
   open.value = false
   openMenu.value = null
   mobileGroup.value = null
+  clearTimeout(groupCopyTimer)
+  groupCopied.value = false
+  groupRevealed.value = false
 })
 
 onMounted(() => document.addEventListener('click', closeMenus))
@@ -139,14 +149,14 @@ onBeforeUnmount(() => {
       <div class="header-actions">
         <button
           class="group-chat-chip desktop-only"
-          :class="{ copied: groupCopied }"
+          :class="{ copied: groupCopied, revealed: groupRevealed }"
           type="button"
           :title="`点击复制官方群号 ${OFFICIAL_GROUP.id}`"
           :aria-label="`${OFFICIAL_GROUP.label} ${OFFICIAL_GROUP.id}，点击复制群号`"
           @click="copyGroupId"
         >
           <Check v-if="groupCopied" :size="15" /><MessageCircle v-else :size="15" />
-          <span class="gc-label">{{ OFFICIAL_GROUP.label }}：</span><strong>{{ OFFICIAL_GROUP.id }}</strong>
+          <span class="gc-text">{{ groupRevealed ? OFFICIAL_GROUP.id : OFFICIAL_GROUP.label }}</span>
         </button>
         <template v-if="auth.isLoggedIn">
           <RouterLink to="/profile" class="user-chip">
