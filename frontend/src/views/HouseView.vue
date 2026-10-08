@@ -10,6 +10,8 @@ import LazyImage from '../components/LazyImage.vue'
 import FurnitureBrowser from '../house/FurnitureBrowser.vue'
 import FurnitureWorkshop from '../house/FurnitureWorkshop.vue'
 import VoxelScene from '../house/VoxelScene.vue'
+import HouseHelp from '../house/HouseHelp.vue'
+import VisitBrowser from '../house/VisitBrowser.vue'
 import { anchorPosition, blankRoom, clone, createHistory, placementError, recoloredData } from '../house/engine'
 import { draftOperation } from '../house/drafts'
 import { ownedClient } from '../house/client'
@@ -22,6 +24,7 @@ const scene = ref(), browser = ref(), history = createHistory(), shareId = ref(n
 const saveStatus = ref({ dirty:false,saving:false,error:'',conflict:false }), preview = ref(null), invalidPreview = ref(''), tool = ref('select')
 const libraryOpen=ref(true),propertiesOpen=ref(true),workshopOpened=ref(false)
 const roomVisible=ref(true)
+const publishing=ref(false),publishedAt=ref(null),copied=ref(false)
 let client, ownerValid = () => false, saver, disposed = false, disposeClient
 const selected = computed(() => room.value.placements.find((p)=>p.id===selectedId.value))
 const chosen = computed(() => selected.value ? assets.value[selected.value.versionId] : pending.value)
@@ -39,7 +42,7 @@ async function getAsset(f) {
 async function choose(f) {
   try {
     const asset=await getAsset(f)
-    detail.value=asset
+    detail.value=asset;copied.value=false
     if (tab.value==='room' && !locked.value) { pending.value=asset; selectedId.value=null; tool.value='select'; preview.value=null }
   } catch (e) { fail(e) }
 }
@@ -60,7 +63,7 @@ function placeAt(point) {
 }
 function pick(point) {
   if (pending.value) { placeAt(point); return }
-  selectedId.value=point.id || null; preview.value=null
+  selectedId.value=point.id || null; preview.value=null;if(point.id)tool.value='move'
 }
 function move(axis, value) {
   if (!selected.value) return
@@ -82,14 +85,15 @@ function dragMove(point) {
   if(locked.value) return
   const next=clone(room.value), p=next.placements.find((p)=>p.id===point.id)
   if(!p) return
-  const pos=anchorPosition(assets.value[p.versionId].data,{...point,z:p.position.z},p.rotation)
-  p.position=pos;preview.value=next;invalidPreview.value=placementError(next,assets.value)
+  p.position=point.position;preview.value=next;invalidPreview.value=placementError(next,assets.value)
 }
 function dragEnd() {
-  if (preview.value && !invalidPreview.value) {history.push(room.value);room.value=preview.value;changed()}
+  if (preview.value && !invalidPreview.value && !locked.value && ownerValid()) {history.push(room.value);room.value=preview.value;changed()}
   else if(invalidPreview.value) toast.error(invalidPreview.value)
   preview.value=null;invalidPreview.value=''
 }
+function dragCancel(){preview.value=null;invalidPreview.value=''}
+function scaleFurniture(value){if(selected.value)changeRoom((r)=>{r.placements.find((p)=>p.id===selectedId.value).scale=Number(value)})}
 async function drop(event) {
   if(locked.value) return
   try { const f=JSON.parse(event.dataTransfer.getData('application/house-furniture')); await choose(f);scene.value?.pickAt(event) } catch(e) { fail(e) }
@@ -105,15 +109,14 @@ async function removeTexture(t) {
   try {await client.delete(`/house/textures/${t.recordId}`);textures.value=textures.value.filter((s)=>s.id!==t.id);changeRoom((r)=>{for(const k of ['floor','wall'])if(r[k].textureId===t.id)r[k].textureId=null})}catch(e){fail(e)}
 }
 async function flush() { if(await saver?.flush()) toast.success('房屋已保存到云端') }
-async function toggleShare() {
-  if(locked.value)return
-  if(!(await saver.flush()))return
+async function publishRoom(enabled) {
+  if(locked.value || publishing.value)return
+  publishing.value=true
   try {
-    // A pristine room still needs its first persisted row before sharing.
-    if(!shareId.value && !room.value.placements.length) {saver.changed();if(!(await saver.flush()))return}
-    const {data}=await client.patch('/house/room/share',{enabled:!shareId.value});if(!ownerValid())return;shareId.value=data.shareId
-    toast.success(data.shareId?'分享已开启，云端保存后同步更新':'分享已关闭，旧链接已失效')
-  }catch(e){fail(e)}
+    if(enabled && !(await saver.flush()))return
+    const {data}=await client.patch('/house/room/share',{enabled,...(enabled?{revision:saver.revision}:{})});if(!ownerValid())return;shareId.value=data.shareId;publishedAt.value=data.publishedAt
+    toast.success(enabled?'展示版本已发布；后续保存只修改私人草稿':'参观已关闭，旧链接已失效')
+  }catch(e){fail(e)}finally{publishing.value=false}
 }
 async function copyLink(){try{await navigator.clipboard.writeText(`${location.origin}/house/visit/${shareId.value}`);toast.success('分享链接已复制')}catch{fail('复制失败，请复制下方链接')}}
 function exportDraft(){const url=URL.createObjectURL(new Blob([JSON.stringify({state:room.value,assets:assets.value})],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='房屋草稿.json';a.click();URL.revokeObjectURL(url)}
@@ -130,22 +133,27 @@ async function loadRoom() {
   ready.value=false
   try {
     const {data}=await client.get('/house/room');if(disposed || !ownerValid())return
-    room.value=data.state;assets.value=data.assets;shareId.value=data.shareId;roomVisible.value=data.isVisible!==false;history.clear();saver.reset(data.revision);ready.value=true
+    room.value=data.state;assets.value=data.assets;shareId.value=data.shareId;publishedAt.value=data.publishedAt;roomVisible.value=data.isVisible!==false;history.clear();saver.reset(data.revision);ready.value=true
     try {draft.value=await draftOperation(ownerId.value,'room','get')}catch(e){fail(e)}
     if(data.revision===0 && !draft.value)saver.changed()
   }catch(e){fail(e)}
 }
 function toWorkshop(asset) {
   if(locked.value)return
-  const overrides=selected.value?.paletteOverrides || {}
+  const overrides=selected.value?.versionId===asset.furniture.versionId ? selected.value.paletteOverrides : {}
   workshopSource.value={...clone(asset),fork:true,data:recoloredData(asset.data,overrides)};tab.value='workshop'
 }
 async function furnitureSaved(f) {
   browser.value?.reload(); const asset=await getAsset(f); detail.value=asset;toast.success('家具已保存')
 }
 async function publish(f,enabled) {
-  try{const {data}=await client.patch(`/house/furniture/${f.id}/publish`,{enabled});detail.value.furniture=data;browser.value?.reload();toast.success(enabled?'家具已公开':'已取消公开')}catch(e){fail(e)}
+  if(enabled && f.draftVersionId && f.versionId!==f.draftVersionId){try{detail.value=await getAsset({versionId:f.draftVersionId});toast.success('已载入最新私人草稿，请检查后点击更新分享')}catch(e){fail(e)}return}
+  try{const {data}=await client.patch(`/house/furniture/${f.id}/publish`,{enabled,revision:f.revision});if(!ownerValid())return;detail.value.furniture=data;browser.value?.reload();toast.success(enabled?'家具分享版本已发布':'已取消公开')}catch(e){fail(e)}
 }
+async function editOriginal(){if(!detail.value || locked.value)return;try{const f=detail.value.furniture;workshopSource.value=await getAsset({versionId:f.draftVersionId || f.versionId});tab.value='workshop'}catch(e){fail(e)}}
+async function favorite(){const f=detail.value?.furniture;if(!f || locked.value)return;try{const url=`/house/furniture/${f.id}/favorite`;const {data}=f.favorited?await client.delete(url):await client.put(url);if(!ownerValid())return;f.favorited=data.favorited;browser.value?.reload()}catch(e){fail(e)}}
+async function copyFurniture(){const source=detail.value;if(!source || locked.value || copied.value)return;copied.value=true;try{const {data}=await client.post(`/house/furniture/${source.furniture.id}/copy`,{versionId:source.furniture.versionId});if(!ownerValid())return;await furnitureSaved(data);toast.success('独立副本已保存到我的作品，可以摆放或编辑')}catch(e){fail(e)}finally{copied.value=false}}
+async function copyFurnitureLink(){if(!detail.value)return;try{await navigator.clipboard.writeText(`${location.origin}/house?furniture=${detail.value.furniture.publishedVersionId || detail.value.furniture.versionId}`);toast.success('家具分享链接已复制')}catch{fail('复制失败，请复制浏览器中的家具链接')}}
 async function deleteFurniture(f) {
   if(!window.confirm('删除这件家具？已放进房屋的版本会保留。'))return
   try{await client.delete(`/house/furniture/${f.id}`);detail.value=null;browser.value?.reload()}catch(e){fail(e)}
@@ -173,6 +181,7 @@ onMounted(async()=>{
         writeLocal:(value)=>draftOperation(ownerId.value,'room','put',value),removeLocal:()=>draftOperation(ownerId.value,'room','delete'),onStatus:(value)=>{saveStatus.value={...saveStatus.value,...value}}})
       await loadRoom();textures.value=(await client.get('/house/textures')).data
     }else tab.value='library'
+    if(route.query.tab==='visit' && auth.isLoggedIn)tab.value='visit'
     if(route.query.furniture){const {data}=await api.get(`/house/versions/${route.query.furniture}`);assets.value[data.furniture.versionId]=data;detail.value=data;tab.value='library'}
   }catch(e){fail(e)}finally{loading.value=false}
   window.addEventListener('beforeunload',beforeUnload)
@@ -189,24 +198,27 @@ onBeforeUnmount(()=>{disposed=true;saver?.dispose();disposeClient?.();window.rem
     <div v-if="loading" class="skeleton" style="height:600px" aria-busy="true" />
     <template v-else>
       <div class="house-tabs" role="tablist" aria-label="房屋功能">
-        <button v-for="[id,label,icon] in [['room','我的房屋',House],['workshop','家具工坊',Hammer],['library','家具库',Armchair]]" :key="id" role="tab" :aria-selected="tab===id" :disabled="id!=='library' && locked" @click="tab=id"><component :is="icon" :size="16" />{{ label }}</button>
+        <button v-for="[id,label,icon] in [['room','我的房屋',House],['workshop','家具工坊',Hammer],['library','家具库',Armchair],['visit','参观',House]]" :key="id" role="tab" :aria-selected="tab===id" :disabled="id!=='library' && locked" @click="tab=id"><component :is="icon" :size="16" />{{ label }}</button>
       </div>
+      <HouseHelp :owner-id="ownerId" />
       <p v-if="locked" class="house-notice">{{ auth.isLoggedIn?'请重新进入房屋，或先完成邮箱验证。':'登录后可以布置房屋、制作家具和邀请朋友串门。' }}<RouterLink v-if="!auth.isLoggedIn" to="/login?redirect=/house">去登录</RouterLink></p>
       <p v-if="error || saveStatus.error" class="house-notice is-error" role="alert">{{ error || saveStatus.error }}</p>
       <p v-if="!roomVisible" class="house-notice is-error">房屋已被内容审核人员屏蔽，访客暂时无法进入。你仍可整理自己的布置。</p>
       <div v-if="draft && tab==='room'" class="house-notice">发现未同步的本地房屋草稿，恢复后将以当前云端版本保存。<button @click="restore">恢复草稿</button><button @click="draft=null">暂不恢复</button></div>
       <div v-if="saveStatus.conflict" class="house-notice"><button :disabled="saveStatus.saving" @click="loadRoom">重新载入云端</button><button @click="exportDraft">导出当前草稿</button></div>
       <FurnitureWorkshop v-show="tab==='workshop'" v-if="ownerId && ready && (workshopOpened || tab==='workshop')" :owner-id="ownerId" :catalog="catalog" :source="workshopSource" @saved="furnitureSaved" @error="fail" />
-      <div v-show="tab!=='workshop'" class="house-layout" :class="{library:tab==='library'}">
+      <VisitBrowser v-if="tab==='visit' && !locked" />
+      <div v-show="tab==='room' || tab==='library'" class="house-layout" :class="{library:tab==='library'}">
         <aside class="house-library-panel"><h2>{{ tab==='room'?'挑一件家具':'家具收藏' }}</h2><button class="mobile-panel-toggle" :aria-expanded="libraryOpen" @click="libraryOpen=!libraryOpen">{{ libraryOpen?'收起家具库':'展开家具库' }}</button><FurnitureBrowser v-show="libraryOpen" ref="browser" :class="{expanded:tab==='library'}" :catalog="catalog" :logged-in="auth.isLoggedIn" @choose="choose" @error="fail" /></aside>
         <section v-if="tab==='room'" class="house-room-panel">
-          <div class="house-toolbar"><input :value="room.name" aria-label="房屋名称" maxlength="64" :disabled="locked" @change="changeRoom((r)=>r.name=$event.target.value)" /><select aria-label="使用示例布置" :disabled="locked" @change="useExample"><option value="">示例布置</option><option v-for="(example,i) in catalog?.examples" :key="example.name" :value="i">{{ example.name }}</option></select><button :disabled="locked" @click="historyAction('undo')" aria-label="撤销"><Undo2 :size="16" /></button><button :disabled="locked" @click="historyAction('redo')" aria-label="重做"><Redo2 :size="16" /></button><button :disabled="locked || saveStatus.saving || saveStatus.conflict" @click="flush"><Save :size="16" />保存</button><button :disabled="locked || saveStatus.saving" @click="toggleShare"><Share2 :size="16" />{{ shareId?'关闭分享':'开启分享' }}</button></div>
-          <div class="house-scene-drop" @dragover.prevent @drop.prevent="drop"><VoxelScene ref="scene" :room="displayRoom" :assets="assets" :selected="selectedId" :invalid-id="invalidPreview?selectedId:null" :texture-urls="textureUrls" :tool="tool" :readonly="locked" @pick="pick" @drag="dragMove" @drag-end="dragEnd" @error="fail" /></div>
-          <div class="house-room-status"><span>{{ room.placements.length }} / 128 件 · {{ saveStatus.saving?'云端保存中':saveStatus.dirty?'本地草稿，等待同步':'云端已同步' }}</span><button :aria-pressed="tool==='move'" @click="tool=tool==='move'?'select':'move'">{{ tool==='move'?'拖动家具模式':'切换拖动家具' }}</button><button @click="exportDraft">导出草稿</button></div>
+          <div class="house-toolbar"><input :value="room.name" aria-label="房屋名称" maxlength="64" :disabled="locked" @change="changeRoom((r)=>r.name=$event.target.value)" /><select aria-label="使用示例布置" :disabled="locked" @change="useExample"><option value="">示例布置</option><option v-for="(example,i) in catalog?.examples" :key="example.name" :value="i">{{ example.name }}</option></select><button :disabled="locked" @click="historyAction('undo')" aria-label="撤销"><Undo2 :size="16" /></button><button :disabled="locked" @click="historyAction('redo')" aria-label="重做"><Redo2 :size="16" /></button><button :disabled="locked || saveStatus.saving || saveStatus.conflict" @click="flush"><Save :size="16" />保存草稿</button><button :disabled="locked || publishing || saveStatus.conflict" @click="publishRoom(true)"><Share2 :size="16" />{{ shareId?'更新展示':'开放参观' }}</button><button v-if="shareId" :disabled="locked || publishing" @click="publishRoom(false)">关闭参观</button></div>
+          <div class="house-scene-drop" @dragover.prevent @drop.prevent="drop"><VoxelScene ref="scene" :room="displayRoom" :assets="assets" :selected="selectedId" :invalid-id="invalidPreview?selectedId:null" :texture-urls="textureUrls" :tool="tool" :readonly="locked" @pick="pick" @drag="dragMove" @drag-end="dragEnd" @drag-cancel="dragCancel" @error="fail" /></div>
+          <div class="house-room-status"><span>{{ room.placements.length }} / 128 件 · {{ saveStatus.saving?'云端保存中':saveStatus.dirty?'本地草稿，等待同步':'草稿已同步' }}</span><button v-for="[id,label] in [['select','选择'],['move','移动'],['camera','视角']]" :key="id" :aria-pressed="tool===id" @click="pending=null;tool=id">{{label}}</button><button @click="exportDraft">导出草稿</button></div>
+          <p v-if="shareId" class="muted">展示版本发布于 {{new Date(publishedAt).toLocaleString()}}。装修后的草稿需点击“更新展示”才会对访客生效。</p>
           <p v-if="pending" class="house-notice">已选择「{{ pending.furniture.name }}」，点击房间放置。<button @click="placeAt({x:128,y:128,z:0})">放在中央</button><button @click="pending=null">取消</button></p>
           <p v-if="invalidPreview" class="house-notice is-error">{{ invalidPreview }}</p>
           <div v-if="shareId" class="house-share"><RouterLink :to="`/house/visit/${shareId}`">查看访客页面</RouterLink><input readonly :value="shareUrl" aria-label="房屋分享链接" /><button @click="copyLink">复制链接</button></div>
-          <details class="room-inventory"><summary>已放置家具（{{ room.placements.length }}）</summary><button v-for="p in room.placements" :key="p.id" :aria-pressed="selectedId===p.id" @click="selectedId=p.id;pending=null">{{ assets[p.versionId]?.furniture.name || '家具' }} · {{ p.position.x }},{{ p.position.y }},{{ p.position.z }}</button></details>
+          <details class="room-inventory"><summary>已放置家具（{{ room.placements.length }}）</summary><button v-for="p in room.placements" :key="p.id" :aria-pressed="selectedId===p.id" @click="selectedId=p.id;pending=null;tool='move'">{{ assets[p.versionId]?.furniture.name || '家具' }} · {{ p.position.x }},{{ p.position.y }},{{ p.position.z }}</button></details>
         </section>
         <aside v-if="tab==='room'" class="house-properties" :class="{collapsed:!propertiesOpen}">
           <button class="mobile-panel-toggle" :aria-expanded="propertiesOpen" @click="propertiesOpen=!propertiesOpen">{{ propertiesOpen?'收起家具属性与墙地面':'展开家具属性与墙地面' }}</button>
@@ -214,6 +226,7 @@ onBeforeUnmount(()=>{disposed=true;saver?.dispose();disposeClient?.();window.rem
             <h2>{{ chosen.furniture.name }}</h2><p v-if="!chosen.furniture.isVisible" class="muted">已被下架，访客看不到此模型</p>
             <label v-for="axis in ['x','y','z']" :key="axis">{{ {x:'横向 X',y:'纵向 Y',z:'高度 Z'}[axis] }}<input type="number" :value="selected.position[axis]" min="0" :max="axis==='z'?127:255" @change="move(axis,$event.target.value)" /></label>
             <div class="property-actions"><button @click="rotate">旋转 {{ selected.rotation }}°</button><button @click="remove"><Trash2 :size="14" />移除</button></div>
+            <label>家具大小<select :value="selected.scale ?? 1" aria-label="家具缩放比例" @change="scaleFurniture($event.target.value)"><option :value=".5">50%</option><option :value="1">100%</option><option :value="2">200%</option></select></label>
             <h3>材质改色</h3><label v-for="s in chosenData.palette.filter((s)=>s.editable)" :key="s.key">{{ s.label }}<input type="color" :value="selected.paletteOverrides[s.key] || s.color" @input="recolor({...selected.paletteOverrides,[s.key]:$event.target.value})" /></label>
             <button @click="recolor({})">恢复默认配色</button>
             <button v-for="p in catalog?.palettes" :key="p.id" class="house-palette" @click="palette(p)"><span><i v-for="key in ['wood','fabric','accent']" :key="key" :style="{background:p.colors[key]}" /></span>{{ p.name }}</button>
@@ -232,7 +245,9 @@ onBeforeUnmount(()=>{disposed=true;saver?.dispose();disposeClient?.();window.rem
         <aside v-if="tab==='library' && detail" class="house-detail">
           <h2>{{ detail.furniture.name }}</h2><VoxelScene :data="detail.data" readonly compact /><p class="muted">{{ detail.furniture.style }} · {{ detail.data.gridSize }}³ · {{ detail.data.voxels.length.toLocaleString() }}个体素</p>
           <RouterLink v-if="detail.furniture.creatorId" :to="`/house/users/${detail.furniture.creatorId}`">查看创作者主页</RouterLink>
-          <template v-if="!locked"><button class="button" @click="useDetail">放入房屋</button><button class="button secondary" @click="toWorkshop(detail)">复制到工坊修改</button><template v-if="detail.furniture.creatorId===ownerId"><button class="button secondary" @click="workshopSource=detail;tab='workshop'">编辑原作品</button><button class="button secondary" @click="publish(detail.furniture,!detail.furniture.isPublic)">{{ detail.furniture.isPublic?'取消公开':'发布到家具库' }}</button><button class="button danger" @click="deleteFurniture(detail.furniture)">删除家具</button></template></template>
+          <p v-if="detail.creator" class="muted">作者：{{detail.creator.nickname}}</p>
+          <template v-if="!locked"><button class="button" @click="useDetail">放入房屋</button><button v-if="detail.furniture.isPublic" class="button secondary" :aria-pressed="!!detail.furniture.favorited" @click="favorite">{{detail.furniture.favorited?'取消收藏':'收藏家具'}}</button><button class="button secondary" :disabled="copied" @click="copyFurniture">{{copied?'复制中…':'复制到我的家具库'}}</button><button class="button secondary" @click="toWorkshop(detail)">复制到工坊修改</button><template v-if="detail.furniture.creatorId===ownerId"><button class="button secondary" @click="editOriginal">编辑原作品</button><button class="button secondary" @click="publish(detail.furniture,true)">{{ detail.furniture.isPublic?'更新分享':'发布到家具库' }}</button><button v-if="detail.furniture.isPublic" class="button secondary" @click="publish(detail.furniture,false)">取消公开</button><button class="button danger" @click="deleteFurniture(detail.furniture)">删除家具</button></template></template>
+          <button v-if="detail.furniture.isPublic" class="button secondary" @click="copyFurnitureLink">复制家具分享链接</button>
         </aside>
       </div>
     </template>

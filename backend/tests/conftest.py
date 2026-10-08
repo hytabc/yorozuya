@@ -29,4 +29,9 @@ def mail_origin(monkeypatch):
 
 
 def pytest_unconfigure(config):
+    # Windows cannot remove SQLite files while pooled connections remain open.
+    import sys
+    database = sys.modules.get('app.database')
+    if database is not None:
+        database.engine.dispose()
     _storage.cleanup()

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { anchorPosition, blankRoom, clone, createHistory, editVoxels, normalizedVoxels, placementError, recoloredData, validateVoxelData } from '../src/house/engine.js'
+import { anchorPosition, blankRoom, clone, createHistory, editVoxels, normalizedVoxels, placementError, recoloredData, validateVoxelData, MATERIALS } from '../src/house/engine.js'
 import { createSaveController } from '../src/house/saveController.js'
 import { draftOperation } from '../src/house/drafts.js'
 const data = {gridSize:16,mount:'floor',palette:[{key:'wood',label:'木材',color:'#b58b63',editable:true},{key:'screen',label:'屏幕',color:'#263b43',editable:false}],voxels:[[0,0,0,0],[1,0,0,0]]}
@@ -33,7 +33,8 @@ test('单实例改色保留固定部位，模板不改变；撤销重做独立�
   const history=createHistory();history.push(data);assert.deepEqual(history.undo(copy),data);assert.deepEqual(history.redo(data),copy)
 })
 test('JSON 导入验证64网格、非法坐标、重复项、色板索引和布尔坐标',()=>{
-  assert.doesNotThrow(()=>validateVoxelData({...data,gridSize:64,voxels:[[63,63,63,0]]}))
+  assert.doesNotThrow(()=>validateVoxelData({...data,gridSize:64,voxels:[[63,63,63,0]]},{legacy:true}))
+  assert.throws(()=>validateVoxelData({...data,gridSize:64,voxels:[[63,63,63,0]]}),/最多/)
   for(const voxels of [[[16,0,0,0]],[[0,0,0,0],[0,0,0,1]],[[0,0,0,99]],[[true,0,0,0]]])assert.throws(()=>validateVoxelData({...data,voxels}))
   assert.throws(()=>validateVoxelData({...data,palette:[{...data.palette[0],color:'red'}]}))
 })
@@ -44,6 +45,35 @@ test('大型体素撤销历史遵守内存预算，同时保留最近一步',()=
   assert.equal(history.undo({name:'current'}).name,'recent')
   assert.equal(history.undo({name:'recent'}),null)
   assert.equal(history.redo({name:'recent'}).name,'current')
+})
+test('八种材质、超过三个组合和不同颜色在编辑与撤销后完整保留',()=>{
+  const mixed={...clone(data),palette:MATERIALS.map((m,i)=>({key:`m${i}`,label:m.label,material:m.id,color:`#${(i+1).toString(16).padStart(6,'0')}`,editable:true})),voxels:MATERIALS.map((_,i)=>[i,0,0,i])}
+  assert.doesNotThrow(()=>validateVoxelData(mixed))
+  const history=createHistory();history.push(mixed)
+  const changed=editVoxels(mixed,[0,0,0],'paint',7)
+  assert.equal(changed.voxels[0][3],7)
+  assert.deepEqual(history.undo(changed),mixed)
+  assert.equal(recoloredData(mixed,{m0:'#abcdef'}).palette[0].material,'wood')
+  assert.equal(mixed.palette[0].color,'#000001')
+  assert.throws(()=>validateVoxelData({...mixed,palette:[{...mixed.palette[0],material:'unknown'}]}),/材质/)
+  assert.throws(()=>validateVoxelData({...mixed,palette:Array.from({length:65},(_,i)=>({...mixed.palette[0],key:`c${i}`}))}),/最多/)
+})
+test('缩放后的碰撞、堆叠和边界仍按实际占用校验',()=>{
+  const r=blankRoom(),assets={v1:{data}}
+  r.placements=[{...placement('a',0,0),scale:.5},placement('b',1,0)]
+  assert.equal(placementError(r,assets),'')
+  r.placements=[{...placement('a',0,0),scale:2},placement('b',3,0)]
+  assert.match(placementError(r,assets),/重叠/)
+  r.placements=[{...placement('a',253,0),scale:2}]
+  assert.match(placementError(r,assets),/边界/)
+  assert.deepEqual(normalizedVoxels(data,90,.5),[[0,0,0,0],[0,.5,0,0]])
+})
+test('积木数量上限不能通过绘制或导入绕过',()=>{
+  const full={...clone(data),gridSize:32,voxels:Array.from({length:8192},(_,i)=>[i%32,Math.floor(i/32)%32,Math.floor(i/1024),0])}
+  assert.doesNotThrow(()=>validateVoxelData(full))
+  assert.throws(()=>editVoxels(full,[0,0,8],'add',0),/8192/)
+  assert.throws(()=>validateVoxelData({...full,voxels:[...full.voxels,[0,0,8,0]]}),/最多/)
+  assert.deepEqual(editVoxels(data,[1.5,0,0],'add',0),data)
 })
 test('云端保存串行处理编辑期间的新变化',async()=>{
   let state=1,calls=[],resolveFirst,local=[],status

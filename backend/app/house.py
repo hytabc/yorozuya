@@ -35,6 +35,10 @@ class HouseRoom(Base):
     share_id: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
     is_visible: Mapped[bool] = mapped_column(Boolean, default=True)
     updated_at: Mapped[str] = mapped_column(String(40), default=now)
+    published_state_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    published_assets_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    published_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    published_revision: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class HouseFurniture(Base):
@@ -51,6 +55,19 @@ class HouseFurniture(Base):
     is_visible: Mapped[bool] = mapped_column(Boolean, default=True)
     deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     updated_at: Mapped[str] = mapped_column(String(40), default=now)
+    published_version_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    published_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    published_category: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    published_style: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    published_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
+
+
+class HouseFavorite(Base):
+    __tablename__ = 'house_furniture_favorites'
+    __table_args__ = (UniqueConstraint('furniture_id', 'user_id', name='uq_house_favorite'),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    furniture_id: Mapped[str] = mapped_column(String(64), index=True)
+    user_id: Mapped[int] = mapped_column(Integer, index=True)
 
 
 class HouseVersion(Base):
@@ -89,7 +106,7 @@ class HouseComment(Base):
 
 @lru_cache(maxsize=1)
 def catalog():
-    return json.loads(Path(__file__).with_name('house_catalog.json').read_text())
+    return json.loads(Path(__file__).with_name('house_catalog.json').read_text(encoding='utf-8'))
 
 
 def seed_house_catalog(db: Session):
@@ -101,7 +118,13 @@ def seed_house_catalog(db: Session):
         data = {k: model[k] for k in ('gridSize', 'mount', 'palette', 'voxels')}
         db.add(HouseVersion(id=version_id, furniture_id=model['id'], data_json=json.dumps(data, separators=(',', ':'))))
         db.add(HouseFurniture(id=model['id'], user_id=None, name=model['name'], category=model['category'],
-                              style=model['style'], thumbnail=model['thumbnail'], version_id=version_id, is_public=True))
+                              style=model['style'], thumbnail=model['thumbnail'], version_id=version_id, is_public=True,
+                              published_version_id=version_id, published_name=model['name'],
+                              published_category=model['category'], published_style=model['style'], published_at=now()))
+    for room in db.scalars(select(HouseRoom).where(HouseRoom.share_id.is_not(None),HouseRoom.published_assets_json.is_(None))):
+        state=json.loads(room.published_state_json or room.state_json)
+        rows=versions_for(db,{p['versionId'] for p in state['placements']})
+        room.published_assets_json=json.dumps({ident:furniture_card(f) for ident,(_,f) in rows.items()},separators=(',',':'))
     db.commit()
 
 
@@ -110,6 +133,7 @@ class Slot(RequestModel):
     label: str = Field(min_length=1, max_length=32)
     color: str = Field(pattern=r'^#[0-9a-fA-F]{6}$')
     editable: bool = True
+    material: Literal['wood', 'metal', 'glass', 'plastic', 'fabric', 'stone', 'ceramic', 'emissive'] | None = None
 
 
 class VoxelData(RequestModel):
@@ -151,6 +175,7 @@ class Placement(RequestModel):
     versionId: str = Field(min_length=1, max_length=64)
     position: Position
     rotation: Literal[0, 90, 180, 270] = 0
+    scale: Literal[0.5, 1, 2] = 1
     paletteOverrides: dict[str, str] = Field(default_factory=dict, max_length=256)
 
 
@@ -179,6 +204,11 @@ class Visibility(RequestModel):
 
 class PublicFlag(RequestModel):
     enabled: bool
+    revision: int | None = Field(default=None, ge=0)
+
+
+class FurnitureCopy(RequestModel):
+    versionId: str | None = Field(default=None, max_length=64)
 
 
 class CommentCreate(RequestModel):
@@ -192,9 +222,13 @@ def user_public(db, user_id, viewer=None):
     return present_user_public(user, viewer).model_dump(mode='json') if user else None
 
 
-def furniture_card(f):
-    return {'id': f.id, 'name': f.name, 'category': f.category, 'style': f.style, 'thumbnail': f.thumbnail,
-            'versionId': f.version_id, 'revision': f.revision, 'creatorId': f.user_id,
+def furniture_card(f, public=False):
+    return {'id': f.id, 'name': f.published_name if public and f.published_name is not None else f.name,
+            'category': f.published_category if public and f.published_category is not None else f.category,
+            'style': f.published_style if public and f.published_style is not None else f.style, 'thumbnail': f.thumbnail,
+            'versionId': (f.published_version_id or f.version_id) if public else f.version_id,
+            'revision': f.revision, 'creatorId': f.user_id, 'publishedAt': f.published_at,
+            'publishedVersionId': f.published_version_id,
             'isPublic': f.is_public, 'isVisible': f.is_visible, 'deleted': f.deleted}
 
 
@@ -210,10 +244,23 @@ def is_moderator(user):
     return bool(user and (user.is_admin or user.role in (UserRole.STAFF, UserRole.DISCIPLINARIAN)))
 
 
-def transformed(voxels, rotation):
+def transformed(voxels, rotation, scale=1):
     coords = [(x,y,z) if rotation==0 else (-y,x,z) if rotation==90 else (-x,-y,z) if rotation==180 else (y,-x,z) for x,y,z,c in voxels]
     lo = [min(p[a] for p in coords) for a in range(3)]
-    return [(x-lo[0],y-lo[1],z-lo[2]) for x,y,z in coords]
+    points = [(x-lo[0],y-lo[1],z-lo[2]) for x,y,z in coords]
+    if scale == 1:
+        return points
+    # Half-unit occupancy keeps scaling collision checks exact on the room grid.
+    return [(x*scale,y*scale,z*scale) for x,y,z in points]
+
+
+def occupied_cells(voxels, rotation, scale=1, unit=1):
+    width = int(scale / unit)
+    for x, y, z in transformed(voxels, rotation, scale):
+        for dx in range(width):
+            for dy in range(width):
+                for dz in range(width):
+                    yield (int(x/unit)+dx, int(y/unit)+dy, int(z/unit)+dz)
 
 
 def versions_for(db, ids):
@@ -228,25 +275,30 @@ def validate_room(db, state, user, old_state):
     old_ids = {p['versionId'] for p in old_state.get('placements', [])}
     rows = versions_for(db, {p.versionId for p in state.placements})
     occupied = set()
+    unit=.5 if any(p.scale==.5 for p in state.placements) else 1
+    count=0
     for p in state.placements:
         pair = rows.get(p.versionId)
         if not pair: raise HTTPException(422, '引用的家具版本不存在')
         version, furniture = pair
         if p.versionId not in old_ids and (furniture.deleted or not furniture.is_visible or
-                not (furniture.is_public or furniture.user_id == user.id)):
+                not (furniture.user_id == user.id or furniture.is_public and
+                     p.versionId == (furniture.published_version_id or furniture.version_id))):
             raise HTTPException(403, '无法放置此家具')
         data = json.loads(version.data_json)
         editable = {s['key'] for s in data['palette'] if s['editable']}
         import re
         if any(k not in editable or not re.fullmatch(r'#[0-9a-fA-F]{6}', c) for k,c in p.paletteOverrides.items()):
             raise HTTPException(422, '改色部位或颜色无效')
-        points=transformed(data['voxels'], p.rotation)
-        if len(occupied)+len(points)>1_000_000: raise HTTPException(422, '房间累计体素超过100万')
+        count+=len(data['voxels'])
+        if count>1_000_000: raise HTTPException(422, '房间累计体素超过100万')
+        points=occupied_cells(data['voxels'], p.rotation, p.scale, unit)
         for x,y,z in points:
-            q=(x+p.position.x,y+p.position.y,z+p.position.z)
-            if q[0]>=256 or q[1]>=256 or q[2]>=128: raise HTTPException(422, '家具超出房间边界')
+            q=(x+p.position.x/unit,y+p.position.y/unit,z+p.position.z/unit)
+            if q[0]>=256/unit or q[1]>=256/unit or q[2]>=128/unit: raise HTTPException(422, '家具超出房间边界')
             if q in occupied: raise HTTPException(422, '家具之间不能重叠')
             occupied.add(q)
+            if len(occupied)>1_000_000/unit**3: raise HTTPException(422, '房间累计体素超过100万')
     builtin = {t['id'] for t in catalog()['textures']}
     for material in (state.floor, state.wall):
         if not material.textureId or material.textureId in builtin: continue
@@ -260,13 +312,14 @@ def texture_by_id(db, ident):
 
 
 def room_out(db, room, viewer, private=False):
-    state=json.loads(room.state_json) if room else RoomState().model_dump()
+    state=json.loads(room.state_json if private else (room.published_state_json or room.state_json)) if room else RoomState().model_dump()
     rows=versions_for(db,{p['versionId'] for p in state['placements']})
+    frozen=json.loads(room.published_assets_json or '{}') if room and not private else {}
     assets={}; hidden=[]
     for ident,(version,furniture) in rows.items():
         if not furniture.is_visible and not private:
             hidden.append(ident); continue
-        assets[ident]={'data':json.loads(version.data_json),'furniture':furniture_card(furniture)}
+        assets[ident]={'data':json.loads(version.data_json),'furniture':{**(frozen.get(ident) or furniture_card(furniture,not private)),'versionId':ident}}
     if not private: state['placements']=[p for p in state['placements'] if p['versionId'] in assets]
     texture_urls={}
     for key in ('floor','wall'):
@@ -278,10 +331,11 @@ def room_out(db, room, viewer, private=False):
         else: material['textureId']=None
     likes = db.scalar(select(func.count()).select_from(HouseLike).where(HouseLike.room_id==room.id)) if room else 0
     liked=bool(room and viewer and db.scalar(select(HouseLike.id).where(HouseLike.room_id==room.id,HouseLike.user_id==viewer.id)))
-    result={'revision':room.revision if room else 0,'state':state,'assets':assets,'textureUrls':texture_urls,
-            'updatedAt':room.updated_at if room else None,'likeCount':likes,'liked':liked}
+    result={'revision':(room.revision if private else room.published_revision) if room else 0,'state':state,'assets':assets,'textureUrls':texture_urls,
+            'updatedAt':(room.updated_at if private else room.published_at) if room else None,'likeCount':likes,'liked':liked}
     if room:
         result.update(owner=user_public(db,room.user_id,viewer),shareId=room.share_id,isVisible=room.is_visible)
+        result.update(publishedAt=room.published_at,publishedRevision=room.published_revision)
     return result
 
 
@@ -306,16 +360,26 @@ def read_catalog():
 
 @router.get('/furniture')
 def furniture_list(page: int=Query(1,ge=1),page_size: int=Query(20,ge=1,le=50),category: str='',style: str='',search: str='',
-                   mine: bool=False,user: User|None=Depends(get_optional_user),db:Session=Depends(get_db)):
+                   mine: bool=False,favorites: bool=False,user: User|None=Depends(get_optional_user),db:Session=Depends(get_db)):
     query=select(HouseFurniture).where(HouseFurniture.deleted.is_(False))
     if mine:
         if not user: raise HTTPException(401,'请先登录')
         query=query.where(HouseFurniture.user_id==user.id)
     else: query=query.where(HouseFurniture.is_public.is_(True),HouseFurniture.is_visible.is_(True))
-    if category: query=query.where(HouseFurniture.category==category)
-    if style: query=query.where(HouseFurniture.style==style)
-    if search: query=query.where(HouseFurniture.name.contains(search[:64],autoescape=True))
-    return paginated(db,query.order_by(HouseFurniture.id),page,page_size,furniture_card)
+    if favorites:
+        if not user: raise HTTPException(401,'请先登录')
+        query=query.where(HouseFurniture.id.in_(select(HouseFavorite.furniture_id).where(HouseFavorite.user_id==user.id)))
+    name_col=HouseFurniture.name if mine else func.coalesce(HouseFurniture.published_name,HouseFurniture.name)
+    category_col=HouseFurniture.category if mine else func.coalesce(HouseFurniture.published_category,HouseFurniture.category)
+    style_col=HouseFurniture.style if mine else func.coalesce(HouseFurniture.published_style,HouseFurniture.style)
+    if category: query=query.where(category_col==category)
+    if style: query=query.where(style_col==style)
+    if search: query=query.where(name_col.contains(search[:64],autoescape=True))
+    def present(f):
+        result=furniture_card(f,not mine)
+        result['favorited']=bool(user and db.scalar(select(HouseFavorite.id).where(HouseFavorite.user_id==user.id,HouseFavorite.furniture_id==f.id)))
+        return result
+    return paginated(db,query.order_by(HouseFurniture.id),page,page_size,present)
 
 
 @router.get('/versions/{version_id}')
@@ -324,9 +388,15 @@ def read_version(version_id:str,user:User|None=Depends(get_optional_user),db:Ses
     if not pair: raise HTTPException(404,'家具不存在')
     version,f=pair
     owner=user and f.user_id==user.id
-    if not owner and not is_moderator(user) and (not f.is_public or not f.is_visible or f.deleted):
+    if not owner and not is_moderator(user) and (not f.is_public or not f.is_visible or f.deleted or
+                                               version_id!=(f.published_version_id or f.version_id)):
         raise HTTPException(404,'家具不可用')
-    return {'data':json.loads(version.data_json),'furniture':furniture_card(f)}
+    public_version=version_id==(f.published_version_id or f.version_id)
+    card=furniture_card(f,public_version and (not owner or version_id!=f.version_id));card['versionId']=version_id
+    if owner: card['draftVersionId']=f.version_id
+    if user:
+        card['favorited']=bool(db.scalar(select(HouseFavorite.id).where(HouseFavorite.user_id==user.id,HouseFavorite.furniture_id==f.id)))
+    return {'data':json.loads(version.data_json),'furniture':card,'creator':user_public(db,f.user_id,user) if f.user_id else None}
 
 
 @router.put('/furniture/{furniture_id}')
@@ -337,6 +407,11 @@ def save_furniture(furniture_id:str,payload:FurnitureSave,user:User=Depends(get_
     encoded=json.dumps(payload.data.model_dump(),separators=(',',':'))
     if len(encoded.encode())>8*1024*1024: raise HTTPException(413,'家具数据超过8 MiB')
     f=db.get(HouseFurniture,furniture_id); version_id=uuid4().hex
+    if payload.data.gridSize>32 or len(payload.data.voxels)>8192 or len(payload.data.palette)>64:
+        previous=db.get(HouseVersion,f.version_id) if f and f.user_id==user.id else None
+        old=json.loads(previous.data_json) if previous else None
+        if not old or payload.data.gridSize>old['gridSize'] or len(payload.data.voxels)>len(old['voxels']) or len(payload.data.palette)>len(old['palette']):
+            raise HTTPException(422,'新家具最多32³网格、8192块积木、64种材质与颜色组合；旧家具可保留原有尺寸')
     if f:
         if f.user_id!=user.id or f.deleted: raise HTTPException(403,'只能修改自己的家具')
         result=db.execute(update(HouseFurniture).where(HouseFurniture.id==furniture_id,HouseFurniture.revision==payload.revision).values(
@@ -356,7 +431,53 @@ def publish_furniture(furniture_id:str,payload:PublicFlag,user:User=Depends(get_
     enforce('house-publish',str(user.id),20,600)
     f=db.get(HouseFurniture,furniture_id)
     if not f or f.user_id!=user.id or f.deleted: raise HTTPException(403,'只能发布自己的家具')
-    f.is_public=payload.enabled; db.commit(); return furniture_card(f)
+    if payload.enabled and not f.is_visible: raise HTTPException(403,'家具已被屏蔽，恢复后才能发布')
+    expected=f.revision if payload.revision is None else payload.revision
+    values={'is_public':payload.enabled}
+    if payload.enabled:
+        values.update(published_version_id=f.version_id,published_name=f.name,published_category=f.category,published_style=f.style,published_at=now())
+    result=db.execute(update(HouseFurniture).where(HouseFurniture.id==f.id,HouseFurniture.revision==expected).values(**values))
+    if result.rowcount!=1: db.rollback();raise HTTPException(409,'家具已更新，请重新载入后发布')
+    db.commit(); return furniture_card(db.get(HouseFurniture,f.id))
+
+
+def available_furniture(db, ident):
+    f=db.get(HouseFurniture,ident)
+    if not f or f.deleted or not f.is_public or not f.is_visible: raise HTTPException(404,'家具不存在或已取消分享')
+    return f
+
+
+@router.put('/furniture/{furniture_id}/favorite')
+def favorite_furniture(furniture_id:str,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    enforce('house-favorite',str(user.id),60,600);available_furniture(db,furniture_id)
+    db.add(HouseFavorite(furniture_id=furniture_id,user_id=user.id))
+    try: db.commit()
+    except IntegrityError: db.rollback()
+    return {'favorited':True}
+
+
+@router.delete('/furniture/{furniture_id}/favorite')
+def unfavorite_furniture(furniture_id:str,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    item=db.scalar(select(HouseFavorite).where(HouseFavorite.furniture_id==furniture_id,HouseFavorite.user_id==user.id))
+    if item: db.delete(item)
+    db.commit();return {'favorited':False}
+
+
+@router.post('/furniture/{furniture_id}/copy',status_code=201)
+def copy_furniture(furniture_id:str,payload:FurnitureCopy,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    enforce('house-furniture',str(user.id),60,600)
+    f=db.get(HouseFurniture,furniture_id)
+    if not f or f.deleted or not f.is_visible: raise HTTPException(404,'家具不可用')
+    own=f.user_id==user.id
+    if not own: available_furniture(db,furniture_id)
+    source=payload.versionId or (f.version_id if own else f.published_version_id or f.version_id)
+    version=db.get(HouseVersion,source)
+    if not version or version.furniture_id!=f.id or not own and source!=(f.published_version_id or f.version_id):
+        raise HTTPException(404,'家具版本不可用')
+    ident=uuid4().hex;version_id=uuid4().hex;card=furniture_card(f,not own)
+    copied=HouseFurniture(id=ident,user_id=user.id,name=(card['name']+' · 副本')[:64],category=card['category'],style=card['style'],version_id=version_id)
+    db.add(copied);db.add(HouseVersion(id=version_id,furniture_id=ident,data_json=version.data_json));db.commit()
+    return furniture_card(copied)
 
 
 @router.delete('/furniture/{furniture_id}')
@@ -393,13 +514,26 @@ def share_room(payload:PublicFlag,user:User=Depends(get_current_user),db:Session
     room=db.scalar(select(HouseRoom).where(HouseRoom.user_id==user.id))
     if not room: raise HTTPException(409,'请先保存房屋')
     if payload.enabled and not room.is_visible: raise HTTPException(403,'房屋已被屏蔽，恢复后才能开启分享')
-    if payload.enabled and not room.share_id: room.share_id=secrets.token_urlsafe(24)
-    elif not payload.enabled: room.share_id=None
-    db.commit(); return {'shareId':room.share_id}
+    values={'share_id':room.share_id or secrets.token_urlsafe(24) if payload.enabled else None}
+    if payload.enabled:
+        state=json.loads(room.state_json);rows=versions_for(db,{p['versionId'] for p in state['placements']})
+        values.update(published_state_json=room.state_json,published_at=now(),published_revision=room.revision,
+                      published_assets_json=json.dumps({ident:furniture_card(f) for ident,(_,f) in rows.items()},separators=(',',':')))
+    expected=room.revision if payload.revision is None else payload.revision
+    result=db.execute(update(HouseRoom).where(HouseRoom.id==room.id,HouseRoom.revision==expected).values(**values))
+    if result.rowcount!=1: db.rollback();raise HTTPException(409,'房屋已更新，请重新载入后发布')
+    db.commit(); return {'shareId':values['share_id'],'publishedAt':room.published_at,'publishedRevision':room.published_revision}
+
+
+@router.get('/rooms')
+def rooms_list(page:int=Query(1,ge=1),page_size:int=Query(20,ge=1,le=50),user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    query=select(HouseRoom).where(HouseRoom.share_id.is_not(None),HouseRoom.is_visible.is_(True),HouseRoom.published_state_json.is_not(None)).order_by(HouseRoom.published_at.desc(),HouseRoom.id)
+    return paginated(db,query,page,page_size,lambda r:{'shareId':r.share_id,'name':json.loads(r.published_state_json)['name'],
+                                                        'owner':user_public(db,r.user_id,user),'publishedAt':r.published_at})
 
 
 @router.get('/visit/{share_id}')
-def visit(share_id:str,user:User|None=Depends(get_optional_user),db:Session=Depends(get_db)):
+def visit(share_id:str,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
     return room_out(db,shared_room(db,share_id),user)
 
 
@@ -407,7 +541,7 @@ def visit(share_id:str,user:User|None=Depends(get_optional_user),db:Session=Depe
 def creator(user_id:int,page:int=Query(1,ge=1),page_size:int=Query(20,ge=1,le=50),viewer:User|None=Depends(get_optional_user),db:Session=Depends(get_db)):
     if not db.get(User,user_id): raise HTTPException(404,'用户不存在')
     room=db.scalar(select(HouseRoom).where(HouseRoom.user_id==user_id,HouseRoom.is_visible.is_(True),HouseRoom.share_id.is_not(None)))
-    items=paginated(db,select(HouseFurniture).where(HouseFurniture.user_id==user_id,HouseFurniture.is_public.is_(True),HouseFurniture.is_visible.is_(True),HouseFurniture.deleted.is_(False)).order_by(HouseFurniture.updated_at.desc()),page,page_size,furniture_card)
+    items=paginated(db,select(HouseFurniture).where(HouseFurniture.user_id==user_id,HouseFurniture.is_public.is_(True),HouseFurniture.is_visible.is_(True),HouseFurniture.deleted.is_(False)).order_by(HouseFurniture.published_at.desc()),page,page_size,lambda f:furniture_card(f,True))
     return {'user':user_public(db,user_id,viewer),'shareId':room.share_id if room else None,'furniture':items}
 
 
@@ -434,7 +568,7 @@ def comment_out(db,c,user,room):
 
 
 @router.get('/visit/{share_id}/comments')
-def comments(share_id:str,page:int=Query(1,ge=1),page_size:int=Query(20,ge=1,le=50),user:User|None=Depends(get_optional_user),db:Session=Depends(get_db)):
+def comments(share_id:str,page:int=Query(1,ge=1),page_size:int=Query(20,ge=1,le=50),user:User=Depends(get_current_user),db:Session=Depends(get_db)):
     room=shared_room(db,share_id)
     return paginated(db,select(HouseComment).where(HouseComment.room_id==room.id).order_by(HouseComment.id.desc()),page,page_size,lambda c:comment_out(db,c,user,room))
 

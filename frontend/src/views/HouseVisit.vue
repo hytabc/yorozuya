@@ -8,6 +8,7 @@ import { useToast } from '../composables/toast'
 import UserTitleTag from '../components/UserTitleTag.vue'
 import UserAvatar from '../components/UserAvatar.vue'
 import VoxelScene from '../house/VoxelScene.vue'
+import HouseHelp from '../house/HouseHelp.vue'
 import '../house/house.css'
 const route=useRoute(),auth=useAuthStore(),toast=useToast(),data=ref(null),loading=ref(true),error=ref(''),comments=ref([]),commentLoading=ref(false),page=ref(1),total=ref(0),text=ref(''),posting=ref(false),liking=ref(false)
 const shareId=computed(()=>route.params.shareId),pages=computed(()=>Math.max(1,Math.ceil(total.value/20)))
@@ -21,13 +22,13 @@ watch(shareId,load);watch(page,loadComments);onMounted(load)
 </script>
 <template>
   <div class="house-page page house-visit">
-    <RouterLink to="/house" class="visit-back"><House :size="16" />回到房屋</RouterLink>
+    <RouterLink to="/house" class="visit-back"><House :size="16" />返回自己的房屋</RouterLink> · <RouterLink to="/house?tab=visit">继续参观</RouterLink>
     <div v-if="loading" class="skeleton" style="height:600px" aria-busy="true" />
     <div v-else-if="error" class="house-notice is-error" role="alert">{{ error }}<button @click="load">重新加载</button></div>
     <template v-else-if="data">
       <div class="house-heading"><div><span class="eyebrow">欢迎来串门</span><h1>{{ data.state.name }}</h1><RouterLink :to="`/house/users/${data.owner.id}`">{{ data.owner.nickname }}<UserTitleTag :title="data.owner.title" />的小屋</RouterLink></div><button v-if="auth.isLoggedIn" class="button secondary" :disabled="liking" :aria-pressed="data.liked" @click="like"><Heart :size="16" :fill="data.liked?'currentColor':'none'" />{{ data.liked?'已喜欢':'喜欢这间小屋' }} · {{ data.likeCount }}</button><RouterLink v-else to="/login" class="button secondary">登录后点赞 · {{ data.likeCount }}</RouterLink></div>
       <VoxelScene :room="data.state" :assets="data.assets" :texture-urls="data.textureUrls" readonly />
-      <p class="muted visit-note">这是房主最近保存的布置。你可以旋转、缩放与平移视角。</p>
+      <p class="muted visit-note">这是房主确认发布的展示版本（{{new Date(data.publishedAt).toLocaleString()}}）。你可以旋转、缩放与平移视角。</p><HouseHelp />
       <section class="visit-comments"><h2><MessageCircle :size="18" />来访留言</h2>
         <form v-if="auth.isLoggedIn" @submit.prevent="post"><textarea v-model="text" maxlength="1000" rows="3" aria-label="串门留言" placeholder="给房主留一句话…" /><div><small>{{ text.length }} / 1000</small><button class="button small" :disabled="posting || !text.trim()">{{ posting?'发送中…':'留下留言' }}</button></div></form>
         <p v-else class="muted"><RouterLink :to="{path:'/login',query:{redirect:route.fullPath}}">登录后</RouterLink>给房主留言。</p>

@@ -3,17 +3,18 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { errorMessage } from '../api'
 import { draftOperation } from './drafts'
 import { ownedClient } from './client'
-import { clone, createHistory, editVoxels, validateVoxelData } from './engine'
+import { clone, createHistory, editVoxels, validateVoxelData, MATERIALS, CRAFT_LIMITS } from './engine'
 import VoxelScene from './VoxelScene.vue'
 
 const props = defineProps({ source: Object, catalog: Object, ownerId: Number })
 const emit = defineEmits(['saved', 'error'])
 const { client, ownerValid, dispose:disposeClient } = ownedClient()
-const data = ref({ gridSize: 16, mount: 'floor', palette: [{ key: 'wood', label: '木材', color: '#b58b63', editable: true }, { key: 'fabric', label: '布艺', color: '#e4d9c6', editable: true }, { key: 'accent', label: '装饰', color: '#879b87', editable: true }], voxels: [[7, 7, 0, 0]] })
+const data = ref({ gridSize: 16, mount: 'floor', palette: [{ key: 'wood', label: '木材', material: 'wood', color: '#b58b63', editable: true }], voxels: [[7, 7, 0, 0]] })
 const name = ref('新家具'), category = ref('deco'), style = ref('自制'), ident = ref(crypto.randomUUID()), revision = ref(0)
 const tool = ref('add'), color = ref(0), mirrors = ref([]), sliceAxis = ref(2), slice = ref(0), sliced = ref(true)
 const point = ref([7,7,0]), saving = ref(false), dirty = ref(false), restoreDraft = ref(null), history = createHistory(20), message = ref('')
 const currentSlot = computed(() => data.value.palette[color.value])
+const legacy = computed(() => data.value.gridSize > 32 || data.value.voxels.length > 8192 || data.value.palette.length > 64)
 const toolsOpen=ref(true),colorsOpen=ref(true)
 let timer, queue = Promise.resolve(), disposed = false
 function snapshot() { return clone({ id: ident.value, revision: revision.value, name: name.value, category: category.value, style: style.value, data: data.value }) }
@@ -40,8 +41,12 @@ function loadSource(source) {
   if (!own) changed()
 }
 watch(() => props.source, loadSource)
-function historyChange(action) { const next = history[action](data.value); if (next) { data.value = next; changed() } }
-function paint(p, record = false) { if (record) history.push(data.value); data.value = editVoxels(data.value, p, tool.value === 'camera' ? 'add' : tool.value, color.value, mirrors.value); changed() }
+function historyChange(action) { const next = history[action](data.value); if (next) { data.value = next; color.value = Math.min(color.value,next.palette.length-1); changed() } }
+function paint(p, record = false) {
+  if (tool.value === 'picker') { const voxel=data.value.voxels.find((v)=>v.slice(0,3).every((n,i)=>n===p[i]));if(voxel)color.value=voxel[3];return }
+  try { const next=editVoxels(data.value,p,tool.value==='camera'?'add':tool.value,color.value,mirrors.value);if(record)history.push(data.value);data.value=next;changed() }
+  catch(e){emit('error',e.message)}
+}
 function resizeGrid(event) {
   const n = Number(event.target.value)
   if (data.value.voxels.some((p) => p.slice(0,3).some((a) => a >= n))) { emit('error','已有体素超出新网格，请先删除或选择更大的尺寸'); event.target.value = data.value.gridSize; return }
@@ -49,14 +54,14 @@ function resizeGrid(event) {
 }
 function fresh() {
   if (dirty.value && !window.confirm('当前家具草稿尚未保存到云端，确认新建？')) return
-  hydrate({id:crypto.randomUUID(),revision:0,name:'新家具',category:'deco',style:'自制',data:{gridSize:16,mount:'floor',palette:clone(data.value.palette),voxels:[[7,7,0,0]]}})
+  hydrate({id:crypto.randomUUID(),revision:0,name:'新家具',category:'deco',style:'自制',data:{gridSize:16,mount:'floor',palette:clone(data.value.palette.slice(0,64)),voxels:[[7,7,0,0]]}})
   changed()
 }
 async function save() {
   if (saving.value) return
   try {
     if (!ownerValid()) throw new Error('登录身份已变更，请重新进入房屋')
-    validateVoxelData(data.value)
+    validateVoxelData(data.value, {legacy:revision.value>0 && legacy.value})
     saving.value = true
     const snap = snapshot()
     const { data: furniture } = await client.put(`/house/furniture/${ident.value}`, { revision: revision.value, name: name.value, category: category.value, style: style.value, data: snap.data })
@@ -83,8 +88,12 @@ async function importJson(event) {
   } catch (e) { emit('error',e.message) } finally { event.target.value='' }
 }
 function newSlot() {
-  if (data.value.palette.length >= 256) return
-  history.push(data.value); data.value.palette.push({key:`part${data.value.palette.length}`,label:'新部位',color:'#c4a3a5',editable:true}); color.value=data.value.palette.length-1; changed()
+  if (data.value.palette.length >= CRAFT_LIMITS.palette) return
+  history.push(data.value); data.value.palette.push({key:`part-${crypto.randomUUID().slice(0,8)}`,label:'新组合',material:'plastic',color:'#c4a3a5',editable:true}); color.value=data.value.palette.length-1; changed()
+}
+function removeSlot() {
+  if(data.value.palette.length<=1 || data.value.voxels.some((v)=>v[3]===color.value)){emit('error','请先为使用这个组合的积木换色，再删除组合');return}
+  history.push(data.value);data.value.palette.splice(color.value,1);data.value.voxels=data.value.voxels.map((v)=>[...v.slice(0,3),v[3]>color.value?v[3]-1:v[3]]);color.value=Math.max(0,color.value-1);changed()
 }
 function applyPalette(palette) {
   history.push(data.value)
@@ -105,9 +114,10 @@ onBeforeUnmount(()=>{
 <template>
   <div class="workshop">
     <div v-if="restoreDraft" class="house-notice">发现本地工坊草稿：{{ restoreDraft.name }}<button @click="hydrate(restoreDraft);restoreDraft=null;changed()">恢复草稿</button><button @click="restoreDraft=null">暂不恢复</button></div>
+    <p v-if="legacy" class="house-notice">正在查看旧版大网格家具，原件可以保留已有尺寸；新作品需缩至32³、8192块及64种组合以内。</p>
     <div class="workshop-tools">
       <input v-model="name" maxlength="64" aria-label="家具名称" @input="changed" />
-      <select :value="data.gridSize" aria-label="网格尺寸" @change="resizeGrid"><option v-for="n in [16,32,64]" :key="n" :value="n">{{ n }}³ 网格</option></select>
+      <select :value="data.gridSize" aria-label="网格尺寸" @change="resizeGrid"><option v-for="n in (data.gridSize===64?[16,32,64]:[16,32])" :key="n" :value="n">{{ n }}³ 网格</option></select>
       <select v-model="category" aria-label="家具分类" @change="changed"><option v-for="c in catalog?.categories" :key="c.id" :value="c.id">{{ c.label }}</option></select>
       <select v-model="style" aria-label="家具风格" @change="changed"><option v-for="s in ['自制','原木','奶油','北欧','复古','现代']" :key="s">{{ s }}</option></select>
       <button class="button secondary small" @click="fresh">新建</button><button class="button small" :disabled="saving" @click="save">{{ saving?'保存中…':'保存家具' }}</button>
@@ -116,7 +126,7 @@ onBeforeUnmount(()=>{
       <aside class="workshop-panel" :class="{collapsed:!toolsOpen}">
         <button class="mobile-panel-toggle" :aria-expanded="toolsOpen" @click="toolsOpen=!toolsOpen">{{ toolsOpen?'收起绘制工具':'展开绘制工具' }}</button>
         <h3>绘制工具</h3>
-        <div class="tool-buttons"><button v-for="[id,label] in [['add','放置'],['delete','删除'],['paint','着色'],['camera','视角']]" :key="id" :aria-pressed="tool===id" :class="{active:tool===id}" @click="tool=id">{{ label }}</button></div>
+        <div class="tool-buttons"><button v-for="[id,label] in [['add','放置'],['delete','删除'],['paint','材质涂刷'],['picker','吸管'],['camera','视角']]" :key="id" :aria-pressed="tool===id" :class="{active:tool===id}" @click="tool=id">{{ label }}</button></div>
         <p class="muted">点击或滑动画布绘制；内部结构可用切片编辑。</p>
         <label>摆放方式<select v-model="data.mount" @change="changed"><option value="floor">落地</option><option value="surface">桌面</option><option value="wall">墙面</option><option value="ceiling">顶面</option></select></label>
         <h3>镜像绘制</h3><div class="tool-buttons"><label v-for="[axis,label] in [[0,'X'],[1,'Y'],[2,'Z']]" :key="axis"><input v-model="mirrors" type="checkbox" :value="axis" />{{ label }}</label></div>
@@ -129,14 +139,17 @@ onBeforeUnmount(()=>{
         <div class="tool-buttons"><button @click="historyChange('undo')">撤销</button><button @click="historyChange('redo')">重做</button></div>
         <h3>数据</h3><button class="button secondary small" @click="exportJson">导出 JSON</button><label class="import-label">导入 JSON<input type="file" accept=".json,application/json" @change="importJson" /></label>
       </aside>
-      <VoxelScene :data="data" :tool="tool" :slice-axis="sliceAxis" :slice="sliced?slice:-1" @voxel="paint($event)" @stroke-start="history.push(data)" @error="emit('error',$event)" />
+      <VoxelScene :data="data" :tool="tool" :slice-axis="sliceAxis" :slice="sliced?slice:-1" @voxel="paint($event)" @stroke-start="tool!=='picker' && history.push(data)" @error="emit('error',$event)" />
       <aside class="workshop-panel" :class="{collapsed:!colorsOpen}">
         <button class="mobile-panel-toggle" :aria-expanded="colorsOpen" @click="colorsOpen=!colorsOpen">{{ colorsOpen?'收起材质与颜色':'展开材质与颜色' }}</button>
         <h3>材质与颜色</h3>
         <button v-for="(s,i) in data.palette" :key="s.key" class="slot-button" :class="{active:color===i}" @click="color=i"><span :style="{background:s.color}" />{{ s.label }}</button>
-        <label v-if="currentSlot">部位名称<input v-model="currentSlot.label" maxlength="32" @input="changed" /></label>
-        <label v-if="currentSlot">体素颜色<input v-model="currentSlot.color" type="color" @input="changed" /></label>
-        <button class="button secondary small" @click="newSlot">新增部位</button>
+        <label v-if="currentSlot">组合名称<input v-model="currentSlot.label" maxlength="32" @focus="history.push(data)" @input="changed" /></label>
+        <label v-if="currentSlot">材质<select v-model="currentSlot.material" aria-label="积木材质" @focus="history.push(data)" @change="changed"><option :value="null">旧版原色</option><option v-for="m in MATERIALS" :key="m.id" :value="m.id">{{ m.label }}</option></select></label>
+        <label v-if="currentSlot">积木颜色<input v-model="currentSlot.color" type="color" @focus="history.push(data)" @input="changed" /></label>
+        <button class="button secondary small" :disabled="data.palette.length>=64" @click="newSlot">新增材质颜色组合（{{ data.palette.length }}/64）</button>
+        <button class="button secondary small" :disabled="data.palette.length<=1" @click="removeSlot">删除未使用的组合</button>
+        <p class="muted">修改组合会更新所有使用它的积木。要用另一种颜色继续拼搭，请先新增组合，再选材质与颜色。</p>
         <h3>搭配色板</h3>
         <button v-for="p in catalog?.palettes" :key="p.id" class="palette-button" @click="applyPalette(p)"><span><i v-for="k in ['wood','fabric','accent']" :key="k" :style="{background:p.colors[k]}" /></span>{{ p.name }}</button>
         <p class="muted">{{ data.voxels.length.toLocaleString() }} 个体素 · {{ dirty?'本地草稿':'已保存' }}</p><p v-if="message" role="status">{{ message }}</p>

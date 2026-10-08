@@ -322,8 +322,27 @@ def migrate_schema() -> None:
         return
     from sqlalchemy import inspect as sa_inspect
 
-    inspector = sa_inspect(engine)
     with engine.begin() as connection:
+        inspector = sa_inspect(connection)
+        # Preserve the last shared appearance when upgrading from live sharing.
+        for table, additions in {
+            'house_rooms': {'published_state_json': 'TEXT', 'published_assets_json': 'TEXT', 'published_at': 'VARCHAR(40)', 'published_revision': 'INTEGER'},
+            'house_furniture': {'published_version_id': 'VARCHAR(64)', 'published_name': 'VARCHAR(64)',
+                                'published_category': 'VARCHAR(32)', 'published_style': 'VARCHAR(32)', 'published_at': 'VARCHAR(40)'},
+        }.items():
+            if not inspector.has_table(table):
+                continue
+            columns = {column['name'] for column in inspector.get_columns(table)}
+            for column, sql_type in additions.items():
+                if column not in columns:
+                    connection.execute(text(f'ALTER TABLE {table} ADD COLUMN {column} {sql_type}'))
+            if table == 'house_rooms':
+                connection.execute(text('UPDATE house_rooms SET published_state_json=state_json, published_at=updated_at, '
+                                        'published_revision=revision WHERE share_id IS NOT NULL AND published_state_json IS NULL'))
+            else:
+                connection.execute(text('UPDATE house_furniture SET published_version_id=version_id, published_name=name, '
+                                        'published_category=category, published_style=style, published_at=updated_at '
+                                        'WHERE is_public=1 AND published_version_id IS NULL'))
         if inspector.has_table("users"):
             user_columns = {column["name"] for column in inspector.get_columns("users")}
             if "max_concurrent_tasks" not in user_columns:
