@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { BarChart3, BookOpen, BriefcaseBusiness, Check, ChevronDown, CircleQuestionMark, Gamepad2, HeartHandshake, History, LogOut, Map, Megaphone, Menu, MessageCircle, MessagesSquare, ShieldCheck, Snowflake, Sparkles, Store, UserPlus, UserRound, Users, X } from '@lucide/vue'
+import { BarChart3, BookOpen, BriefcaseBusiness, Check, ChevronDown, CircleQuestionMark, Gamepad2, HeartHandshake, History, House, LogOut, Map, Megaphone, Menu, MessageCircle, MessagesSquare, ShieldCheck, Snowflake, Sparkles, Store, UserPlus, UserRound, Users, X } from '@lucide/vue'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import { OFFICIAL_GROUP } from '../constants'
@@ -23,7 +23,7 @@ const mobileGroup = ref(null)
 const ICONS = {
   BriefcaseBusiness, MessagesSquare, CircleQuestionMark, Gamepad2, Sparkles, Snowflake,
   BookOpen, Map, UserPlus, HeartHandshake, Users, Store, Megaphone, History,
-  ShieldCheck, BarChart3,
+  ShieldCheck, BarChart3, House,
 }
 
 // 六个大厅，按当前身份过滤条目；整组无可见条目时隐藏。
@@ -31,7 +31,7 @@ const halls = computed(() =>
   HALLS.map((hall) => ({ ...hall, items: visibleItems(hall, auth) })).filter((hall) => hall.items.length),
 )
 const manageLinks = computed(() => moreLinks(auth))
-const moreActive = computed(() => manageLinks.value.some((link) => link.to === route.path))
+const moreActive = computed(() => manageLinks.value.some((link) => link.to === route.path || (link.to === '/house' && route.path.startsWith('/house/'))))
 
 const hallActive = (hall) => hallContainsPath(hall, route.path)
 

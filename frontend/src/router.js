@@ -9,6 +9,9 @@ const router = createRouter({
   routes: [
     // 全部页面按需动态导入：首屏只加载当前路由的 JS，减小首包体积。
     { path: '/', component: () => import('./views/TaskHall.vue'), meta: { analyticsKey: 'hall' } },
+    { path: '/house', component: () => import('./views/HouseView.vue'), meta: { analyticsKey: 'house' } },
+    { path: '/house/visit/:shareId', component: () => import('./views/HouseVisit.vue'), meta: { analyticsKey: 'house' } },
+    { path: '/house/users/:userId', component: () => import('./views/HouseCreator.vue'), meta: { analyticsKey: 'house' } },
     { path: '/login', component: () => import('./views/LoginView.vue'), meta: { guestOnly: true, analyticsKey: 'login' } },
     { path: '/register', component: () => import('./views/LoginView.vue'), props: { initialMode: 'register' }, meta: { guestOnly: true, analyticsKey: 'login' } },
     // 邮箱相关：验证/重置链接可能从任意浏览器打开，因此都不要求登录态。

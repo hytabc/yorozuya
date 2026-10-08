@@ -185,3 +185,14 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - `tests/conftest.py` 在导入应用前将存储与邮件来源隔离到测试环境；新增安全用例在 `test_security_audit.py`。
 - 游戏存档请求的异步凭证拦截器必须校验并固定 `ownerToken`，不得把旧页面快照发送给切换后的账号。
 - 本次因明确安全公告升级 FastAPI/Starlette、multipart、Pillow 和 pip/pytest；其它锁定版本保持。依赖复查脚本：`backend/scripts/audit_dependencies.py`。
+
+## 房屋模块（2026-10）
+
+- 导航“更多”现在包含所有人可见的 `/house`，监管台/运营台仍按权限过滤；分享与创作者页面为 `/house/visit/:shareId`、`/house/users/:userId`。
+- `backend/app/house.py` 独立路由和六张表：房屋、家具、不可变版本、纹理、点赞、留言（家具与版本分表）；一人一套，revision CAS，写接口沿用邮箱闸门。
+- 原创预置家具24类×5款、30款纹理、六套色板、五个示例场景：`backend/app/house_catalog.json`；生成器 `backend/scripts/build_house_assets.py`，素材与来源说明 `docs/house-assets.md`。
+- 房间坐标 x/y为地面、z为高度；实例保存 versionId 和 paletteOverrides，改色不改模板。修改官方几何需新增不可变版本，不能覆盖旧版本。
+- 房屋纹理属于 `_MEDIA_PHOTO_MODELS`，需走净化、媒体 helper、数据库公开访问校验和启动对账；审核在图片管理，房屋/家具审核在房屋管理，均使用 get_content_moderator。
+- 前端 `frontend/src/house/`：纯逻辑引擎、Three.js画布、工坊、账号隔离IndexedDB草稿和串行CAS保存。异步凭证请求固定 ownerToken；换账号后不得保存旧草稿。
+- 房屋接口 `/api/house/*`、审核 `/api/admin/house/*`。房间128个实例/100万体素，家具8 MiB，纹理单张10 MB；两层Nginx仅为对应接口放宽。
+- 回归：`backend/tests/test_house.py`、`frontend/tests/house.test.mjs`；原导航测试已更新“更多”约定。

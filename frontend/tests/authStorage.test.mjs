@@ -74,3 +74,14 @@ test('清除凭证时同时清掉明文键与加密缓存', async () => {
   assert.equal(store.has('wsw_auth'), false)
   assert.equal(store.has('wsw_auth_format'), false)
 })
+
+test('跨标签页读取持久凭证不改变本页身份或清理损坏密文', async () => {
+  const store = installStorage()
+  const auth = await import('../src/authStorage.js?case=read-persistent')
+  await auth.saveAuth({ token: 'owner-token', user: { id: 1 } })
+  store.set('wsw_auth', 'corrupt')
+  store.set('wsw_auth_format', '7')
+  assert.equal(await auth.getPersistentToken(), null)
+  assert.equal(auth.getTokenSync(), 'owner-token')
+  assert.equal(store.get('wsw_auth'), 'corrupt')
+})
