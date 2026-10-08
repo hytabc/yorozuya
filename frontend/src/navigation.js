@@ -62,8 +62,9 @@ export const HALLS = [
   },
 ]
 
-// 「更多」只留管理入口（监管台/运营台）；标签由 AppHeader 按角色动态生成。
+// 「更多」包含房屋与按权限过滤的管理入口。
 export const MORE_LINKS = [
+  { to: '/house', label: '房屋', icon: 'House' },
   { to: '/admin', label: '监管台', icon: 'ShieldCheck', moderate: true },
   { to: '/operations', label: '运营台', icon: 'BarChart3', operate: true },
 ]

@@ -487,6 +487,7 @@ class AdminSummary(BaseModel):
     pending_vr_map_reports: int = 0
     pending_vr_map_photos: int = 0
     pending_story_photos: int = 0
+    pending_house_textures: int = 0
 
 
 class TaskStats(BaseModel):
@@ -545,7 +546,7 @@ class AnnouncementOut(ApiModel):
 PageKeyLiteral = Literal[
     "hall", "staff", "board", "talk", "maps", "friends", "stories", "sugar",
     "announcements", "versions", "mine", "profile", "login", "frost",
-    "operations", "admin", "life", "life-admin",
+    "operations", "admin", "life", "life-admin", "house",
     "verify-email", "forgot-password", "reset-password",
 ]
 

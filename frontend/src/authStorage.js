@@ -249,3 +249,17 @@ export async function getToken() {
 export function getTokenSync() {
   return cache?.token ?? null
 }
+
+// Read-only cross-tab identity check for account-owned editors. Do not change
+// cache/Pinia state or migrate/clear storage while another tab is logging in.
+export async function getPersistentToken() {
+  if (!isPersistent() || readItem(SW_AUTH_FORMAT_KEY) !== AUTH_CACHE_VERSION) return null
+  try {
+    const raw = readItem(SW_AUTH_KEY)
+    if (!raw) return null
+    const block = JSON.parse(raw), key = await getKey()
+    if (!key || block.v !== AUTH_CACHE_VERSION) return null
+    const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromBase64(block.iv) }, key, fromBase64(block.data))
+    return JSON.parse(new TextDecoder().decode(plaintext))?.token ?? null
+  } catch { return null }
+}

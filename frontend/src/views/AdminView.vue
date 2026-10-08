@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 'vue'
 import { Check, CircleCheck, ClipboardList, Clock3, Eye, EyeOff, Flag, HeartHandshake, Image as ImageIcon, KeyRound, Map as MapIcon, MessageCircle, RotateCcw, Save, Search, ShieldCheck, Sparkles, Store, UsersRound, X } from '@lucide/vue'
 import { useRouter } from 'vue-router'
 import { api, errorMessage } from '../api'
@@ -10,6 +10,7 @@ import UserTitleTag from '../components/UserTitleTag.vue'
 import LazyImage from '../components/LazyImage.vue'
 import { roleLabel } from '../constants'
 
+const HouseModeration = defineAsyncComponent(() => import('../house/HouseModeration.vue'))
 const toast = useToast()
 const auth = useAuthStore()
 const router = useRouter()
@@ -410,7 +411,8 @@ watch(activeTab, (tab) => loadTab(tab))
       <button v-if="!auth.isDisciplinarian" :class="{ active: activeTab === 'beta-applications' }" role="tab" :aria-selected="activeTab === 'beta-applications'" @click="activeTab = 'beta-applications'">内测申请<span v-if="pendingBetaApplications">{{ pendingBetaApplications }}</span></button>
       <button :class="{ active: activeTab === 'vrmaps' }" role="tab" :aria-selected="activeTab === 'vrmaps'" @click="activeTab = 'vrmaps'">地图推荐<span v-if="pendingVrMapReports + pendingVrMapPhotos">{{ pendingVrMapReports + pendingVrMapPhotos }}</span></button>
       <button v-if="!auth.isDisciplinarian" :class="{ active: activeTab === 'users' }" role="tab" :aria-selected="activeTab === 'users'" @click="activeTab = 'users'">用户与权限</button>
-      <button :class="{ active: activeTab === 'photos' }" role="tab" :aria-selected="activeTab === 'photos'" @click="activeTab = 'photos'">图片管理<span v-if="pendingStoryPhotos">{{ pendingStoryPhotos }}</span></button>
+      <button :class="{ active: activeTab === 'house' }" role="tab" :aria-selected="activeTab === 'house'" @click="activeTab = 'house'">房屋管理</button>
+      <button :class="{ active: activeTab === 'photos' }" role="tab" :aria-selected="activeTab === 'photos'" @click="activeTab = 'photos'">图片管理<span v-if="pendingStoryPhotos + (stats.pending_house_textures || 0)">{{ pendingStoryPhotos + (stats.pending_house_textures || 0) }}</span></button>
       <button v-if="!auth.isDisciplinarian" :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
     </div>
 
@@ -655,7 +657,10 @@ watch(activeTab, (tab) => loadTab(tab))
         </div>
         <div v-else class="feedback-admin-empty"><ImageIcon :size="28" />暂无故事配图</div>
       </template>
+      <HouseModeration textures @moderated="loadSummary" />
     </section>
+
+    <section v-else-if="activeTab === 'house'" class="admin-table-section"><HouseModeration @moderated="loadSummary" /></section>
 
     <section v-else-if="activeTab === 'feedback'" class="admin-table-section">
       <div class="admin-toolbar"><div><h2>用户反馈</h2><span>待处理 {{ pendingFeedbacks }} 条</span></div><span class="muted"><MessageCircle :size="15" /> 提交者会收到处理状态与回复</span></div>

@@ -219,6 +219,7 @@ from .security import (
     verify_password,
 )
 from .sugar_frost import router as sugar_frost_router
+from .house import HouseTexture, admin_router as house_admin_router, router as house_router, seed_house_catalog
 from .virtual_life import router as virtual_life_router
 from .virtual_life_packs import router as virtual_life_packs_router, seed_virtual_life_packs
 
@@ -311,6 +312,7 @@ def initialize_database() -> None:
                 f"，新密码已写入 {location}（权限 0600）" if location else "，但写入失败，请手工重置",
             )
         seed_virtual_life_packs(db)
+        seed_house_catalog(db)
 
 
 def migrate_schema() -> None:
@@ -546,6 +548,7 @@ def sync_media_zones(db: Session) -> None:
     targets += [(photo.file_path, photo.is_visible) for photo in db.scalars(select(FriendPhoto))]
     targets += [(photo.file_path, photo.is_visible) for photo in db.scalars(select(StoryPhoto))]
     targets += [(photo.file_path, photo.is_visible) for photo in db.scalars(select(VrMapPhoto))]
+    targets += [(photo.file_path, photo.is_visible) for photo in db.scalars(select(HouseTexture))]
     for key, public in targets:
         if key:
             place_media(key, public=public)
@@ -586,7 +589,7 @@ async def security_headers(request: Request, call_next):
     return response
 
 
-_MEDIA_PHOTO_MODELS = (UserPhoto, SugarPhoto, FriendPhoto, StoryPhoto, VrMapPhoto)
+_MEDIA_PHOTO_MODELS = (UserPhoto, SugarPhoto, FriendPhoto, StoryPhoto, VrMapPhoto, HouseTexture)
 
 
 def media_key_is_public(key: str, db: Session) -> bool:
@@ -634,6 +637,8 @@ app.include_router(mascot_router)
 app.include_router(virtual_life_router)
 app.include_router(virtual_life_packs_router)
 app.include_router(sugar_frost_router)
+app.include_router(house_router)
+app.include_router(house_admin_router)
 
 
 def expire_due_tasks(db: Session) -> None:
@@ -660,6 +665,7 @@ TALK_BOARDS = {
 }
 
 PAGE_LABELS = {
+    "house": "房屋",
     "hall": "委托大厅",
     "talk": "疑难解答",
     "staff": "成员名录",
@@ -5014,6 +5020,7 @@ def admin_summary(user: User = Depends(get_content_moderator), db: Session = Dep
             )
             or 0
         ),
+        pending_house_textures=db.scalar(select(func.count()).select_from(HouseTexture).where(HouseTexture.moderated.is_(False))) or 0,
     )
 
 

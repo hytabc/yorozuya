@@ -238,3 +238,7 @@ docker compose up -d
 ```
 
 > 卷名通常是 `仓库名_wsw_data`，可用 `docker volume ls | grep wsw` 确认后再替换上文的卷名。
+
+## 房屋
+
+顶部“更多 → 房屋”提供房间布置、体素家具工坊、120款预置家具、30款纹理、六套部位配色和分享串门。操作、审核与部署说明见 [房屋文档](docs/house.md)，素材来源见 [素材说明](docs/house-assets.md)。
