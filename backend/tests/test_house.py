@@ -30,7 +30,8 @@ def env(tmp_path,monkeypatch):
     with factory() as db:
         for uid,role,verified in [(1,UserRole.USER,True),(2,UserRole.USER,True),(3,UserRole.USER,False),(4,UserRole.STAFF,True),(5,UserRole.DISCIPLINARIAN,True),(6,UserRole.MASCOT,True)]:
             db.add(User(id=uid,username=f'house{uid}',nickname=f'玩家{uid}',password_hash='unused',email=f'house{uid}@example.com',email_verified=verified,role=role))
-        db.add(house.HouseFurniture(id='test-chair',user_id=1,name='小木椅',category='chair',style='原木',version_id='version-one',is_public=True))
+        db.add(house.HouseFurniture(id='test-chair',user_id=1,name='小木椅',category='chair',style='原木',version_id='version-one',is_public=True,
+                                   published_version_id='version-one',published_name='小木椅',published_category='chair',published_style='原木'))
         db.add(house.HouseVersion(id='version-one',furniture_id='test-chair',data_json=json.dumps(DATA)))
         db.commit()
     def get_test_db():
@@ -133,14 +134,17 @@ def test_collision_touching_rotation_and_stacking(env):
 
 def test_readonly_sharing_and_rotation_of_link(env):
     c,h,_,_=env;assert save(c,h,[place(overrides={'wood':'#9eafa0'})]).status_code==200
-    sid=share(c,h);data=c.get('/api/house/visit/'+sid).json()
+    sid=share(c,h);assert c.get('/api/house/visit/'+sid).status_code==401
+    data=c.get('/api/house/visit/'+sid,headers=h(2)).json()
     assert data['state']['placements'][0]['paletteOverrides']=={'wood':'#9eafa0'}
     assert 'email' not in data['owner'] and 'token' not in json.dumps(data)
     assert c.put('/api/house/visit/'+sid,json={'state':STATE}).status_code==405
     assert save(c,h,[],revision=1).status_code==200
-    assert c.get('/api/house/visit/'+sid).json()['state']['placements']==[]
+    assert len(c.get('/api/house/visit/'+sid,headers=h(2)).json()['state']['placements'])==1
+    c.patch('/api/house/room/share',headers=h(1),json={'enabled':True,'revision':2})
+    assert c.get('/api/house/visit/'+sid,headers=h(2)).json()['state']['placements']==[]
     c.patch('/api/house/room/share',headers=h(1),json={'enabled':False})
-    assert c.get('/api/house/visit/'+sid).status_code==404
+    assert c.get('/api/house/visit/'+sid,headers=h(2)).status_code==404
     assert share(c,h)!=sid
 
 
@@ -151,7 +155,7 @@ def test_private_version_cannot_be_borrowed(env):
     state=copy.deepcopy(STATE);state['placements']=[place()]
     assert c.put('/api/house/room',headers=h(2),json={'revision':0,'state':state}).status_code==403
     assert save(c,h,[place()]).status_code==200
-    assert c.get('/api/house/visit/'+share(c,h)).json()['assets']['version-one']['data']==DATA
+    assert c.get('/api/house/visit/'+share(c,h),headers=h(2)).json()['assets']['version-one']['data']==DATA
 
 
 def test_furniture_versions_publish_and_delete_preserve_placement(env):
@@ -163,10 +167,10 @@ def test_furniture_versions_publish_and_delete_preserve_placement(env):
     assert c.put('/api/house/furniture/test-chair',headers=h(1),json=payload).status_code==409
     assert c.put('/api/house/furniture/test-chair',headers=h(2),json={**payload,'revision':2}).status_code==403
     c.patch('/api/house/furniture/test-chair/publish',headers=h(1),json={'enabled':False})
-    assert c.get('/api/house/visit/'+sid).json()['assets']['version-one']['data']==DATA
+    assert c.get('/api/house/visit/'+sid,headers=h(2)).json()['assets']['version-one']['data']==DATA
     c.delete('/api/house/furniture/test-chair',headers=h(1))
     assert save(c,h,[place()],revision=1).status_code==200
-    assert c.get('/api/house/visit/'+sid).json()['assets']['version-one']['data']==DATA
+    assert c.get('/api/house/visit/'+sid,headers=h(2)).json()['assets']['version-one']['data']==DATA
     assert c.get('/api/house/versions/'+updated.json()['versionId']).status_code==404
 
 
@@ -179,10 +183,11 @@ def test_like_idempotency_comments_and_permissions(env):
     reply=c.post(base+'/comments',headers=h(2),json={'content':'<script>这是纯文本</script>'});assert reply.status_code==201
     cid=reply.json()['id']
     assert c.get(base+'/comments',headers=h(1)).json()['items'][0]['canDelete']
-    assert not c.get(base+'/comments').json()['items'][0]['canDelete']
+    assert c.get(base+'/comments').status_code==401
+    assert not c.get(base+'/comments',headers=h(6)).json()['items'][0]['canDelete']
     assert c.delete('/api/house/comments/'+str(cid),headers=h(6)).status_code==403
     assert c.delete('/api/house/comments/'+str(cid),headers=h(1)).status_code==204
-    assert c.get(base+'/comments').json()['total']==0
+    assert c.get(base+'/comments',headers=h(2)).json()['total']==0
 
 
 def test_email_gate_and_moderation(env):
@@ -191,11 +196,11 @@ def test_email_gate_and_moderation(env):
     save(c,h,[place()]);sid=share(c,h)
     for uid in (2,6): assert c.get('/api/admin/house/rooms',headers=h(uid)).status_code==403
     assert c.patch('/api/admin/house/furniture/test-chair',headers=h(5),json={'is_visible':False}).status_code==200
-    assert c.get('/api/house/visit/'+sid).json()['state']['placements']==[]
+    assert c.get('/api/house/visit/'+sid,headers=h(2)).json()['state']['placements']==[]
     assert c.get('/api/house/room',headers=h(1)).json()['assets']['version-one']['furniture']['isVisible'] is False
     roomid=c.get('/api/admin/house/rooms',headers=h(4)).json()['items'][0]['id']
     c.patch('/api/admin/house/rooms/'+roomid,headers=h(4),json={'is_visible':False})
-    assert c.get('/api/house/visit/'+sid).status_code==404
+    assert c.get('/api/house/visit/'+sid,headers=h(2)).status_code==404
     assert c.get('/api/admin/house/rooms/'+roomid+'/preview',headers=h(5)).status_code==200
     assert c.patch('/api/house/room/share',headers=h(1),json={'enabled':True}).status_code==403
 
@@ -206,7 +211,7 @@ def test_texture_private_approval_retraction_and_delete(env):
     assert texture['url'].startswith('/api/media/')
     state=copy.deepcopy(STATE);state['wall']['textureId']=texture['id']
     assert c.put('/api/house/room',headers=h(1),json={'revision':0,'state':state}).status_code==200
-    sid=share(c,h);visit=c.get('/api/house/visit/'+sid).json()
+    sid=share(c,h);visit=c.get('/api/house/visit/'+sid,headers=h(2)).json()
     assert not visit['textureUrls'] and visit['state']['wall']['textureId'] is None
     assert c.get('/api/house/textures',headers=h(2)).json()==[]
     assert c.delete('/api/house/textures/'+str(texture['recordId']),headers=h(2)).status_code==403
@@ -215,10 +220,10 @@ def test_texture_private_approval_retraction_and_delete(env):
     path='/api/admin/house/textures/'+str(texture['recordId'])
     assert c.patch(path,headers=h(4),json={'is_visible':True}).status_code==200
     assert c.get('/uploads/'+key).status_code==200
-    assert c.get('/api/house/visit/'+sid).json()['textureUrls'][texture['id']]=='/uploads/'+key
+    assert c.get('/api/house/visit/'+sid,headers=h(2)).json()['textureUrls'][texture['id']]=='/uploads/'+key
     assert c.patch(path,headers=h(4),json={'is_visible':False}).status_code==200
     assert c.get('/uploads/'+key).status_code==404
-    assert not c.get('/api/house/visit/'+sid).json()['textureUrls']
+    assert not c.get('/api/house/visit/'+sid,headers=h(2)).json()['textureUrls']
     assert c.delete('/api/house/textures/'+str(texture['recordId']),headers=h(1)).status_code==204
     assert c.get(texture['url']).status_code==404
 
@@ -244,11 +249,16 @@ def test_furniture_validation(env,change):
     assert c.put('/api/house/furniture/custom-new',headers=h(1),json=payload).status_code==422
 
 
-def test_64_grid_full_volume_save(env):
-    c,h,_,_=env;large={**DATA,'gridSize':64,'voxels':[[x,y,z,0] for x in range(64) for y in range(64) for z in range(64)]}
+def test_legacy_64_grid_is_preserved_but_new_crafts_are_bounded(env):
+    c,h,factory,_=env;large={**DATA,'gridSize':64,'voxels':[[x,y,z,0] for x in range(64) for y in range(64) for z in range(64)]}
+    with factory() as db:
+        db.add(house.HouseFurniture(id='legacy64',user_id=1,name='旧家具',category='deco',style='自制',version_id='legacy-v1'))
+        db.add(house.HouseVersion(id='legacy-v1',furniture_id='legacy64',data_json=json.dumps(large)));db.commit()
+    assert len(c.get('/api/house/versions/legacy-v1',headers=h(1)).json()['data']['voxels'])==262144
     res=c.put('/api/house/furniture/full64',headers=h(1),json={'revision':0,'name':'64立方','category':'deco','data':large})
+    assert res.status_code==422
+    res=c.put('/api/house/furniture/legacy64',headers=h(1),json={'revision':1,'name':'旧家具改色','category':'deco','data':large})
     assert res.status_code==200
-    assert len(c.get('/api/house/versions/'+res.json()['versionId'],headers=h(1)).json()['data']['voxels'])==262144
 
 
 def test_pagination_creator_and_unknown_fields(env):
@@ -257,3 +267,119 @@ def test_pagination_creator_and_unknown_fields(env):
     assert c.get('/api/house/furniture?page_size=51').status_code==422
     assert c.get('/api/house/users/1').json()['furniture']['items'][0]['id']=='test-chair'
     assert c.put('/api/house/room',headers=h(1),json={'revision':0,'state':STATE,'user_id':2}).status_code==422
+
+
+def test_multimaterial_publish_snapshot_favorite_and_independent_copy(env):
+    c,h,_,_=env
+    materials=['wood','metal','glass','plastic','fabric','stone','ceramic','emissive']
+    data={**DATA,'palette':[{'key':f'm{i}','label':m,'material':m,'color':f'#{i+1:06x}','editable':True} for i,m in enumerate(materials)],
+          'voxels':[[i,0,0,i] for i in range(8)]}
+    payload={'revision':0,'name':'多材质拼豆','category':'deco','data':data}
+    created=c.put('/api/house/furniture/beans',headers=h(1),json=payload).json()
+    original=created['versionId']
+    assert c.get('/api/house/versions/'+original,headers=h(2)).status_code==404
+    assert c.patch('/api/house/furniture/beans/publish',headers=h(2),json={'enabled':True}).status_code==403
+    assert c.patch('/api/house/furniture/beans/publish',headers=h(1),json={'enabled':True,'revision':1}).status_code==200
+    assert c.get('/api/house/versions/'+original,headers=h(2)).json()['data']==data
+    for _ in range(2): assert c.put('/api/house/furniture/beans/favorite',headers=h(2)).json()['favorited']
+    assert c.put('/api/house/furniture/beans/favorite').status_code==401
+    favorites=c.get('/api/house/furniture?favorites=true',headers=h(2)).json()
+    assert favorites['total']==1 and favorites['items'][0]['favorited']
+    assert c.get('/api/house/furniture?favorites=true',headers=h(1)).json()['total']==0
+    copied=c.post('/api/house/furniture/beans/copy',headers=h(2),json={}).json()
+    assert copied['creatorId']==2 and not copied['isPublic'] and copied['versionId']!=original
+    assert c.get('/api/house/versions/'+copied['versionId'],headers=h(2)).json()['data']==data
+    modified=copy.deepcopy(data);modified['palette'][0]['color']='#abcdef'
+    updated=c.put('/api/house/furniture/beans',headers=h(1),json={**payload,'revision':1,'name':'私人草稿名称','data':modified}).json()
+    public=c.get('/api/house/furniture?search=多材质拼豆').json()['items'][0]
+    assert public['name']=='多材质拼豆' and public['versionId']==original
+    assert not c.get('/api/house/furniture?search=私人草稿名称').json()['items']
+    owner_preview=c.get('/api/house/versions/'+original,headers=h(1)).json()['furniture']
+    assert owner_preview['name']=='多材质拼豆' and owner_preview['draftVersionId']==updated['versionId']
+    assert c.get('/api/house/versions/'+updated['versionId'],headers=h(2)).status_code==404
+    assert c.post('/api/house/furniture/beans/copy',headers=h(2),json={'versionId':updated['versionId']}).status_code==404
+    assert c.patch('/api/house/furniture/beans/publish',headers=h(1),json={'enabled':True,'revision':1}).status_code==409
+    assert c.patch('/api/house/furniture/beans/publish',headers=h(1),json={'enabled':True,'revision':2}).status_code==200
+    assert c.get('/api/house/versions/'+original,headers=h(2)).status_code==404
+    assert c.get('/api/house/versions/'+updated['versionId'],headers=h(2)).json()['data']==modified
+    assert c.get('/api/house/versions/'+copied['versionId'],headers=h(2)).json()['data']==data
+    assert c.patch('/api/house/furniture/beans/publish',headers=h(1),json={'enabled':False}).status_code==200
+    assert c.get('/api/house/furniture?favorites=true',headers=h(2)).json()['total']==0
+    assert c.post('/api/house/furniture/beans/copy',headers=h(2),json={}).status_code==404
+    c.delete('/api/house/furniture/beans',headers=h(1))
+    assert c.get('/api/house/versions/'+copied['versionId'],headers=h(2)).json()['data']==data
+    assert c.delete('/api/house/furniture/beans/favorite',headers=h(2)).json()['favorited'] is False
+
+
+def test_visit_directory_drafts_publish_cas_and_retraction(env):
+    c,h,_,_=env
+    assert c.get('/api/house/rooms').status_code==401
+    save(c,h,[place()])
+    assert c.get('/api/house/rooms',headers=h(2)).json()['total']==0
+    sid=share(c,h)
+    published=c.get('/api/house/visit/'+sid,headers=h(2)).json()
+    listing=c.get('/api/house/rooms?page_size=1',headers=h(2)).json()
+    assert listing['total']==1 and listing['items'][0]['name']==STATE['name']
+    assert 'email' not in listing['items'][0]['owner']
+    state={**STATE,'name':'未发布的秘密装修','placements':[place(x=40,z=12)]}
+    assert c.put('/api/house/room',headers=h(1),json={'revision':1,'state':state}).status_code==200
+    assert c.get('/api/house/visit/'+sid,headers=h(2)).json()['state']==published['state']
+    assert c.get('/api/house/rooms',headers=h(2)).json()['items'][0]['name']==STATE['name']
+    assert c.patch('/api/house/room/share',headers=h(1),json={'enabled':True,'revision':1}).status_code==409
+    assert c.patch('/api/house/room/share',headers=h(1),json={'enabled':True,'revision':2}).json()['shareId']==sid
+    assert c.get('/api/house/visit/'+sid,headers=h(2)).json()['state']['name']==state['name']
+    c.patch('/api/house/room/share',headers=h(1),json={'enabled':False})
+    assert c.get('/api/house/visit/'+sid,headers=h(2)).status_code==404
+    assert c.get('/api/house/rooms',headers=h(2)).json()['total']==0
+    assert c.get('/api/house/room',headers=h(1)).json()['state']['name']==state['name']
+
+
+def test_private_furniture_metadata_in_visit_is_frozen(env):
+    c,h,factory,_=env
+    with factory() as db: db.get(house.HouseFurniture,'test-chair').is_public=False;db.commit()
+    save(c,h,[place()]);sid=share(c,h)
+    payload={'revision':1,'name':'私人新名称','category':'deco','data':DATA}
+    assert c.put('/api/house/furniture/test-chair',headers=h(1),json=payload).status_code==200
+    asset=c.get('/api/house/visit/'+sid,headers=h(2)).json()['assets']['version-one']
+    assert asset['furniture']['name']=='小木椅' and asset['data']==DATA
+
+
+@pytest.mark.parametrize('change',[
+    {'gridSize':64},
+    {'gridSize':32,'voxels':[[x,y,z,0] for x in range(32) for y in range(32) for z in range(9)]},
+    {'palette':[{'key':f'p{i}','label':'组合','color':'#ffffff','editable':True} for i in range(65)]},
+    {'palette':[{'key':'bad','label':'未知','color':'#ffffff','editable':True,'material':'unknown'}]},
+])
+def test_craft_limits_and_unknown_material(env,change):
+    c,h,_,_=env
+    assert c.put('/api/house/furniture/over-limit',headers=h(1),json={'revision':0,'name':'超限','category':'deco','data':{**DATA,**change}}).status_code==422
+
+
+def test_scaled_collision_and_room_bounds(env):
+    c,h,_,_=env
+    assert save(c,h,[{**place(),'scale':.5},place(ident='p2',x=1)]).status_code==200
+    assert save(c,h,[{**place(),'scale':2},place(ident='p2',x=3)],revision=1).status_code==422
+    assert save(c,h,[{**place(x=253),'scale':2}],revision=1).status_code==422
+    assert save(c,h,[{**place(),'scale':.5},place(ident='p2',z=1)],revision=1).status_code==200
+
+
+def test_house_sqlite_upgrade_keeps_previous_public_versions(monkeypatch):
+    from sqlalchemy import text
+    engine=create_engine('sqlite://',poolclass=StaticPool)
+    with engine.begin() as conn:
+        conn.execute(text('CREATE TABLE house_rooms (id TEXT PRIMARY KEY, state_json TEXT, share_id TEXT, revision INTEGER, updated_at TEXT)'))
+        conn.execute(text('CREATE TABLE house_furniture (id TEXT PRIMARY KEY, version_id TEXT, name TEXT, category TEXT, style TEXT, is_public INTEGER, updated_at TEXT)'))
+        conn.execute(text('INSERT INTO house_rooms VALUES (:id,:state,:share,3,:date)'),{'id':'old','state':json.dumps(STATE),'share':'old-share','date':'2026-10-01'})
+        conn.execute(text("INSERT INTO house_furniture VALUES ('old','old-version','旧家具','chair','原木',1,'2026-10-01')"))
+    monkeypatch.setattr(main,'engine',engine)
+    main.migrate_schema()
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE house_rooms SET state_json='{}'"))
+        conn.execute(text("UPDATE house_furniture SET version_id='new-version', name='草稿'"))
+    main.migrate_schema()
+    with engine.connect() as conn:
+        r=conn.execute(text('SELECT published_state_json,published_revision FROM house_rooms')).one()
+        assert json.loads(r[0])==STATE and r[1]==3
+        f=conn.execute(text('SELECT published_version_id,published_name FROM house_furniture')).one()
+        assert f==('old-version','旧家具')
+    engine.dispose()

@@ -43,5 +43,5 @@ export function createSaveController({ ownerValid, snapshot, writeCloud, writeLo
     if (!conflict) timer = setTimeout(flush, delay)
   }
   return { changed, flush, reset(value) { revision = value; generation = saved = 0; conflict = false; report({ error: '', saving: false }) },
-    dispose() { disposed = true; clearTimeout(timer) }, get dirty() { return generation !== saved }, get conflict() { return conflict }, get active() { return active } }
+    dispose() { disposed = true; clearTimeout(timer) }, get revision() { return revision }, get dirty() { return generation !== saved }, get conflict() { return conflict }, get active() { return active } }
 }

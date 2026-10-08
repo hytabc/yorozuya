@@ -196,3 +196,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - 前端 `frontend/src/house/`：纯逻辑引擎、Three.js画布、工坊、账号隔离IndexedDB草稿和串行CAS保存。异步凭证请求固定 ownerToken；换账号后不得保存旧草稿。
 - 房屋接口 `/api/house/*`、审核 `/api/admin/house/*`。房间128个实例/100万体素，家具8 MiB，纹理单张10 MB；两层Nginx仅为对应接口放宽。
 - 回归：`backend/tests/test_house.py`、`frontend/tests/house.test.mjs`；原导航测试已更新“更多”约定。
+- 房屋/家具的保存与发布已分开：房屋 `published_state_json/published_assets_json` 固定展示，家具 `published_version_id` 和公开名称/类别/风格固定分享；SQLite迁移保留旧分享。发布携带revision，409拒绝过期版本；审核隐藏与纹理撤回仍实时生效。
+- 三轴移动（x/y地面，z高度）、50%/100%/200%缩放、首次教程；工坊八种材质、自由颜色、吸管及最多64种组合/8192块/32³网格，旧大模型保留而不继续扩大。`Slot.material` 缺省沿用旧渲染，`Placement.scale` 缺省1。
+- 新增收藏表 `house_furniture_favorites`、`/api/house/furniture/{id}/favorite` 与 `/copy`；副本独立保存。`/api/house/rooms` 为参观列表，参观与留言读取需登录；前端“参观”标签只读浏览确认发布的快照。
+- 三维交互回归 `frontend/tests/houseScene.test.mjs` 使用实际Three.js几何和射线，GPU/DOM使用测试替身；并不替代真实浏览器视觉与触控验收。

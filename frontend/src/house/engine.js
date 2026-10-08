@@ -1,24 +1,36 @@
 // Logical coordinates: x/y on the floor; z is height. No rendering dependencies.
 export const clone = (value) => JSON.parse(JSON.stringify(value))
 export const blankRoom = () => ({ schemaVersion: 1, name: '我的小屋', placements: [], floor: { color: '#eee5d5', textureId: null, mode: 'repeat' }, wall: { color: '#f2eee5', textureId: null, mode: 'repeat' } })
+export const MATERIALS = [
+  { id: 'wood', label: '木材', roughness: .85 },
+  { id: 'metal', label: '金属', roughness: .28, metalness: .8 },
+  { id: 'glass', label: '玻璃', roughness: .05, transparent: true, opacity: .45, depthWrite: false },
+  { id: 'plastic', label: '塑料', roughness: .4 },
+  { id: 'fabric', label: '布料', roughness: 1 },
+  { id: 'stone', label: '石材', roughness: .95 },
+  { id: 'ceramic', label: '陶瓷', roughness: .18 },
+  { id: 'emissive', label: '发光', roughness: .4, emissiveIntensity: .8 },
+]
+export const CRAFT_LIMITS = { grid: 32, voxels: 8192, palette: 64 }
 
-export function normalizedVoxels(data, rotation = 0) {
+export function normalizedVoxels(data, rotation = 0, scale = 1) {
   const points = data.voxels.map(([x, y, z, c]) => rotation === 90 ? [-y, x, z, c] : rotation === 180 ? [-x, -y, z, c] : rotation === 270 ? [y, -x, z, c] : [x, y, z, c])
   if (!points.length) return []
   const low = [Infinity, Infinity, Infinity]
   for (const p of points) for (let a = 0; a < 3; a++) low[a] = Math.min(low[a], p[a])
-  return points.map(([x, y, z, c]) => [x - low[0], y - low[1], z - low[2], c])
+  return points.map(([x, y, z, c]) => [(x - low[0])*scale, (y - low[1])*scale, (z - low[2])*scale, c])
 }
 
-export function bounds(data, rotation = 0) {
+export function bounds(data, rotation = 0, scale = 1) {
   const size = [0, 0, 0]
-  for (const p of normalizedVoxels(data, rotation)) for (let a = 0; a < 3; a++) size[a] = Math.max(size[a], p[a] + 1)
+  for (const p of normalizedVoxels(data, rotation, scale)) for (let a = 0; a < 3; a++) size[a] = Math.max(size[a], p[a] + scale)
   return size
 }
 
 export function placementError(room, assets) {
   if (room.placements.length > 128) return '最多放置128件家具'
   const occupied = new Set(), ids = new Set()
+  const unit = room.placements.some((p) => p.scale === .5) ? .5 : 1
   let count = 0
   for (const p of room.placements) {
     if (ids.has(p.id)) return '家具编号重复'
@@ -26,28 +38,35 @@ export function placementError(room, assets) {
     const data = assets[p.versionId]?.data
     if (!data) return '家具版本尚未加载'
     if (![0, 90, 180, 270].includes(p.rotation)) return '朝向无效'
+    const scale = p.scale ?? 1
+    if (![.5, 1, 2].includes(scale)) return '缩放比例无效'
     if (![p.position.x, p.position.y, p.position.z].every(Number.isInteger)) return '位置必须是整数'
     count += data.voxels.length
     if (count > 1000000) return '房间累计体素超过100万'
-    for (const [x, y, z] of normalizedVoxels(data, p.rotation)) {
-      const q = [x + p.position.x, y + p.position.y, z + p.position.z]
-      if (q.some((a, i) => a < 0 || a >= [256, 256, 128][i])) return '家具超出房间边界'
-      const key = q.join(',')
-      if (occupied.has(key)) return '家具之间不能重叠'
-      occupied.add(key)
+    for (const [x, y, z] of normalizedVoxels(data, p.rotation, scale)) {
+      for (let dx = 0; dx < scale/unit; dx++) for (let dy = 0; dy < scale/unit; dy++) for (let dz = 0; dz < scale/unit; dz++) {
+        const q = [(x+p.position.x)/unit+dx, (y+p.position.y)/unit+dy, (z+p.position.z)/unit+dz]
+        if (q.some((a, i) => a < 0 || a >= [256, 256, 128][i]/unit)) return '家具超出房间边界'
+        const key = q.join(',')
+        if (occupied.has(key)) return '家具之间不能重叠'
+        occupied.add(key)
+        if (occupied.size > 1000000/unit**3) return '房间累计体素超过100万'
+      }
     }
   }
   return ''
 }
 
-export function validateVoxelData(data) {
+export function validateVoxelData(data, { legacy = false } = {}) {
   if (!data || ![16, 32, 64].includes(data.gridSize)) throw new Error('网格尺寸应为16、32或64')
   if (!['floor', 'surface', 'wall', 'ceiling'].includes(data.mount)) throw new Error('摆放方式无效')
   if (!Array.isArray(data.palette) || !data.palette.length || data.palette.length > 256) throw new Error('色板无效')
+  if (!legacy && (data.gridSize > CRAFT_LIMITS.grid || data.palette.length > CRAFT_LIMITS.palette || data.voxels?.length > CRAFT_LIMITS.voxels)) throw new Error('最多32³网格、8192块积木、64种材质与颜色组合')
   const keys = new Set()
   for (const slot of data.palette) {
     if (!/^[a-z][a-z0-9_-]{0,31}$/.test(slot.key) || keys.has(slot.key) || !/^#[\da-f]{6}$/i.test(slot.color) || typeof slot.editable !== 'boolean' || !slot.label || slot.label.length > 32) throw new Error('改色部位无效')
     keys.add(slot.key)
+    if (slot.material != null && !MATERIALS.some((m) => m.id === slot.material)) throw new Error('材质无效')
   }
   if (!Array.isArray(data.voxels) || data.voxels.length < 1 || data.voxels.length > data.gridSize ** 3) throw new Error('体素数量无效')
   const occupied = new Set()
@@ -61,6 +80,7 @@ export function validateVoxelData(data) {
 }
 
 export function editVoxels(data, point, mode, color, mirrors = []) {
+  if (!point.slice(0,3).every(Number.isInteger) || !Number.isInteger(color) || color < 0 || color >= data.palette.length) return clone(data)
   const copy = clone(data), cells = new Map(copy.voxels.map((p) => [p.slice(0, 3).join(','), p]))
   let points = [point.slice(0, 3)]
   for (const axis of mirrors) points = [...points, ...points.map((p) => p.map((n, i) => i === axis ? data.gridSize - 1 - n : n))]
@@ -71,6 +91,7 @@ export function editVoxels(data, point, mode, color, mirrors = []) {
     else if (mode === 'add' || cells.has(key)) cells.set(key, [...p, color])
   }
   copy.voxels = [...cells.values()]
+  if (copy.voxels.length > Math.max(CRAFT_LIMITS.voxels, data.voxels.length)) throw new Error('最多8192块积木')
   return copy
 }
 

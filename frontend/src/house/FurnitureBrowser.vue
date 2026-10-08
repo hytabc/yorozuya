@@ -5,16 +5,17 @@ import LazyImage from '../components/LazyImage.vue'
 const props = defineProps({ catalog: Object, loggedIn: Boolean })
 const emit = defineEmits(['choose', 'error'])
 const category = ref(''), style = ref(''), search = ref(''), mine = ref(false), page = ref(1), loading = ref(false), items = ref([]), total = ref(0)
+const favorites=ref(false)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / 20)))
 let generation = 0, searchTimer
 async function load() {
   const gen = ++generation; loading.value = true
   try {
-    const { data } = await api.get('/house/furniture', { params: { category: category.value, style: style.value, search: search.value, mine: mine.value, page: page.value } })
+    const { data } = await api.get('/house/furniture', { params: { category: category.value, style: style.value, search: search.value, mine: mine.value, favorites:favorites.value, page: page.value } })
     if (gen === generation) { items.value = data.items; total.value = data.total }
   } catch (e) { emit('error', errorMessage(e)) } finally { if (gen === generation) loading.value = false }
 }
-watch([category, style, mine], () => { page.value = 1; load() })
+watch([category, style, mine, favorites], () => { page.value = 1; load() })
 watch(search, () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { page.value = 1; load() }, 250) })
 watch(page, load)
 onMounted(load)
@@ -28,7 +29,8 @@ defineExpose({ reload: load })
       <input v-model="search" type="search" aria-label="搜索家具" placeholder="寻找一件喜欢的家具…" maxlength="64" />
       <select v-model="category" aria-label="家具类别"><option value="">全部类别</option><option v-for="c in catalog?.categories" :key="c.id" :value="c.id">{{ c.label }}</option></select>
       <select v-model="style" aria-label="家具风格"><option value="">全部风格</option><option v-for="s in ['原木','奶油','北欧','复古','现代','自制']" :key="s">{{ s }}</option></select>
-      <label v-if="loggedIn" class="library-mine"><input v-model="mine" type="checkbox" />我的作品</label>
+      <label v-if="loggedIn" class="library-mine"><input v-model="mine" type="checkbox" @change="favorites=false" />我的作品</label>
+      <label v-if="loggedIn" class="library-mine"><input v-model="favorites" type="checkbox" @change="mine=false" />我的收藏</label>
     </div>
     <div v-if="loading" class="furniture-grid" aria-busy="true"><div v-for="n in 8" :key="n" class="skeleton" style="height:165px" /></div>
     <div v-else class="furniture-grid">
