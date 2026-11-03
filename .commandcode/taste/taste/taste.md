@@ -34,4 +34,5 @@
 - Judges product design by ecosystem-native "高端感": prefers reusing the trust/identity signals and spatial vocabulary native to the community a site serves over generic web patterns, and treats deliberately placed, meaningful friction (a short etiquette gate instead of a long legal wall) as better design than adding more features — "高端不是功能堆叠". Confidence: 0.6
 - Communicates product direction as a long-form, multi-"方向" vision brief (rationale, prior art, trade-offs, phased blueprint) rather than a task list, and expects it turned into a concrete, codebase-grounded plan. Confidence: 0.5
 - Cites named reference products/tools and expects the agent to extract the transferable design idea from them rather than copy the surface feature they are known for. Confidence: 0.45
+- Treats `docs/` as an active-work area: only unfinished tasks/plans stay in the `docs/` root, while completed PRDs, specs and stage plans are archived under `docs/done/` (subfolders moved wholesale), and expects all path references to moved docs (README, AGENTS.md, scripts, sibling docs) to be updated in the same pass. Confidence: 0.7
 0.5
