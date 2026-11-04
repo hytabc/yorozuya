@@ -7,6 +7,7 @@ import UserAvatar from './UserAvatar.vue'
 import UserTitleTag from './UserTitleTag.vue'
 import LazyImage from './LazyImage.vue'
 import ImageLightbox from './ImageLightbox.vue'
+import VrTrustBadge from './VrTrustBadge.vue'
 
 const props = defineProps({
   userId: { type: Number, default: null },
@@ -20,6 +21,17 @@ const error = ref('')
 const user = ref(props.initialUser)
 const viewerSrc = ref('')
 const viewerAlt = ref('')
+// 信任摘要需登录；游客或接口不可用时静默不展示，不影响资料卡片。
+const trust = ref(null)
+
+async function loadTrust(userId) {
+  if (!userId) return
+  try {
+    trust.value = (await api.get(`/users/${userId}/trust`)).data
+  } catch {
+    trust.value = null
+  }
+}
 
 function openViewer(photo) {
   viewerSrc.value = photo.image_url
@@ -32,6 +44,8 @@ const joined = (value) =>
     : ''
 
 onMounted(async () => {
+  const targetId = props.userId || props.initialUser?.id
+  loadTrust(targetId)
   if (props.initialUser) return
   try {
     user.value = (await api.get(`/users/${props.userId}`)).data
@@ -56,6 +70,7 @@ onMounted(async () => {
           <span class="user-card-since muted"><CalendarDays :size="14" />{{ joined(user.created_at) }} 加入</span>
         </div>
       </div>
+      <VrTrustBadge :trust="trust" show-empty class="user-card-trust" />
       <p v-if="user.bio" class="user-card-bio">{{ user.bio }}</p>
       <p v-else class="user-card-bio muted">这个人还没有填写简介。</p>
       <div v-if="user.photos?.length" class="user-profile-photos">

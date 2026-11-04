@@ -232,6 +232,11 @@ from .facets import (
 )
 from . import atmosphere as atmosphere_module
 from .atmosphere import router as atmosphere_router
+from .trust import (
+    admin_router as vrchat_admin_router,
+    router as vrchat_router,
+    trust_router as vrchat_trust_router,
+)
 from .virtual_life import router as virtual_life_router
 from .virtual_life_packs import router as virtual_life_packs_router, seed_virtual_life_packs
 
@@ -679,6 +684,9 @@ app.include_router(house_admin_router)
 # 下方的 /api/tasks/{task_id} 注册，否则会被路径参数吞掉。
 app.include_router(task_facets_router)
 app.include_router(atmosphere_router)
+app.include_router(vrchat_router)
+app.include_router(vrchat_admin_router)
+app.include_router(vrchat_trust_router)
 
 
 def expire_due_tasks(db: Session) -> None:

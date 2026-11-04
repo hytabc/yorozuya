@@ -11,6 +11,7 @@ import UserAvatar from '../components/UserAvatar.vue'
 import UserTitleTag from '../components/UserTitleTag.vue'
 import LazyImage from '../components/LazyImage.vue'
 import ImageLightbox from '../components/ImageLightbox.vue'
+import VrchatIdentitySection from '../components/VrchatIdentitySection.vue'
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
 const AVATAR_TYPES = new Set(['image/jpeg', 'image/png'])
@@ -280,6 +281,7 @@ async function deleteAvatar() {
             <span v-if="appearanceBusy">保存中…</span>
           </p>
         </div>
+        <VrchatIdentitySection />
       </section>
     </div>
 

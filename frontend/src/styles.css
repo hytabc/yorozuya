@@ -135,6 +135,21 @@ main { min-height: calc(100vh - 72px); }
 @media (prefers-reduced-motion: reduce) {
   .atmosphere-gate, .atmosphere-line { animation: none; }
 }
+/* VRChat 信任（软绑定）：徽章、披露设置与个人设置区 */
+.vr-trust { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border: 1px solid #cfe0d6; border-radius: 12px; color: #2c5c47; background: #f3f8f4; font-size: 11px; font-weight: 650; vertical-align: middle; }
+.vr-trust.compact { padding: 1px 6px; font-size: 10.5px; }
+.vr-trust-link { display: inline-flex; align-items: center; gap: 3px; color: inherit; text-decoration: underline; font-weight: 500; }
+.profile-vrchat-section { margin-top: 42px; padding-top: 35px; border-top: 1px solid var(--line); }
+.user-card-trust { margin: 8px 0 2px; }
+.vrchat-bound { display: grid; gap: 12px; }
+.vrchat-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; }
+.disclosure-list { display: grid; gap: 8px; margin: 20px 0; }
+.disclosure-row { display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 10px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 5px; background: #fafbfa; }
+.disclosure-row input { margin-top: 3px; }
+.disclosure-row strong { display: block; font-size: 13px; }
+.disclosure-row .field-hint { margin: 4px 0 0; }
+.disclosure-row.disabled { opacity: .7; }
+.disclosure-row em { font-size: 11px; font-style: normal; }
 .task-workspace { padding: 54px 0 100px; }
 .section-heading, .page-title { display: flex; align-items: flex-end; justify-content: space-between; gap: 30px; }
 .section-heading > div, .page-title > div { display: grid; grid-template-columns: auto auto; align-items: baseline; column-gap: 13px; }
