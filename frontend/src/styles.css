@@ -559,7 +559,8 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .admin-stats span { color: var(--muted); font-size: 12px; }
 .admin-stats strong { grid-column: 1 / -1; font-family: Georgia, serif; font-size: 27px; }
 .admin-table-section { border: 1px solid var(--line); background: white; }
-.admin-tabs { margin-bottom: 18px; }
+.admin-tabs { margin-bottom: 18px; gap: 18px; overflow-x: auto; scrollbar-width: thin; }
+.admin-tabs button { flex: 0 0 auto; white-space: nowrap; }
 .admin-toolbar { min-height: 82px; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
 .admin-toolbar h2 { display: inline; margin: 0 10px 0 0; font-size: 18px; }
 .admin-toolbar > div span { color: var(--muted); font-size: 11px; }
@@ -590,10 +591,12 @@ tr.dimmed td { color: #89918d; background: #fafafa; }
 .feedback-admin-list > li:last-child { border-bottom: 0; }
 .feedback-admin-list .fb-head { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; }
 .feedback-admin-list .fb-head time { margin-left: auto; font-size: 11px; }
-.fb-content { margin: 10px 0 0; color: #3e4944; font-size: 13px; line-height: 1.8; white-space: pre-wrap; }
-.feedback-admin-list .fb-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
-.fb-reply-admin { flex: 1; padding: 8px 11px; border-radius: 4px; color: #1d6649; background: var(--green-soft); font-size: 12px; line-height: 1.6; }
-.feedback-admin-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 220px; color: var(--muted); font-size: 13px; }
+.fb-content { margin: 10px 0 0; color: #3e4944; font-size: 13px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.feedback-admin-list .fb-actions, .fb-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+.fb-reply-admin { flex: 1; padding: 8px 11px; border-radius: 4px; color: #1d6649; background: var(--green-soft); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.feedback-admin-list .fb-head strong { overflow-wrap: anywhere; }
+.feedback-admin-list > li.handled { opacity: .62; }
+.feedback-admin-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 220px; padding: 32px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font-size: 13px; text-align: center; }
 
 .staff-title { margin-bottom: 28px; }
 .directory-section + .directory-section { margin-top: 42px; }
@@ -622,14 +625,16 @@ tr.dimmed td { color: #89918d; background: #fafafa; }
 .user-profile-photos img { width: 100%; height: 100%; object-fit: cover; }
 .user-profile-photos figure span { position: absolute; inset: auto 5px 5px; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 4px; color: white; background: rgba(40, 45, 42, .78); font-size: 10px; }
 .moderation-users { display: grid; gap: 0; }
-.moderation-user { display: grid; grid-template-columns: 170px 1fr; gap: 20px; padding: 20px; border-bottom: 1px solid var(--line); }
+.moderation-user { display: grid; grid-template-columns: minmax(140px, 170px) minmax(0, 1fr); gap: 20px; padding: 20px; border-bottom: 1px solid var(--line); }
 .moderation-user:last-child { border-bottom: 0; }
+.moderation-user > * { min-width: 0; }
 .moderation-user header { display: grid; align-content: start; gap: 5px; }
 .moderation-user header span { color: var(--muted); font-size: 11px; }
-.moderation-photo-grid { display: grid; grid-template-columns: repeat(3, minmax(100px, 150px)); gap: 10px; }
+.moderation-photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; min-width: 0; }
 .moderation-photo-grid figure { position: relative; aspect-ratio: 1; margin: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 4px; background: #eef1ef; }
 .moderation-photo-grid img { width: 100%; height: 100%; object-fit: cover; }
-.moderation-photo-grid .button { position: absolute; right: 6px; bottom: 6px; min-height: 31px; background: rgba(255,255,255,.94); }
+/* 只给「图片网格里没有操作条」的直接按钮做角标；sugar/vrmap 的操作按钮在 flex 行内，不能被绝对定位吸走。 */
+.moderation-photo-grid > figure > .button { position: absolute; right: 6px; bottom: 6px; min-height: 31px; background: rgba(255,255,255,.94); }
 
 .sugar-title { margin-bottom: 30px; }
 .sugar-status { display: flex; align-items: center; gap: 13px; min-height: 86px; margin-bottom: 44px; padding: 16px 20px; border-block: 1px solid var(--line); color: #805066; background: #fcf8fa; }
@@ -811,6 +816,11 @@ tr.dimmed td { color: #89918d; background: #fafafa; }
   .metric-grid > div:nth-child(2) { border-right: 0; }
   .metric-grid > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
   .analytics-layout { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 900px) {
+  .admin-toolbar { align-items: stretch; flex-direction: column; gap: 10px; }
+  .admin-toolbar .search-field { width: 100%; }
 }
 
 @media (max-width: 680px) {

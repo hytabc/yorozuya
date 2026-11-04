@@ -709,7 +709,7 @@ watch(activeTab, (tab) => loadTab(tab))
         <div v-if="sugarPhotos.length" class="moderation-photo-grid sugar-photos">
           <figure v-for="photo in sugarPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
             <LazyImage :src="photo.image_url" :alt="`${photo.user.nickname} 的砂糖社照片`" />
-            <span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.admin_note || '已下架' }}</span>
+            <span v-if="!photo.is_visible" class="photo-blocked"><EyeOff :size="14" />{{ photo.admin_note || '已下架' }}</span>
             <div class="sugar-photo-actions">
               <button v-if="!photo.is_visible" class="button secondary small" type="button" :disabled="moderatingSugarId === photo.id" @click="moderateSugarPhoto(photo, true)">
                 <Check :size="15" />恢复
@@ -727,7 +727,7 @@ watch(activeTab, (tab) => loadTab(tab))
         <div v-if="friendPhotos.length" class="moderation-photo-grid sugar-photos">
           <figure v-for="photo in friendPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
             <LazyImage :src="photo.image_url" :alt="`${photo.user.nickname} 的交友厅照片`" />
-            <span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.admin_note || '已下架' }}</span>
+            <span v-if="!photo.is_visible" class="photo-blocked"><EyeOff :size="14" />{{ photo.admin_note || '已下架' }}</span>
             <div class="sugar-photo-actions">
               <button v-if="!photo.is_visible" class="button secondary small" type="button" :disabled="moderatingFriendId === photo.id" @click="moderateFriendPhoto(photo, true)"><Check :size="15" />恢复</button>
               <button v-else class="button secondary small" type="button" :disabled="moderatingFriendId === photo.id" @click="moderateFriendPhoto(photo, false)"><EyeOff :size="15" />下架</button>
@@ -741,7 +741,7 @@ watch(activeTab, (tab) => loadTab(tab))
         <div v-if="storyPhotos.length" class="moderation-photo-grid sugar-photos">
           <figure v-for="photo in storyPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
             <LazyImage :src="photo.image_url" :alt="`${photo.story_title} 的故事配图`" />
-            <span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.admin_note || '已下架' }}</span>
+            <span v-if="!photo.is_visible" class="photo-blocked"><EyeOff :size="14" />{{ photo.admin_note || '已下架' }}</span>
             <div class="sugar-photo-actions">
               <button v-if="!photo.is_visible" class="button secondary small" type="button" :disabled="moderatingStoryPhotoId === photo.id" @click="moderateStoryPhoto(photo, true)"><Check :size="15" />恢复</button>
               <button v-else class="button secondary small" type="button" :disabled="moderatingStoryPhotoId === photo.id" @click="moderateStoryPhoto(photo, false)"><EyeOff :size="15" />下架</button>
@@ -836,6 +836,10 @@ watch(activeTab, (tab) => loadTab(tab))
   margin-top: 24px;
 }
 
+.vrmap-photo-grid {
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+}
+
 .vrmap-photo-grid figure {
   aspect-ratio: auto;
   overflow: visible;
@@ -844,17 +848,25 @@ watch(activeTab, (tab) => loadTab(tab))
 }
 
 .vrmap-photo-grid img {
+  width: 100%;
+  height: 120px;
   border-radius: 4px;
+  object-fit: cover;
+  display: block;
 }
 
 .vrmap-photo-state {
   top: 12px;
   left: 12px;
   right: 12px;
+  bottom: auto;
   white-space: normal;
 }
 
 .vrmap-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   margin-top: 6px;
 }
 
@@ -865,10 +877,14 @@ watch(activeTab, (tab) => loadTab(tab))
 
 .moderation-avatar-row {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 10px;
   margin-bottom: 12px;
   font-size: 13px;
+}
+
+.moderation-avatar-row > span {
+  margin-top: 4px;
 }
 
 .sugar-photos-toolbar {
@@ -895,7 +911,7 @@ watch(activeTab, (tab) => loadTab(tab))
 /* 图片网格的骨架占位：真实图固定 120px 高，骨架需要同等高度才不会塌陷 */
 .sugar-photos figure.skeleton-block,
 .vrmap-photo-grid figure.skeleton-block {
-  min-height: 150px;
+  min-height: 158px;
   background: #f2f4f2;
 }
 
@@ -916,6 +932,7 @@ watch(activeTab, (tab) => loadTab(tab))
   top: 12px;
   left: 12px;
   right: 12px;
+  bottom: auto;
   white-space: normal;
 }
 
@@ -928,14 +945,6 @@ watch(activeTab, (tab) => loadTab(tab))
 .sugar-photos figcaption {
   margin-top: 6px;
   font-size: 12px;
-}
-
-.moderation-avatar-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  margin-bottom: 12px;
-  font-size: 13px;
 }
 
 .moderation-avatar {
@@ -956,6 +965,7 @@ watch(activeTab, (tab) => loadTab(tab))
 
 .moderation-avatar .photo-blocked {
   top: 46px;
+  bottom: auto;
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
@@ -964,5 +974,13 @@ watch(activeTab, (tab) => loadTab(tab))
 .moderation-avatar.blocked img {
   filter: grayscale(0.7);
   opacity: 0.75;
+}
+
+.password-reset-dialog {
+  width: min(460px, 100%);
+}
+
+.password-reset-dialog .dialog-footer {
+  margin-top: 0;
 }
 </style>
