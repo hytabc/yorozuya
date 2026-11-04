@@ -7,9 +7,30 @@ from sqlalchemy import text
 from app import official as official_module
 from app.database import get_db
 from app.main import app
+from app.models import AppSetting
 
 import test_api as api_tests
 from test_api import auth
+
+
+def _parse_dt(value):
+    return datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None)
+
+
+def _force_refresh_due(db):
+    """把下一次官方委托刷新时间推到过去，模拟 4~8 小时窗口到点。"""
+    row = db.get(AppSetting, official_module.OFFICIAL_NEXT_REFRESH_KEY)
+    past = datetime.utcnow() - timedelta(minutes=1)
+    if row is None:
+        db.add(
+            AppSetting(
+                key=official_module.OFFICIAL_NEXT_REFRESH_KEY,
+                value=past.isoformat(),
+            )
+        )
+    else:
+        row.value = past.isoformat()
+    db.commit()
 
 
 def setup_function():
@@ -34,6 +55,17 @@ def test_pool_is_shared_and_capped_at_three(monkeypatch):
         assert {task["official_key"] for task in tasks} == {
             task["official_key"] for task in official_tasks(client)
         }
+        # 初始播种的 3 个任务分配连续时间槽，相邻到期时间间隔 4~8 小时。
+        expiries = sorted(_parse_dt(task["expires_at"]) for task in tasks)
+        gaps = [
+            (later - earlier).total_seconds() / 3600
+            for earlier, later in zip(expiries, expiries[1:])
+        ]
+        assert all(4 <= gap <= 8 for gap in gaps), gaps
+        with api_tests.TestingSession() as db:
+            schedule = db.get(AppSetting, official_module.OFFICIAL_NEXT_REFRESH_KEY)
+            assert schedule is not None
+            assert abs((_parse_dt(schedule.value) - expiries[0]).total_seconds()) < 2
 
         taker_a = auth(client, "official_a", role="volunteer")
         taker_b = auth(client, "official_b", role="volunteer")
@@ -136,19 +168,42 @@ def test_official_completion_stays_out_of_real_boards(monkeypatch):
         assert ratings["total"] == 0
 
 
-def test_expired_official_tasks_rotate(monkeypatch):
+def test_official_tasks_refresh_one_per_interval(monkeypatch):
     enable_official(monkeypatch)
     with TestClient(app) as client:
         first_ids = {task["id"] for task in official_tasks(client)}
+        assert len(first_ids) == 3
+
+        # 全部过期且调度到点：一次只补 1 个，而不是整批重建。
         with api_tests.TestingSession() as db:
             db.execute(
                 text("UPDATE tasks SET expires_at = :past WHERE is_official = 1"),
                 {"past": datetime.utcnow() - timedelta(hours=1)},
             )
-            db.commit()
+            _force_refresh_due(db)
+        after_one = official_tasks(client)
+        assert len(after_one) == 1
+        assert first_ids.isdisjoint({task["id"] for task in after_one})
+        second_id = after_one[0]["id"]
 
-        rotated = official_tasks(client)
-        assert len(rotated) == 3
-        assert all(task["status"] == "published" for task in rotated)
-        # 旧的一批全部过期，新一批重新随机补位。
-        assert first_ids.isdisjoint({task["id"] for task in rotated})
+        with api_tests.TestingSession() as db:
+            _force_refresh_due(db)
+        after_two = official_tasks(client)
+        assert len(after_two) == 2
+        assert second_id in {task["id"] for task in after_two}
+
+        with api_tests.TestingSession() as db:
+            _force_refresh_due(db)
+        after_three = official_tasks(client)
+        assert len(after_three) == 3
+        assert all(task["status"] == "published" for task in after_three)
+
+        # 池子满 3 个后，下一个窗口只替换最早发布的 1 个。
+        before_rotate = {task["id"] for task in after_three}
+        with api_tests.TestingSession() as db:
+            _force_refresh_due(db)
+        after_rotate = official_tasks(client)
+        after_ids = {task["id"] for task in after_rotate}
+        assert len(after_rotate) == 3
+        assert len(before_rotate - after_ids) == 1
+        assert len(after_ids - before_rotate) == 1

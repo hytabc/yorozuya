@@ -271,6 +271,8 @@ html[data-mode='night'] .facet-chip.active { color: #8fd7b0; border-color: var(-
 /* 凭证编号与 VRChat 信任徽章：日间是浅底 + 深绿字。 */
 html[data-mode='night'] .credential-serial,
 html[data-mode='night'] .vr-trust { color: #8fd7b0; border-color: #275338; background: #16261e; }
+html[data-mode='night'] .vr-trust-facts svg { color: #8fd7b0; }
+html[data-mode='night'] .vrchat-worlds-editor { background: #162019; }
 html[data-mode='night'] .fb-reply,
 html[data-mode='night'] .fb-state.state-approved { color: #8fd7b0; }
 

@@ -140,9 +140,21 @@ main { min-height: calc(100vh - 72px); }
 /* VRChat 信任（软绑定）：徽章、披露设置与个人设置区 */
 .vr-trust { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border: 1px solid #cfe0d6; border-radius: 12px; color: #2c5c47; background: #f3f8f4; font-size: 11px; font-weight: 650; vertical-align: middle; }
 .vr-trust.compact { padding: 1px 6px; font-size: 10.5px; }
+.vr-trust-level { font-weight: 800; }
+.vr-trust-sep { opacity: .55; }
 .vr-trust-link { display: inline-flex; align-items: center; gap: 3px; color: inherit; text-decoration: underline; font-weight: 500; }
 .profile-vrchat-section { margin-top: 42px; padding-top: 35px; border-top: 1px solid var(--line); }
 .user-card-trust { margin: 8px 0 2px; }
+.vr-trust-facts { display: grid; gap: 4px; margin: 6px 0 8px; padding: 0; list-style: none; color: var(--muted); font-size: 12px; }
+.vr-trust-facts li { display: flex; align-items: center; gap: 6px; }
+.vr-trust-facts svg { flex: none; color: var(--green); }
+.task-publisher-trust-facts { margin: 2px 0 14px; }
+.vrchat-worlds-editor { display: grid; gap: 10px; padding: 14px 16px; border: 1px dashed var(--line); border-radius: 6px; background: #fafbfa; }
+.vrchat-world-editor { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.vrchat-world-editor input { flex: 1 1 220px; min-width: 0; }
+.vrchat-world-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.vrchat-world-chips .facet-chip { display: inline-flex; align-items: center; gap: 4px; }
+.vrchat-world-chips .text-link { padding: 0 2px; font-size: 14px; line-height: 1; }
 .vrchat-bound { display: grid; gap: 12px; }
 .vrchat-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; }
 .disclosure-list { display: grid; gap: 8px; margin: 20px 0; }

@@ -76,6 +76,19 @@ TRUST_RANK_LABELS = {
     "unknown": "未识别",
 }
 
+# 与 VRChat 游戏内 Trust Rank 颜色保持一致；前端 frontend/src/trust.js 同步。
+TRUST_RANK_COLORS = {
+    "visitor": "#808080",
+    "new_user": "#1778FF",
+    "user": "#2BCF5C",
+    "known_user": "#FF7B42",
+    "trusted_user": "#8143E6",
+    "unknown": "#8A8A8A",
+}
+
+MAX_SOCIAL_GROUPS = 100
+MAX_DISPLAY_WORLDS = 3
+
 _DASH_VARIANTS = "‐‑‒–—―−﹘﹣－"
 _DASH_TRANSLATION = str.maketrans({char: "-" for char in _DASH_VARIANTS})
 
@@ -109,6 +122,8 @@ class VRChatIdentity(Base):
     account_created_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     platform: Mapped[str | None] = mapped_column(String(32), nullable=True)
     snapshot_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # 公开社群、与站点机器人的共同好友数、主页 World、手动常驻 World。
+    social_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
 
     # 一次性验证码：只保存 10 分钟，验证成功后保留用于后续刷新复核。
     challenge_token: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -142,6 +157,10 @@ class DisclosureUpdate(RequestModel):
     common_friends: bool | None = None
     common_groups: bool | None = None
     worlds: bool | None = None
+
+
+class WorldSelection(RequestModel):
+    worlds: list[str] = Field(default_factory=list, max_length=MAX_DISPLAY_WORLDS)
 
 
 class AdminConfigUpdate(RequestModel):
@@ -266,6 +285,45 @@ def load_disclosure(identity: VRChatIdentity) -> dict[str, bool]:
 
 def dump_disclosure(values: dict[str, bool]) -> str:
     return json.dumps({key: bool(values.get(key, False)) for key in DISCLOSURE_KEYS})
+
+
+def load_social(identity: VRChatIdentity | None) -> dict:
+    if identity is None:
+        return {}
+    try:
+        stored = json.loads(identity.social_json or "{}")
+    except (TypeError, ValueError):
+        stored = {}
+    return stored if isinstance(stored, dict) else {}
+
+
+def dump_social(values: dict) -> str:
+    return json.dumps(values, ensure_ascii=False, separators=(",", ":"))
+
+
+def _social_list(value) -> list:
+    return value if isinstance(value, list) else []
+
+
+def display_worlds(social: dict) -> list[dict]:
+    """主页 World 置顶，其后是用户手动填写的常驻 World，去重后最多 3 个。"""
+    worlds: list[dict] = []
+    home = social.get("home_world")
+    if isinstance(home, dict) and str(home.get("name") or "").strip():
+        worlds.append(
+            {
+                "id": str(home.get("id") or "")[:64],
+                "name": str(home["name"]).strip()[:100],
+                "source": "home",
+            }
+        )
+    seen = {item["name"] for item in worlds}
+    for value in _social_list(social.get("manual_worlds")):
+        name = str(value or "").strip()
+        if name and name not in seen:
+            seen.add(name)
+            worlds.append({"id": "", "name": name[:100], "source": "manual"})
+    return worlds[:MAX_DISPLAY_WORLDS]
 
 
 def identity_of(db: Session, user_id: int) -> VRChatIdentity | None:
@@ -523,12 +581,114 @@ def fetch_profile(vrchat_user_id: str) -> dict:
     return profile
 
 
+def _decode_json_object(response: httpx.Response) -> dict | None:
+    try:
+        data = response.json()
+    except ValueError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _decode_json_list(response: httpx.Response) -> list | None:
+    try:
+        data = response.json()
+    except ValueError:
+        return None
+    return data if isinstance(data, list) else None
+
+
+def _normalize_group(raw) -> dict | None:
+    if not isinstance(raw, dict):
+        return None
+    group_id = str(raw.get("groupId") or raw.get("id") or "").strip()
+    name = str(raw.get("name") or "").strip()
+    if not group_id or not name:
+        return None
+    # 只保存公开社群；私密社群不进入快照。
+    if str(raw.get("privacy") or "").lower() == "private":
+        return None
+    return {
+        "id": group_id[:64],
+        "name": name[:80],
+        "short_code": str(raw.get("shortCode") or "").strip()[:16],
+    }
+
+
+def fetch_social(vrchat_user_id: str, profile: dict | None = None) -> dict:
+    """读取公开社群、与站点机器人的共同好友数、主页 World。
+
+    这是 VRChat 能稳定提供的全部“社交快照”。单点失败不阻断身份验证：
+    失败项返回 ``None``，由调用方保留上一次快照。
+    """
+    if not bot_configured():
+        return {}
+    result: dict = {"groups": None, "mutual_friends": None, "home_world": None}
+
+    try:
+        groups_response = _bot_get(
+            f"/users/{vrchat_user_id}/groups", forbidden_is_auth=False
+        )
+        if groups_response.status_code == 200:
+            raw_groups = _decode_json_list(groups_response) or []
+            groups: list[dict] = []
+            seen: set[str] = set()
+            for raw in raw_groups:
+                group = _normalize_group(raw)
+                if group and group["id"] not in seen:
+                    seen.add(group["id"])
+                    groups.append(group)
+            result["groups"] = groups[:MAX_SOCIAL_GROUPS]
+    except VRChatError:
+        pass
+
+    try:
+        mutuals_response = _bot_get(
+            f"/users/{vrchat_user_id}/mutuals", forbidden_is_auth=False
+        )
+        if mutuals_response.status_code == 200:
+            mutuals = _decode_json_object(mutuals_response)
+            count = mutuals.get("friends") if isinstance(mutuals, dict) else None
+            if isinstance(count, int) and count >= 0:
+                result["mutual_friends"] = count
+    except VRChatError:
+        pass
+
+    home_location = str((profile or {}).get("homeLocation") or "").strip()
+    world_id = home_location.split(":", 1)[0].strip()
+    if world_id.startswith("wrld_"):
+        try:
+            world_response = _bot_get(f"/worlds/{world_id}", forbidden_is_auth=False)
+            if world_response.status_code == 200:
+                world = _decode_json_object(world_response)
+                if isinstance(world, dict) and str(world.get("name") or "").strip():
+                    result["home_world"] = {
+                        "id": world_id[:64],
+                        "name": str(world["name"]).strip()[:100],
+                    }
+        except VRChatError:
+            pass
+
+    return result
+
+
 def _fetch_or_http(vrchat_user_id: str) -> dict:
     try:
         return fetch_profile(vrchat_user_id)
     except VRChatError as error:
         headers = {"Retry-After": str(error.retry_after)} if error.retry_after else None
         raise HTTPException(status_code=error.status_code, detail=error.detail, headers=headers) from error
+
+
+def apply_social(identity: VRChatIdentity, social: dict) -> None:
+    """合并社交快照：失败项为 None 时保留旧值，手动填写的 World 永不被覆盖。"""
+    if not social:
+        return
+    current = load_social(identity)
+    for key in ("groups", "mutual_friends", "home_world"):
+        if social.get(key) is not None:
+            current[key] = social[key]
+    current["fetched_at"] = _iso(datetime.utcnow())
+    identity.social_json = dump_social(current)
 
 
 def apply_profile(identity: VRChatIdentity, profile: dict) -> None:
@@ -556,6 +716,9 @@ def _present_verified_fields(identity: VRChatIdentity) -> dict:
     return {
         "trust_rank": identity.trust_rank,
         "trust_rank_label": TRUST_RANK_LABELS.get(identity.trust_rank or "", TRUST_RANK_LABELS["unknown"]),
+        "trust_rank_color": TRUST_RANK_COLORS.get(
+            identity.trust_rank or "", TRUST_RANK_COLORS["unknown"]
+        ),
         "account_created_at": _iso(identity.account_created_at),
         "account_age_days": account_age_days(identity.account_created_at),
         "account_age_label": account_age_label(identity.account_created_at),
@@ -573,6 +736,12 @@ def present_self(identity: VRChatIdentity | None) -> dict:
             "bot_configured": bot_configured(),
         }
     verified = identity.status == STATUS_VERIFIED and identity.verified_at is not None
+    social = load_social(identity)
+    manual_worlds = [
+        str(value).strip()
+        for value in _social_list(social.get("manual_worlds"))
+        if str(value).strip()
+    ][:MAX_DISPLAY_WORLDS]
     result = {
         "bound": identity.status in (STATUS_UNVERIFIED, STATUS_PENDING, STATUS_VERIFIED),
         "status": identity.status,
@@ -589,6 +758,13 @@ def present_self(identity: VRChatIdentity | None) -> dict:
         "last_error": identity.last_error,
         "bot_configured": bot_configured(),
         "challenge_locked_until": _iso(identity.challenge_locked_until),
+        "groups": _social_list(social.get("groups")),
+        "group_count": len(_social_list(social.get("groups"))),
+        "mutual_friends": social.get("mutual_friends"),
+        "home_world": social.get("home_world") if isinstance(social.get("home_world"), dict) else None,
+        "manual_worlds": manual_worlds,
+        "worlds": display_worlds(social),
+        "social_synced_at": social.get("fetched_at"),
         **_present_verified_fields(identity),
     }
     if identity.status == STATUS_PENDING and identity.challenge_token:
@@ -606,7 +782,8 @@ def present_public(db: Session, user_id: int, viewer: User | None) -> dict:
     identity = identity_of(db, user_id)
     if identity is None or identity.status not in (STATUS_UNVERIFIED, STATUS_VERIFIED):
         return {"user_id": user_id, "bound": False, "verified": False}
-    return _present_public_identity(identity, viewer)
+    viewer_identity = identity_of(db, viewer.id) if viewer is not None else None
+    return _present_public_identity(identity, viewer, viewer_identity)
 
 
 def present_public_many(db: Session, user_ids, viewer: User | None) -> dict[int, dict]:
@@ -617,16 +794,53 @@ def present_public_many(db: Session, user_ids, viewer: User | None) -> dict[int,
     identities = db.scalars(
         select(VRChatIdentity).where(VRChatIdentity.user_id.in_(ids))
     ).all()
+    viewer_identity = identity_of(db, viewer.id) if viewer is not None else None
     return {
-        identity.user_id: _present_public_identity(identity, viewer)
+        identity.user_id: _present_public_identity(identity, viewer, viewer_identity)
         for identity in identities
         if identity.status in (STATUS_UNVERIFIED, STATUS_VERIFIED)
     }
 
 
-def _present_public_identity(identity: VRChatIdentity, viewer: User | None) -> dict:
+def _common_groups(target: VRChatIdentity, viewer_identity: VRChatIdentity | None) -> list[dict] | None:
+    """只返回双方都绑定、都开启披露时的公开社群交集；不返回原始成员关系。"""
+    if viewer_identity is None or viewer_identity.status != STATUS_VERIFIED:
+        return None
+    if not load_disclosure(viewer_identity)["common_groups"]:
+        return None
+    target_groups = load_social(target).get("groups")
+    viewer_groups = load_social(viewer_identity).get("groups")
+    if not isinstance(target_groups, list) or not isinstance(viewer_groups, list):
+        return None
+    target_map = {
+        str(group.get("id")): group
+        for group in target_groups
+        if isinstance(group, dict) and group.get("id")
+    }
+    viewer_ids = {
+        str(group.get("id"))
+        for group in viewer_groups
+        if isinstance(group, dict) and group.get("id")
+    }
+    common_ids = [group_id for group_id in target_map if group_id in viewer_ids]
+    return [
+        {
+            "id": group_id,
+            "name": str(target_map[group_id].get("name") or "")[:80],
+            "short_code": str(target_map[group_id].get("short_code") or "")[:16],
+        }
+        for group_id in common_ids[:3]
+    ]
+
+
+def _present_public_identity(
+    identity: VRChatIdentity,
+    viewer: User | None,
+    viewer_identity: VRChatIdentity | None = None,
+) -> dict:
     user_id = identity.user_id
     disclosure = load_disclosure(identity)
+    social = load_social(identity)
     owner = viewer is not None and viewer.id == user_id
     verified = identity.status == STATUS_VERIFIED
     result = {
@@ -649,12 +863,29 @@ def _present_public_identity(identity: VRChatIdentity, viewer: User | None) -> d
         result["trust_rank_label"] = TRUST_RANK_LABELS.get(
             identity.trust_rank or "", TRUST_RANK_LABELS["unknown"]
         )
+        result["trust_rank_color"] = TRUST_RANK_COLORS.get(
+            identity.trust_rank or "", TRUST_RANK_COLORS["unknown"]
+        )
     if owner or disclosure["account_age"]:
         result["account_created_at"] = _iso(identity.account_created_at)
         result["account_age_days"] = account_age_days(identity.account_created_at)
         result["account_age_label"] = account_age_label(identity.account_created_at)
     if owner or disclosure["platform"]:
         result["platform"] = identity.platform
+    # 共同好友只统计“目标用户与站点机器人”的共同好友：VRChat 只开放这一层数据。
+    if (owner or viewer is not None) and (owner or disclosure["common_friends"]):
+        if social.get("mutual_friends") is not None:
+            result["common_friends"] = social.get("mutual_friends")
+            result["common_friends_scope"] = "site_bot"
+    if owner or disclosure["worlds"]:
+        worlds = display_worlds(social)
+        if worlds:
+            result["worlds"] = worlds
+    if disclosure["common_groups"]:
+        common = _common_groups(identity, viewer_identity)
+        if common is not None:
+            result["common_groups"] = common
+            result["common_groups_count"] = len(common)
     return result
 
 
@@ -692,6 +923,7 @@ def _clear_binding(identity: VRChatIdentity) -> None:
     identity.account_created_at = None
     identity.platform = None
     identity.snapshot_expires_at = None
+    identity.social_json = "{}"
     identity.challenge_token = None
     identity.challenge_expires_at = None
     identity.challenge_failures = 0
@@ -797,6 +1029,11 @@ def link_check(user: User = Depends(get_current_user), db: Session = Depends(get
         raise HTTPException(status_code=409, detail=detail)
 
     apply_profile(identity, profile)
+    try:
+        apply_social(identity, fetch_social(identity.vrchat_user_id, profile))
+    except Exception:
+        # 社交快照是附加信息，失败不能阻断身份验证。
+        pass
     identity.status = STATUS_VERIFIED
     identity.verified_at = now
     identity.last_verified_at = now
@@ -822,6 +1059,10 @@ def refresh(user: User = Depends(get_current_user), db: Session = Depends(get_db
         raise HTTPException(status_code=404, detail="当前账号没有可刷新的 VRChat 身份")
     profile = _fetch_or_http(identity.vrchat_user_id)
     apply_profile(identity, profile)
+    try:
+        apply_social(identity, fetch_social(identity.vrchat_user_id, profile))
+    except Exception:
+        pass
     if identity.challenge_token:
         bio = str(profile.get("bio") or "")
         if bio_contains_token(bio, identity.challenge_token):
@@ -877,6 +1118,36 @@ def update_disclosure(
         if value is not None:
             values[key] = value
     identity.disclosure_json = dump_disclosure(values)
+    identity.updated_at = datetime.utcnow()
+    db.commit()
+    return present_self(identity)
+
+
+@router.patch("/worlds")
+def update_worlds(
+    payload: WorldSelection,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """保存手动填写的常驻 World；主页 World 由刷新资料自动读取。"""
+    enforce("vrchat-trust-read", str(user.id), 120, 600)
+    identity = identity_of(db, user.id)
+    if identity is None or identity.status not in (STATUS_UNVERIFIED, STATUS_VERIFIED):
+        raise HTTPException(status_code=409, detail="请先绑定并验证 VRChat 身份")
+    cleaned: list[str] = []
+    for value in payload.worlds:
+        text = str(value or "").strip()
+        if not text:
+            continue
+        if len(text) > 100:
+            raise HTTPException(status_code=422, detail="单个 World 名称不能超过 100 个字符")
+        if text not in cleaned:
+            cleaned.append(text)
+    if len(cleaned) > MAX_DISPLAY_WORLDS:
+        raise HTTPException(status_code=422, detail="最多填写 3 个常驻 World")
+    social = load_social(identity)
+    social["manual_worlds"] = cleaned
+    identity.social_json = dump_social(social)
     identity.updated_at = datetime.utcnow()
     db.commit()
     return present_self(identity)

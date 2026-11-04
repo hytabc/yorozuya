@@ -10,6 +10,16 @@ export const TRUST_RANK_LABELS = {
   unknown: '未识别',
 }
 
+// 与 VRChat 游戏内 Trust Rank 颜色保持一致；后端 backend/app/trust.py 同步。
+export const TRUST_RANK_COLORS = {
+  visitor: '#808080',
+  new_user: '#1778FF',
+  user: '#2BCF5C',
+  known_user: '#FF7B42',
+  trusted_user: '#8143E6',
+  unknown: '#8A8A8A',
+}
+
 export const TRUST_DISCLOSURE = [
   {
     key: 'identity',
@@ -38,20 +48,20 @@ export const TRUST_DISCLOSURE = [
   {
     key: 'common_friends',
     label: '共同好友',
-    hint: '需要双方都绑定并开启；当前版本暂不提供。',
-    available: false,
+    hint: '显示你与站点机器人之间的共同好友数量（VRChat 只开放这一层共同好友数据）。',
+    available: true,
   },
   {
     key: 'common_groups',
     label: '共同社群',
-    hint: '只展示双方共同的公开 Group；当前版本暂不提供。',
-    available: false,
+    hint: '只显示你和查看者都在的公开社群，最多 3 个；双方都需要绑定并开启。',
+    available: true,
   },
   {
     key: 'worlds',
     label: '常驻 World',
-    hint: '最多展示 3 个；当前版本暂不提供。',
-    available: false,
+    hint: '展示最多 3 个；自动读取主页 World，也可以手动补充。',
+    available: true,
   },
 ]
 
@@ -79,23 +89,50 @@ export function trustSummary(trust) {
   const level = verified
     ? TRUST_RANK_LABELS[trust.trust_rank] || '已验证'
     : '未验证'
+  const levelColor = verified
+    ? trust.trust_rank_color || TRUST_RANK_COLORS[trust.trust_rank] || TRUST_RANK_COLORS.unknown
+    : TRUST_RANK_COLORS.unknown
   const name = trust.display_name || ''
+  const accountAge = verified && trust.account_age_label ? trust.account_age_label : ''
+  const platform = verified && trust.platform ? platformLabel(trust.platform) : ''
   const parts = []
   if (name) parts.push(name)
   parts.push(level)
-  if (verified && trust.account_age_label) parts.push(`账号 ${trust.account_age_label}`)
-  if (verified && trust.platform) parts.push(platformLabel(trust.platform))
+  if (accountAge) parts.push(`账号 ${accountAge}`)
+  if (platform) parts.push(platform)
   return {
     name,
     level,
+    levelColor,
     verified,
     trustRank: trust.trust_rank || null,
+    accountAge,
+    platform,
     text: name ? parts.join(' · ') : ['已绑定 VRChat', ...parts].join(' · '),
     source: verified
       ? `由 VRChat 简介验证码验证${trust.stale ? '；资料可能已过期，建议刷新' : ''}，不构成平台担保。`
       : '未验证：由本人手动填写，不构成平台担保。',
     stale: Boolean(trust.stale),
   }
+}
+
+export function commonFriendsText(trust) {
+  const count = trust?.common_friends
+  if (count === null || count === undefined) return ''
+  return count > 0 ? `站点共同好友 ${count} 位` : '暂无站点共同好友'
+}
+
+export function commonGroupsText(trust) {
+  const groups = Array.isArray(trust?.common_groups) ? trust.common_groups : []
+  const names = groups.map((group) => group?.name).filter(Boolean)
+  return names.length ? `共同社群：${names.join('、')}` : ''
+}
+
+export function worldNames(trust) {
+  const worlds = Array.isArray(trust?.worlds) ? trust.worlds : []
+  return worlds
+    .map((world) => (typeof world === 'string' ? world : world?.name))
+    .filter(Boolean)
 }
 
 export function disclosureCount(disclosure) {

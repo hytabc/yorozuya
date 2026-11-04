@@ -555,6 +555,7 @@ def migrate_schema() -> None:
                 "challenge_expires_at": "DATETIME",
                 "challenge_failures": "INTEGER NOT NULL DEFAULT 0",
                 "challenge_locked_until": "DATETIME",
+                "social_json": "TEXT NOT NULL DEFAULT '{}'",
             }.items():
                 if column not in vrchat_columns:
                     connection.execute(

@@ -216,7 +216,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - 新增页面路由：`/terms`、`/credential/:serial`、`/creators/:userId`、`/achievements`、`/footprints`，全部 `() => import()`；`PageKeyLiteral` 与 `PAGE_LABELS` 已同步加入 `terms` / `creator` / `credential` / `achievements` / `footprints`。
 - 通知中心轮询 30 秒（`document.hidden` 时暂停）；点击事件跳转 `/?task=<id>`，由大厅复用 `TaskDialog`，不新增详情路由。
 - 回归：`backend/tests/test_task_facets.py`、`test_atmosphere.py`、`test_vrchat.py`、`test_credentials.py`、`test_events.py`；前端 `facets` / `atmosphere` / `trust` / `credential` / `hallSpace` / `events` 六个 `.test.mjs`。后端基线已到 251 个用例。
-- ⚠️ 不要删除或弱化 `/terms` 的完整条款；礼仪确认只改变呈现顺序。只有简介验证码通过、且资料来自服务端快照时才能写 `verified=true`；不得伪造 Trust Rank / 账号年龄 / 平台，共同好友/社群/World 仍未接入。
+- ⚠️ 不要删除或弱化 `/terms` 的完整条款；礼仪确认只改变呈现顺序。只有简介验证码通过、且资料来自服务端快照时才能写 `verified=true`；不得伪造 Trust Rank / 账号年龄 / 平台。共同社群用双方公开社群交集；共同好友只能拿到“与站点机器人”的数量并必须标注范围；常驻 World 自动读主页 World + 手动补充，不能伪造。
 
 ## 积分 / 评分 / 每日任务 / 成就 / 等级（2026-11）
 
@@ -232,7 +232,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - **评价**（`backend/app/ratings.py`，`task_ratings`）：0~5 半星 11 档、双向、7 天窗口、双盲（双方提交即互见）、24h 内可改一次、逾期自动 3 星；0 星必选原因，≤2 星必填 ≥15 字。
   - 聚合与榜单用贝叶斯平滑 `(10×4.0+Σ)/(10+n)`，评分榜要求 ≥5 条；`rating_appeals` 支持 14 天内申诉，撤销/改星会重算积分。
 - **每日任务**（`daily.py`）：固定 5 项（发布≥30 字 +2、完成 +4、评价 +1、分享 +1、全清 +2），按 Asia/Shanghai 0 点刷新，需手动领取。
-- **官方活跃委托**（`official.py`）：以真实 Task 出现在大厅（`is_official` / `official_key`，系统账号 `__official__` 发布），全局共享最多 3 个、随机存活 2~6 小时后轮换；被接取即占位，接单人确认时由 `quest_progress_today()` 核对当天站内动作，通过后一次性发积分；不参与评价。
+- **官方活跃委托**（`official.py`）：以真实 Task 出现在大厅（`is_official` / `official_key`，系统账号 `__official__` 发布），全局共享最多 3 个；首次播种 3 个，之后每隔 4~8 小时只刷新 1 个（`app_settings.official_next_refresh_at` 记录下一窗口，满池时替换最早发布的一个）。被接取即占位，接单人确认时由 `quest_progress_today()` 核对当天站内动作，通过后一次性发积分；不参与评价。
 - **成就**（`achievements.py`，26 个）：条件由业务表实时计算，打开成就页自动补发；成就只加终身积分。
 - **等级**（`levels.py`）：Lv1~10 由 lifetime 推导（0/50/150/350/700/1200/2000/3200/5000/8000）；接单上限 `max(管理员设置, 2+Lv//3)`、悬赏上限 `Lv×20`、Lv3 起可发悬赏；委托人评分（≥5 条）<3.0 悬赏减半、<2.5 禁悬赏/多人、<2.0 每日发布上限 1。
 - **排行榜**（`rankings.py`）：积分/接单人评分/委托人评分/真实委托四榜，官方委托与 `__official__` 不计入；`users.rank_opt_out` 可退出，开关已移到 `/rankings` 页。

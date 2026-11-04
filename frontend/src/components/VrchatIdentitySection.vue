@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { BadgeCheck, Copy, ExternalLink, RefreshCw, Trash2, TriangleAlert, Unlink } from '@lucide/vue'
+import { BadgeCheck, Copy, ExternalLink, Plus, RefreshCw, Trash2, TriangleAlert, Unlink } from '@lucide/vue'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
 import { platformLabel, trustSummary } from '../trust'
@@ -22,8 +22,16 @@ const status = ref({
   last_synced_at: null,
   trust_rank: null,
   trust_rank_label: null,
+  trust_rank_color: null,
   account_age_label: null,
   platform: null,
+  groups: [],
+  group_count: 0,
+  mutual_friends: null,
+  home_world: null,
+  manual_worlds: [],
+  worlds: [],
+  social_synced_at: null,
   stale: false,
   disclosure: {},
   enabled: true,
@@ -34,6 +42,11 @@ const status = ref({
   last_error: null,
 })
 const form = ref({ profile: '' })
+const worldsDraft = ref([])
+const worldInput = ref('')
+const canAddWorld = computed(
+  () => worldsDraft.value.length < 3 && Boolean(worldInput.value.trim()),
+)
 const summary = computed(() => trustSummary(status.value))
 const challengeExpired = computed(() => {
   const value = status.value.challenge?.expires_at
@@ -59,6 +72,7 @@ async function load() {
   try {
     status.value = { ...status.value, ...(await api.get('/vrchat/status')).data }
     form.value.profile = status.value.profile_url || ''
+    worldsDraft.value = [...(status.value.manual_worlds || [])]
   } catch (err) {
     error.value = errorMessage(err, '无法读取 VRChat 绑定状态')
   } finally {
@@ -147,6 +161,32 @@ async function removeData() {
 
 function saved(next) {
   status.value = { ...status.value, ...next }
+  worldsDraft.value = [...(status.value.manual_worlds || [])]
+}
+
+function addWorld() {
+  const value = worldInput.value.trim()
+  if (!value || worldsDraft.value.length >= 3) return
+  if (!worldsDraft.value.includes(value)) worldsDraft.value = [...worldsDraft.value, value]
+  worldInput.value = ''
+}
+
+function removeWorld(value) {
+  worldsDraft.value = worldsDraft.value.filter((item) => item !== value)
+}
+
+async function saveWorlds() {
+  busy.value = true
+  try {
+    const { data } = await api.patch('/vrchat/worlds', { worlds: worldsDraft.value })
+    status.value = { ...status.value, ...data }
+    worldsDraft.value = [...(data.manual_worlds || [])]
+    toast.success('常驻 World 已保存')
+  } catch (err) {
+    toast.error(errorMessage(err, '保存常驻 World 失败'))
+  } finally {
+    busy.value = false
+  }
 }
 
 onMounted(load)
@@ -203,10 +243,37 @@ defineExpose({ load })
           </div>
 
           <div v-if="status.verified" class="vrchat-facts">
-            <span v-if="status.trust_rank_label">Trust Rank：<strong>{{ status.trust_rank_label }}</strong></span>
+            <span v-if="status.trust_rank_label">Trust Rank：<strong :style="{ color: status.trust_rank_color }">{{ status.trust_rank_label }}</strong></span>
             <span v-if="status.account_age_label">账号年龄：<strong>{{ status.account_age_label }}</strong></span>
             <span v-if="status.platform">常用平台：<strong>{{ platformLabel(status.platform) }}</strong></span>
+            <span v-if="status.mutual_friends !== null && status.mutual_friends !== undefined">站点共同好友：<strong>{{ status.mutual_friends }}</strong> 位</span>
+            <span v-if="status.group_count">公开社群：<strong>{{ status.group_count }}</strong> 个</span>
+            <span v-if="status.worlds?.length">常驻 World：<strong>{{ status.worlds.map((world) => world.name).join('、') }}</strong></span>
             <span v-if="status.last_synced_at">最近同步：<strong>{{ formatDate(status.last_synced_at) }}</strong></span>
+          </div>
+
+          <div v-if="status.verified" class="vrchat-worlds-editor">
+            <div class="section-heading compact">
+              <div>
+                <h3>常驻 World</h3>
+                <p class="field-hint">自动读取主页 World；也可以手动补充，最多 3 个。开启“常驻 World”披露后其他人可见。</p>
+              </div>
+            </div>
+            <p v-if="status.home_world" class="field-hint">
+              主页 World：<strong>{{ status.home_world.name }}</strong>（自动读取，不占用手动名额）
+            </p>
+            <p v-else class="field-hint">暂未读取到主页 World；可以手动填写常驻 World。</p>
+            <div v-if="worldsDraft.length" class="vrchat-world-chips">
+              <span v-for="world in worldsDraft" :key="world" class="facet-chip static">
+                {{ world }}
+                <button type="button" class="text-link" :aria-label="`移除 ${world}`" @click="removeWorld(world)">×</button>
+              </span>
+            </div>
+            <div class="vrchat-world-editor">
+              <input v-model.trim="worldInput" maxlength="100" placeholder="输入 World 名称，例如：咖啡厅" @keyup.enter="addWorld" />
+              <button type="button" class="button small secondary" :disabled="!canAddWorld || busy" @click="addWorld"><Plus :size="14" />添加</button>
+              <button type="button" class="button small" :disabled="busy" @click="saveWorlds">保存常驻 World</button>
+            </div>
           </div>
 
           <p v-if="status.last_error && !status.challenge" class="form-error">{{ status.last_error }}</p>

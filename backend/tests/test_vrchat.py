@@ -146,6 +146,174 @@ def test_refresh_downgrades_and_restores_when_bio_changes(monkeypatch):
         assert restored.json()["verified"] is True
 
 
+def test_social_snapshot_and_manual_worlds(monkeypatch):
+    profile = use_profile(monkeypatch)
+    social = {
+        PROFILE["id"]: {
+            "groups": [{"id": "grp_a", "name": "砂糖社", "short_code": "SUGAR"}],
+            "mutual_friends": 3,
+            "home_world": {"id": "wrld_1", "name": "万事屋"},
+        }
+    }
+    monkeypatch.setattr(
+        trust,
+        "fetch_social",
+        lambda user_id, profile=None: social.get(user_id, {}),
+    )
+    with TestClient(app) as client:
+        alice = auth(client, "vrchat_social")
+        bob = auth(client, "vrchat_social_viewer")
+        uid = client.get("/api/auth/me", headers=alice).json()["id"]
+        started = start(client, alice)
+        data = verify(client, alice, profile, started)
+        assert data["trust_rank_color"] == "#FF7B42"
+        assert data["mutual_friends"] == 3
+        assert data["group_count"] == 1
+        assert data["home_world"]["name"] == "万事屋"
+        assert [world["name"] for world in data["worlds"]] == ["万事屋"]
+
+        saved = client.patch(
+            "/api/vrchat/worlds",
+            headers=alice,
+            json={"worlds": ["世界A", "世界B", "世界C"]},
+        )
+        assert saved.status_code == 200, saved.text
+        body = saved.json()
+        assert body["manual_worlds"] == ["世界A", "世界B", "世界C"]
+        assert [world["name"] for world in body["worlds"]] == ["万事屋", "世界A", "世界B"]
+
+        client.patch(
+            "/api/vrchat/disclosure",
+            headers=alice,
+            json={"common_friends": True, "worlds": True},
+        )
+        public = client.get(f"/api/users/{uid}/trust", headers=bob).json()
+        assert public["common_friends"] == 3
+        assert public["common_friends_scope"] == "site_bot"
+        assert [world["name"] for world in public["worlds"]] == ["万事屋", "世界A", "世界B"]
+
+
+def test_common_groups_requires_both_sides(monkeypatch):
+    alice_vrc = "usr_aaaaaaaa-1111-1111-1111-111111111111"
+    bob_vrc = "usr_bbbbbbbb-2222-2222-2222-222222222222"
+    profiles = {
+        alice_vrc: {**PROFILE, "id": alice_vrc, "bio": ""},
+        bob_vrc: {**PROFILE, "id": bob_vrc, "bio": ""},
+    }
+    socials = {
+        alice_vrc: {
+            "groups": [
+                {"id": "grp_shared", "name": "共同社群", "short_code": "SHARED"},
+                {"id": "grp_alice", "name": "Alice 社群", "short_code": "A"},
+            ],
+            "mutual_friends": 1,
+            "home_world": None,
+        },
+        bob_vrc: {
+            "groups": [
+                {"id": "grp_shared", "name": "共同社群", "short_code": "SHARED"},
+                {"id": "grp_bob", "name": "Bob 社群", "short_code": "B"},
+            ],
+            "mutual_friends": 2,
+            "home_world": None,
+        },
+    }
+    monkeypatch.setattr(trust, "fetch_profile", lambda user_id: dict(profiles[user_id]))
+    monkeypatch.setattr(
+        trust, "fetch_social", lambda user_id, profile=None: socials.get(user_id, {})
+    )
+    with TestClient(app) as client:
+        alice = auth(client, "vrchat_groups_alice")
+        bob = auth(client, "vrchat_groups_bob")
+        alice_uid = client.get("/api/auth/me", headers=alice).json()["id"]
+
+        alice_started = start(client, alice, alice_vrc)
+        profiles[alice_vrc]["bio"] = f"欢迎 {alice_started['challenge']['text']}"
+        assert client.post("/api/vrchat/link/check", headers=alice).status_code == 200
+        bob_started = start(client, bob, bob_vrc)
+        profiles[bob_vrc]["bio"] = f"欢迎 {bob_started['challenge']['text']}"
+        assert client.post("/api/vrchat/link/check", headers=bob).status_code == 200
+
+        # 双方默认关闭：不返回共同社群。
+        public = client.get(f"/api/users/{alice_uid}/trust", headers=bob).json()
+        assert "common_groups" not in public
+
+        # 只有目标开启：仍不返回。
+        client.patch("/api/vrchat/disclosure", headers=alice, json={"common_groups": True})
+        public = client.get(f"/api/users/{alice_uid}/trust", headers=bob).json()
+        assert "common_groups" not in public
+
+        # 双方都开启：返回真实交集。
+        client.patch("/api/vrchat/disclosure", headers=bob, json={"common_groups": True})
+        public = client.get(f"/api/users/{alice_uid}/trust", headers=bob).json()
+        assert public["common_groups_count"] == 1
+        assert public["common_groups"][0]["name"] == "共同社群"
+
+        # 游客看不到共同社群。
+        guest = client.get(f"/api/users/{alice_uid}/trust").json()
+        assert "common_groups" not in guest
+
+        # 目标关闭后立即隐藏。
+        client.patch("/api/vrchat/disclosure", headers=alice, json={"common_groups": False})
+        public = client.get(f"/api/users/{alice_uid}/trust", headers=bob).json()
+        assert "common_groups" not in public
+
+
+def test_fetch_social_reads_groups_mutuals_and_home_world(monkeypatch):
+    monkeypatch.setattr(trust.settings, "vrchat_bot_auth_cookie", "")
+    monkeypatch.setattr(trust.settings, "vrchat_bot_username", "bot")
+    monkeypatch.setattr(trust.settings, "vrchat_bot_password", "secret")
+    monkeypatch.setattr(trust.settings, "vrchat_bot_totp_secret", "")
+    clock = {"now": 0.0}
+    monkeypatch.setattr(trust.time, "monotonic", lambda: clock["now"])
+    monkeypatch.setattr(
+        trust.time, "sleep", lambda seconds: clock.__setitem__("now", clock["now"] + seconds)
+    )
+
+    def handler(request):
+        path = request.url.path
+        if path.endswith("/auth/user"):
+            return httpx.Response(200, json={"id": "usr_bot"})
+        if path.endswith("/users/usr_target/groups"):
+            return httpx.Response(
+                200,
+                json=[
+                    {
+                        "groupId": "grp_public",
+                        "name": "公开社群",
+                        "shortCode": "PUB",
+                        "privacy": "default",
+                    },
+                    {
+                        "groupId": "grp_private",
+                        "name": "私密社群",
+                        "shortCode": "PRIV",
+                        "privacy": "private",
+                    },
+                ],
+            )
+        if path.endswith("/users/usr_target/mutuals"):
+            return httpx.Response(200, json={"friends": 4, "groups": 1})
+        if path.endswith("/worlds/wrld_home"):
+            return httpx.Response(200, json={"id": "wrld_home", "name": "常驻世界"})
+        return httpx.Response(404)
+
+    monkeypatch.setattr(
+        trust,
+        "_new_http_client",
+        lambda: httpx.Client(
+            transport=httpx.MockTransport(handler), headers={"User-Agent": "test"}
+        ),
+    )
+    trust._reset_bot_session()
+    social = trust.fetch_social("usr_target", {"homeLocation": "wrld_home:123~private"})
+    assert social["groups"] == [
+        {"id": "grp_public", "name": "公开社群", "short_code": "PUB"}
+    ]
+    assert social["mutual_friends"] == 4
+    assert social["home_world"] == {"id": "wrld_home", "name": "常驻世界"}
+
+
 def test_anonymous_task_trust_is_cropped(monkeypatch):
     use_profile(monkeypatch)
     with TestClient(app) as client:
