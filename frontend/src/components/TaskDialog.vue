@@ -119,6 +119,10 @@ function emitAccept() {
         <h2>{{ task.title }}</h2>
       </div>
       <p class="task-description">{{ task.description }}</p>
+      <div v-if="task.is_official" class="notice info-notice">
+        <strong>万事屋官方活跃委托</strong>
+        <p>全局只有 3 个，接取后其他人不能再接；完成上方描述的站内动作后，点「确认完成」由系统自动核对并发积分。到期未完成会自动刷新。</p>
+      </div>
       <div v-if="facets.length" class="facet-groups" aria-label="委托标签">
         <div v-for="group in facets" :key="group.key" class="facet-group">
           <span class="facet-group-label">{{ group.label }}</span>
@@ -126,7 +130,7 @@ function emitAccept() {
         </div>
       </div>
       <dl class="task-detail-grid">
-        <div><dt><UserRound :size="16" />委托人</dt><dd><button v-if="task.publisher.id > 0" class="name-link" type="button" @click="openProfile(task.publisher.id)">{{ task.publisher.nickname }}<UserTitleTag :title="task.publisher.title" /></button><span v-else class="muted">匿名委托人</span><VrTrustBadge v-if="!anonymousView" :trust="taskTrust?.publisher" show-empty /></dd></div>
+        <div><dt><UserRound :size="16" />委托人</dt><dd><template v-if="task.is_official"><span>{{ task.publisher.nickname }}</span></template><button v-else-if="task.publisher.id > 0" class="name-link" type="button" @click="openProfile(task.publisher.id)">{{ task.publisher.nickname }}<UserTitleTag :title="task.publisher.title" /></button><span v-else class="muted">匿名委托人</span><VrTrustBadge v-if="!anonymousView && !task.is_official" :trust="taskTrust?.publisher" show-empty /></dd></div>
         <div><dt><CalendarClock :size="16" />有效期至</dt><dd>{{ format(task.expires_at) }}</dd></div>
         <div><dt><UsersRound :size="16" />需要接取人数</dt><dd>{{ requiredText }}<span v-if="!anonymousView" class="muted">（已响应 {{ joinedCount }} 人<template v-if="pendingCount">，待响应 {{ pendingCount }} 人</template>）</span></dd></div>
         <div><dt><component :is="designated ? UsersRound : LockOpen" :size="16" />接取方式</dt><dd>{{ designated ? '指定人员响应' : '公开接取' }}</dd></div>
@@ -209,7 +213,7 @@ function emitAccept() {
         <strong>委托已完成</strong>
         <p>委托人与全体接单人（{{ totalPeople }} 人）均已确认，感谢这次协作。记得互相评价，系统积分会按委托人给出的星级结算。</p>
       </div>
-      <RatingSection v-if="finished && isParticipant" :task-id="task.id" />
+      <RatingSection v-if="finished && isParticipant && !task.is_official" :task-id="task.id" />
 
       <!-- 取消确认中 -->
       <div v-if="cancelling && isParticipant" class="notice info-notice">

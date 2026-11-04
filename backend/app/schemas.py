@@ -229,21 +229,10 @@ class AchievementWallOut(BaseModel):
     items: list[AchievementOut] = []
 
 
-class OfficialQuestOut(BaseModel):
-    key: str
-    label: str
-    reward: int = 0
-    target: int = 1
-    progress: int = 0
-    claimed: bool = False
-    can_claim: bool = False
-
-
 class DailyOut(BaseModel):
     day: str
     items: list[DailyTaskOut] = []
     claimed_count: int = 0
-    official: list[OfficialQuestOut] = []
 
 
 class DailyClaimOut(BaseModel):
@@ -469,6 +458,8 @@ class TaskOut(ApiModel):
     scale: str = "small"
     base_points: int = 0
     bounty_points: int = 0
+    is_official: bool = False
+    official_key: str | None = None
     status: TaskStatus
     is_visible: bool
     admin_note: str | None = None

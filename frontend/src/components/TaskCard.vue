@@ -33,6 +33,7 @@ const facets = computed(() => cardFacets(props.task.facets))
     <div class="task-card-top">
       <div class="task-tags">
         <StatusBadge :status="task.status" />
+        <span v-if="task.is_official" class="role-tag official-tag">官方</span>
         <span v-if="task.is_designated" class="role-tag">指定人员</span>
         <span v-if="task.is_anonymous" class="role-tag anon-tag"><Ghost :size="13" />匿名</span>
         <span class="category-tag">{{ task.category }}</span>
