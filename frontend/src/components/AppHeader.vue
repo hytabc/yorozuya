@@ -8,6 +8,7 @@ import { OFFICIAL_GROUP } from '../constants'
 import { HALLS, hallContainsPath, moreLinks, visibleItems } from '../navigation'
 import UserAvatar from './UserAvatar.vue'
 import UserTitleTag from './UserTitleTag.vue'
+import NotificationCenter from './NotificationCenter.vue'
 
 const auth = useAuthStore()
 const toast = useToast()
@@ -159,6 +160,7 @@ onBeforeUnmount(() => {
           <span class="gc-text">{{ groupRevealed ? OFFICIAL_GROUP.id : OFFICIAL_GROUP.label }}</span>
         </button>
         <template v-if="auth.isLoggedIn">
+          <NotificationCenter />
           <RouterLink to="/profile" class="user-chip">
             <UserAvatar :user="auth.user" :size="30" />
             <span>{{ auth.user?.nickname }}</span><UserTitleTag :title="auth.user?.title" />

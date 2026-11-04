@@ -243,6 +243,8 @@ from .credentials import (
     portfolio_router as creator_portfolio_router,
     router as credential_router,
 )
+from .events import record_event as record_task_event
+from .events import router as events_router
 from .virtual_life import router as virtual_life_router
 from .virtual_life_packs import router as virtual_life_packs_router, seed_virtual_life_packs
 
@@ -696,6 +698,7 @@ app.include_router(vrchat_trust_router)
 app.include_router(credential_router)
 app.include_router(credential_admin_router)
 app.include_router(creator_portfolio_router)
+app.include_router(events_router)
 
 
 def expire_due_tasks(db: Session) -> None:
@@ -4228,6 +4231,14 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
                 response_status=TaskMemberResponse.PENDING,
             )
         )
+    if designated_users:
+        record_task_event(
+            db,
+            task,
+            "designated",
+            f"你被指定接取委托《{task.title}》",
+            recipients=[item.id for item in designated_users],
+        )
     db.commit()
     return present_task(get_task_or_404(db, task.id), user, facets_for_task(db, task.id))
 
@@ -4376,6 +4387,14 @@ def accept_task(
             else:
                 task.status = TaskStatus.CANCELLED
                 task.cancelled_at = datetime.utcnow()
+        record_task_event(
+            db,
+            task,
+            "accepted",
+            f"《{task.title}》的指定接单人已响应",
+            recipients=[task.publisher_id],
+            exclude=user,
+        )
         db.commit()
         settled = get_task_or_404(db, task_id)
         queue_task_notification(
@@ -4407,9 +4426,19 @@ def accept_task(
             detail=f"你同时接取的委托已达上限（{user.max_concurrent_tasks} 个）",
         )
     db.add(TaskMember(task_id=task.id, user_id=user.id))
+    record_task_event(
+        db,
+        task,
+        "accepted",
+        f"《{task.title}》有新接单人",
+        recipients=[task.publisher_id],
+        exclude=user,
+    )
     db.commit()
     task = get_task_or_404(db, task_id)
     start_if_ready(db, task)
+    if task.status == TaskStatus.ACCEPTED:
+        record_task_event(db, task, "started", f"《{task.title}》人数已满，委托开始", exclude=user)
     db.commit()
     accepted = get_task_or_404(db, task_id)
     queue_task_notification(
@@ -4446,6 +4475,7 @@ def start_task(
     task.status = TaskStatus.ACCEPTED
     task.started_at = datetime.utcnow()
     task.updated_at = datetime.utcnow()
+    record_task_event(db, task, "started", f"《{task.title}》已开始", exclude=user)
     db.commit()
     started = get_task_or_404(db, task_id)
     queue_task_notification(
@@ -4525,6 +4555,10 @@ def confirm_task(
         task.status = TaskStatus.AWAITING
     else:
         task.status = TaskStatus.ACCEPTED
+    if task.status == TaskStatus.COMPLETED:
+        record_task_event(db, task, "completed", f"《{task.title}》已完成", exclude=user)
+    elif task.status == TaskStatus.AWAITING:
+        record_task_event(db, task, "awaiting", f"《{task.title}》有人在等你确认完成", exclude=user)
     task.updated_at = now
     db.commit()
     confirmed = get_task_or_404(db, task_id)
@@ -4593,6 +4627,13 @@ def request_cancel_task(task_id: int, user: User = Depends(get_current_user), db
         membership = accepted_member_of(db, task_id, user.id)
         if membership is not None:
             membership.cancel_confirmed_at = now
+    record_task_event(
+        db,
+        task,
+        "cancel_requested",
+        f"《{task.title}》有人发起取消，等待你确认",
+        exclude=user,
+    )
     task.updated_at = now
     db.commit()
     return present_task(get_task_or_404(db, task_id), user)
@@ -4627,6 +4668,7 @@ def confirm_cancel_task(
     if task.all_agree_to_cancel:
         task.status = TaskStatus.CANCELLED
         task.cancelled_at = now
+        record_task_event(db, task, "cancelled", f"《{task.title}》经全体同意后已取消", exclude=user)
     task.updated_at = now
     db.commit()
     settled = get_task_or_404(db, task_id)
@@ -5409,6 +5451,14 @@ def moderate_task(
         raise HTTPException(status_code=422, detail="屏蔽委托时必须填写理由")
     task.is_visible = payload.is_visible
     task.admin_note = note if not payload.is_visible else None
+    if not payload.is_visible:
+        record_task_event(
+            db,
+            task,
+            "hidden",
+            f"《{task.title}》已被管理员隐藏",
+            recipients=[task.publisher_id],
+        )
     db.commit()
     moderated = get_task_or_404(db, task_id)
     if not moderated.is_visible:

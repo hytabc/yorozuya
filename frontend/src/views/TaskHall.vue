@@ -1,6 +1,6 @@
 <script setup>
 import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { MessageCircle, Plus, Search, SlidersHorizontal, Sparkles, TriangleAlert } from '@lucide/vue'
 import { api, errorMessage } from '../api'
 import { track } from '../analytics'
@@ -25,6 +25,7 @@ const HallSpaceView = defineAsyncComponent(() => import('../hall/space/HallSpace
 
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 const toast = useToast()
 const tasks = ref([])
 const loading = ref(true)
@@ -178,7 +179,19 @@ function switchView(next) {
   view.value = next
   spaceSelected.value = null
 }
-onMounted(() => { load(); checkAtmosphere(); loadSiteFlags() })
+// 通知中心点击后跳回 /?task=<id>：复用现有详情弹窗，不新建详情路由。
+async function openTaskFromQuery() {
+  const taskId = Number(route.query.task)
+  if (!taskId) return
+  try {
+    const { data } = await api.get(`/tasks/${taskId}`)
+    openTask(data)
+  } catch {
+    toast.error('该委托已不可查看')
+  }
+}
+onMounted(() => { load(); checkAtmosphere(); loadSiteFlags(); openTaskFromQuery() })
+watch(() => route.query.task, openTaskFromQuery)
 watch(() => auth.ready, (ready) => {
   if (!ready) return
   loadAnnouncements()
