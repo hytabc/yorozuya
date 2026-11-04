@@ -2333,6 +2333,7 @@ def user_profile(user_id: int, viewer: User | None = Depends(get_optional_user),
     if target is None or not target.is_active:
         raise HTTPException(status_code=404, detail="用户不存在")
     data = present_user_profile(target, viewer)
+    data.ratings = ratings_module.user_rating_summary(db, target.id)
     if not can_view_user_qq(db, viewer, target):
         data.qq = None
     # 是否超管属于敏感的运营信息，只对本人与管理组成员展示。
@@ -2351,6 +2352,7 @@ def user_public_profile(user_id: int, viewer: User | None = Depends(get_optional
     if target is None or not target.is_active:
         raise HTTPException(status_code=404, detail="用户不存在")
     data = present_user_profile(target, viewer)
+    data.ratings = ratings_module.user_rating_summary(db, target.id)
     data.qq = None
     return data
 

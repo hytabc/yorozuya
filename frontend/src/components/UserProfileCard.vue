@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-import { CalendarDays, EyeOff, Heart, KeyRound, MessageCircle, ShieldCheck, Store, UserRound, X } from '@lucide/vue'
+import { CalendarDays, Coins, EyeOff, Heart, KeyRound, MessageCircle, ShieldCheck, Star, Store, UserRound, X } from '@lucide/vue'
 import { api, errorMessage } from '../api'
 import { roleLabel } from '../constants'
 import UserAvatar from './UserAvatar.vue'
@@ -68,6 +68,11 @@ onMounted(async () => {
         <div>
           <h4>{{ user.nickname }}<UserTitleTag :title="user.title" /><span v-if="user.is_admin" class="admin-tag"><ShieldCheck :size="13" />管理员</span><span v-else class="role-tag" :class="`role-${user.role}`"><Store v-if="user.role === 'staff'" :size="13" /><Heart v-else-if="user.role === 'volunteer'" :size="13" /><UserRound v-else :size="13" />{{ roleLabel(user) }}</span></h4>
           <span class="user-card-since muted"><CalendarDays :size="14" />{{ joined(user.created_at) }} 加入</span>
+          <div class="user-card-stats">
+            <span v-if="user.lifetime_points" class="muted"><Coins :size="14" />累计 {{ user.lifetime_points }} 积分</span>
+            <span v-if="user.ratings?.taker?.count" class="muted"><Star :size="14" />接单 {{ user.ratings.taker.average }} 星（{{ user.ratings.taker.count }} 评）</span>
+            <span v-if="user.ratings?.publisher?.count" class="muted"><Star :size="14" />委托 {{ user.ratings.publisher.average }} 星（{{ user.ratings.publisher.count }} 评）</span>
+          </div>
         </div>
       </div>
       <VrTrustBadge :trust="trust" show-empty class="user-card-trust" />

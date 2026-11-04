@@ -152,6 +152,21 @@ class UserPublic(ApiModel):
     is_beta_tester: bool = False
 
 
+class RatingStatsOut(BaseModel):
+    count: int = 0
+    average: float = 0
+    # 贝叶斯平滑分：(C × m + Σstars) / (C + count)，避免「只做一单 5 星」霸榜。
+    bayes: float = 0
+    good: int = 0
+    neutral: int = 0
+    bad: int = 0
+
+
+class UserRatingSummary(BaseModel):
+    taker: RatingStatsOut = Field(default_factory=RatingStatsOut)
+    publisher: RatingStatsOut = Field(default_factory=RatingStatsOut)
+
+
 class UserProfileOut(ApiModel):
     """用户资料；QQ 按名录公开偏好及协作关系控制可见性。"""
     id: int
@@ -167,6 +182,8 @@ class UserProfileOut(ApiModel):
     photos: list[UserPhotoOut] = []
     avatar_url: str | None = None
     avatar_visible: bool = False
+    # 评分聚合：只在单用户资料接口里填充，列表接口保持为空以免 N+1。
+    ratings: UserRatingSummary | None = None
 
 
 class UserSelf(UserPublic):

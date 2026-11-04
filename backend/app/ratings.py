@@ -28,8 +28,10 @@ from .schemas import (
     RatingPublicOut,
     RatingPublicPage,
     RatingSlotOut,
+    RatingStatsOut,
     RatingUpdate,
     TaskRatingsOut,
+    UserRatingSummary,
 )
 
 RATING_WINDOW_DAYS = 7
@@ -44,6 +46,9 @@ RATING_REASONS = {
 MIN_NEGATIVE_COMMENT = 15
 MAX_COMMENT = 200
 AUTO_STARS_HALF = 6
+# 贝叶斯先验：相当于先给每个人 10 条 4.0 星评价，避免「只做一单 5 星」直接霸榜。
+RATING_PRIOR_COUNT = 10
+RATING_PRIOR_MEAN = 4.0
 
 
 class TaskRating(Base):
@@ -301,6 +306,38 @@ def _require_completed_task(db: Session, task_id: int) -> Task:
 
 
 router = APIRouter(prefix="/api", tags=["ratings"])
+
+
+def _stats(rows: list[TaskRating]) -> RatingStatsOut:
+    count = len(rows)
+    total = sum(row.stars for row in rows)
+    average = total / count if count else 0
+    bayes = (RATING_PRIOR_COUNT * RATING_PRIOR_MEAN + total) / (RATING_PRIOR_COUNT + count)
+    return RatingStatsOut(
+        count=count,
+        average=round(average, 2),
+        bayes=round(bayes, 2),
+        good=sum(1 for row in rows if row.stars >= 4),
+        neutral=sum(1 for row in rows if row.stars == 3),
+        bad=sum(1 for row in rows if row.stars <= 2),
+    )
+
+
+def user_rating_summary(db: Session, user_id: int) -> UserRatingSummary:
+    rows = db.scalars(
+        select(TaskRating).where(TaskRating.ratee_id == user_id, TaskRating.revoked_at.is_(None))
+    ).all()
+    return UserRatingSummary(
+        # 接单人评分来自委托人（rater_role=publisher），委托人评分反之。
+        taker=_stats([row for row in rows if row.rater_role == "publisher"]),
+        publisher=_stats([row for row in rows if row.rater_role == "taker"]),
+    )
+
+
+@router.get("/users/{user_id}/rating-summary", response_model=UserRatingSummary)
+def rating_summary(user_id: int, db: Session = Depends(get_db)):
+    settle_due_ratings(db)
+    return user_rating_summary(db, user_id)
 
 
 @router.get("/tasks/{task_id}/ratings", response_model=TaskRatingsOut)

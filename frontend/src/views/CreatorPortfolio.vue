@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { Award, ChevronLeft, ChevronRight } from '@lucide/vue'
+import { Award, ChevronLeft, ChevronRight, Coins, Star } from '@lucide/vue'
 import { api, errorMessage } from '../api'
 import { useToast } from '../composables/toast'
 import { portfolioTagLabel } from '../credential'
@@ -17,6 +17,7 @@ const profile = ref(null)
 const wall = ref({ total: 0, page: 1, page_size: 12, items: [] })
 const page = ref(1)
 const PAGE_SIZE = 12
+const ratings = ref(null)
 
 const userId = computed(() => Number(route.params.userId))
 const totalPages = computed(() => Math.max(1, Math.ceil((wall.value.total || 0) / PAGE_SIZE)))
@@ -39,11 +40,19 @@ async function loadWall() {
   }
 }
 
+async function loadRatings() {
+  try {
+    ratings.value = (await api.get(`/users/${userId.value}/rating-summary`)).data
+  } catch {
+    ratings.value = null
+  }
+}
+
 async function load() {
   loading.value = true
   error.value = ''
   await loadProfile()
-  await loadWall()
+  await Promise.all([loadWall(), loadRatings()])
   loading.value = false
 }
 
@@ -77,6 +86,9 @@ onMounted(load)
           <p class="muted">{{ profile.user.bio || '这个人还没有填写简介。' }}</p>
           <div class="creator-tags">
             <span class="role-tag"><Award :size="13" />已完成 {{ profile.credential_count }} 份公开委托</span>
+            <span v-if="ratings?.taker?.count" class="role-tag"><Star :size="13" />接单 {{ ratings.taker.average }} 星 · {{ ratings.taker.count }} 评</span>
+            <span v-if="ratings?.publisher?.count" class="role-tag"><Star :size="13" />委托 {{ ratings.publisher.average }} 星 · {{ ratings.publisher.count }} 评</span>
+            <span v-if="profile.user.lifetime_points" class="role-tag"><Coins :size="13" />累计 {{ profile.user.lifetime_points }} 积分</span>
             <span v-for="tag in profile.tags" :key="tag.value" class="facet-chip static">{{ portfolioTagLabel(tag) }}</span>
           </div>
           <p class="field-hint">标签由完成记录反向生成，不能自行新增或修改；同一技能完成 2 次以上才会出现。</p>

@@ -167,3 +167,24 @@ def test_overdue_ratings_auto_settle_three_stars():
         assert view["slots"][0]["my_rating"]["stars"] == 3.0
         # 3 星目标 = round(5 × 0.6) = 3，与预付款相同，不再补发。
         assert client.get("/api/points/me", headers=taker).json()["lifetime_points"] == 3
+
+
+def test_rating_summary_uses_bayesian_prior():
+    with TestClient(app) as client:
+        publisher, taker, publisher_id, taker_id, task = setup_pair(client, "sum_pub", "sum_taker")
+        client.post(
+            f"/api/tasks/{task['id']}/ratings",
+            headers=publisher,
+            json={"ratee_id": taker_id, "stars_half": 10, "comment": "很好"},
+        )
+        summary = client.get(f"/api/users/{taker_id}/rating-summary").json()
+        assert summary["taker"]["count"] == 1
+        assert summary["taker"]["average"] == 5.0
+        # (10 × 4.0 + 5) / (10 + 1) = 4.09：一单 5 星不会直接变成满分。
+        assert summary["taker"]["bayes"] == 4.09
+        assert summary["taker"]["good"] == 1
+        assert summary["publisher"]["count"] == 0
+
+        # 资料接口会带上聚合分，列表接口不带（避免 N+1）。
+        profile = client.get(f"/api/users/{taker_id}", headers=taker).json()
+        assert profile["ratings"]["taker"]["count"] == 1
