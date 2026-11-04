@@ -245,6 +245,8 @@ from .credentials import (
 from .events import record_event as record_task_event
 from . import points as points_module
 from .points import router as points_router
+from . import ratings as ratings_module
+from .ratings import router as ratings_router
 from .events import router as events_router
 from .virtual_life import router as virtual_life_router
 from .virtual_life_packs import router as virtual_life_packs_router, seed_virtual_life_packs
@@ -737,6 +739,7 @@ app.include_router(credential_admin_router)
 app.include_router(creator_portfolio_router)
 app.include_router(events_router)
 app.include_router(points_router)
+app.include_router(ratings_router)
 
 
 def expire_due_tasks(db: Session) -> None:
@@ -4198,6 +4201,7 @@ def my_tasks(user: User = Depends(get_current_user), db: Session = Depends(get_d
         user.role == UserRole.STAFF,
     )
     tasks = db.scalars(task_query().where(participation, visibility).order_by(Task.updated_at.desc())).unique().all()
+    ratings_module.settle_due_ratings(db)
     facets = facets_for_tasks(db, [task.id for task in tasks])
     return [present_task(task, user, facets.get(task.id, [])) for task in tasks]
 
@@ -4205,6 +4209,7 @@ def my_tasks(user: User = Depends(get_current_user), db: Session = Depends(get_d
 @app.get("/api/tasks/{task_id}", response_model=TaskOut)
 def task_detail(task_id: int, viewer: User | None = Depends(get_optional_user), db: Session = Depends(get_db)):
     expire_due_tasks(db)
+    ratings_module.settle_due_ratings(db)
     task = get_task_or_404(db, task_id)
     if not task.is_visible and not can_view_hidden_task(task, viewer):
         raise HTTPException(status_code=404, detail="委托不存在")

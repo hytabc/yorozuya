@@ -262,6 +262,21 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .point-preview { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; color: #1d6649; background: var(--green-soft); font-size: 13px; }
 .point-preview small { color: var(--muted); }
 .point-reward { color: var(--green); font-weight: 650; }
+.rating-section { display: grid; gap: 12px; margin-top: 16px; }
+.rating-slot { display: grid; gap: 8px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.rating-slot > header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rating-stars { display: inline-flex; align-items: center; gap: 3px; color: var(--yellow); font-weight: 700; font-size: 13px; }
+.rating-comment { margin: 0; font-size: 13px; line-height: 1.6; }
+.rating-comment.their { padding-top: 8px; border-top: 1px dashed var(--line); }
+.rating-reason { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 3px; color: var(--red); background: var(--red-soft); font-size: 11px; }
+.rating-form { display: grid; gap: 10px; }
+.rating-input { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.rating-half { display: grid; place-items: center; width: 24px; height: 30px; padding: 0; border: 0; border-radius: 4px; color: var(--line); background: transparent; }
+.rating-half.active { color: var(--yellow); }
+.rating-value { margin: 0 8px; font-size: 13px; font-weight: 700; color: var(--ink); }
+.rating-hint { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--red); font-size: 12px; }
+.rating-actions { display: flex; gap: 8px; }
+.rating-wait { margin: 0; font-size: 12px; }
 .pay-tag.pay-paid { color: #9a4f17; background: #fdf0e3; }
 .pay-tag.pay-free { color: var(--green); background: var(--green-soft); }
 .role-tag { color: #805066; background: #f4eaf0; }

@@ -521,6 +521,76 @@ class AdminSummary(BaseModel):
     pending_house_textures: int = 0
 
 
+class RatingCreate(RequestModel):
+    """提交评价：stars_half 以半星为单位（0~10），0 星必须给原因。"""
+
+    ratee_id: int
+    stars_half: int = Field(ge=0, le=10)
+    comment: str | None = Field(default=None, max_length=200)
+    reason_code: str | None = Field(default=None, max_length=24)
+
+
+class RatingUpdate(RequestModel):
+    stars_half: int = Field(ge=0, le=10)
+    comment: str | None = Field(default=None, max_length=200)
+    reason_code: str | None = Field(default=None, max_length=24)
+
+
+class RatingOut(ApiModel):
+    id: int
+    rater_id: int
+    ratee_id: int
+    rater_role: str
+    stars: float
+    comment: str | None = None
+    reason_code: str | None = None
+    reason_label: str | None = None
+    automatic: bool = False
+    created_at: datetime
+    revealed: bool = False
+    editable_until: datetime | None = None
+    can_edit: bool = False
+
+
+class RatingSlotOut(BaseModel):
+    counterpart: UserPublic
+    my_rating: RatingOut | None = None
+    their_rating: RatingOut | None = None
+    can_rate: bool = False
+    can_edit: bool = False
+
+
+class TaskRatingsOut(ApiModel):
+    deadline: datetime | None = None
+    role: str | None = None
+    can_rate: bool = False
+    slots: list[RatingSlotOut] = []
+    # 非参与者看到的已解盲评价。
+    public: list[RatingOut] = []
+
+
+class RatingPublicOut(ApiModel):
+    id: int
+    stars: float
+    comment: str | None = None
+    reason_code: str | None = None
+    reason_label: str | None = None
+    role: str
+    task_id: int
+    task_title: str = ""
+    task_category: str = ""
+    rater: UserPublic
+    created_at: datetime
+    automatic: bool = False
+
+
+class RatingPublicPage(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    items: list[RatingPublicOut] = []
+
+
 class PointsSummary(BaseModel):
     """积分概览：终身累计公开，钱包余额仅本人可见。"""
 

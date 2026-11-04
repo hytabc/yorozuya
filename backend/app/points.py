@@ -188,6 +188,7 @@ POINT_KIND_LABELS = {
     "bounty_reward": "悬赏收入",
     "bounty_remainder": "悬赏余数退回",
     "rating_settle": "评价结算",
+    "rating_adjust": "评价调整",
     "rating_revoke": "申诉调整",
     "achievement": "成就奖励",
     "invite": "邀请奖励",

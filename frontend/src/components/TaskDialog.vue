@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { CalendarClock, Coins, Flag, LockOpen, MessageCircle, UserRound, UsersRound, X } from '@lucide/vue'
 import { useAuthStore } from '../stores/auth'
 import ReportDialog from './ReportDialog.vue'
+import RatingSection from './RatingSection.vue'
 import StatusBadge from './StatusBadge.vue'
 import UserProfileCard from './UserProfileCard.vue'
 import UserTitleTag from './UserTitleTag.vue'
@@ -204,8 +205,9 @@ function emitAccept() {
       <!-- 已完成 -->
       <div v-if="finished && isParticipant" class="notice success-notice">
         <strong>委托已完成</strong>
-        <p>委托人与全体接单人（{{ totalPeople }} 人）均已确认，感谢这次协作。</p>
+        <p>委托人与全体接单人（{{ totalPeople }} 人）均已确认，感谢这次协作。记得互相评价，系统积分会按委托人给出的星级结算。</p>
       </div>
+      <RatingSection v-if="finished && isParticipant" :task-id="task.id" />
 
       <!-- 取消确认中 -->
       <div v-if="cancelling && isParticipant" class="notice info-notice">
