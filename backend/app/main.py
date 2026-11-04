@@ -247,6 +247,7 @@ from . import points as points_module
 from .points import router as points_router
 from . import ratings as ratings_module
 from .ratings import router as ratings_router
+from .shares import router as shares_router
 from .events import router as events_router
 from .virtual_life import router as virtual_life_router
 from .virtual_life_packs import router as virtual_life_packs_router, seed_virtual_life_packs
@@ -740,6 +741,7 @@ app.include_router(creator_portfolio_router)
 app.include_router(events_router)
 app.include_router(points_router)
 app.include_router(ratings_router)
+app.include_router(shares_router)
 
 
 def expire_due_tasks(db: Session) -> None:

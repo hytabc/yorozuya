@@ -1,9 +1,10 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { CalendarClock, Coins, Flag, LockOpen, MessageCircle, UserRound, UsersRound, X } from '@lucide/vue'
+import { CalendarClock, Coins, Flag, LockOpen, MessageCircle, Share2, UserRound, UsersRound, X } from '@lucide/vue'
 import { useAuthStore } from '../stores/auth'
 import ReportDialog from './ReportDialog.vue'
 import RatingSection from './RatingSection.vue'
+import ShareDialog from './ShareDialog.vue'
 import StatusBadge from './StatusBadge.vue'
 import UserProfileCard from './UserProfileCard.vue'
 import UserTitleTag from './UserTitleTag.vue'
@@ -16,6 +17,7 @@ const emit = defineEmits(['close', 'action', 'reported'])
 const auth = useAuthStore()
 const profileUserId = ref(null)
 const showReport = ref(false)
+const showShare = ref(false)
 // 委托双方的信任摘要：匿名委托由服务端在接口层裁剪，前端无需再判断。
 const taskTrust = ref(null)
 function memberTrust(userId) {
@@ -228,6 +230,7 @@ function emitAccept() {
         <span class="muted">发布于 {{ format(task.created_at) }}<template v-if="task.started_at"> · 开始于 {{ format(task.started_at) }}</template><template v-if="task.status === 'cancelling'"> · 取消请求发起于 {{ format(task.cancel_requested_at) }}</template></span>
         <div class="dialog-actions">
           <button v-if="canReport" class="button secondary small" :disabled="busy" @click="showReport = true"><Flag :size="14" />举报</button>
+          <button class="button secondary small" type="button" @click="showShare = true"><Share2 :size="14" />分享</button>
           <button v-if="published && isPublisher && !isMember && !designated" class="button" :disabled="busy || joinedCount === 0" @click="$emit('action', 'start')">{{ busy ? '处理中…' : '开始委托任务' }}</button>
           <button v-if="published && isMember && !isPublisher && !designated && !cancelling" class="button danger small" :disabled="busy" @click="$emit('action', 'leave')">{{ busy ? '处理中…' : '退出接取' }}</button>
           <button v-if="cancellable && !cancelling" class="button danger small" :disabled="busy" @click="$emit('action', 'cancel')">{{ busy ? '处理中…' : '取消委托' }}</button>
@@ -241,6 +244,7 @@ function emitAccept() {
         </div>
       </footer>
       <ReportDialog v-if="showReport" :task="task" @close="showReport = false" @reported="$emit('reported')" />
+      <ShareDialog v-if="showShare" :task="task" @close="showShare = false" />
     </section>
   </div>
 </template>

@@ -278,6 +278,12 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .rating-hint { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--red); font-size: 12px; }
 .rating-actions { display: flex; gap: 8px; }
 .rating-wait { margin: 0; font-size: 12px; }
+.share-dialog { display: grid; gap: 14px; }
+.share-qr { display: grid; place-items: center; gap: 8px; margin: 0; }
+.share-qr canvas { width: 240px; height: 240px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.share-qr figcaption { max-width: 260px; font-size: 12px; text-align: center; }
+.share-link-field input { font-size: 13px; }
+.share-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .pay-tag.pay-paid { color: #9a4f17; background: #fdf0e3; }
 .pay-tag.pay-free { color: var(--green); background: var(--green-soft); }
 .role-tag { color: #805066; background: #f4eaf0; }

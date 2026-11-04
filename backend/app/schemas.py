@@ -152,6 +152,17 @@ class UserPublic(ApiModel):
     is_beta_tester: bool = False
 
 
+class ShareCreate(RequestModel):
+    channel: Literal["dialog", "copy", "qrcode", "native"] = "dialog"
+
+
+class ShareOut(BaseModel):
+    path: str
+    title: str
+    channel: str
+    shared_tasks_today: int = 0
+
+
 class RatingStatsOut(BaseModel):
     count: int = 0
     average: float = 0
