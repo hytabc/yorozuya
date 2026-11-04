@@ -111,6 +111,9 @@ class User(Base):
         index=True,
     )
     max_concurrent_tasks: Mapped[int] = mapped_column(default=2)
+    # 积分：lifetime 为终身累计（只增不减，公开，用于等级/榜单）；wallet 为可用余额（仅本人可见）。
+    lifetime_points: Mapped[int] = mapped_column(Integer, default=0, index=True)
+    wallet_points: Mapped[int] = mapped_column(Integer, default=0)
     is_beta_tester: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     # 会话令牌版本：修改密码时自增，使此前签发的所有登录令牌立即失效。
     token_version: Mapped[int] = mapped_column(default=0)

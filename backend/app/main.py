@@ -243,6 +243,7 @@ from .credentials import (
     router as credential_router,
 )
 from .events import record_event as record_task_event
+from .points import router as points_router
 from .events import router as events_router
 from .virtual_life import router as virtual_life_router
 from .virtual_life_packs import router as virtual_life_packs_router, seed_virtual_life_packs
@@ -406,6 +407,32 @@ def migrate_schema() -> None:
                 connection.execute(
                     text("ALTER TABLE users ADD COLUMN onboarding_version INTEGER NOT NULL DEFAULT 0")
                 )
+            # 积分账户：新增列时一次性回填历史补偿，避免老用户在新排行榜里从零开始。
+            if "lifetime_points" not in user_columns:
+                connection.execute(
+                    text("ALTER TABLE users ADD COLUMN lifetime_points INTEGER NOT NULL DEFAULT 0")
+                )
+                if inspector.has_table("tasks") and inspector.has_table("task_members"):
+                    connection.execute(
+                        text(
+                            "UPDATE users SET lifetime_points = ("
+                            "  SELECT COALESCE(COUNT(*), 0) * 10 FROM task_members tm"
+                            "  JOIN tasks t ON t.id = tm.task_id"
+                            "  WHERE tm.user_id = users.id AND tm.response_status = 'accepted'"
+                            "    AND t.status = 'completed'"
+                            ") + ("
+                            "  SELECT COALESCE(COUNT(*), 0) * 3 FROM tasks t"
+                            "  WHERE t.publisher_id = users.id AND t.status = 'completed'"
+                            ")"
+                        )
+                    )
+            if "wallet_points" not in user_columns:
+                connection.execute(
+                    text("ALTER TABLE users ADD COLUMN wallet_points INTEGER NOT NULL DEFAULT 0")
+                )
+            connection.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_users_lifetime_points ON users (lifetime_points)")
+            )
             # SQLite 的 ALTER 不能加唯一约束，因此单独建唯一索引；
             # 唯一索引不限制 NULL，存量账号在被强制补充绑定前 email 为空，彼此不冲突。
             connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (email)"))
@@ -695,6 +722,7 @@ app.include_router(credential_router)
 app.include_router(credential_admin_router)
 app.include_router(creator_portfolio_router)
 app.include_router(events_router)
+app.include_router(points_router)
 
 
 def expire_due_tasks(db: Session) -> None:

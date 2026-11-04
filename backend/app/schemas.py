@@ -143,6 +143,8 @@ class UserPublic(ApiModel):
     nickname: str
     title: str | None = None
     bio: str | None = None
+    # 终身累计积分（公开）；钱包余额只在 UserSelf 里返回。
+    lifetime_points: int = 0
     photos: list[UserPhotoOut] = []
     # avatar_url 仅在查看者有权看到时由后端填充；未过审头像仅本人和管理员组可见
     avatar_url: str | None = None
@@ -189,6 +191,9 @@ class UserSelf(UserPublic):
     is_active: bool
     role: UserRole = UserRole.USER
     max_concurrent_tasks: int
+    lifetime_points: int = 0
+    # 钱包余额只对本人返回；公开资料里没有这个字段。
+    wallet_points: int = 0
     is_beta_tester: bool = False
     created_at: datetime
 
@@ -507,6 +512,30 @@ class AdminSummary(BaseModel):
     pending_vr_map_photos: int = 0
     pending_story_photos: int = 0
     pending_house_textures: int = 0
+
+
+class PointsSummary(BaseModel):
+    """积分概览：终身累计公开，钱包余额仅本人可见。"""
+
+    lifetime_points: int = 0
+    wallet_points: int = 0
+
+
+class PointLedgerOut(BaseModel):
+    id: int
+    kind: str
+    kind_label: str
+    lifetime_delta: int = 0
+    wallet_delta: int = 0
+    note: str | None = None
+    created_at: datetime
+
+
+class PointLedgerPage(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    items: list[PointLedgerOut] = []
 
 
 class TaskStats(BaseModel):
