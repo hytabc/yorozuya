@@ -430,33 +430,8 @@ def _ensure_bot_client() -> httpx.Client:
     return client
 
 
-def _bot_get(path: str) -> httpx.Response:
+def _bot_get(path: str, *, forbidden_is_auth: bool = True) -> httpx.Response:
     base = (settings.vrchat_api_base or "").rstrip("/")
-    client = _ensure_bot_client()
-    try:
-        response = client.get(f"{base}{path}")
-    except httpx.HTTPError as error:
-        _BOT_STATE["last_error"] = "连接 VRChat 失败"
-        raise VRChatError(503, "VRChat 暂时不可用，请稍后再试") from error
-    if response.status_code in (401, 403):
-        # 会话可能过期：清掉后重新登录/重设 cookie，只重试一次。
-        _reset_bot_session()
-        client = _ensure_bot_client()
-        try:
-            response = client.get(f"{base}{path}")
-        except httpx.HTTPError as error:
-            _BOT_STATE["last_error"] = "连接 VRChat 失败"
-            raise VRChatError(503, "VRChat 暂时不可用，请稍后再试") from error
-        if response.status_code in (401, 403):
-            _BOT_STATE["last_error"] = "机器人会话失效"
-            raise VRChatError(503, "VRChat 机器人会话已失效，请联系管理员")
-    return response
-
-
-def fetch_profile(vrchat_user_id: str) -> dict:
-    """用站点机器人账号读取 VRChat 公开资料；失败时 fail-closed。"""
-    if not bot_configured():
-        raise VRChatError(503, "VRChat 机器人尚未配置，请联系管理员")
     # 机器人请求串行 + 最小间隔，降低触发 429 的概率。
     global _BOT_LAST_CALL
     with _BOT_LOCK:
@@ -465,25 +440,84 @@ def fetch_profile(vrchat_user_id: str) -> dict:
             time.sleep(wait)
         _BOT_LAST_CALL = time.monotonic()
 
-    response = _bot_get(f"/users/{vrchat_user_id}")
+    client = _ensure_bot_client()
+    try:
+        response = client.get(f"{base}{path}")
+    except httpx.HTTPError as error:
+        _BOT_STATE["last_error"] = "连接 VRChat 失败"
+        raise VRChatError(503, "VRChat 暂时不可用，请稍后再试") from error
+    auth_error = (401,) if not forbidden_is_auth else (401, 403)
+    if response.status_code in auth_error:
+        # 会话可能过期：清掉后重新登录/重设 cookie，只重试一次。
+        _reset_bot_session()
+        client = _ensure_bot_client()
+        try:
+            response = client.get(f"{base}{path}")
+        except httpx.HTTPError as error:
+            _BOT_STATE["last_error"] = "连接 VRChat 失败"
+            raise VRChatError(503, "VRChat 暂时不可用，请稍后再试") from error
+        if response.status_code in auth_error:
+            _BOT_STATE["last_error"] = "机器人会话失效"
+            raise VRChatError(503, "VRChat 机器人会话已失效，请联系管理员")
+    return response
+
+
+def _profile_http_error(response: httpx.Response, not_found_detail: str) -> None:
     if response.status_code == 404:
-        raise VRChatError(404, "找不到该 VRChat 用户")
+        raise VRChatError(404, not_found_detail)
     if response.status_code == 429:
         retry = response.headers.get("Retry-After")
         _BOT_STATE["last_error"] = "VRChat 限流"
-        raise VRChatError(429, "VRChat 请求过于频繁，请稍后再试", int(retry) if retry and retry.isdigit() else None)
+        raise VRChatError(
+            429,
+            "VRChat 请求过于频繁，请稍后再试",
+            int(retry) if retry and retry.isdigit() else None,
+        )
+    if response.status_code == 403:
+        _BOT_STATE["last_error"] = "VRChat 资料不可见"
+        raise VRChatError(
+            503,
+            "无法读取该 VRChat 用户的公开资料，请确认资料可见性为公开，或把站点机器人加为好友",
+        )
     if response.status_code >= 400:
         _BOT_STATE["last_error"] = f"VRChat 返回 {response.status_code}"
         raise VRChatError(503, "VRChat 暂时不可用，请稍后再试")
 
+
+def _decode_json(response: httpx.Response, incomplete_detail: str) -> dict:
     try:
-        profile = response.json()
+        data = response.json()
     except ValueError as error:
         _BOT_STATE["last_error"] = "VRChat 返回无法解析的数据"
         raise VRChatError(503, "VRChat 返回了无法解析的数据") from error
-    if not isinstance(profile, dict) or not profile.get("id"):
+    if not isinstance(data, dict) or not data.get("id"):
         _BOT_STATE["last_error"] = "VRChat 返回的资料不完整"
-        raise VRChatError(503, "VRChat 返回的资料不完整")
+        raise VRChatError(503, incomplete_detail)
+    return data
+
+
+def fetch_profile(vrchat_user_id: str) -> dict:
+    """用站点机器人账号读取 VRChat 公开资料；失败时 fail-closed。
+
+    ``GET /users/{id}`` 只有账号级字段（注册时间、平台、tags），**不含 bio**；
+    About Me 必须从 ``GET /profile/{id}``（公开资料）读取，再合并成一份快照。
+    """
+    if not bot_configured():
+        raise VRChatError(503, "VRChat 机器人尚未配置，请联系管理员")
+
+    user_response = _bot_get(f"/users/{vrchat_user_id}")
+    _profile_http_error(user_response, "找不到该 VRChat 用户")
+    user = _decode_json(user_response, "VRChat 返回的资料不完整")
+
+    # 公开资料端点可能因目标用户设置而对机器人不可见；403 只代表资料不可见，
+    # 不应被当成机器人会话失效去重登。
+    profile_response = _bot_get(f"/profile/{vrchat_user_id}", forbidden_is_auth=False)
+    _profile_http_error(profile_response, "找不到该 VRChat 用户的公开资料")
+    public_profile = _decode_json(profile_response, "VRChat 返回的公开资料不完整")
+
+    profile = {**user, **public_profile}
+    if not profile.get("bio"):
+        profile["bio"] = ""
     _BOT_STATE["last_error"] = None
     _BOT_STATE["last_success_at"] = datetime.utcnow()
     return profile
@@ -503,7 +537,10 @@ def apply_profile(identity: VRChatIdentity, profile: dict) -> None:
     if display_name:
         identity.display_name = display_name[:64]
     identity.profile_url = f"https://vrchat.com/home/user/{identity.vrchat_user_id}"
-    identity.trust_rank = normalize_trust_rank(profile.get("tags"))
+    # 用户端点给标准 system_trust_* 的 tags；trustTags 仅作兜底。
+    identity.trust_rank = normalize_trust_rank(
+        profile.get("tags") or profile.get("trustTags")
+    )
     identity.account_created_at = parse_account_created_at(profile.get("date_joined"))
     identity.platform = (profile.get("last_platform") or profile.get("platform") or None)
     identity.last_synced_at = now
@@ -740,11 +777,23 @@ def link_check(user: User = Depends(get_current_user), db: Session = Depends(get
             identity.challenge_locked_until = now + timedelta(seconds=CHALLENGE_COOLDOWN_SECONDS)
             identity.challenge_failures = 0
         db.commit()
-        detail = (
-            "VRChat 返回的简介为空，未找到验证码；请确认个人资料可见性，或稍等缓存刷新后再试"
-            if not bio.strip()
-            else "简介中未找到验证码；请确认码完整写在 Bio 中、未被截断，并稍等 10-60 秒后再试"
-        )
+        bio_len = len(bio)
+        if not bio.strip():
+            detail = (
+                "VRChat 公开资料中的简介为空，未找到验证码；"
+                "请确认验证码已保存到 About Me，并把资料可见性设为公开（或把站点机器人加为好友），"
+                "稍等 10-60 秒缓存刷新后再试"
+            )
+        elif bio_len >= 500:
+            detail = (
+                f"简介已接近/达到长度上限（已读取到 {bio_len} 个字符），验证码可能被截断；"
+                "请把验证码放在简介最前面，稍等缓存刷新后再试"
+            )
+        else:
+            detail = (
+                f"简介中未找到验证码（已读取到 {bio_len} 个字符）；"
+                "请把验证码放在简介最前面，并确认资料可见性、稍等 10-60 秒后再试"
+            )
         raise HTTPException(status_code=409, detail=detail)
 
     apply_profile(identity, profile)
