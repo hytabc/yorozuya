@@ -24,7 +24,6 @@ function memberTrust(userId) {
   return taskTrust.value?.members?.find((item) => item.user_id === userId) || null
 }
 async function loadTrust() {
-  if (!auth.isLoggedIn) return
   try {
     taskTrust.value = (await api.get(`/tasks/${props.task.id}/trust`)).data
   } catch {

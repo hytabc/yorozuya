@@ -8,6 +8,7 @@ import { useAuthStore } from '../stores/auth'
 import UserTitleTag from '../components/UserTitleTag.vue'
 import LazyImage from '../components/LazyImage.vue'
 import ImageLightbox from '../components/ImageLightbox.vue'
+import VrTrustBadge from '../components/VrTrustBadge.vue'
 
 const MAX_PHOTOS = 5
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
@@ -226,7 +227,7 @@ onBeforeUnmount(clearPendingPhotos)
         <button v-for="profile in profiles" :key="profile.id" class="sugar-card" type="button" @click="openDetail(profile.user.id)">
           <LazyImage v-if="profile.photos[0]" :src="profile.photos[0].image_url" :alt="`${profile.user.nickname} 的照片`" />
           <div v-else class="friend-card-placeholder"><UserRound :size="38" /></div>
-          <span class="sugar-card-body"><strong>{{ profile.user.nickname }}</strong><UserTitleTag :title="profile.user.title" /><small class="vrc-nickname">VRChat：{{ profile.vrc_nickname }}</small><small>{{ profile.about }}</small><em><UsersRound :size="13" />{{ profile.friend_count }} 位好友</em></span>
+          <span class="sugar-card-body"><strong>{{ profile.user.nickname }}</strong><UserTitleTag :title="profile.user.title" /><VrTrustBadge :trust="profile.trust" show-empty /><small class="vrc-nickname">VRChat：{{ profile.vrc_nickname }}</small><small>{{ profile.about }}</small><em><UsersRound :size="13" />{{ profile.friend_count }} 位好友</em></span>
           <span v-if="profile.user.id === auth.user.id" class="mine-tag">我的资料</span>
         </button>
       </div>
@@ -257,7 +258,7 @@ onBeforeUnmount(clearPendingPhotos)
         <button class="icon-button dialog-close" title="关闭" aria-label="关闭" @click="detail = null"><X :size="18" /></button>
         <p v-if="detailLoading" class="muted">正在加载资料…</p>
         <template v-else-if="detail">
-          <div class="dialog-heading"><span class="eyebrow">FRIEND PROFILE</span><h2>{{ detail.user.nickname }}<UserTitleTag :title="detail.user.title" /></h2><p>{{ detail.friend_count }} 位好友</p></div>
+          <div class="dialog-heading"><span class="eyebrow">FRIEND PROFILE</span><h2>{{ detail.user.nickname }}<UserTitleTag :title="detail.user.title" /></h2><p>{{ detail.friend_count }} 位好友</p><VrTrustBadge :trust="detail.trust" show-empty /></div>
           <div class="sugar-qq"><Gamepad2 :size="17" /><span><small>VRChat 中的昵称</small><strong>{{ detail.vrc_nickname }}</strong></span></div>
           <div class="photo-grid detail"><figure v-for="photo in detail.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }"><img class="zoomable" :src="photo.image_url" :alt="`${detail.user.nickname} 的照片`" @click="openViewer(photo, detail.user.nickname)" /><span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />已下架：{{ photo.admin_note || '未说明理由' }}</span></figure><div v-if="!detail.photos.length" class="friend-detail-placeholder"><UserRound :size="38" /><span>暂未公开照片</span></div></div>
           <p class="sugar-about">{{ detail.about }}</p>

@@ -63,11 +63,11 @@ onUnmounted(() => {
       </div>
 
       <p class="field-hint">
-        当前已开启 {{ enabledCount }} 项。数据由你手动填写并标注为「未验证」；当前尚未接入 VRChat 自动同步。
+        当前已开启 {{ enabledCount }} 项。数据由服务端通过 VRChat 简介验证后读取，可能滞后；不构成平台担保。
       </p>
 
       <div class="dialog-footer">
-        <span class="muted">由本人手动填写，可能滞后，不构成平台担保。</span>
+        <span class="muted">资料来自 VRChat 公开信息，可能滞后，不构成平台担保。</span>
         <div class="dialog-actions">
           <button type="button" class="button secondary" @click="$emit('close')">取消</button>
           <button type="button" class="button" :disabled="busy" @click="save">{{ busy ? '保存中…' : '保存设置' }}</button>

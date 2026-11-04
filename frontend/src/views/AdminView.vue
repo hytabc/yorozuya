@@ -40,6 +40,10 @@ const userLimits = reactive({})
 const userTitles = reactive({})
 const savingTitleId = ref(null)
 const stats = ref({ users: 0, tasks: 0, processing: 0, completed: 0, hidden: 0 })
+const vrchatAdmin = ref(null)
+const vrchatQuery = ref('')
+const vrchatLookup = ref(null)
+const vrchatBusy = ref(false)
 const activeTab = ref(auth.isDisciplinarian ? 'reports' : 'tasks')
 const taskSearch = ref('')
 const userSearch = ref('')
@@ -53,6 +57,7 @@ const tabState = reactive({
   'beta-applications': { loaded: false, loading: false },
   vrmaps: { loaded: false, loading: false },
   photos: { loaded: false, loading: false },
+  vrchat: { loaded: false, loading: false },
   feedback: { loaded: false, loading: false },
   'rating-appeals': { loaded: false, loading: false },
 })
@@ -132,6 +137,7 @@ const tabLoaders = {
     storyPhotos.value = storyRes.data
   }),
   feedback: () => api.get('/admin/feedback').then(({ data }) => { feedbacks.value = data }),
+  vrchat: () => api.get('/admin/vrchat/status').then(({ data }) => { vrchatAdmin.value = data }),
 }
 
 function loadTab(tab) {
@@ -413,6 +419,57 @@ async function moderateStoryPhoto(photo, isVisible) {
   } catch (error) { toast.error(errorMessage(error)) } finally { moderatingStoryPhotoId.value = null }
 }
 
+async function saveVrchatConfig(patch) {
+  if (!vrchatAdmin.value) return
+  vrchatBusy.value = true
+  try {
+    const { data } = await api.patch('/admin/vrchat/config', patch)
+    vrchatAdmin.value = { ...vrchatAdmin.value, ...data }
+    toast.success('VRChat 配置已更新')
+  } catch (error) { toast.error(errorMessage(error)) } finally { vrchatBusy.value = false }
+}
+async function lookupVrchat() {
+  const query = vrchatQuery.value.trim()
+  if (!query) return
+  vrchatBusy.value = true
+  try {
+    vrchatLookup.value = (await api.get('/admin/vrchat/accounts', {
+      params: { vrchat_user_id: query },
+    })).data
+  } catch (error) { toast.error(errorMessage(error)) } finally { vrchatBusy.value = false }
+}
+async function unbindVrchat() {
+  if (!vrchatLookup.value) return
+  if (!window.confirm('确定解绑这个 VRChat ID 的所有本站账号吗？')) return
+  vrchatBusy.value = true
+  try {
+    await api.post(`/admin/vrchat/accounts/${encodeURIComponent(vrchatLookup.value.vrchat_user_id)}/unbind`)
+    toast.success('已解绑该 VRChat ID 的所有绑定')
+    await lookupVrchat()
+  } catch (error) { toast.error(errorMessage(error)) } finally { vrchatBusy.value = false }
+}
+async function banVrchat() {
+  if (!vrchatLookup.value) return
+  const note = window.prompt('可选：填写拉黑原因', '')
+  if (note === null) return
+  if (!window.confirm('拉黑后该 VRChat ID 将不能再次绑定，并会解绑现有账号。继续吗？')) return
+  vrchatBusy.value = true
+  try {
+    await api.post(`/admin/vrchat/accounts/${encodeURIComponent(vrchatLookup.value.vrchat_user_id)}/ban`, { note: note.trim() || null })
+    toast.success('已拉黑该 VRChat ID')
+    await lookupVrchat()
+  } catch (error) { toast.error(errorMessage(error)) } finally { vrchatBusy.value = false }
+}
+async function unbanVrchat() {
+  if (!vrchatLookup.value) return
+  vrchatBusy.value = true
+  try {
+    await api.delete(`/admin/vrchat/accounts/${encodeURIComponent(vrchatLookup.value.vrchat_user_id)}/ban`)
+    toast.success('已解除拉黑')
+    await lookupVrchat()
+  } catch (error) { toast.error(errorMessage(error)) } finally { vrchatBusy.value = false }
+}
+
 async function saveReportLimit() {
   const value = Number(reportLimitInput.value)
   if (!Number.isInteger(value) || value < 1) return toast.error('每日举报上限需为不小于 1 的整数')
@@ -453,6 +510,7 @@ watch(activeTab, (tab) => loadTab(tab))
       <button :class="{ active: activeTab === 'photos' }" role="tab" :aria-selected="activeTab === 'photos'" @click="activeTab = 'photos'">图片管理<span v-if="hiddenStoryPhotos + (stats.pending_house_textures || 0)">{{ hiddenStoryPhotos + (stats.pending_house_textures || 0) }}</span></button>
       <button v-if="!auth.isDisciplinarian" :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
       <button :class="{ active: activeTab === 'rating-appeals' }" role="tab" :aria-selected="activeTab === 'rating-appeals'" @click="activeTab = 'rating-appeals'">评价申诉</button>
+      <button :class="{ active: activeTab === 'vrchat' }" role="tab" :aria-selected="activeTab === 'vrchat'" @click="activeTab = 'vrchat'">VRChat<span v-if="vrchatAdmin?.pending">{{ vrchatAdmin.pending }}</span></button>
     </div>
 
     <section v-if="activeTab === 'reports'" class="admin-table-section">
@@ -697,6 +755,43 @@ watch(activeTab, (tab) => loadTab(tab))
     </section>
 
     <section v-else-if="activeTab === 'house'" class="admin-table-section"><HouseModeration @moderated="loadSummary" /></section>
+
+    <section v-else-if="activeTab === 'vrchat'" class="admin-table-section">
+      <div class="admin-toolbar"><div><h2>VRChat 身份</h2><span>已验证 {{ vrchatAdmin?.verified || 0 }} · 未验证 {{ vrchatAdmin?.unverified || 0 }} · 待验证 {{ vrchatAdmin?.pending || 0 }}</span></div><span class="muted">管理员组可查看机器人状态、解绑与拉黑</span></div>
+      <div v-if="isFirstLoad('vrchat')" class="skeleton-list" aria-hidden="true"><div v-for="i in 3" :key="i" class="skeleton-block" /></div>
+      <template v-else-if="vrchatAdmin">
+        <div class="admin-stats">
+          <div><span>功能</span><strong>{{ vrchatAdmin.enabled ? '已开启' : '已关闭' }}</strong></div>
+          <div><span>新绑定</span><strong>{{ vrchatAdmin.allow_new_links ? '允许' : '暂停' }}</strong></div>
+          <div><span>机器人</span><strong>{{ vrchatAdmin.bot_configured ? '已配置' : '未配置' }}</strong></div>
+          <div><span>已拉黑</span><strong>{{ vrchatAdmin.banned || 0 }}</strong></div>
+        </div>
+        <p v-if="vrchatAdmin.bot_last_error" class="form-error">机器人上次错误：{{ vrchatAdmin.bot_last_error }}</p>
+        <div class="dialog-actions">
+          <button class="button secondary small" :disabled="vrchatBusy" @click="saveVrchatConfig({ enabled: !vrchatAdmin.enabled })">{{ vrchatAdmin.enabled ? '关闭功能' : '开启功能' }}</button>
+          <button class="button secondary small" :disabled="vrchatBusy" @click="saveVrchatConfig({ allow_new_links: !vrchatAdmin.allow_new_links })">{{ vrchatAdmin.allow_new_links ? '暂停新绑定' : '恢复新绑定' }}</button>
+        </div>
+        <div class="admin-toolbar vrmap-photo-toolbar"><div><h2>按 VRChat ID 查询</h2><span>输入 usr_… 查看绑定与黑名单</span></div></div>
+        <form class="dialog-actions" @submit.prevent="lookupVrchat">
+          <label class="search-field"><Search :size="17" /><input v-model.trim="vrchatQuery" placeholder="usr_…" /></label>
+          <button class="button small" :disabled="vrchatBusy || !vrchatQuery">查询</button>
+        </form>
+        <div v-if="vrchatLookup" class="feedback-admin-list">
+          <p>VRChat ID：<code>{{ vrchatLookup.vrchat_user_id }}</code> <span v-if="vrchatLookup.banned" class="fb-state state-handled">已拉黑</span></p>
+          <ul v-if="vrchatLookup.bindings.length">
+            <li v-for="binding in vrchatLookup.bindings" :key="binding.user_id">
+              <div class="fb-head"><strong>{{ binding.nickname || '未知用户' }} #{{ binding.user_id }}</strong><span class="fb-state" :class="binding.verified ? 'state-approved' : 'state-pending'">{{ binding.verified ? '已验证' : binding.status }}</span></div>
+              <div class="fb-actions">
+                <button class="button secondary small" :disabled="vrchatBusy" @click="unbindVrchat">解绑</button>
+                <button class="button danger small" :disabled="vrchatBusy" @click="banVrchat">拉黑该 VRChat ID</button>
+              </div>
+            </li>
+          </ul>
+          <p v-else class="muted">没有本站账号绑定这个 VRChat ID。</p>
+          <button v-if="vrchatLookup.banned" class="button secondary small" :disabled="vrchatBusy" @click="unbanVrchat">解除拉黑</button>
+        </div>
+      </template>
+    </section>
 
     <section v-else-if="activeTab === 'rating-appeals'" class="admin-table-section"><RatingAppealAdmin /></section>
 

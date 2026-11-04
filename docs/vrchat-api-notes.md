@@ -1,60 +1,64 @@
-# VRChat 身份接入预研结论（阶段 0）
+# VRChat 身份接入（预研结论 + 2026-11 实现）
 
-> 结论先行：**本站当前不接入 VRChat 官方认证，只做「软绑定」。**
-> 本文记录预研事实、决策依据，以及将来若要升级为「已验证身份」需要满足的条件。
+> 结论：VRChat 没有公开 OAuth，本站采用「**站点机器人读取公开资料 + 用户简介验证码**」证明资料控制权。
+> 不保存任何用户的 VRChat 密码；机器人凭据只放服务端 `.env`。
 > 最后更新：2026-11
 
-## 1. 事实
+## 1. 预研事实
 
 | 问题 | 结论 |
 |---|---|
 | 是否有公开 OAuth / 开放平台 | **没有**。VRChat 未向第三方站点提供 OAuth 授权入口 |
 | 社区 SDK 怎么认证 | `vrchatapi` / VRChat.js 使用「用户名 + 密码 + 2FA」，或长期 Cookie |
-| 能否匿名读别人的资料 | **不能**。读取任意用户 profile / 好友 / Group 都需要登录会话 |
-| 常用字段 | `tags` 中的 `system_trust_*`（Trust Rank）、`date_joined`（账号年龄）、平台标记、Group、World |
+| 能否匿名读别人的资料 | **不能**。读取任意用户 profile 需要登录会话 |
+| 常用字段 | `tags` 中的 `system_trust_*`、`date_joined`、`last_platform` |
 | 速率限制与稳定性 | 非官方契约，接口与限流随时可能变化；封号策略由对方决定 |
 
-## 2. 由此推出的三个结论
+## 2. 采用方案
 
-1. **"一次性挑战码"并不免费**：用户在某处放码、服务端去读，仍然需要站点持有一个登录态账号。
-   这等于把「不碰用户密码」换成「站点长期持有一个可能被封的机器人账号」，并没有更安全。
-2. **保存用户 VRChat 密码是底线，不能碰**。一旦泄露，本站要承担的不是"数据泄露"而是"VRChat 账号泄露"。
-3. **没有真实数据时，任何 Trust Rank 徽章都是伪造**。因此本站在没有同步能力前，
-   **不展示 Trust Rank、账号年龄、共同好友、共同社群、常驻 World**，也不会用自填值冒充。
+1. 用户提交 `usr_…` 或 VRChat 主页链接；
+2. 服务端用**专用机器人账号**的 `auth` cookie 调用 `GET /users/{id}`，读取公开资料；
+3. 生成 10 分钟一次性验证码 `【万事屋 VRChat 验证 - vrcverify…】`；
+4. 用户把验证码写入 VRChat 个人简介；
+5. 服务端再次读取最新简介，做 NFKC / 破折号 / 空白归一化后匹配；
+6. 通过后 `verified=true`，记录 Trust Rank、账号年龄、平台；资料快照 7 天有效；
+7. 用户逐项披露；所有裁剪发生在接口层。
 
-## 3. 当前实现（软绑定）
+### 安全与运维
 
-- 用户提交 VRChat 显示名 + 个人主页链接（链接里必须能取出 `usr_` 开头的 ID）。
-- 服务端只做两件事：格式校验、同一主页不可被两个账号占用（唯一约束）。
-- 所有展示都带 `verified=false`，文案固定为「未验证 · 手动填写」，不使用「认证 / 担保」措辞。
-- 披露开关逐项控制，裁剪发生在**接口层**；匿名委托的发布者信任信息直接返回 `null`。
-- 解绑清空展示数据与披露设置；「删除我的 VRChat 数据」会删除整行记录。
-- 监管台可全局关闭功能或暂停新的绑定（`/api/admin/vrchat/config`），只返回计数，不返回社交数据。
+- 机器人 cookie 只放 `.env` 的 `VRCHAT_BOT_AUTH_COOKIE`，**不入库、不进日志、不进前端**；
+- 不保存用户的 VRChat 密码、Cookie 或令牌；
+- 机器人请求串行 + 最小间隔，尊重 `429` 与 `Retry-After`；
+- 连续 5 次验证失败冷却 5 分钟；
+- 机器人会话失效时 **fail-closed**，明确提示「暂时不可用」，不伪造数据；
+- 不自动加好友、不自动发消息、不批量抓取；
+- 后台可按 `usr_` 查询绑定、解绑、拉黑；黑名单只存 ID、操作人与时间。
 
-数据表：`vrchat_identities`（`user_id` 唯一、`vrchat_user_id` 唯一）。
+## 3. 数据与接口
 
-## 4. 若将来要升级为「已验证身份」
+- 表：`vrchat_identities`（绑定、验证状态、资料快照、一次性验证码）、`vrchat_bans`（黑名单）。
+- 用户接口：
+  - `GET /api/vrchat/status`
+  - `POST /api/vrchat/link/start`（兼容旧路径 `POST /api/vrchat/link`）
+  - `POST /api/vrchat/link/check`
+  - `POST /api/vrchat/refresh`
+  - `POST /api/vrchat/unlink`
+  - `DELETE /api/vrchat/data`
+  - `PATCH /api/vrchat/disclosure`
+- 公开信任摘要：`GET /api/users/{id}/trust`、`GET /api/tasks/{id}/trust`（游客可读，按披露裁剪；匿名委托 `publisher=null`）。
+- 后台：`GET /api/admin/vrchat/status`、`PATCH /api/admin/vrchat/config`、`GET /api/admin/vrchat/accounts?vrchat_user_id=`、解绑/拉黑/解除拉黑、`GET /api/admin/vrchat/bans`。
+- 披露项：`identity`、`trust_rank`、`account_age`、`platform`、`common_friends`、`common_groups`、`worlds`；前四项已可用，后三项仍未接入。
+- Trust Rank 映射：`system_trust_legend` / `system_trust_veteran` → 可信用户；`system_trust_trusted` → 熟识用户；`system_trust_known` → 用户；`system_trust_basic` → 新用户；`system_trust_visitor` → 游客；未知 → 未识别。
 
-需要先回答完这些问题，才有资格写第一行同步代码：
+## 4. 仍未接入
 
-1. 认证方式是否被 VRChat 正式允许？是否要求应用审核、署名或特定条款？
-2. 允许保存什么：短期会话、刷新令牌，还是只能"一次校验"？
-3. 可稳定获取哪些字段？字段名与语义是否会变？
-4. 速率限制、错误码、封禁后的恢复路径。
-5. 用户删除数据 / 解绑时，对方是否要求同步撤销？
-6. 失败时如何降级，才不会影响委托主流程。
+- 共同好友、共同社群、常驻 World：需要双方授权与额外接口语义，当前不展示、不伪造；
+- OSC 游戏内推送：服务端无法直接向用户客户端发 OSC，文档见 `docs/osc-bridge.md`。
 
-实现时的硬性要求（与现有架构一致）：
+## 5. 运维步骤
 
-- 客户端逻辑放 `backend/app/`，**不引入浏览器端 VRChat SDK**（CSP 与令牌泄露风险）。
-- 会话只存服务端，**不写日志、不进前端缓存**；能短会话就不要长期令牌。
-- 快照落 `vrchat_snapshots`，带 `fetched_at` / `expires_at`，过期显示「已过期」而不是继续展示旧值。
-- 所有展示走 `present_*` 函数，禁止在 ORM 模型上加派生 URL 属性。
-- 新增接口必须挂限流桶（建议 `vrchat-link` / `vrchat-refresh` / `vrchat-trust-read`）。
-
-## 5. 合规与文案
-
-- 站内不提供批量抓取、自动加好友、自动发消息等能力。
-- 所有 VRChat 数据必须标注来源与时间，文案明确「可能滞后，不构成平台担保」。
-- 提供数据导出与删除路径（当前：`POST /api/vrchat/unlink`、`DELETE /api/vrchat/data`）。
-- 若 VRChat 要求应用审核或署名，按其要求执行后再开放开关。
+1. 创建一个**专用 VRChat 机器人账号**（不要使用个人主号），开启 2FA；
+2. 在浏览器登录后复制 `authcookie`（或完整 `auth=…; twoFactorAuth=…`）；
+3. 写入根目录 `.env` 的 `VRCHAT_BOT_AUTH_COOKIE`，按需修改 `VRCHAT_USER_AGENT`；
+4. 重启后端；在监管台「VRChat」标签查看机器人状态与上次错误；
+5. cookie 失效时重新登录复制并替换，重启后端。

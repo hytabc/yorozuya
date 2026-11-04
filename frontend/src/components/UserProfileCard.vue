@@ -21,7 +21,7 @@ const error = ref('')
 const user = ref(props.initialUser)
 const viewerSrc = ref('')
 const viewerAlt = ref('')
-// 信任摘要需登录；游客或接口不可用时静默不展示，不影响资料卡片。
+// 公开信任摘要；接口不可用时静默不展示，不影响资料卡片。
 const trust = ref(null)
 
 async function loadTrust(userId) {

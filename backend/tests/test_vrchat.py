@@ -1,13 +1,24 @@
-"""VRChat 身份软绑定：格式校验、唯一占用、逐项披露、匿名裁剪与解绑清理。"""
-from fastapi.testclient import TestClient
+"""VRChat 身份：简介验证码、真实资料快照、披露裁剪与后台黑名单。"""
+from datetime import datetime, timedelta
 
+from fastapi.testclient import TestClient
+from sqlalchemy import text
+
+from app import trust
 from app.database import get_db
 from app.main import app
 
 import test_api as api_tests
-from test_api import auth, create_task, set_qq
+from test_api import auth, create_task
 
-PROFILE = "https://vrchat.com/home/user/usr_c1644b5b-3ca4-45b4-97c6-a2a0de70d469"
+PROFILE = {
+    "id": "usr_11111111-1111-1111-1111-111111111111",
+    "displayName": "ColdRain",
+    "bio": "",
+    "tags": ["system_trust_trusted"],
+    "date_joined": "2020-01-01T00:00:00.000Z",
+    "last_platform": "standalonewindows",
+}
 
 
 def setup_function():
@@ -15,225 +26,281 @@ def setup_function():
     app.dependency_overrides[get_db] = api_tests.override_db
 
 
-def bind(client, headers, name="VRC 昵称", profile=PROFILE):
-    return client.post(
-        "/api/vrchat/link", headers=headers, json={"display_name": name, "profile": profile}
+def use_profile(monkeypatch, **overrides):
+    profile = {**PROFILE, **overrides}
+    monkeypatch.setattr(trust, "fetch_profile", lambda _user_id: dict(profile))
+    return profile
+
+
+def start(client, headers, profile_id=PROFILE["id"]):
+    response = client.post(
+        "/api/vrchat/link/start", headers=headers, json={"profile": profile_id}
     )
+    assert response.status_code == 200, response.text
+    return response.json()
 
 
-def test_soft_link_requires_login_and_valid_profile():
+def verify(client, headers, profile, started):
+    profile["bio"] = f"欢迎来玩 {started['challenge']['text']}"
+    response = client.post("/api/vrchat/link/check", headers=headers)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def admin_headers(client):
+    login = client.post(
+        "/api/auth/login", json={"username": "admin", "password": "Admin123!"}
+    )
+    return {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+
+def test_bio_challenge_verifies_and_publishes_real_fields(monkeypatch):
+    profile = use_profile(monkeypatch)
     with TestClient(app) as client:
-        assert client.get("/api/vrchat/status").status_code == 401
-        assert client.post(
-            "/api/vrchat/link", json={"display_name": "x", "profile": PROFILE}
-        ).status_code == 401
+        alice = auth(client, "vrchat_alice")
+        bob = auth(client, "vrchat_bob")
+        uid = client.get("/api/auth/me", headers=alice).json()["id"]
 
-        user = auth(client, "vr_link_user")
-        status = client.get("/api/vrchat/status", headers=user).json()
-        assert status["bound"] is False
-        assert status["disclosure"] == {
-            "identity": False,
-            "trust_rank": False,
-            "account_age": False,
-            "common_friends": False,
-            "common_groups": False,
-            "worlds": False,
-        }
-        assert status["enabled"] is True and status["allow_new_links"] is True
+        started = start(client, alice)
+        assert started["status"] == "pending" and started["bound"] is True
+        code = started["challenge"]["code"]
+        assert code.startswith("vrcverify")
+        assert started["challenge"]["text"] == f"【万事屋 VRChat 验证 - {code}】"
 
-        # 只接受 https 的 vrchat.com 主页，并且链接里必须能取出 usr_ 开头的 ID。
-        assert bind(client, user, profile="http://vrchat.com/home/user/usr_abcd1234").status_code == 422
-        assert bind(client, user, profile="https://example.com/home/user/usr_abcd1234").status_code == 422
-        assert bind(client, user, profile="https://vrchat.com/home/user/unknown").status_code == 422
-        # 直接粘贴 usr_ ID 也可以，服务端会补全主页地址。
-        raw = client.post(
-            "/api/vrchat/link",
-            headers=user,
-            json={"display_name": "VRC 昵称", "profile": "usr_abcd1234"},
-        )
-        assert raw.status_code == 200, raw.text
-        assert raw.json()["bound"] is True
-        assert raw.json()["verified"] is False
-        assert raw.json()["profile_url"] == "https://vrchat.com/home/user/usr_abcd1234"
+        # 没写码时失败
+        failed = client.post("/api/vrchat/link/check", headers=alice)
+        assert failed.status_code == 409
+        assert "验证码" in failed.json()["detail"]
 
-        # 软绑定没有外部数据源：刷新接口明确返回「未接入」，不假装成功。
-        refresh = client.post("/api/vrchat/refresh", headers=user)
-        assert refresh.status_code == 400
-        assert "未接入" in refresh.json()["detail"]
+        data = verify(client, alice, profile, started)
+        assert data["status"] == "verified" and data["verified"] is True
+        assert data["trust_rank"] == "known_user" and data["trust_rank_label"] == "熟识用户"
+        assert data["account_age_label"]
+        assert data["platform"] == "standalonewindows"
 
+        # 默认不披露：他人只能看到 bound / verified。
+        public = client.get(f"/api/users/{uid}/trust", headers=bob).json()
+        assert public["bound"] is True and public["verified"] is True
+        assert "display_name" not in public
+        assert "trust_rank" not in public
+        assert "account_age_label" not in public
+        assert "platform" not in public
 
-def test_same_profile_cannot_be_claimed_twice():
-    with TestClient(app) as client:
-        first = auth(client, "vr_claim_a")
-        second = auth(client, "vr_claim_b")
-        assert bind(client, first).status_code == 200
-        conflict = bind(client, second)
-        assert conflict.status_code == 409
-        assert "已被其他账号绑定" in conflict.json()["detail"]
-        # 本人重新绑定同一主页是允许的（相当于更新显示名）。
-        assert bind(client, first, name="新昵称").status_code == 200
-        assert client.get("/api/vrchat/status", headers=first).json()["display_name"] == "新昵称"
-
-
-def test_disclosure_is_enforced_in_the_api():
-    with TestClient(app) as client:
-        owner = auth(client, "vr_owner")
-        viewer = auth(client, "vr_viewer")
-        owner_id = client.get("/api/auth/me", headers=owner).json()["id"]
-        bind(client, owner)
-
-        # 默认全关：他人只知道「有绑定」，拿不到显示名与主页链接。
-        hidden = client.get(f"/api/users/{owner_id}/trust", headers=viewer).json()
-        assert hidden["bound"] is True
-        assert hidden["verified"] is False
-        assert "display_name" not in hidden
-        assert "profile_url" not in hidden
-
-        # 本人始终能看到自己的数据。
-        own = client.get(f"/api/users/{owner_id}/trust", headers=owner).json()
-        assert own["display_name"] == "VRC 昵称"
-
-        # 只开启 identity 一项后才对他人可见；其余项没有真实数据，也不会伪造。
-        updated = client.patch(
-            "/api/vrchat/disclosure", headers=owner, json={"identity": True}
-        )
-        assert updated.status_code == 200
-        assert updated.json()["disclosure"]["identity"] is True
-        visible = client.get(f"/api/users/{owner_id}/trust", headers=viewer).json()
-        assert visible["display_name"] == "VRC 昵称"
-        assert visible["profile_url"] == PROFILE
-        assert "trust_rank" not in visible
-
-        # 关闭后立即恢复不可见。
-        client.patch("/api/vrchat/disclosure", headers=owner, json={"identity": False})
-        assert "display_name" not in client.get(
-            f"/api/users/{owner_id}/trust", headers=viewer
-        ).json()
-
-        # 未绑定用户没有任何信任数据，也不会被标记成负面。
-        viewer_id = client.get("/api/auth/me", headers=viewer).json()["id"]
-        unbound = client.get(f"/api/users/{viewer_id}/trust", headers=viewer)
-        assert unbound.status_code == 200
-        assert unbound.json()["bound"] is False
-        assert "display_name" not in unbound.json()
-
-
-def test_anonymous_task_trims_publisher_trust():
-    with TestClient(app) as client:
-        publisher = auth(client, "vr_anon_pub")
-        taker = auth(client, "vr_anon_taker", role="volunteer")
-        stranger = auth(client, "vr_anon_stranger")
-        set_qq(client, publisher, "1000000000")
-        bind(client, publisher)
-        client.patch("/api/vrchat/disclosure", headers=publisher, json={"identity": True})
-
-        created = client.post(
-            "/api/tasks",
-            headers=publisher,
+        # 打开披露后他人可见。
+        disclosed = client.patch(
+            "/api/vrchat/disclosure",
+            headers=alice,
             json={
-                "title": "匿名委托信任裁剪",
-                "description": "匿名委托不得在接口层泄露发布者的 VRChat 身份。",
-                "category": "其他委托",
-                "is_anonymous": True,
-                "required_takers": 1,
-                "expires_in_days": 2,
+                "identity": True,
+                "trust_rank": True,
+                "account_age": True,
+                "platform": True,
             },
         )
-        assert created.status_code == 201, created.text
-        task_id = created.json()["id"]
+        assert disclosed.status_code == 200, disclosed.text
+        public = client.get(f"/api/users/{uid}/trust", headers=bob).json()
+        assert public["display_name"] == "ColdRain"
+        assert public["trust_rank"] == "known_user"
+        assert public["account_age_label"]
+        assert public["platform"] == "standalonewindows"
 
-        trimmed = client.get(f"/api/tasks/{task_id}/trust", headers=stranger).json()
-        assert trimmed == {"anonymous": True, "publisher": None, "members": []}
-
-        # 接单一员能看到发布者（协作关系内），但匿名委托仍不对外公开。
-        client.post(f"/api/tasks/{task_id}/accept", headers=taker, json={})
-        participant = client.get(f"/api/tasks/{task_id}/trust", headers=taker).json()
-        assert participant["publisher"]["display_name"] == "VRC 昵称"
-
-        # 普通非匿名委托：发布者与已接受成员都在返回里。
-        public = create_task(client, publisher, required=1, title="公开委托信任")
-        bind(client, taker, name="接单人昵称", profile="usr_beef1234")
-        client.post(f"/api/tasks/{public['id']}/accept", headers=taker)
-        summary = client.get(f"/api/tasks/{public['id']}/trust", headers=stranger).json()
-        assert summary["anonymous"] is False
-        # 发布者在前面已开启 identity 披露，因此这里可见其显示名。
-        assert summary["publisher"]["display_name"] == "VRC 昵称"
-        assert len(summary["members"]) == 1
-        assert summary["members"][0]["bound"] is True
+        # 游客也能读取已披露的信任摘要。
+        guest = client.get(f"/api/users/{uid}/trust").json()
+        assert guest["verified"] is True and guest["display_name"] == "ColdRain"
 
 
-def test_unlink_and_delete_clear_public_summary():
+def test_refresh_downgrades_and_restores_when_bio_changes(monkeypatch):
+    profile = use_profile(monkeypatch)
     with TestClient(app) as client:
-        owner = auth(client, "vr_unlink")
-        viewer = auth(client, "vr_unlink_viewer")
-        owner_id = client.get("/api/auth/me", headers=owner).json()["id"]
-        bind(client, owner)
-        client.patch("/api/vrchat/disclosure", headers=owner, json={"identity": True})
-        assert client.get(f"/api/users/{owner_id}/trust", headers=viewer).json()["bound"] is True
+        alice = auth(client, "vrchat_refresh")
+        started = start(client, alice)
+        verify(client, alice, profile, started)
 
-        unlinked = client.post("/api/vrchat/unlink", headers=owner)
-        assert unlinked.status_code == 200
-        assert unlinked.json()["bound"] is False
-        assert unlinked.json()["status"] == "unlinked"
-        assert unlinked.json()["display_name"] is None
-        assert client.get(f"/api/users/{owner_id}/trust", headers=viewer).json()["bound"] is False
+        profile["bio"] = "简介改掉了，没有验证码"
+        refreshed = client.post("/api/vrchat/refresh", headers=alice)
+        assert refreshed.status_code == 200, refreshed.text
+        body = refreshed.json()
+        assert body["status"] == "unverified" and body["verified"] is False
+        assert body["last_verified_at"] is not None
 
-        # 解绑后可以绑定另一个主页。
-        assert bind(client, owner, profile="usr_aaaa1111").status_code == 200
-
-        # 彻底删除数据后，绑定信息不存在。
-        assert client.delete("/api/vrchat/data", headers=owner).status_code == 200
-        assert client.get("/api/vrchat/status", headers=owner).json()["bound"] is False
-        assert client.delete("/api/vrchat/data", headers=owner).status_code == 404
-
-        # 重复解绑同样 404。
-        assert client.post("/api/vrchat/unlink", headers=owner).status_code == 404
-
-        # 披露开关在未绑定时不可用。
-        assert client.patch(
-            "/api/vrchat/disclosure", headers=owner, json={"identity": True}
-        ).status_code == 409
+        profile["bio"] = f"又写回来了 {started['challenge']['text']}"
+        restored = client.post("/api/vrchat/refresh", headers=alice)
+        assert restored.status_code == 200
+        assert restored.json()["verified"] is True
 
 
-def test_admin_switch_blocks_new_links():
+def test_anonymous_task_trust_is_cropped(monkeypatch):
+    use_profile(monkeypatch)
     with TestClient(app) as client:
-        admin_login = client.post(
-            "/api/auth/login", json={"username": "admin", "password": "Admin123!"}
+        alice = auth(client, "vrchat_anon")
+        bob = auth(client, "vrchat_anon_viewer")
+        task = create_task(client, alice, required=1, title="匿名信任裁剪测试")
+        with api_tests.TestingSession() as db:
+            db.execute(
+                text("UPDATE tasks SET is_anonymous = 1 WHERE id = :id"),
+                {"id": task["id"]},
+            )
+            db.commit()
+
+        stranger = client.get(f"/api/tasks/{task['id']}/trust", headers=bob)
+        assert stranger.status_code == 200
+        assert stranger.json() == {"anonymous": True, "publisher": None, "members": []}
+
+        # 委托人本人仍能看到自己的信任摘要。
+        own = client.get(f"/api/tasks/{task['id']}/trust", headers=alice).json()
+        assert own["anonymous"] is True and own["publisher"]["bound"] is False
+
+
+def test_admin_can_lookup_unbind_and_ban(monkeypatch):
+    profile = use_profile(monkeypatch)
+    with TestClient(app) as client:
+        alice = auth(client, "vrchat_admin_target")
+        bob = auth(client, "vrchat_admin_other")
+        admin = admin_headers(client)
+        started = start(client, alice)
+        verify(client, alice, profile, started)
+
+        status = client.get("/api/admin/vrchat/status", headers=admin).json()
+        assert status["verified"] == 1
+        assert status["bot_configured"] is False  # 测试里走 mock，未配置真实 cookie
+
+        lookup = client.get(
+            "/api/admin/vrchat/accounts",
+            headers=admin,
+            params={"vrchat_user_id": PROFILE["id"]},
+        ).json()
+        assert len(lookup["bindings"]) == 1
+        assert lookup["bindings"][0]["verified"] is True
+        assert lookup["banned"] is False
+
+        unbound = client.post(
+            f"/api/admin/vrchat/accounts/{PROFILE['id']}/unbind", headers=admin
         )
-        admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
-        staff = auth(client, "vr_staff")
-        staff_id = client.get("/api/auth/me", headers=staff).json()["id"]
-        assert client.patch(
-            f"/api/admin/users/{staff_id}/role", headers=admin, json={"role": "staff"}
-        ).status_code == 200
+        assert unbound.status_code == 200 and unbound.json()["unbound"] == 1
+        assert client.get("/api/vrchat/status", headers=alice).json()["bound"] is False
 
-        # 管理员组可读状态，但只有超管能改配置。
-        assert client.get("/api/admin/vrchat/status", headers=staff).status_code == 200
-        assert client.patch(
-            "/api/admin/vrchat/config", headers=staff, json={"enabled": False}
-        ).status_code == 403
-        assert client.get("/api/admin/vrchat/status", headers=auth(client, "vr_plain")).status_code == 403
+        # 重新验证后拉黑，其他账号不能再绑定同一 VRChat ID。
+        started = start(client, alice)
+        verify(client, alice, profile, started)
+        banned = client.post(
+            f"/api/admin/vrchat/accounts/{PROFILE['id']}/ban",
+            headers=admin,
+            json={"note": "冒用身份"},
+        )
+        assert banned.status_code == 200 and banned.json()["banned"] is True
+        assert client.get("/api/vrchat/status", headers=alice).json()["status"] == "unlinked"
 
-        disabled = client.patch(
+        blocked = client.post(
+            "/api/vrchat/link/start",
+            headers=bob,
+            json={"profile": PROFILE["id"]},
+        )
+        assert blocked.status_code == 403
+
+        unbanned = client.delete(
+            f"/api/admin/vrchat/accounts/{PROFILE['id']}/ban", headers=admin
+        )
+        assert unbanned.status_code == 200 and unbanned.json()["banned"] is False
+
+
+def test_bot_unavailable_fails_closed(monkeypatch):
+    def unavailable(_user_id):
+        raise trust.VRChatError(503, "VRChat 暂时不可用")
+
+    monkeypatch.setattr(trust, "fetch_profile", unavailable)
+    with TestClient(app) as client:
+        alice = auth(client, "vrchat_bot_down")
+        response = client.post(
+            "/api/vrchat/link/start", headers=alice, json={"profile": PROFILE["id"]}
+        )
+        assert response.status_code == 503
+        assert client.get("/api/vrchat/status", headers=alice).json()["bound"] is False
+
+
+def test_challenge_expiry_and_failure_cooldown(monkeypatch):
+    use_profile(monkeypatch)
+    with TestClient(app) as client:
+        alice = auth(client, "vrchat_expiry")
+        started = start(client, alice)
+        with api_tests.TestingSession() as db:
+            db.execute(
+                text("UPDATE vrchat_identities SET challenge_expires_at = :past WHERE user_id = (SELECT id FROM users WHERE username = 'vrchat_expiry')"),
+                {"past": datetime.utcnow() - timedelta(minutes=1)},
+            )
+            db.commit()
+        expired = client.post("/api/vrchat/link/check", headers=alice)
+        assert expired.status_code == 409
+        assert "过期" in expired.json()["detail"]
+
+        start(client, alice)
+        for _ in range(5):
+            failed = client.post("/api/vrchat/link/check", headers=alice)
+            assert failed.status_code == 409
+        locked = client.post("/api/vrchat/link/check", headers=alice)
+        assert locked.status_code == 429
+
+
+def test_same_profile_and_invalid_inputs(monkeypatch):
+    profile = use_profile(monkeypatch)
+    with TestClient(app) as client:
+        alice = auth(client, "vrchat_unique_a")
+        bob = auth(client, "vrchat_unique_b")
+        started = start(client, alice)
+        verify(client, alice, profile, started)
+
+        taken = client.post(
+            "/api/vrchat/link/start", headers=bob, json={"profile": PROFILE["id"]}
+        )
+        assert taken.status_code == 409
+
+        assert client.post(
+            "/api/vrchat/link/start", headers=bob, json={"profile": "http://vrchat.com/home/user/usr_abc"}
+        ).status_code == 422
+        assert client.post(
+            "/api/vrchat/link/start", headers=bob, json={"profile": "https://example.com/usr_abc"}
+        ).status_code == 422
+        assert client.post(
+            "/api/vrchat/link/start", headers=bob, json={"profile": "not-a-vrchat-id"}
+        ).status_code == 422
+
+
+def test_disabled_and_allow_new_links(monkeypatch):
+    use_profile(monkeypatch)
+    with TestClient(app) as client:
+        alice = auth(client, "vrchat_switch")
+        admin = admin_headers(client)
+
+        off = client.patch(
             "/api/admin/vrchat/config", headers=admin, json={"enabled": False}
         )
-        assert disabled.status_code == 200
-        assert disabled.json()["enabled"] is False
-        blocked = bind(client, auth(client, "vr_blocked"))
-        assert blocked.status_code == 503
-        assert "已关闭" in blocked.json()["detail"]
+        assert off.status_code == 200
+        assert client.post(
+            "/api/vrchat/link/start", headers=alice, json={"profile": PROFILE["id"]}
+        ).status_code == 503
 
-        # 重新开启但暂停新绑定。
-        client.patch("/api/admin/vrchat/config", headers=admin, json={"enabled": True})
         paused = client.patch(
-            "/api/admin/vrchat/config", headers=admin, json={"allow_new_links": False}
+            "/api/admin/vrchat/config",
+            headers=admin,
+            json={"enabled": True, "allow_new_links": False},
         )
-        assert paused.json()["allow_new_links"] is False
-        assert "暂停" in bind(client, auth(client, "vr_paused")).json()["detail"]
+        assert paused.status_code == 200
+        assert client.post(
+            "/api/vrchat/link/start", headers=alice, json={"profile": PROFILE["id"]}
+        ).status_code == 503
 
-        client.patch("/api/admin/vrchat/config", headers=admin, json={"allow_new_links": True})
-        assert bind(client, auth(client, "vr_allowed")).status_code == 200
-        status = client.get("/api/admin/vrchat/status", headers=admin).json()
-        assert status["bound"] >= 1
-        # 管理端状态不含任何用户社交数据。
-        assert set(status.keys()) == {"enabled", "allow_new_links", "bound", "unlinked"}
+        client.patch(
+            "/api/admin/vrchat/config",
+            headers=admin,
+            json={"enabled": True, "allow_new_links": True},
+        )
+        assert start(client, alice)["status"] == "pending"
+
+
+def test_admin_endpoints_require_roles(monkeypatch):
+    use_profile(monkeypatch)
+    with TestClient(app) as client:
+        alice = auth(client, "vrchat_plain")
+        assert client.get("/api/admin/vrchat/status", headers=alice).status_code == 403
+        assert client.patch(
+            "/api/admin/vrchat/config", headers=alice, json={"enabled": True}
+        ).status_code == 403

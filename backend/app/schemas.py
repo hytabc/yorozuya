@@ -468,6 +468,8 @@ class TaskOut(ApiModel):
     is_visible: bool
     admin_note: str | None = None
     publisher: UserPublic
+    # 委托人信任摘要（列表批量填充）；匿名委托为空。
+    publisher_trust: dict | None = None
     required_takers: int | None = None
     is_designated: bool = False
     is_anonymous: bool = False
@@ -1157,6 +1159,7 @@ class FriendProfileCardOut(ApiModel):
     about: str
     photos: list[FriendPhotoOut] = []
     friend_count: int = 0
+    trust: dict | None = None
     created_at: datetime
     updated_at: datetime
 

@@ -234,6 +234,8 @@ from .atmosphere import router as atmosphere_router
 from .onboarding import router as onboarding_router
 from .trust import (
     admin_router as vrchat_admin_router,
+    present_public as present_vrchat_public,
+    present_public_many as present_vrchat_public_many,
     router as vrchat_router,
     trust_router as vrchat_trust_router,
 )
@@ -538,6 +540,26 @@ def migrate_schema() -> None:
             if "admin_note" not in texture_columns:
                 connection.execute(text("ALTER TABLE house_textures ADD COLUMN admin_note VARCHAR(200)"))
             connection.execute(text("UPDATE house_textures SET is_visible = 1 WHERE moderated = 0"))
+        # VRChat：真实资料快照与一次性简介验证码字段。
+        if inspector.has_table("vrchat_identities"):
+            vrchat_columns = {column["name"] for column in inspector.get_columns("vrchat_identities")}
+            for column, sql_type in {
+                "verified_at": "DATETIME",
+                "last_verified_at": "DATETIME",
+                "last_synced_at": "DATETIME",
+                "trust_rank": "VARCHAR(24)",
+                "account_created_at": "DATETIME",
+                "platform": "VARCHAR(32)",
+                "snapshot_expires_at": "DATETIME",
+                "challenge_token": "VARCHAR(64)",
+                "challenge_expires_at": "DATETIME",
+                "challenge_failures": "INTEGER NOT NULL DEFAULT 0",
+                "challenge_locked_until": "DATETIME",
+            }.items():
+                if column not in vrchat_columns:
+                    connection.execute(
+                        text(f"ALTER TABLE vrchat_identities ADD COLUMN {column} {sql_type}")
+                    )
         if not inspector.has_table("tasks"):
             return
         task_columns = {column["name"] for column in inspector.get_columns("tasks")}
@@ -1198,10 +1220,12 @@ def present_task(
     task: Task,
     viewer: User | None = None,
     facets: list[TaskFacetOut] | None = None,
+    publisher_trust: dict | None = None,
 ) -> TaskOut:
     data = TaskOut.model_validate(task)
     # 标签由调用方批量预取（列表接口避免 N+1）；未传时按空数组处理，旧委托兼容。
     data.facets = facets or []
+    data.publisher_trust = None if task.is_anonymous else publisher_trust
     data.reported = any(report.status == ReportStatus.PENDING for report in task.reports)
     # 取消发起者属于内部协作信息，只对委托人/接单人/管理员组暴露。
     if not (is_task_participant(task, viewer) or is_task_manager(viewer)):
@@ -1661,6 +1685,7 @@ def present_friend_profile(
         "about": profile.about,
         "photos": present_friend_photos(profile, viewer),
         "friend_count": friend_count(db, profile.user_id),
+        "trust": present_vrchat_public(db, profile.user_id, viewer),
         "created_at": profile.created_at,
         "updated_at": profile.updated_at,
     }
@@ -4356,7 +4381,13 @@ def list_tasks(
             query = query.where(Task.id.in_(facet_filter_ids(facet_type, value)))
     tasks = db.scalars(query.order_by(Task.is_official.desc(), Task.created_at.desc()).limit(200)).unique().all()
     facets = facets_for_tasks(db, [task.id for task in tasks])
-    return [present_task(task, viewer, facets.get(task.id, [])) for task in tasks]
+    trust_map = present_vrchat_public_many(
+        db, [task.publisher_id for task in tasks if not task.is_anonymous], viewer
+    )
+    return [
+        present_task(task, viewer, facets.get(task.id, []), trust_map.get(task.publisher_id))
+        for task in tasks
+    ]
 
 
 @app.get("/api/tasks/stats", response_model=TaskStats)
@@ -4397,7 +4428,13 @@ def my_tasks(user: User = Depends(get_current_user), db: Session = Depends(get_d
     tasks = db.scalars(task_query().where(participation, visibility).order_by(Task.updated_at.desc())).unique().all()
     ratings_module.settle_due_ratings(db)
     facets = facets_for_tasks(db, [task.id for task in tasks])
-    return [present_task(task, user, facets.get(task.id, [])) for task in tasks]
+    trust_map = present_vrchat_public_many(
+        db, [task.publisher_id for task in tasks if not task.is_anonymous], user
+    )
+    return [
+        present_task(task, user, facets.get(task.id, []), trust_map.get(task.publisher_id))
+        for task in tasks
+    ]
 
 
 @app.get("/api/tasks/{task_id}", response_model=TaskOut)
@@ -4417,7 +4454,12 @@ def task_detail(task_id: int, viewer: User | None = Depends(get_optional_user), 
     if reported or task.status != TaskStatus.PUBLISHED:
         if not is_task_manager(viewer) and not is_task_participant(task, viewer):
             raise HTTPException(status_code=404, detail="委托不存在")
-    return present_task(task, viewer, facets_for_task(db, task_id))
+    return present_task(
+        task,
+        viewer,
+        facets_for_task(db, task_id),
+        present_vrchat_public(db, task.publisher_id, viewer),
+    )
 
 
 @app.post("/api/tasks", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
