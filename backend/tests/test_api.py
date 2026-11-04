@@ -958,10 +958,11 @@ def test_sugar_club_profiles_pairing_and_ranking(tmp_path, monkeypatch):
         # 尚无砂糖关系：不能靠遍历 user_id 读取对方 QQ。
         unpaired = client.get(f"/api/sugar/profiles/{bob_id}", headers=alice).json()
         assert unpaired["qq"] is None
-        # 先审后公开：新上传照片落在私有区，只有本人与审核人员能凭签名地址看到。
+        # 上传即公开：新照片落在公开区，本人与其他用户都能直接看到。
         own_detail = client.get(f"/api/sugar/profiles/{alice_id}", headers=alice).json()
-        assert own_detail["photos"][0]["image_url"].startswith("/api/media/sugar/")
-        assert list((tmp_path / "private_media" / "sugar").iterdir())
+        assert own_detail["photos"][0]["is_visible"] is True
+        assert own_detail["photos"][0]["image_url"].startswith("/uploads/sugar/")
+        assert list((tmp_path / "uploads" / "sugar").iterdir())
 
         # 第一次确认进入待确认；第二人确认后才开始计时。
         pending = client.post(f"/api/sugar/pairs/{bob_id}/confirm", headers=alice)
@@ -1040,27 +1041,44 @@ def test_friend_hall_profiles_moderation_requests_and_ranking(tmp_path, monkeypa
         alice_id = alice_profile["user"]["id"]
         bob_id = bob_profile["user"]["id"]
 
-        # 新照片默认为待审核：主人可见，其他用户列表隐藏。
+        # 上传即公开：主人与其他用户都能看到。
         own_cards = client.get("/api/friends/profiles", headers=alice).json()
         own_card = next(card for card in own_cards if card["user"]["id"] == alice_id)
         assert own_card["vrc_nickname"] == "VRC 昵称"
-        assert own_card["photos"][0]["is_visible"] is False
+        assert own_card["photos"][0]["is_visible"] is True
+        assert own_card["photos"][0]["image_url"].startswith("/uploads/friends/")
         other_cards = client.get("/api/friends/profiles", headers=bob).json()
         alice_card = next(card for card in other_cards if card["user"]["id"] == alice_id)
-        assert alice_card["photos"] == []
+        assert len(alice_card["photos"]) == 1
 
         admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
         admin = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
-        pending = client.get("/api/admin/friends/photos", headers=admin)
-        assert pending.status_code == 200
-        photo_id = pending.json()[0]["id"]
-        approved = client.patch(
+        listed = client.get("/api/admin/friends/photos", headers=admin)
+        assert listed.status_code == 200
+        photo_id = next(item for item in listed.json() if item["user"]["id"] == alice_id)["id"]
+        # 下架必须填写理由；带理由下架后对其他用户隐藏。
+        assert client.patch(
+            f"/api/admin/friends/photos/{photo_id}",
+            headers=admin,
+            json={"is_visible": False},
+        ).status_code == 422
+        hidden = client.patch(
+            f"/api/admin/friends/photos/{photo_id}",
+            headers=admin,
+            json={"is_visible": False, "admin_note": "照片含无关广告"},
+        )
+        assert hidden.status_code == 200
+        assert hidden.json()["moderated"] is True
+        assert hidden.json()["is_visible"] is False
+        other_cards = client.get("/api/friends/profiles", headers=bob).json()
+        alice_card = next(card for card in other_cards if card["user"]["id"] == alice_id)
+        assert alice_card["photos"] == []
+        restored = client.patch(
             f"/api/admin/friends/photos/{photo_id}",
             headers=admin,
             json={"is_visible": True},
         )
-        assert approved.status_code == 200
-        assert approved.json()["moderated"] is True
+        assert restored.status_code == 200
 
         request = client.post(f"/api/friends/requests/{bob_id}", headers=alice)
         assert request.status_code == 201
@@ -1442,21 +1460,17 @@ def test_avatar_upload_and_moderation():
         bob = auth(client, "avatar_viewer")
         admin = {"Authorization": f"Bearer {client.post('/api/auth/login', json={'username': 'admin', 'password': 'Admin123!'}).json()['access_token']}"}
 
-        # 上传 PNG 成功，默认待审核
+        # 上传 PNG 成功，上传即公开
         uploaded = client.post("/api/users/me/avatar", headers=alice, files={"avatar": ("a.png", TINY_PNG, "image/png")})
         assert uploaded.status_code == 201, uploaded.text
-        # 未过审的头像在私有区：地址是带签名的 /api/media/...，不是公开的 /uploads/...
-        pending_url = uploaded.json()["avatar_url"]
-        assert pending_url.startswith("/api/media/avatars/"), pending_url
-        assert "exp=" in pending_url and "sig=" in pending_url
-        assert uploaded.json()["avatar_visible"] is False
+        public_url = uploaded.json()["avatar_url"]
+        assert public_url.startswith("/uploads/avatars/"), public_url
+        assert uploaded.json()["avatar_visible"] is True
 
-        # 本人可以看到自己的待审头像
         me = client.get("/api/auth/me", headers=alice).json()
-        assert me["avatar_url"]
-
-        # 未过审时其他用户看不到
-        assert client.get(f"/api/users/{me['id']}", headers=bob).json()["avatar_url"] is None
+        assert me["avatar_url"] == public_url
+        # 其他用户也能直接看到公开头像
+        assert client.get(f"/api/users/{me['id']}", headers=bob).json()["avatar_url"] == public_url
 
         # 超过 2MB → 422
         oversized = b"\x89PNG\r\n\x1a\n" + b"\x00" * (2 * 1024 * 1024)
@@ -1469,32 +1483,46 @@ def test_avatar_upload_and_moderation():
         assert gif.status_code == 422
         assert "PNG 或 JPG" in gif.json()["detail"]
 
-        # 管理员在图片管理列表中能看到待审头像（审核者可见未过审头像）
+        # 管理员在图片管理列表中能看到头像
         photos = client.get("/api/admin/photos", headers=admin).json()
         target = next(item for item in photos if item["id"] == me["id"])
         assert target["avatar_url"]
 
-        # 普通用户不能审核头像
-        assert client.patch(f"/api/admin/users/{me['id']}/avatar", headers=bob, json={"is_visible": True}).status_code == 403
+        # 普通用户不能下架头像
+        assert client.patch(f"/api/admin/users/{me['id']}/avatar", headers=bob, json={"is_visible": False}).status_code == 403
 
-        # 审核通过后对其他用户可见，并且地址换成公开区的 /uploads/
-        approved = client.patch(f"/api/admin/users/{me['id']}/avatar", headers=admin, json={"is_visible": True})
-        assert approved.status_code == 200, approved.text
-        assert approved.json()["avatar_visible"] is True
+        # 下架必须填理由；带理由下架后对其他用户隐藏，本人仍能看到签名地址与理由
+        assert client.patch(
+            f"/api/admin/users/{me['id']}/avatar", headers=admin, json={"is_visible": False}
+        ).status_code == 422
+        hidden = client.patch(
+            f"/api/admin/users/{me['id']}/avatar",
+            headers=admin,
+            json={"is_visible": False, "admin_note": "头像包含违规内容"},
+        )
+        assert hidden.status_code == 200, hidden.text
+        assert hidden.json()["avatar_visible"] is False
+        assert hidden.json()["avatar_admin_note"] == "头像包含违规内容"
+        assert client.get(f"/api/users/{me['id']}", headers=bob).json()["avatar_url"] is None
+        own = client.get("/api/auth/me", headers=alice).json()
+        assert own["avatar_url"].startswith("/api/media/avatars/")
+        assert own["avatar_admin_note"] == "头像包含违规内容"
+
+        # 恢复后重新公开，理由清空
+        restored = client.patch(f"/api/admin/users/{me['id']}/avatar", headers=admin, json={"is_visible": True})
+        assert restored.status_code == 200
+        assert restored.json()["avatar_visible"] is True
+        assert restored.json()["avatar_admin_note"] is None
         public_url = client.get(f"/api/users/{me['id']}", headers=bob).json()["avatar_url"]
         assert public_url.startswith("/uploads/avatars/"), public_url
 
-        # 驳回后再次仅本人可见
-        client.patch(f"/api/admin/users/{me['id']}/avatar", headers=admin, json={"is_visible": False})
-        assert client.get(f"/api/users/{me['id']}", headers=bob).json()["avatar_url"] is None
-        assert client.get("/api/auth/me", headers=alice).json()["avatar_url"]
-
-        # JPG 重新上传会替换并重置审核状态
+        # JPG 重新上传会替换并重置下架状态
         jpeg = make_jpeg()
         replaced = client.post("/api/users/me/avatar", headers=alice, files={"avatar": ("b.jpg", jpeg, "image/jpeg")})
         assert replaced.status_code == 201, replaced.text
         assert replaced.json()["avatar_url"].split("?", 1)[0].endswith(".jpg")
-        assert replaced.json()["avatar_visible"] is False
+        assert replaced.json()["avatar_visible"] is True
+        assert replaced.json()["avatar_admin_note"] is None
 
         # 删除头像后清空
         deleted = client.delete("/api/users/me/avatar", headers=alice)
@@ -1515,27 +1543,20 @@ def test_sugar_photo_moderation():
         profile = register_sugar_profile(client, alice)
         photo_id = profile["photos"][0]["id"]
 
-        # 先审后公开：新上传的砂糖照片默认为待审，落在私有区。
-        assert profile["photos"][0]["is_visible"] is False
+        # 上传即公开：新上传的砂糖照片落在公开区。
+        assert profile["photos"][0]["is_visible"] is True
         assert profile["photos"][0]["moderated"] is False
-        assert profile["photos"][0]["image_url"].startswith("/api/media/")
+        assert profile["photos"][0]["image_url"].startswith("/uploads/")
 
-        # 管理端能看到待审砂糖照片及主人
+        # 管理端能看到砂糖照片及主人
         listed = client.get("/api/admin/sugar/photos", headers=admin)
         assert listed.status_code == 200
         assert listed.json()[0]["id"] == photo_id
         assert listed.json()[0]["user"]["nickname"] == "用户sugar_own"
-        assert listed.json()[0]["is_visible"] is False
+        assert listed.json()[0]["is_visible"] is True
         assert listed.json()[0]["moderated"] is False
 
-        # 他人看不到待审照片
-        assert client.get("/api/sugar/profiles", headers=bob).json()[0]["photos"] == []
-
-        # 审核通过 → 搬进公开区，他人可见
-        approved = client.patch(f"/api/admin/sugar/photos/{photo_id}", headers=admin, json={"is_visible": True})
-        assert approved.status_code == 200, approved.text
-        assert approved.json()["is_visible"] is True
-        assert approved.json()["moderated"] is True
+        # 他人也能看到公开照片
         assert len(client.get("/api/sugar/profiles", headers=bob).json()[0]["photos"]) == 1
 
         # 屏蔽时不填理由 → 422
@@ -1666,34 +1687,57 @@ def test_vr_map_flow():
         assert client.post(f"/api/vr-maps/{map_a['id']}/photos", headers=bob, files={"photo": ("big.png", oversized, "image/png")}).status_code == 422
         assert client.post(f"/api/vr-maps/{map_a['id']}/photos", headers=bob, files={"photo": ("a.gif", b"GIF89a" + b"\x00" * 32, "image/gif")}).status_code == 422
 
-        # bob 上传待审照片：公众列表看不到，bob 和管理员能看到（审核中）
+        # bob 上传照片：上传即公开，游客直接可见
         uploaded = client.post(f"/api/vr-maps/{map_a['id']}/photos", headers=bob, files={"photo": ("shot.png", TINY_PNG, "image/png")})
         assert uploaded.status_code == 201, uploaded.text
         photo_id = uploaded.json()["photos"][0]["id"]
-        assert uploaded.json()["photos"][0]["is_visible"] is False
+        assert uploaded.json()["photos"][0]["is_visible"] is True
+        assert uploaded.json()["photos"][0]["image_url"].startswith("/uploads/")
         assert uploaded.json()["photos"][0]["uploaded_by_me"] is True
-        guest_photos = client.get(f"/api/vr-maps/{map_a['id']}").json()["photos"]
-        assert guest_photos == []
+        assert len(client.get(f"/api/vr-maps/{map_a['id']}").json()["photos"]) == 1
         assert len(client.get(f"/api/vr-maps/{map_a['id']}", headers=bob).json()["photos"]) == 1
 
-        # 管理员审核通过后公开
+        # 管理员下架必须填理由；带理由下架后游客不可见，上传者仍能看到理由
         pending = client.get("/api/admin/vr-map-photos", headers=admin).json()
         target = next(p for p in pending if p["id"] == photo_id)
         assert target["map_name"] == "午夜天台"
-        approved = client.patch(f"/api/admin/vr-map-photos/{photo_id}", headers=admin, json={"is_visible": True})
-        assert approved.status_code == 200 and approved.json()["is_visible"] is True
-        guest_photo = client.get(f"/api/vr-maps/{map_a['id']}").json()["photos"][0]
-        assert guest_photo["uploaded_by_me"] is False
+        assert client.patch(
+            f"/api/admin/vr-map-photos/{photo_id}", headers=admin, json={"is_visible": False}
+        ).status_code == 422
+        hidden = client.patch(
+            f"/api/admin/vr-map-photos/{photo_id}",
+            headers=admin,
+            json={"is_visible": False, "admin_note": "照片与地图无关"},
+        )
+        assert hidden.status_code == 200 and hidden.json()["is_visible"] is False
+        assert client.get(f"/api/vr-maps/{map_a['id']}").json()["photos"] == []
+        own_photo = next(
+            photo for photo in client.get(f"/api/vr-maps/{map_a['id']}", headers=bob).json()["photos"]
+            if photo["id"] == photo_id
+        )
+        assert own_photo["admin_note"] == "照片与地图无关"
+        assert own_photo["image_url"].startswith("/api/media/")
 
-        # bob 再次上传会追加图片；驳回新图后，之前通过的图片仍公开
+        # 恢复后重新公开
+        restored = client.patch(
+            f"/api/admin/vr-map-photos/{photo_id}", headers=admin, json={"is_visible": True}
+        )
+        assert restored.status_code == 200 and restored.json()["is_visible"] is True
+        assert len(client.get(f"/api/vr-maps/{map_a['id']}").json()["photos"]) == 1
+
+        # bob 再次上传会追加图片；新图也立即公开，下架新图后之前通过的图片仍公开
         replaced = client.post(f"/api/vr-maps/{map_a['id']}/photos", headers=bob, files={"photo": ("shot2.jpg", make_jpeg(), "image/jpeg")})
         assert replaced.status_code == 201
         new_photo = next(photo for photo in replaced.json()["photos"] if photo["id"] != photo_id)
         new_photo_id = new_photo["id"]
-        assert new_photo["is_visible"] is False
+        assert new_photo["is_visible"] is True
         assert new_photo["moderated"] is False
         assert len(replaced.json()["photos"]) == 2
-        client.patch(f"/api/admin/vr-map-photos/{new_photo_id}", headers=admin, json={"is_visible": False})
+        client.patch(
+            f"/api/admin/vr-map-photos/{new_photo_id}",
+            headers=admin,
+            json={"is_visible": False, "admin_note": "重复图片"},
+        )
         assert len(client.get(f"/api/vr-maps/{map_a['id']}").json()["photos"]) == 1
 
 
@@ -1718,7 +1762,8 @@ def test_vr_map_multi_photo_creation_limits_and_moderator_permissions():
         assert created.status_code == 201, created.text
         map_id = created.json()["id"]
         assert len(created.json()["photos"]) == 3
-        assert client.get(f"/api/vr-maps/{map_id}").json()["photos"] == []
+        # 上传即公开：游客也能看到这 3 张
+        assert len(client.get(f"/api/vr-maps/{map_id}").json()["photos"]) == 3
 
         appended = client.post(
             f"/api/vr-maps/{map_id}/photos", headers=owner,
@@ -1739,8 +1784,9 @@ def test_vr_map_multi_photo_creation_limits_and_moderator_permissions():
             files=[("photos", (f"visitor-{index}.jpg", make_jpeg(), "image/jpeg")) for index in range(5)],
         )
         assert contributed.status_code == 201, contributed.text
-        assert len(contributed.json()["photos"]) == 5
-        assert all(photo["uploaded_by_me"] for photo in contributed.json()["photos"])
+        # 公开后其他用户也能看到 owner 的 3 张，这里只校验 regular 自己的 5 张额度。
+        assert len([photo for photo in contributed.json()["photos"] if photo["uploaded_by_me"]]) == 5
+        assert len(contributed.json()["photos"]) == 10
         visitor_sixth = client.post(
             f"/api/vr-maps/{map_id}/photos", headers=regular,
             files={"photos": ("visitor-six.jpg", b"\xff\xd8\xff\xe0" + b"\x00" * 32, "image/jpeg")},
@@ -1804,7 +1850,7 @@ def test_vr_map_owner_can_replace_delete_photos_and_delete_recommendation(tmp_pa
         replaced_photo = replaced.json()["photos"][0]
         replacement_path = media_path(tmp_path, replaced_photo["image_url"])
         assert replaced_photo["id"] == owner_photo["id"]
-        assert replaced_photo["is_visible"] is False and replaced_photo["moderated"] is False
+        assert replaced_photo["is_visible"] is True and replaced_photo["moderated"] is False
         assert replacement_path.exists() and not owner_path.exists()
 
         # 删除单张图片后可再次使用该地图的上传额度，并且文件同步移除。
@@ -2477,9 +2523,9 @@ def test_user_profile_photos_upload_limits_task_visibility_and_moderation(monkey
         uploaded = client.post("/api/users/me/photos", headers=owner, files=files)
         assert uploaded.status_code == 201, uploaded.text
         assert len(uploaded.json()["photos"]) == 3
-        # 先审后公开：新上传的介绍图片在私有区，只有本人与审核人员看得到。
-        assert all(photo["image_url"].startswith("/api/media/users/") for photo in uploaded.json()["photos"])
-        assert len(list((tmp_path / "private_media" / "users" / str(owner_id)).iterdir())) == 3
+        # 上传即公开：新上传的介绍图片在公开区，其他用户也能看到。
+        assert all(photo["image_url"].startswith("/uploads/users/") for photo in uploaded.json()["photos"])
+        assert len(list((tmp_path / "uploads" / "users" / str(owner_id)).iterdir())) == 3
 
         over_count = client.post(
             "/api/users/me/photos",
@@ -2511,16 +2557,8 @@ def test_user_profile_photos_upload_limits_task_visibility_and_moderation(monkey
         assert invalid_format.status_code == 422
         assert invalid_format.json()["detail"] == "仅支持 JPEG、PNG、GIF 或 WebP 图片"
 
-        # 待审图片不会随委托中的用户摘要泄露给他人。
+        # 公开图片随委托中的用户摘要返回，便于接取前查看委托人资料。
         task = create_task(client, owner, required=1, title="带个人图片的委托")
-        task_detail = client.get(f"/api/tasks/{task['id']}", headers=viewer).json()
-        assert task_detail["publisher"]["photos"] == []
-
-        # 审核通过后才公开：图片随委托中的用户摘要返回，便于接取前查看委托人资料。
-        for photo in uploaded.json()["photos"]:
-            assert client.patch(
-                f"/api/admin/photos/{photo['id']}", headers=admin, json={"is_visible": True}
-            ).status_code == 200
         task_detail = client.get(f"/api/tasks/{task['id']}", headers=viewer).json()
         assert len(task_detail["publisher"]["photos"]) == 3
 
@@ -2528,17 +2566,28 @@ def test_user_profile_photos_upload_limits_task_visibility_and_moderation(monkey
         assert client.patch(
             f"/api/admin/photos/{photo_id}", headers=viewer, json={"is_visible": False}
         ).status_code == 403
-        hidden = client.patch(
+        # 下架必须填理由
+        assert client.patch(
             f"/api/admin/photos/{photo_id}", headers=admin, json={"is_visible": False}
+        ).status_code == 422
+        hidden = client.patch(
+            f"/api/admin/photos/{photo_id}",
+            headers=admin,
+            json={"is_visible": False, "admin_note": "图片与介绍无关"},
         )
         assert hidden.status_code == 200
-        assert next(photo for photo in hidden.json()["photos"] if photo["id"] == photo_id)["is_visible"] is False
+        hidden_photo = next(photo for photo in hidden.json()["photos"] if photo["id"] == photo_id)
+        assert hidden_photo["is_visible"] is False
+        assert hidden_photo["admin_note"] == "图片与介绍无关"
 
-        # 名录资料对访客公开，但被屏蔽图片不会对普通访客返回；本人仍可管理它。
+        # 名录资料对访客公开，但被下架图片不会对普通访客返回；本人仍可管理它。
         public_profile = client.get(f"/api/users/{owner_id}").json()
         assert len(public_profile["photos"]) == 2
         self_profile = client.get(f"/api/users/{owner_id}", headers=owner).json()
         assert len(self_profile["photos"]) == 3
+        own_hidden = next(photo for photo in self_profile["photos"] if photo["id"] == photo_id)
+        assert own_hidden["is_visible"] is False
+        assert own_hidden["admin_note"] == "图片与介绍无关"
 
         staff = auth(client, "photo_staff")
         staff_id = client.get("/api/auth/me", headers=staff).json()["id"]
@@ -3502,29 +3551,51 @@ def test_story_photos_upload_and_moderation(tmp_path, monkeypatch):
         assert created.status_code == 201, created.text
         story_id = created.json()["id"]
         assert len(created.json()["photos"]) == 2
-        assert all(photo["is_visible"] is False for photo in created.json()["photos"])
-        assert list((tmp_path / "private_media" / "stories" / str(story_id)).iterdir())
+        assert all(photo["is_visible"] is True for photo in created.json()["photos"])
+        assert all(photo["image_url"].startswith("/uploads/stories/") for photo in created.json()["photos"])
+        assert list((tmp_path / "uploads" / "stories" / str(story_id)).iterdir())
 
-        # 未过审的图片不出现在列表封面
-        assert client.get("/api/stories", headers=bob).json()[0]["cover_url"] is None
+        # 公开图片出现在列表封面
+        assert client.get("/api/stories", headers=bob).json()[0]["cover_url"].startswith("/uploads/stories/")
 
-        # 作者本人能看到待审图片，其他用户看不到
+        # 作者本人与其他用户都能看到
         assert len(client.get(f"/api/stories/{story_id}", headers=alice).json()["photos"]) == 2
-        assert client.get(f"/api/stories/{story_id}", headers=bob).json()["photos"] == []
+        assert len(client.get(f"/api/stories/{story_id}", headers=bob).json()["photos"]) == 2
 
         # 非审核员不能访问审核接口
         assert client.get("/api/admin/story-photos", headers=bob).status_code == 403
 
-        # 管理员审核通过一张
-        pending = client.get("/api/admin/story-photos", headers=admin).json()
-        assert len(pending) == 2 and all(item["moderated"] is False for item in pending)
-        approved = client.patch(f"/api/admin/story-photos/{pending[0]['id']}", headers=admin, json={"is_visible": True})
-        assert approved.status_code == 200, approved.text
-        assert approved.json()["is_visible"] is True and approved.json()["moderated"] is True
+        # 管理员下架必须填理由；带理由下架后其他用户不可见
+        listed = client.get("/api/admin/story-photos", headers=admin).json()
+        assert len(listed) == 2 and all(item["moderated"] is False for item in listed)
+        assert client.patch(
+            f"/api/admin/story-photos/{listed[0]['id']}", headers=admin, json={"is_visible": False}
+        ).status_code == 422
+        hidden = client.patch(
+            f"/api/admin/story-photos/{listed[0]['id']}",
+            headers=admin,
+            json={"is_visible": False, "admin_note": "配图与故事无关"},
+        )
+        assert hidden.status_code == 200, hidden.text
+        assert hidden.json()["is_visible"] is False
+        assert hidden.json()["admin_note"] == "配图与故事无关"
+        assert hidden.json()["moderated"] is True
 
-        # 通过后其他用户可见，列表封面出现
         assert len(client.get(f"/api/stories/{story_id}", headers=bob).json()["photos"]) == 1
-        assert client.get("/api/stories", headers=bob).json()[0]["cover_url"].startswith("/uploads/stories/")
+        own_hidden = next(
+            photo for photo in client.get(f"/api/stories/{story_id}", headers=alice).json()["photos"]
+            if photo["id"] == listed[0]["id"]
+        )
+        assert own_hidden["is_visible"] is False
+        assert own_hidden["admin_note"] == "配图与故事无关"
+
+        # 恢复后重新公开，理由清空
+        restored = client.patch(
+            f"/api/admin/story-photos/{listed[0]['id']}", headers=admin, json={"is_visible": True}
+        )
+        assert restored.status_code == 200
+        assert restored.json()["is_visible"] is True and restored.json()["admin_note"] is None
+        assert len(client.get(f"/api/stories/{story_id}", headers=bob).json()["photos"]) == 2
 
         # 超过 3 张 → 422
         too_many = client.post(
@@ -3535,9 +3606,10 @@ def test_story_photos_upload_and_moderation(tmp_path, monkeypatch):
         )
         assert too_many.status_code == 422
 
-        # 删除故事清理磁盘文件
+        # 删除故事清理磁盘文件（公开区与私有区都不留）
         assert client.delete(f"/api/stories/{story_id}", headers=alice).status_code == 204
-        assert list((tmp_path / "private_media" / "stories" / str(story_id)).iterdir()) == []
+        assert list((tmp_path / "uploads" / "stories" / str(story_id)).glob("*")) == []
+        assert list((tmp_path / "private_media" / "stories" / str(story_id)).glob("*")) == []
 
 
 def test_turnstile_provider_delegates_to_siteverify(monkeypatch):

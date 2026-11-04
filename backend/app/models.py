@@ -123,10 +123,12 @@ class User(Base):
     # 不参与排行榜：开启后所有榜单不再返回该用户，但资料页仍展示等级。
     rank_opt_out: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    # 头像：仅存相对 uploads 目录的路径；上传后需管理员审核（avatar_visible）才公开展示。
+    # 头像：仅存相对 uploads 目录的路径；上传即公开，审核人员可下架。
     avatar_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    avatar_visible: Mapped[bool] = mapped_column(Boolean, default=False)
+    avatar_visible: Mapped[bool] = mapped_column(Boolean, default=True)
     avatar_moderated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # 下架理由：仅本人与审核人员可见。
+    avatar_admin_note: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
     # 注意：这里刻意不提供 avatar_url 属性。UserPublic 用 from_attributes 序列化，
     # 一旦 ORM 上有同名属性，任何直接塞入 ORM 对象的端点都会绕过 avatar_visible
@@ -154,8 +156,9 @@ class UserPhoto(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     file_path: Mapped[str] = mapped_column(String(255), unique=True)
-    # 新上传的介绍图片默认为待审核（先审后公开），与头像/故事/地图实拍一致。
-    is_visible: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # 新上传的介绍图片默认公开，审核人员可下架并填写理由。
+    is_visible: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    admin_note: Mapped[str | None] = mapped_column(String(200), nullable=True)
     moderated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     moderated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -560,7 +563,7 @@ class StoryComment(Base):
 
 
 class StoryPhoto(Base):
-    """故事配图：仅 PNG/JPG，需管理员审核后才公开展示。"""
+    """故事配图：仅 PNG/JPG，上传即公开，审核人员可下架。"""
 
     __tablename__ = "story_photos"
 
@@ -569,7 +572,8 @@ class StoryPhoto(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     # 仅存相对上传目录的路径，文件本体由服务端本地磁盘保存。
     file_path: Mapped[str] = mapped_column(String(255), unique=True)
-    is_visible: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    is_visible: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    admin_note: Mapped[str | None] = mapped_column(String(200), nullable=True)
     moderated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     moderated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -648,7 +652,7 @@ class VrMapReport(Base):
 
 
 class VrMapPhoto(Base):
-    """地图实拍照片：每张地图累计最多 5 张，需审核后才公开展示。"""
+    """地图实拍照片：每张地图累计最多 5 张，上传即公开，审核人员可下架。"""
 
     __tablename__ = "vr_map_photos"
 
@@ -657,7 +661,8 @@ class VrMapPhoto(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     # 仅存相对上传目录的路径，文件本体由服务端本地磁盘保存。
     file_path: Mapped[str] = mapped_column(String(255), unique=True)
-    is_visible: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    is_visible: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    admin_note: Mapped[str | None] = mapped_column(String(200), nullable=True)
     moderated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     moderated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -691,8 +696,8 @@ class SugarPhoto(Base):
     profile_id: Mapped[int] = mapped_column(ForeignKey("sugar_profiles.id"), index=True)
     # 仅存相对上传目录的路径，文件本体由服务端本地磁盘保存。
     file_path: Mapped[str] = mapped_column(String(255), unique=True)
-    # 新上传照片默认为待审核（先审后公开）；屏蔽时必须填写 admin_note，对主人展示遮罩与理由。
-    is_visible: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # 新上传照片默认公开；下架时必须填写 admin_note，对主人展示遮罩与理由。
+    is_visible: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     admin_note: Mapped[str | None] = mapped_column(String(200), nullable=True)
     moderated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     moderated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -727,8 +732,8 @@ class FriendPhoto(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     profile_id: Mapped[int] = mapped_column(ForeignKey("friend_profiles.id"), index=True)
     file_path: Mapped[str] = mapped_column(String(255), unique=True)
-    # 新上传照片默认为待审核；主人和审核人员仍可见。
-    is_visible: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # 新上传照片默认公开；下架后主人和审核人员仍可见。
+    is_visible: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     admin_note: Mapped[str | None] = mapped_column(String(200), nullable=True)
     moderated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     moderated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

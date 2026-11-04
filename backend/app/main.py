@@ -503,6 +503,41 @@ def migrate_schema() -> None:
                     text("ALTER TABLE page_views ADD COLUMN device VARCHAR(16) NOT NULL DEFAULT 'other'")
                 )
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_page_views_device ON page_views (device)"))
+        # 图片默认公开（2026-11）：用户上传图片不再先审后公开。
+        # 只放行“从未被处理过”的存量图片；曾被下架的（moderated 标记非空）保持隐藏。
+        # 必须放在 tasks 提前 return 之前，老库也要执行。
+        if inspector.has_table("users"):
+            user_columns = {column["name"] for column in inspector.get_columns("users")}
+            if "avatar_admin_note" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN avatar_admin_note VARCHAR(200)"))
+            connection.execute(
+                text(
+                    "UPDATE users SET avatar_visible = 1 "
+                    "WHERE avatar_path IS NOT NULL AND avatar_moderated_at IS NULL"
+                )
+            )
+        for table in ("user_photos", "sugar_photos", "friend_photos", "story_photos", "vr_map_photos"):
+            if not inspector.has_table(table):
+                continue
+            columns = {column["name"] for column in inspector.get_columns(table)}
+            if "is_visible" not in columns:
+                connection.execute(text(f"ALTER TABLE {table} ADD COLUMN is_visible BOOLEAN NOT NULL DEFAULT 1"))
+            if "moderated_by_id" not in columns:
+                connection.execute(text(f"ALTER TABLE {table} ADD COLUMN moderated_by_id INTEGER"))
+            if "moderated_at" not in columns:
+                connection.execute(text(f"ALTER TABLE {table} ADD COLUMN moderated_at DATETIME"))
+            if "admin_note" not in columns:
+                connection.execute(text(f"ALTER TABLE {table} ADD COLUMN admin_note VARCHAR(200)"))
+            connection.execute(text(f"UPDATE {table} SET is_visible = 1 WHERE moderated_at IS NULL"))
+        if inspector.has_table("house_textures"):
+            texture_columns = {column["name"] for column in inspector.get_columns("house_textures")}
+            if "moderated" not in texture_columns:
+                connection.execute(
+                    text("ALTER TABLE house_textures ADD COLUMN moderated BOOLEAN NOT NULL DEFAULT 0")
+                )
+            if "admin_note" not in texture_columns:
+                connection.execute(text("ALTER TABLE house_textures ADD COLUMN admin_note VARCHAR(200)"))
+            connection.execute(text("UPDATE house_textures SET is_visible = 1 WHERE moderated = 0"))
         if not inspector.has_table("tasks"):
             return
         task_columns = {column["name"] for column in inspector.get_columns("tasks")}
@@ -645,6 +680,7 @@ def migrate_schema() -> None:
                         user_id INTEGER NOT NULL REFERENCES users (id),
                         file_path VARCHAR(255) NOT NULL UNIQUE,
                         is_visible BOOLEAN NOT NULL DEFAULT 0,
+                        admin_note VARCHAR(200),
                         moderated_by_id INTEGER REFERENCES users (id),
                         moderated_at DATETIME,
                         created_at DATETIME NOT NULL
@@ -652,8 +688,8 @@ def migrate_schema() -> None:
                 """))
                 connection.execute(text("""
                     INSERT INTO vr_map_photos_new
-                        (id, map_id, user_id, file_path, is_visible, moderated_by_id, moderated_at, created_at)
-                    SELECT id, map_id, user_id, file_path, is_visible, moderated_by_id, moderated_at, created_at
+                        (id, map_id, user_id, file_path, is_visible, admin_note, moderated_by_id, moderated_at, created_at)
+                    SELECT id, map_id, user_id, file_path, is_visible, admin_note, moderated_by_id, moderated_at, created_at
                     FROM vr_map_photos
                 """))
                 connection.execute(text("DROP TABLE vr_map_photos"))
@@ -1030,6 +1066,7 @@ def visible_user_photos(user: User, viewer: User | None = None) -> list[UserPhot
             id=photo.id,
             image_url=media_url(photo.file_path, public=photo.is_visible) or "",
             is_visible=photo.is_visible,
+            admin_note=photo.admin_note if can_manage else None,
         )
         for photo in user.photos
         if can_manage or photo.is_visible
@@ -1074,6 +1111,7 @@ def present_user_self(user: User) -> UserSelf:
         photos=visible_user_photos(user, user),
         avatar_url=visible_avatar(user, user),
         avatar_visible=user.avatar_visible,
+        avatar_admin_note=user.avatar_admin_note,
         is_beta_tester=user.is_beta_tester,
         username=user.username,
         qq=user.qq,
@@ -1100,12 +1138,15 @@ def present_user_self(user: User) -> UserSelf:
 
 
 def present_user_profile(user: User, viewer: User | None = None) -> UserProfileOut:
+    can_manage = viewer is not None and (viewer.id == user.id or can_review_content(viewer))
     return UserProfileOut(
         id=user.id, nickname=user.nickname, title=user.title, bio=user.bio, qq=user.qq, qq_public=user.qq_public,
         is_admin=user.is_admin,
         lifetime_points=user.lifetime_points, level=levels_module.level_for(user.lifetime_points),
         role=user.role, created_at=user.created_at, photos=visible_user_photos(user, viewer),
-        avatar_url=visible_avatar(user, viewer), avatar_visible=user.avatar_visible, is_beta_tester=user.is_beta_tester,
+        avatar_url=visible_avatar(user, viewer), avatar_visible=user.avatar_visible,
+        avatar_admin_note=user.avatar_admin_note if can_manage else None,
+        is_beta_tester=user.is_beta_tester,
     )
 
 
@@ -1515,14 +1556,14 @@ def image_storage_error_detail(error: OSError) -> str:
 
 
 def store_sugar_images(profile: SugarProfile, images: list[tuple[str, bytes]]) -> list[SugarPhoto]:
-    """砂糖社照片默认待审，落在私有区（先审后公开，需签名 URL 才能访问）。"""
+    """砂糖社照片上传即公开，审核人员可下架（下架时移入私有区）。"""
     settings.ensure_storage_directory()
     keys: list[str] = []
     stored: list[Path] = []
     try:
         for extension, content in images:
             key = f"sugar/{uuid4().hex}{extension}"
-            stored.append(write_media(key, content, public=False))
+            stored.append(write_media(key, content, public=True))
             keys.append(key)
     except OSError as error:
         for destination in stored:
@@ -1531,7 +1572,7 @@ def store_sugar_images(profile: SugarProfile, images: list[tuple[str, bytes]]) -
             except OSError:
                 pass
         raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
-    return [SugarPhoto(profile=profile, file_path=key) for key in keys]
+    return [SugarPhoto(profile=profile, file_path=key, is_visible=True) for key in keys]
 
 
 def friend_profile_query():
@@ -1632,20 +1673,20 @@ def get_friend_profile_or_404(db: Session, user_id: int) -> FriendProfile:
 
 
 def store_friend_images(profile: FriendProfile, images: list[tuple[str, bytes]]) -> list[FriendPhoto]:
-    """交友厅照片默认待审，落在私有区（需签名 URL 才能访问）。"""
+    """交友厅照片上传即公开，审核人员可下架（下架时移入私有区）。"""
     settings.ensure_storage_directory()
     keys: list[str] = []
     stored: list[Path] = []
     try:
         for extension, content in images:
             key = f"friends/{profile.user_id}/{uuid4().hex}{extension}"
-            stored.append(write_media(key, content, public=False))
+            stored.append(write_media(key, content, public=True))
             keys.append(key)
     except OSError as error:
         for destination in stored:
             destination.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
-    return [FriendPhoto(profile=profile, file_path=key) for key in keys]
+    return [FriendPhoto(profile=profile, file_path=key, is_visible=True) for key in keys]
 
 
 @app.get("/api/friends/profiles", response_model=list[FriendProfileCardOut])
@@ -2325,20 +2366,20 @@ async def save_user_photos(photos: list[UploadFile], user: User, db: Session) ->
 
 
 def store_user_images(user: User, images: list[tuple[str, bytes]]) -> list[UserPhoto]:
-    """用户介绍图片默认待审（先审后公开），落在私有区。"""
+    """用户介绍图片上传即公开，审核人员可下架。"""
     settings.ensure_storage_directory()
     keys: list[str] = []
     stored: list[Path] = []
     try:
         for extension, content in images:
             key = f"users/{user.id}/{uuid4().hex}{extension}"
-            stored.append(write_media(key, content, public=False))
+            stored.append(write_media(key, content, public=True))
             keys.append(key)
     except OSError as error:
         for destination in stored:
             destination.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
-    return [UserPhoto(user=user, file_path=key) for key in keys]
+    return [UserPhoto(user=user, file_path=key, is_visible=True) for key in keys]
 
 
 @app.post("/api/users/me/photos", response_model=UserProfileOut, status_code=status.HTTP_201_CREATED)
@@ -2373,10 +2414,7 @@ async def upload_avatar(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """上传头像：仅支持 PNG/JPG、最大 2 MB；需管理员审核通过后才公开展示。
-
-    未过审的头像存放在私有区，只有本人与审核人员能通过签名 URL 看到。
-    """
+    """上传头像：仅支持 PNG/JPG、最大 2 MB；上传即公开，审核人员可下架。"""
     enforce("upload", str(user.id), 30, 3600)
     content = await avatar.read(MAX_AVATAR_BYTES + 1)
     if not content:
@@ -2389,13 +2427,14 @@ async def upload_avatar(
     settings.ensure_storage_directory()
     file_path = f"avatars/{user.id}/{uuid4().hex}{extension}"
     try:
-        write_media(file_path, content, public=False)
+        write_media(file_path, content, public=True)
     except OSError as error:
         raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
     clear_avatar_file(user)
     user.avatar_path = file_path
-    user.avatar_visible = False
+    user.avatar_visible = True
     user.avatar_moderated_at = None
+    user.avatar_admin_note = None
     db.commit()
     db.refresh(user)
     return present_user_profile(user, user)
@@ -2409,6 +2448,7 @@ def clear_avatar_file(user: User) -> None:
     user.avatar_path = None
     user.avatar_visible = False
     user.avatar_moderated_at = None
+    user.avatar_admin_note = None
 
 
 @app.delete("/api/users/me/avatar", response_model=UserProfileOut)
@@ -2426,12 +2466,15 @@ def moderate_avatar(
     manager: User = Depends(get_content_moderator),
     db: Session = Depends(get_db),
 ):
-    """管理员组审核头像：通过后公开展示，驳回则仅本人可见。"""
+    """管理员组下架/恢复头像：下架时必须填写理由，理由仅本人与审核人员可见。"""
     target = db.get(User, user_id)
     if target is None or not target.avatar_path:
         raise HTTPException(status_code=404, detail="头像不存在")
+    if not payload.is_visible and not (payload.admin_note or "").strip():
+        raise HTTPException(status_code=422, detail="下架头像时必须填写理由")
     target.avatar_visible = payload.is_visible
     target.avatar_moderated_at = datetime.utcnow()
+    target.avatar_admin_note = payload.admin_note.strip() if payload.admin_note and payload.admin_note.strip() else None
     commit_moderation(db, target.avatar_path, public=payload.is_visible)
     db.refresh(target)
     return present_moderation_profile(target, manager)
@@ -3434,10 +3477,12 @@ def can_delete_story(story: Story, viewer: User | None) -> bool:
 
 
 def present_story_photo(photo: StoryPhoto, viewer: User | None) -> StoryPhotoOut:
+    can_manage = viewer is not None and (viewer.id == photo.user_id or can_review_content(viewer))
     return StoryPhotoOut(
         id=photo.id,
         image_url=media_url(photo.file_path, public=photo.is_visible) or "",
         is_visible=photo.is_visible,
+        admin_note=photo.admin_note if can_manage else None,
         moderated=photo.moderated_at is not None,
         uploaded_by_me=viewer is not None and viewer.id == photo.user_id,
     )
@@ -3519,7 +3564,7 @@ def _discard_written_media(keys) -> None:
 async def save_story_photos(photos: list[UploadFile], story_id: int, user_id: int) -> list[StoryPhoto]:
     """先完整校验全部文件，再落盘；总量限制防止多文件绕过单图上限。
 
-    配图默认待审，落在私有区，只有作者本人与审核人员能凭签名 URL 查看。
+    配图上传即公开，审核人员可下架（下架时移入私有区）。
     """
     contents: list[tuple[bytes, str]] = []
     total_bytes = 0
@@ -3541,13 +3586,13 @@ async def save_story_photos(photos: list[UploadFile], story_id: int, user_id: in
     try:
         for extension, content in contents:
             file_path = f"stories/{story_id}/{uuid4().hex}{extension}"
-            stored.append(write_media(file_path, content, public=False))
+            stored.append(write_media(file_path, content, public=True))
             keys.append(file_path)
     except OSError as error:
         for destination in stored:
             destination.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
-    return [StoryPhoto(story_id=story_id, user_id=user_id, file_path=key) for key in keys]
+    return [StoryPhoto(story_id=story_id, user_id=user_id, file_path=key, is_visible=True) for key in keys]
 
 
 @app.get("/api/stories", response_model=list[StoryCardOut])
@@ -3710,6 +3755,7 @@ def admin_story_photos(
             id=photo.id,
             image_url=media_url(photo.file_path, public=photo.is_visible) or "",
             is_visible=photo.is_visible,
+            admin_note=photo.admin_note,
             moderated=photo.moderated_at is not None,
             story_id=photo.story_id,
             story_title=photo.story.title,
@@ -3727,11 +3773,14 @@ def moderate_story_photo(
     manager: User = Depends(get_content_moderator),
     db: Session = Depends(get_db),
 ):
-    """审核故事配图：通过后公开展示，驳回则仅作者本人可见。"""
+    """下架/恢复故事配图：下架时必须填写理由，理由仅作者本人与审核人员可见。"""
     photo = db.get(StoryPhoto, photo_id)
     if photo is None:
         raise HTTPException(status_code=404, detail="照片不存在")
+    if not payload.is_visible and not (payload.admin_note or "").strip():
+        raise HTTPException(status_code=422, detail="下架照片时必须填写理由")
     photo.is_visible = payload.is_visible
+    photo.admin_note = payload.admin_note.strip() if payload.admin_note and payload.admin_note.strip() else None
     photo.moderated_by_id = manager.id
     photo.moderated_at = datetime.utcnow()
     commit_moderation(db, photo.file_path, public=payload.is_visible)
@@ -3740,6 +3789,7 @@ def moderate_story_photo(
         id=photo.id,
         image_url=media_url(photo.file_path, public=photo.is_visible) or "",
         is_visible=photo.is_visible,
+        admin_note=photo.admin_note,
         moderated=photo.moderated_at is not None,
         story_id=photo.story_id,
         story_title=photo.story.title,
@@ -3775,6 +3825,7 @@ def present_vr_map_photos(vr_map: VrMap, viewer: User | None) -> list[VrMapPhoto
                     id=photo.id,
                     image_url=media_url(photo.file_path, public=photo.is_visible) or "",
                     is_visible=photo.is_visible,
+                    admin_note=photo.admin_note if (viewer is not None and (viewer.id == photo.user_id or can_review_content(viewer))) else None,
                     moderated=photo.moderated_at is not None,
                     uploaded_by_me=viewer is not None and viewer.id == photo.user_id,
                 )
@@ -3817,7 +3868,7 @@ async def save_vr_map_photos(
 ) -> list[VrMapPhoto]:
     """先完整校验全部文件，再落盘；总量限制防止多文件绕过单图上限。
 
-    实拍照片默认待审，落在私有区，需审核通过后才会进入公开区。
+    实拍照片上传即公开，审核人员可下架（下架时移入私有区）。
     """
     contents: list[tuple[bytes, str]] = []
     total_bytes = 0
@@ -3840,14 +3891,14 @@ async def save_vr_map_photos(
     try:
         for extension, content in contents:
             file_path = f"vrmaps/{map_id}/{uuid4().hex}{extension}"
-            stored.append(write_media(file_path, content, public=False))
+            stored.append(write_media(file_path, content, public=True))
             keys.append(file_path)
     except OSError as error:
         for destination in stored:
             destination.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail=image_storage_error_detail(error)) from error
 
-    return [VrMapPhoto(map_id=map_id, user_id=user_id, file_path=key) for key in keys]
+    return [VrMapPhoto(map_id=map_id, user_id=user_id, file_path=key, is_visible=True) for key in keys]
 
 
 @app.get("/api/vr-maps", response_model=list[VrMapOut])
@@ -4036,7 +4087,7 @@ async def replace_vr_map_photo(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """替换本人上传的地图图片；新图片必须重新通过审核。"""
+    """替换本人上传的地图图片；新图片上传即公开。"""
     enforce("upload", str(user.id), 30, 3600)
     vr_map = get_vr_map_or_404(db, map_id)
     record = db.get(VrMapPhoto, photo_id)
@@ -4048,7 +4099,8 @@ async def replace_vr_map_photo(
     replacement = (await save_vr_map_photos([photo], map_id, user.id))[0]
     old_file_path = record.file_path
     record.file_path = replacement.file_path
-    record.is_visible = False
+    record.is_visible = True
+    record.admin_note = None
     record.moderated_by_id = None
     record.moderated_at = None
     try:
@@ -4167,6 +4219,7 @@ def admin_vr_map_photos(
             id=photo.id,
             image_url=media_url(photo.file_path, public=photo.is_visible) or "",
             is_visible=photo.is_visible,
+            admin_note=photo.admin_note,
             moderated=photo.moderated_at is not None,
             map_id=photo.map_id,
             map_name=photo.map.name,
@@ -4184,11 +4237,14 @@ def moderate_vr_map_photo(
     manager: User = Depends(get_content_moderator),
     db: Session = Depends(get_db),
 ):
-    """审核地图照片：通过后公开展示，驳回则仅上传者本人可见。"""
+    """下架/恢复地图照片：下架时必须填写理由，理由仅上传者本人与审核人员可见。"""
     photo = db.get(VrMapPhoto, photo_id)
     if photo is None:
         raise HTTPException(status_code=404, detail="照片不存在")
+    if not payload.is_visible and not (payload.admin_note or "").strip():
+        raise HTTPException(status_code=422, detail="下架照片时必须填写理由")
     photo.is_visible = payload.is_visible
+    photo.admin_note = payload.admin_note.strip() if payload.admin_note and payload.admin_note.strip() else None
     photo.moderated_by_id = manager.id
     photo.moderated_at = datetime.utcnow()
     commit_moderation(db, photo.file_path, public=payload.is_visible)
@@ -4197,6 +4253,7 @@ def moderate_vr_map_photo(
         id=photo.id,
         image_url=media_url(photo.file_path, public=photo.is_visible) or "",
         is_visible=photo.is_visible,
+        admin_note=photo.admin_note,
         moderated=photo.moderated_at is not None,
         map_id=photo.map_id,
         map_name=photo.map.name,
@@ -5358,7 +5415,7 @@ def admin_summary(user: User = Depends(get_content_moderator), db: Session = Dep
             db.scalar(
                 select(func.count())
                 .select_from(VrMapPhoto)
-                .where(VrMapPhoto.moderated_at.is_(None))
+                .where(VrMapPhoto.is_visible.is_(False))
             )
             or 0
         ),
@@ -5366,11 +5423,11 @@ def admin_summary(user: User = Depends(get_content_moderator), db: Session = Dep
             db.scalar(
                 select(func.count())
                 .select_from(StoryPhoto)
-                .where(StoryPhoto.moderated_at.is_(None))
+                .where(StoryPhoto.is_visible.is_(False))
             )
             or 0
         ),
-        pending_house_textures=db.scalar(select(func.count()).select_from(HouseTexture).where(HouseTexture.moderated.is_(False))) or 0,
+        pending_house_textures=db.scalar(select(func.count()).select_from(HouseTexture).where(HouseTexture.is_visible.is_(False))) or 0,
     )
 
 
@@ -5394,6 +5451,7 @@ def present_admin_user(db: Session, user: User, viewer: User) -> AdminUserOut:
         username=user.username,
         nickname=user.nickname,
         title=user.title,
+        avatar_admin_note=user.avatar_admin_note,
         email=user.email if can_see_email else None,
         email_verified=user.email_verified if can_see_email else False,
         is_admin=user.is_admin,
@@ -5433,7 +5491,10 @@ def moderate_user_photo(
     photo = db.get(UserPhoto, photo_id)
     if photo is None:
         raise HTTPException(status_code=404, detail="图片不存在")
+    if not payload.is_visible and not (payload.admin_note or "").strip():
+        raise HTTPException(status_code=422, detail="下架照片时必须填写理由")
     photo.is_visible = payload.is_visible
+    photo.admin_note = payload.admin_note.strip() if payload.admin_note and payload.admin_note.strip() else None
     photo.moderated_by_id = manager.id
     photo.moderated_at = datetime.utcnow()
     commit_moderation(db, photo.file_path, public=payload.is_visible)

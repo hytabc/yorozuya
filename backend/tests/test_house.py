@@ -205,25 +205,28 @@ def test_email_gate_and_moderation(env):
     assert c.patch('/api/house/room/share',headers=h(1),json={'enabled':True}).status_code==403
 
 
-def test_texture_private_approval_retraction_and_delete(env):
+def test_texture_public_default_and_moderation_retraction(env):
     c,h,factory,tmp=env;img=Image.new('RGB',(16,16),'#83a08a');buf=io.BytesIO();img.save(buf,format='PNG')
     texture=c.post('/api/house/textures',headers=h(1),files={'file':('墙纸.png',buf.getvalue(),'image/png')}).json()
-    assert texture['url'].startswith('/api/media/')
+    assert texture['url'].startswith('/uploads/')
     state=copy.deepcopy(STATE);state['wall']['textureId']=texture['id']
     assert c.put('/api/house/room',headers=h(1),json={'revision':0,'state':state}).status_code==200
     sid=share(c,h);visit=c.get('/api/house/visit/'+sid,headers=h(2)).json()
-    assert not visit['textureUrls'] and visit['state']['wall']['textureId'] is None
+    assert visit['textureUrls'][texture['id']].startswith('/uploads/')
+    assert visit['state']['wall']['textureId']==texture['id']
     assert c.get('/api/house/textures',headers=h(2)).json()==[]
     assert c.delete('/api/house/textures/'+str(texture['recordId']),headers=h(2)).status_code==403
     with factory() as db: key=db.get(house.HouseTexture,texture['recordId']).file_path
-    assert c.get('/uploads/'+key).status_code==404
+    assert c.get('/uploads/'+key).status_code==200
     path='/api/admin/house/textures/'+str(texture['recordId'])
+    # 下架必须填理由
+    assert c.patch(path,headers=h(4),json={'is_visible':False}).status_code==422
+    assert c.patch(path,headers=h(4),json={'is_visible':False,'admin_note':'纹理含违规内容'}).status_code==200
+    assert c.get('/uploads/'+key).status_code==404
+    assert not c.get('/api/house/visit/'+sid,headers=h(2)).json()['textureUrls']
     assert c.patch(path,headers=h(4),json={'is_visible':True}).status_code==200
     assert c.get('/uploads/'+key).status_code==200
     assert c.get('/api/house/visit/'+sid,headers=h(2)).json()['textureUrls'][texture['id']]=='/uploads/'+key
-    assert c.patch(path,headers=h(4),json={'is_visible':False}).status_code==200
-    assert c.get('/uploads/'+key).status_code==404
-    assert not c.get('/api/house/visit/'+sid,headers=h(2)).json()['textureUrls']
     assert c.delete('/api/house/textures/'+str(texture['recordId']),headers=h(1)).status_code==204
     assert c.get(texture['url']).status_code==404
 
@@ -231,7 +234,7 @@ def test_texture_private_approval_retraction_and_delete(env):
 def test_texture_move_failure_does_not_publish(env,monkeypatch):
     c,h,factory,_=env
     with factory() as db:
-        db.add(house.HouseTexture(user_id=1,name='测试',file_path='house/test.png'));db.commit()
+        db.add(house.HouseTexture(user_id=1,name='测试',file_path='house/test.png',is_visible=False));db.commit()
     from fastapi import HTTPException
     def fail(*args,**kwargs): raise HTTPException(503,'测试磁盘失败')
     monkeypatch.setattr(media,'place_media',fail)

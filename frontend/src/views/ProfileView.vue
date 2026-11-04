@@ -241,7 +241,8 @@ async function deleteAvatar() {
           </label>
           <button v-if="auth.user.avatar_url" class="icon-button" type="button" title="删除头像" aria-label="删除头像" :disabled="avatarBusy" @click="deleteAvatar"><Trash2 :size="16" /></button>
         </div>
-        <p class="avatar-hint muted">仅支持 PNG / JPG，最大 2 MB；上传后需管理员审核通过才会公开展示。</p>
+        <p class="avatar-hint muted">仅支持 PNG / JPG，最大 2 MB；上传即公开，违规头像会被审核人员下架。</p>
+        <p v-if="auth.user?.avatar_admin_note" class="avatar-hint muted">头像已下架：{{ auth.user.avatar_admin_note }}</p>
         <h2>{{ auth.user.nickname }}</h2><p>@{{ auth.user.username }}</p>
         <div class="profile-role-tags">
           <span v-if="auth.isAdmin" class="admin-tag"><ShieldCheck :size="15" />超级管理员</span>
@@ -298,7 +299,7 @@ async function deleteAvatar() {
           <div class="photo-grid profile-photo-grid">
             <figure v-for="photo in photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
               <LazyImage class="zoomable" :src="photo.image_url" alt="个人介绍图片" @click="openViewer(photo)" />
-              <span v-if="!photo.is_visible" class="photo-blocked"><EyeOff :size="14" />已屏蔽</span>
+              <span v-if="!photo.is_visible" class="photo-blocked"><EyeOff :size="14" />已下架{{ photo.admin_note ? `：${photo.admin_note}` : '' }}</span>
               <button class="icon-button photo-delete" type="button" title="删除图片" aria-label="删除图片" :disabled="photoBusy" @click="deletePhoto(photo)"><Trash2 :size="16" /></button>
             </figure>
             <label v-if="remaining" class="photo-add" :class="{ disabled: photoBusy }">

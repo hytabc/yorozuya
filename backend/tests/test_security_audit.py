@@ -215,7 +215,9 @@ def uploaded_avatar(client, monkeypatch, tmp_path):
     response = client.post("/api/users/me/avatar", headers=headers, files={"avatar": ("a.png", make_png(), "image/png")})
     assert response.status_code == 201
     admin = {"Authorization": "Bearer " + email_tests.login(client, "admin", "Admin123!").json()["access_token"]}
-    return headers, admin, uid, response.json()["avatar_url"].split("?", 1)[0].removeprefix("/api/media/")
+    url = response.json()["avatar_url"].split("?", 1)[0]
+    key = url.removeprefix("/api/media/") if url.startswith("/api/media/") else url.removeprefix("/uploads/")
+    return headers, admin, uid, key
 
 
 def test_failed_revoke_returns_503_and_preserves_db(tmp_path, monkeypatch):
@@ -226,7 +228,9 @@ def test_failed_revoke_returns_503_and_preserves_db(tmp_path, monkeypatch):
         def deny(*args, **kwargs):
             raise PermissionError("simulated")
         monkeypatch.setattr(media.shutil, "move", deny)
-        assert client.patch(route, headers=admin, json={"is_visible": False}).status_code == 503
+        assert client.patch(
+            route, headers=admin, json={"is_visible": False, "admin_note": "头像违规"}
+        ).status_code == 503
         with email_tests.TestingSession() as db:
             assert db.get(User, uid).avatar_visible is True
         assert media.storage_file(key, public=True).is_file()
@@ -263,7 +267,15 @@ def test_delete_failure_preserves_record_and_retry(tmp_path, monkeypatch):
 
 def test_duplicate_and_orphan_public_files_fail_closed(tmp_path, monkeypatch):
     with TestClient(main.app) as client:
-        _, _, _, key = uploaded_avatar(client, monkeypatch, tmp_path)
+        _, admin, uid, key = uploaded_avatar(client, monkeypatch, tmp_path)
+        # 上传即公开，合法公开文件可读
+        assert client.get(f"/uploads/{key}").status_code == 200
+        # 下架后即使公开区还残留同名文件，也不能公开读取（以数据库可见性为准）
+        assert client.patch(
+            f"/api/admin/users/{uid}/avatar",
+            headers=admin,
+            json={"is_visible": False, "admin_note": "头像违规"},
+        ).status_code == 200
         media.write_media(key, make_png(), public=True)
         assert client.get(f"/uploads/{key}").status_code == 404
         media.place_media(key, public=False)

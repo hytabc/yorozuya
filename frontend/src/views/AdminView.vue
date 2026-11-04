@@ -73,8 +73,8 @@ const pendingFeedbacks = computed(() => loadedCount('feedback', feedbacks, (item
 const pendingApplications = computed(() => loadedCount('applications', applications, (item) => item.status === 'pending') ?? stats.value.pending_applications ?? 0)
 const pendingBetaApplications = computed(() => loadedCount('beta-applications', betaApplications, (item) => item.status === 'pending') ?? stats.value.pending_beta_applications ?? 0)
 const pendingVrMapReports = computed(() => loadedCount('vrmaps', vrMapReports, (item) => item.status === 'pending') ?? stats.value.pending_vr_map_reports ?? 0)
-const pendingVrMapPhotos = computed(() => loadedCount('vrmaps', vrMapPhotos, (item) => !item.moderated) ?? stats.value.pending_vr_map_photos ?? 0)
-const pendingStoryPhotos = computed(() => loadedCount('photos', storyPhotos, (item) => !item.moderated) ?? stats.value.pending_story_photos ?? 0)
+const hiddenVrMapPhotos = computed(() => loadedCount('vrmaps', vrMapPhotos, (item) => !item.is_visible) ?? stats.value.pending_vr_map_photos ?? 0)
+const hiddenStoryPhotos = computed(() => loadedCount('photos', storyPhotos, (item) => !item.is_visible) ?? stats.value.pending_story_photos ?? 0)
 const pendingReports = computed(() => loadedCount('reports', reports, (item) => item.status === 'pending') ?? stats.value.pending_reports ?? 0)
 const sortedReports = computed(() => [...reports.value].sort((a, b) => (a.status === 'pending' ? -1 : 1) - (b.status === 'pending' ? -1 : 1)))
 const statItems = computed(() => [
@@ -145,18 +145,36 @@ function loadTab(tab) {
     .finally(() => { state.loading = false })
 }
 async function togglePhoto(user, photo) {
+  let note = null
+  if (photo.is_visible) {
+    note = window.prompt('请输入下架理由（将展示给图片主人）', photo.admin_note || '')
+    if (note === null) return
+    if (!note.trim()) return toast.error('下架图片时必须填写理由')
+  }
   try {
-    const { data } = await api.patch(`/admin/photos/${photo.id}`, { is_visible: !photo.is_visible })
+    const { data } = await api.patch(`/admin/photos/${photo.id}`, {
+      is_visible: !photo.is_visible,
+      admin_note: photo.is_visible ? note.trim() : null,
+    })
     photoUsers.value[photoUsers.value.findIndex((item) => item.id === user.id)] = data
-    toast.success(photo.is_visible ? '图片已屏蔽' : '图片已恢复展示')
+    toast.success(photo.is_visible ? '图片已下架' : '图片已恢复展示')
   } catch (error) { toast.error(errorMessage(error)) }
 }
 async function moderateAvatar(user) {
   const approve = !user.avatar_visible
+  let note = null
+  if (!approve) {
+    note = window.prompt('请输入下架理由（将展示给头像主人）', user.avatar_admin_note || '')
+    if (note === null) return
+    if (!note.trim()) return toast.error('下架头像时必须填写理由')
+  }
   try {
-    const { data } = await api.patch(`/admin/users/${user.id}/avatar`, { is_visible: approve })
+    const { data } = await api.patch(`/admin/users/${user.id}/avatar`, {
+      is_visible: approve,
+      admin_note: approve ? null : note.trim(),
+    })
     photoUsers.value[photoUsers.value.findIndex((item) => item.id === user.id)] = data
-    toast.success(approve ? `已通过 ${data.nickname} 的头像审核` : `已驳回 ${data.nickname} 的头像`)
+    toast.success(approve ? `已恢复 ${data.nickname} 的头像` : `已下架 ${data.nickname} 的头像`)
   } catch (error) { toast.error(errorMessage(error)) }
 }
 async function saveUserLimit(user) {
@@ -320,29 +338,29 @@ async function reviewBetaApplication(item, action) {
 async function moderateSugarPhoto(photo, isVisible) {
   let note = null
   if (!isVisible) {
-    note = window.prompt('请输入屏蔽理由（将展示给照片主人）', photo.admin_note || '')
+    note = window.prompt('请输入下架理由（将展示给照片主人）', photo.admin_note || '')
     if (note === null) return
-    if (!note.trim()) return toast.error('屏蔽照片时必须填写理由')
+    if (!note.trim()) return toast.error('下架照片时必须填写理由')
   }
   moderatingSugarId.value = photo.id
   try {
     const { data } = await api.patch(`/admin/sugar/photos/${photo.id}`, { is_visible: isVisible, admin_note: isVisible ? null : note.trim() })
     sugarPhotos.value[sugarPhotos.value.findIndex((item) => item.id === photo.id)] = data
-    toast.success(isVisible ? '照片已恢复展示' : '照片已屏蔽')
+    toast.success(isVisible ? '照片已恢复展示' : '照片已下架')
   } catch (error) { toast.error(errorMessage(error)) } finally { moderatingSugarId.value = null }
 }
 async function moderateFriendPhoto(photo, isVisible) {
   let note = null
   if (!isVisible) {
-    note = window.prompt('请输入屏蔽理由（将展示给照片主人）', photo.admin_note || '')
+    note = window.prompt('请输入下架理由（将展示给照片主人）', photo.admin_note || '')
     if (note === null) return
-    if (!note.trim()) return toast.error('屏蔽照片时必须填写理由')
+    if (!note.trim()) return toast.error('下架照片时必须填写理由')
   }
   moderatingFriendId.value = photo.id
   try {
     const { data } = await api.patch(`/admin/friends/photos/${photo.id}`, { is_visible: isVisible, admin_note: isVisible ? null : note.trim() })
     friendPhotos.value[friendPhotos.value.findIndex((item) => item.id === photo.id)] = data
-    toast.success(isVisible ? '照片已通过审核' : '照片已屏蔽')
+    toast.success(isVisible ? '照片已恢复展示' : '照片已下架')
   } catch (error) { toast.error(errorMessage(error)) } finally { moderatingFriendId.value = null }
 }
 async function resolveVrMapReport(report, action) {
@@ -361,19 +379,37 @@ async function resolveVrMapReport(report, action) {
 }
 
 async function moderateVrMapPhoto(photo, isVisible) {
+  let note = null
+  if (!isVisible) {
+    note = window.prompt('请输入下架理由（将展示给上传者）', photo.admin_note || '')
+    if (note === null) return
+    if (!note.trim()) return toast.error('下架照片时必须填写理由')
+  }
   moderatingVrPhotoId.value = photo.id
   try {
-    const { data } = await api.patch(`/admin/vr-map-photos/${photo.id}`, { is_visible: isVisible })
+    const { data } = await api.patch(`/admin/vr-map-photos/${photo.id}`, {
+      is_visible: isVisible,
+      admin_note: isVisible ? null : note.trim(),
+    })
     vrMapPhotos.value[vrMapPhotos.value.findIndex((item) => item.id === photo.id)] = data
-    toast.success(isVisible ? '照片已通过审核' : '照片已驳回')
+    toast.success(isVisible ? '照片已恢复展示' : '照片已下架')
   } catch (error) { toast.error(errorMessage(error)) } finally { moderatingVrPhotoId.value = null }
 }
 async function moderateStoryPhoto(photo, isVisible) {
+  let note = null
+  if (!isVisible) {
+    note = window.prompt('请输入下架理由（将展示给作者）', photo.admin_note || '')
+    if (note === null) return
+    if (!note.trim()) return toast.error('下架照片时必须填写理由')
+  }
   moderatingStoryPhotoId.value = photo.id
   try {
-    const { data } = await api.patch(`/admin/story-photos/${photo.id}`, { is_visible: isVisible })
+    const { data } = await api.patch(`/admin/story-photos/${photo.id}`, {
+      is_visible: isVisible,
+      admin_note: isVisible ? null : note.trim(),
+    })
     storyPhotos.value[storyPhotos.value.findIndex((item) => item.id === photo.id)] = data
-    toast.success(isVisible ? '故事配图已通过审核' : '故事配图已驳回')
+    toast.success(isVisible ? '故事配图已恢复展示' : '故事配图已下架')
   } catch (error) { toast.error(errorMessage(error)) } finally { moderatingStoryPhotoId.value = null }
 }
 
@@ -411,10 +447,10 @@ watch(activeTab, (tab) => loadTab(tab))
       <button :class="{ active: activeTab === 'reports' }" role="tab" :aria-selected="activeTab === 'reports'" @click="activeTab = 'reports'">举报处理<span v-if="pendingReports">{{ pendingReports }}</span></button>
       <button v-if="!auth.isDisciplinarian" :class="{ active: activeTab === 'applications' }" role="tab" :aria-selected="activeTab === 'applications'" @click="activeTab = 'applications'">志愿者申请<span v-if="pendingApplications">{{ pendingApplications }}</span></button>
       <button v-if="!auth.isDisciplinarian" :class="{ active: activeTab === 'beta-applications' }" role="tab" :aria-selected="activeTab === 'beta-applications'" @click="activeTab = 'beta-applications'">内测申请<span v-if="pendingBetaApplications">{{ pendingBetaApplications }}</span></button>
-      <button :class="{ active: activeTab === 'vrmaps' }" role="tab" :aria-selected="activeTab === 'vrmaps'" @click="activeTab = 'vrmaps'">地图推荐<span v-if="pendingVrMapReports + pendingVrMapPhotos">{{ pendingVrMapReports + pendingVrMapPhotos }}</span></button>
+      <button :class="{ active: activeTab === 'vrmaps' }" role="tab" :aria-selected="activeTab === 'vrmaps'" @click="activeTab = 'vrmaps'">地图推荐<span v-if="pendingVrMapReports + hiddenVrMapPhotos">{{ pendingVrMapReports + hiddenVrMapPhotos }}</span></button>
       <button v-if="!auth.isDisciplinarian" :class="{ active: activeTab === 'users' }" role="tab" :aria-selected="activeTab === 'users'" @click="activeTab = 'users'">用户与权限</button>
       <button :class="{ active: activeTab === 'house' }" role="tab" :aria-selected="activeTab === 'house'" @click="activeTab = 'house'">房屋管理</button>
-      <button :class="{ active: activeTab === 'photos' }" role="tab" :aria-selected="activeTab === 'photos'" @click="activeTab = 'photos'">图片管理<span v-if="pendingStoryPhotos + (stats.pending_house_textures || 0)">{{ pendingStoryPhotos + (stats.pending_house_textures || 0) }}</span></button>
+      <button :class="{ active: activeTab === 'photos' }" role="tab" :aria-selected="activeTab === 'photos'" @click="activeTab = 'photos'">图片管理<span v-if="hiddenStoryPhotos + (stats.pending_house_textures || 0)">{{ hiddenStoryPhotos + (stats.pending_house_textures || 0) }}</span></button>
       <button v-if="!auth.isDisciplinarian" :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
       <button :class="{ active: activeTab === 'rating-appeals' }" role="tab" :aria-selected="activeTab === 'rating-appeals'" @click="activeTab = 'rating-appeals'">评价申诉</button>
     </div>
@@ -511,16 +547,15 @@ watch(activeTab, (tab) => loadTab(tab))
       </ul>
       <div v-else class="feedback-admin-empty"><MapIcon :size="28" />暂无地图举报</div>
 
-      <div class="admin-toolbar vrmap-photo-toolbar"><div><h2>地图实拍照片审核</h2><span>待审核 {{ pendingVrMapPhotos }} 张</span></div><span class="muted">通过后照片会在地图详情页公开展示</span></div>
+      <div class="admin-toolbar vrmap-photo-toolbar"><div><h2>地图实拍照片</h2><span>已下架 {{ hiddenVrMapPhotos }} 张</span></div><span class="muted">上传即公开；发现违规可下架，下架需填写理由</span></div>
       <div v-if="isFirstLoad('vrmaps')" class="moderation-photo-grid vrmap-photo-grid" aria-hidden="true"><figure v-for="i in 6" :key="i" class="skeleton-block" /></div>
       <div v-else-if="vrMapPhotos.length" class="moderation-photo-grid vrmap-photo-grid">
         <figure v-for="photo in vrMapPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
           <LazyImage :src="photo.image_url" :alt="`${photo.map_name} 的实拍照片`" />
-          <span v-if="!photo.moderated" class="photo-blocked vrmap-photo-state"><Clock3 :size="14" />审核中</span>
-          <span v-else-if="!photo.is_visible" class="photo-blocked vrmap-photo-state"><EyeOff :size="14" />已驳回</span>
+          <span v-if="!photo.is_visible" class="photo-blocked vrmap-photo-state"><EyeOff :size="14" />{{ photo.admin_note || '已下架' }}</span>
           <div class="fb-actions vrmap-photo-actions">
-            <button v-if="!photo.is_visible" class="button secondary small" :disabled="moderatingVrPhotoId === photo.id" @click="moderateVrMapPhoto(photo, true)"><Check :size="15" />通过</button>
-            <button v-else class="button secondary small" :disabled="moderatingVrPhotoId === photo.id" @click="moderateVrMapPhoto(photo, false)"><EyeOff :size="15" />驳回</button>
+            <button v-if="!photo.is_visible" class="button secondary small" :disabled="moderatingVrPhotoId === photo.id" @click="moderateVrMapPhoto(photo, true)"><Check :size="15" />恢复</button>
+            <button v-else class="button secondary small" :disabled="moderatingVrPhotoId === photo.id" @click="moderateVrMapPhoto(photo, false)"><EyeOff :size="15" />下架</button>
           </div>
           <figcaption class="muted">{{ photo.map_name }} · {{ photo.user.nickname }}</figcaption>
         </figure>
@@ -583,7 +618,7 @@ watch(activeTab, (tab) => loadTab(tab))
     </section>
 
     <section v-else-if="activeTab === 'photos'" class="admin-table-section">
-      <div class="admin-toolbar"><div><h2>用户介绍图片</h2><span>不适合展示的图片可手动屏蔽</span></div></div>
+      <div class="admin-toolbar"><div><h2>用户介绍图片</h2><span>上传即公开；不适合展示的图片可下架</span></div></div>
       <div v-if="isFirstLoad('photos')" class="moderation-photo-grid sugar-photos" aria-hidden="true"><figure v-for="i in 6" :key="i" class="skeleton-block" /></div>
       <template v-else>
         <div v-if="photoUsers.length" class="moderation-users">
@@ -592,9 +627,9 @@ watch(activeTab, (tab) => loadTab(tab))
             <div v-if="user.avatar_url" class="moderation-avatar-row">
               <figure class="moderation-avatar" :class="{ blocked: !user.avatar_visible }">
                 <LazyImage :src="user.avatar_url" :alt="`${user.nickname} 的头像`" />
-                <span v-if="!user.avatar_visible" class="photo-blocked"><Clock3 :size="14" />审核中</span>
+                <span v-if="!user.avatar_visible" class="photo-blocked"><EyeOff :size="14" />{{ user.avatar_admin_note || '已下架' }}</span>
                 <button class="button secondary small" type="button" @click="moderateAvatar(user)">
-                  <Check v-if="!user.avatar_visible" :size="15" /><EyeOff v-else :size="15" />{{ user.avatar_visible ? '驳回' : '通过' }}
+                  <Check v-if="!user.avatar_visible" :size="15" /><EyeOff v-else :size="15" />{{ user.avatar_visible ? '下架' : '恢复' }}
                 </button>
               </figure>
               <span class="muted">头像</span>
@@ -602,8 +637,9 @@ watch(activeTab, (tab) => loadTab(tab))
             <div v-if="user.photos.length" class="moderation-photo-grid">
               <figure v-for="photo in user.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
                 <LazyImage :src="photo.image_url" :alt="`${user.nickname} 的介绍图片`" />
+                <span v-if="!photo.is_visible" class="photo-blocked"><EyeOff :size="14" />{{ photo.admin_note || '已下架' }}</span>
                 <button class="button secondary small" type="button" @click="togglePhoto(user, photo)">
-                  <EyeOff v-if="photo.is_visible" :size="15" /><Eye v-else :size="15" />{{ photo.is_visible ? '屏蔽' : '恢复' }}
+                  <EyeOff v-if="photo.is_visible" :size="15" /><Eye v-else :size="15" />{{ photo.is_visible ? '下架' : '恢复' }}
                 </button>
               </figure>
             </div>
@@ -611,18 +647,17 @@ watch(activeTab, (tab) => loadTab(tab))
         </div>
         <div v-else-if="!sugarPhotos.length" class="feedback-admin-empty"><ImageIcon :size="28" />暂无用户图片</div>
 
-        <div class="admin-toolbar sugar-photos-toolbar"><div><h2>砂糖社照片</h2><span>屏蔽时需填写理由，理由会展示给照片主人</span></div></div>
+        <div class="admin-toolbar sugar-photos-toolbar"><div><h2>砂糖社照片</h2><span>上传即公开；下架时需填写理由，理由会展示给照片主人</span></div></div>
         <div v-if="sugarPhotos.length" class="moderation-photo-grid sugar-photos">
           <figure v-for="photo in sugarPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
             <LazyImage :src="photo.image_url" :alt="`${photo.user.nickname} 的砂糖社照片`" />
-            <span v-if="!photo.moderated" class="photo-blocked sugar-blocked"><Clock3 :size="14" />审核中</span>
-            <span v-else-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.admin_note }}</span>
+            <span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.admin_note || '已下架' }}</span>
             <div class="sugar-photo-actions">
               <button v-if="!photo.is_visible" class="button secondary small" type="button" :disabled="moderatingSugarId === photo.id" @click="moderateSugarPhoto(photo, true)">
-                <Check :size="15" />通过
+                <Check :size="15" />恢复
               </button>
               <button v-else class="button secondary small" type="button" :disabled="moderatingSugarId === photo.id" @click="moderateSugarPhoto(photo, false)">
-                <EyeOff :size="15" />屏蔽
+                <EyeOff :size="15" />下架
               </button>
             </div>
             <figcaption class="muted">{{ photo.user.nickname }}</figcaption>
@@ -630,30 +665,28 @@ watch(activeTab, (tab) => loadTab(tab))
         </div>
         <div v-else class="feedback-admin-empty"><ImageIcon :size="28" />暂无砂糖社照片</div>
 
-        <div class="admin-toolbar sugar-photos-toolbar"><div><h2>交友厅照片</h2><span>新上传照片需审核后才会公开展示</span></div></div>
+        <div class="admin-toolbar sugar-photos-toolbar"><div><h2>交友厅照片</h2><span>上传即公开；发现违规可下架，下架需填写理由</span></div></div>
         <div v-if="friendPhotos.length" class="moderation-photo-grid sugar-photos">
           <figure v-for="photo in friendPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
             <LazyImage :src="photo.image_url" :alt="`${photo.user.nickname} 的交友厅照片`" />
-            <span v-if="!photo.moderated" class="photo-blocked sugar-blocked"><Clock3 :size="14" />审核中</span>
-            <span v-else-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.admin_note }}</span>
+            <span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.admin_note || '已下架' }}</span>
             <div class="sugar-photo-actions">
-              <button v-if="!photo.is_visible" class="button secondary small" type="button" :disabled="moderatingFriendId === photo.id" @click="moderateFriendPhoto(photo, true)"><Check :size="15" />通过</button>
-              <button v-else class="button secondary small" type="button" :disabled="moderatingFriendId === photo.id" @click="moderateFriendPhoto(photo, false)"><EyeOff :size="15" />屏蔽</button>
+              <button v-if="!photo.is_visible" class="button secondary small" type="button" :disabled="moderatingFriendId === photo.id" @click="moderateFriendPhoto(photo, true)"><Check :size="15" />恢复</button>
+              <button v-else class="button secondary small" type="button" :disabled="moderatingFriendId === photo.id" @click="moderateFriendPhoto(photo, false)"><EyeOff :size="15" />下架</button>
             </div>
             <figcaption class="muted">{{ photo.user.nickname }}</figcaption>
           </figure>
         </div>
         <div v-else class="feedback-admin-empty"><ImageIcon :size="28" />暂无交友厅照片</div>
 
-        <div class="admin-toolbar sugar-photos-toolbar"><div><h2>故事配图</h2><span>待审核 {{ pendingStoryPhotos }} 张 · 通过后才会在故事会公开展示</span></div></div>
+        <div class="admin-toolbar sugar-photos-toolbar"><div><h2>故事配图</h2><span>已下架 {{ hiddenStoryPhotos }} 张 · 上传即公开，发现违规可下架</span></div></div>
         <div v-if="storyPhotos.length" class="moderation-photo-grid sugar-photos">
           <figure v-for="photo in storyPhotos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
             <LazyImage :src="photo.image_url" :alt="`${photo.story_title} 的故事配图`" />
-            <span v-if="!photo.moderated" class="photo-blocked sugar-blocked"><Clock3 :size="14" />审核中</span>
-            <span v-else-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />已驳回</span>
+            <span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.admin_note || '已下架' }}</span>
             <div class="sugar-photo-actions">
-              <button v-if="!photo.is_visible" class="button secondary small" type="button" :disabled="moderatingStoryPhotoId === photo.id" @click="moderateStoryPhoto(photo, true)"><Check :size="15" />通过</button>
-              <button v-else class="button secondary small" type="button" :disabled="moderatingStoryPhotoId === photo.id" @click="moderateStoryPhoto(photo, false)"><EyeOff :size="15" />驳回</button>
+              <button v-if="!photo.is_visible" class="button secondary small" type="button" :disabled="moderatingStoryPhotoId === photo.id" @click="moderateStoryPhoto(photo, true)"><Check :size="15" />恢复</button>
+              <button v-else class="button secondary small" type="button" :disabled="moderatingStoryPhotoId === photo.id" @click="moderateStoryPhoto(photo, false)"><EyeOff :size="15" />下架</button>
             </div>
             <figcaption class="muted">{{ photo.story_title }} · {{ photo.user.nickname }}</figcaption>
           </figure>

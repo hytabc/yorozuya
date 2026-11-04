@@ -82,7 +82,7 @@ onMounted(async () => {
       <div v-if="user.photos?.length" class="user-profile-photos">
         <figure v-for="photo in user.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
           <LazyImage class="zoomable" :src="photo.image_url" :alt="`${user.nickname} 的介绍图片`" @click="openViewer(photo)" />
-          <span v-if="!photo.is_visible"><EyeOff :size="13" />已屏蔽</span>
+          <span v-if="!photo.is_visible"><EyeOff :size="13" />已下架{{ photo.admin_note ? `：${photo.admin_note}` : '' }}</span>
         </figure>
       </div>
       <RouterLink class="text-link user-card-portfolio" :to="`/creators/${user.id}`">查看作品集与凭证</RouterLink>
