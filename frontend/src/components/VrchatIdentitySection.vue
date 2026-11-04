@@ -193,7 +193,7 @@ defineExpose({ load })
             <strong>把验证码保存到 VRChat 个人简介</strong>
             <p>打开 VRChat 官网的个人资料，把下面这串码完整保存到简介里，然后点击“开始验证”。</p>
             <p class="vrchat-challenge-code"><code>{{ status.challenge.code }}</code><button type="button" class="button small secondary" @click="copyCode"><Copy :size="14" />复制</button></p>
-            <p class="field-hint">有效期至 {{ formatDate(status.challenge.expires_at) }}；验证成功后可以删掉简介里的码。</p>
+            <p class="field-hint">有效期至 {{ formatDate(status.challenge.expires_at) }}；建议把验证码放在简介最前面，避免被“Read More”折叠或长度截断，保存后稍等 10-60 秒再验证。</p>
             <p v-if="challengeExpired" class="form-error">验证码已过期，请重新生成。</p>
             <p v-else-if="locked" class="form-error">验证失败次数过多，请 {{ formatDate(status.challenge_locked_until) }} 后再试。</p>
             <div class="dialog-actions">

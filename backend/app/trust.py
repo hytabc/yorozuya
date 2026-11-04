@@ -740,11 +740,19 @@ def link_check(user: User = Depends(get_current_user), db: Session = Depends(get
             identity.challenge_locked_until = now + timedelta(seconds=CHALLENGE_COOLDOWN_SECONDS)
             identity.challenge_failures = 0
         db.commit()
-        detail = (
-            "VRChat 返回的简介为空，未找到验证码；请确认个人资料可见性，或稍等缓存刷新后再试"
-            if not bio.strip()
-            else "简介中未找到验证码；请确认码完整写在 Bio 中、未被截断，并稍等 10-60 秒后再试"
-        )
+        bio_len = len(bio)
+        if not bio.strip():
+            detail = "VRChat 返回的简介为空，未找到验证码；请确认个人资料可见性，或稍等缓存刷新后再试"
+        elif bio_len >= 500:
+            detail = (
+                f"简介已接近/达到长度上限（已读取到 {bio_len} 个字符），验证码可能被截断；"
+                "请把验证码放在简介最前面，稍等缓存刷新后再试"
+            )
+        else:
+            detail = (
+                f"简介中未找到验证码（已读取到 {bio_len} 个字符）；"
+                "请把验证码放在简介最前面，并确认资料可见性、稍等 10-60 秒后再试"
+            )
         raise HTTPException(status_code=409, detail=detail)
 
     apply_profile(identity, profile)
