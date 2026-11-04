@@ -907,7 +907,7 @@ def share_task_og(
         f"<meta property=\"og:title\" content=\"{escape(title)}\">"
         f"<meta property=\"og:description\" content=\"{escape(description)}\">"
         f"<meta property=\"og:url\" content=\"{escape(target)}\">"
-        f"<meta property=\"og:image\" content=\"{escape(base)}/brand/og-16x9.png\">"
+        f"<meta property=\"og:image\" content=\"{escape(base)}/og-16x9.png\">"
         f"<meta name=\"twitter:card\" content=\"summary_large_image\">"
         f"<meta http-equiv=\"refresh\" content=\"0; url=/?task={task.id}{f'&ref={ref}' if ref else ''}\">"
         "</head><body>"

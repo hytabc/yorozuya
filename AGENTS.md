@@ -237,7 +237,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - **等级**（`levels.py`）：Lv1~10 由 lifetime 推导（0/50/150/350/700/1200/2000/3200/5000/8000）；接单上限 `max(管理员设置, 2+Lv//3)`、悬赏上限 `Lv×20`、Lv3 起可发悬赏；委托人评分（≥5 条）<3.0 悬赏减半、<2.5 禁悬赏/多人、<2.0 每日发布上限 1。
 - **排行榜**（`rankings.py`）：积分/接单人评分/委托人评分/真实委托四榜，官方委托与 `__official__` 不计入；`users.rank_opt_out` 可退出，开关已移到 `/rankings` 页。
 - **邀请**（`invites.py`）：每人 8 位永久码，注册或 7 天内绑定；被邀请人首单完成后邀请人 +20 / 被邀请人 +10，邀请人每月最多 5 个有效邀请。
-- **分享**（`shares.py` + `GET /share/task/{id}`）：`task_shares` 记渠道；OG 落地页只输出转义后的 meta 并跳回 SPA，分享链接可带 `?ref=<邀请码>`。
+- **分享**（`shares.py` + `GET /share/task/{id}`）：`task_shares` 记渠道（`dialog/copy/qrcode/native/poster`）；`ShareDialog.vue` 用 Canvas 生成 1080×1440（3:4）与 1080×1920（9:16）海报，二维码嵌入、客户端导出 PNG，状态丝带与匿名/官方文案由 `sharePoster.js` 统一；OG 落地页只输出转义后的 meta 并跳回 SPA（统一 OG 图在 `/og-16x9.png`），分享链接可带 `?ref=<邀请码>`。
 - **人生记录**（`records.py`）：`GET /api/users/{id}/records` 汇总等级/完成数/评分/成就/常做分类；个人设置已拆出 `/achievements` 与 `/footprints`，足迹页展示同一份数据与积分流水，个人页只留入口卡片。
 - 前端：`/daily`、`/rankings`、`/achievements`、`/footprints`（「更多」入口）、`RatingSection`、`AchievementWall`、`LifeRecords`、`ShareDialog`；官方委托在大厅卡片上带「官方」标记；条款见 `/terms` 七~九节。
 - 回归：`backend/tests/test_points.py`、`test_ratings.py`、`test_daily.py`、`test_official.py`、`test_achievements.py`、`test_levels.py`、`test_rankings.py`、`test_records.py`、`test_invite.py`、`test_share.py`（后端已到 298 个用例）。

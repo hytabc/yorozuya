@@ -158,7 +158,7 @@ class UserPublic(ApiModel):
 
 
 class ShareCreate(RequestModel):
-    channel: Literal["dialog", "copy", "qrcode", "native"] = "dialog"
+    channel: Literal["dialog", "copy", "qrcode", "native", "poster"] = "dialog"
 
 
 class InviteBindRequest(RequestModel):
