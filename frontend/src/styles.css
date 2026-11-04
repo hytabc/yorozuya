@@ -302,6 +302,17 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .daily-reward { display: inline-flex; align-items: center; gap: 4px; color: var(--yellow); font-weight: 700; font-size: 13px; }
 @media (max-width: 720px) { .daily-list > li { grid-template-columns: 1fr; } }
 .daily-official { margin-top: 26px; display: grid; gap: 10px; }
+.achievement-wall { display: grid; gap: 14px; }
+.achievement-summary { margin: 0; font-size: 12px; }
+.achievement-group { display: grid; gap: 8px; }
+.achievement-category { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--muted); }
+.achievement-group ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.achievement-group li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); }
+.achievement-group li.locked { opacity: .55; }
+.achievement-group li > div { flex: 1; display: grid; gap: 2px; }
+.achievement-group small { font-size: 12px; color: var(--muted); }
+.achievement-progress { color: var(--green); }
+.achievement-reward { font-size: 12px; font-weight: 700; color: var(--yellow); }
 .pay-tag.pay-paid { color: #9a4f17; background: #fdf0e3; }
 .pay-tag.pay-free { color: var(--green); background: var(--green-soft); }
 .role-tag { color: #805066; background: #f4eaf0; }

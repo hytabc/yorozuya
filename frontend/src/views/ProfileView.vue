@@ -13,6 +13,7 @@ import UserTitleTag from '../components/UserTitleTag.vue'
 import LazyImage from '../components/LazyImage.vue'
 import ImageLightbox from '../components/ImageLightbox.vue'
 import VrchatIdentitySection from '../components/VrchatIdentitySection.vue'
+import AchievementWall from '../components/AchievementWall.vue'
 import MyCredentialsSection from '../components/MyCredentialsSection.vue'
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
@@ -322,6 +323,10 @@ async function deleteAvatar() {
           <button class="button secondary small guide-replay" type="button" @click="replayGuide">
             <Compass :size="15" />重新查看新手引导
           </button>
+        </div>
+        <div class="profile-appearance-section">
+          <div class="section-heading compact"><div><span class="section-index">08</span><h2>成就</h2><p>完成委托、获得好评、参与社区都会解锁成就并获得终身积分</p></div></div>
+          <AchievementWall />
         </div>
         <VrchatIdentitySection />
         <MyCredentialsSection />

@@ -173,6 +173,24 @@ class DailyTaskOut(BaseModel):
     can_claim: bool = False
 
 
+class AchievementOut(ApiModel):
+    key: str
+    category: str
+    name: str
+    description: str
+    reward: int = 0
+    target: int = 1
+    progress: int = 0
+    unlocked: bool = False
+    unlocked_at: datetime | None = None
+
+
+class AchievementWallOut(BaseModel):
+    unlocked: int = 0
+    total: int = 0
+    items: list[AchievementOut] = []
+
+
 class OfficialQuestOut(BaseModel):
     key: str
     label: str
