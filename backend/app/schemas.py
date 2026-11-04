@@ -235,6 +235,25 @@ class CaptchaChallenge(ApiModel):
     vaptcha_vid: str | None = None
 
 
+FacetTypeLiteral = Literal["skill", "platform", "world", "atmosphere"]
+
+
+class TaskFacetIn(RequestModel):
+    """创建/修改委托时提交的模块化标签；白名单与数量上限由 facets.py 校验。"""
+
+    facet_type: FacetTypeLiteral
+    value: str = Field(min_length=1, max_length=64)
+
+
+class TaskFacetUpdate(RequestModel):
+    facets: list[TaskFacetIn] = Field(default_factory=list, max_length=16)
+
+
+class TaskFacetOut(BaseModel):
+    facet_type: str
+    value: str
+
+
 class TaskCreate(RequestModel):
     title: str = Field(min_length=2, max_length=80)
     description: str = Field(min_length=10, max_length=3000)
@@ -251,6 +270,8 @@ class TaskCreate(RequestModel):
     # 匿名发布：大厅仅展示标题和内容，接取后联系方式仅双方可见。
     is_anonymous: bool = False
     expires_in_days: Literal[1, 2, 3, 5, 10]
+    # 模块化标签：技能 / 平台 / 参考 World / 氛围，均可选。
+    facets: list[TaskFacetIn] = Field(default_factory=list, max_length=16)
 
 
 class AcceptRequest(RequestModel):
@@ -311,6 +332,8 @@ class TaskOut(ApiModel):
     started_at: datetime | None = None
     completed_at: datetime | None = None
     cancelled_at: datetime | None = None
+    # 模块化标签由各端点批量预取后填充；旧委托没有标签时为空数组。
+    facets: list[TaskFacetOut] = []
 
 
 class AdminTaskUpdate(RequestModel):

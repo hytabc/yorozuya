@@ -6,7 +6,9 @@ import { api, errorMessage } from '../api'
 import { track } from '../analytics'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
-import { CATEGORIES } from '../constants'
+import { CATEGORIES, TASK_SKILLS, TASK_PLATFORMS, ATMOSPHERE_GROUPS, FACET_LIMITS } from '../constants'
+import { buildFacets } from '../facets'
+import TaskFacetChips from './TaskFacetChips.vue'
 import UserTitleTag from './UserTitleTag.vue'
 
 const emit = defineEmits(['close', 'created'])
@@ -23,6 +25,34 @@ const designated = ref(false)
 const designatedIds = ref([])
 const designatedUsers = computed(() => [...directory.value.staff, ...directory.value.volunteers])
 const expiryOptions = [1, 2, 3, 5, 10]
+// 模块化标签：全部可选，不填写也能正常发布（旧委托兼容）。
+const skills = ref([])
+const platforms = ref([])
+const worlds = ref([])
+const worldInput = ref('')
+const worldError = ref('')
+const atmosphere = reactive(Object.fromEntries(ATMOSPHERE_GROUPS.map((group) => [group.key, []])))
+const atmosphereValues = computed(() => Object.values(atmosphere).flat())
+
+function addWorld() {
+  const value = worldInput.value.trim()
+  if (!value) return
+  if (worlds.value.length >= FACET_LIMITS.world) {
+    worldError.value = `参考 World 最多选择 ${FACET_LIMITS.world} 个`
+    return
+  }
+  if (value.length > 60) {
+    worldError.value = '参考 World 名称不能超过 60 个字符'
+    return
+  }
+  if (!worlds.value.includes(value)) worlds.value.push(value)
+  worldInput.value = ''
+  worldError.value = ''
+}
+function removeWorld(value) {
+  worlds.value = worlds.value.filter((item) => item !== value)
+  worldError.value = ''
+}
 const form = reactive({
   title: '',
   description: '',
@@ -51,6 +81,12 @@ async function submit() {
       reward: form.pay_type === 'paid' ? (form.reward || null) : null,
       accept_password: passwordless.value ? null : form.accept_password,
       designated_user_ids: designated.value ? designatedIds.value : [],
+      facets: buildFacets({
+        skills: skills.value,
+        platforms: platforms.value,
+        worlds: worlds.value,
+        atmosphere: atmosphereValues.value,
+      }),
     }
     const { data } = await api.post('/tasks', payload)
     toast.success(designated.value ? '指定委托已发布，等待被指定人员响应' : (unlimited.value || form.required_takers === 1 ? '委托已发布' : '委托已发布，凑齐人数后自动开始'))
@@ -94,6 +130,24 @@ onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeE
           </div>
         </div>
         <label v-if="form.pay_type === 'paid'">报酬说明<input v-model.trim="form.reward" maxlength="60" placeholder="如：50 元 / 一杯奶茶" /></label>
+        <div class="facet-section">
+          <span class="eyebrow">技能与平台（可选）</span>
+          <TaskFacetChips v-model="skills" label="技能" :options="TASK_SKILLS" :max="FACET_LIMITS.skill" hint="选填，帮助合适的人更快找到这份委托。" />
+          <TaskFacetChips v-model="platforms" label="期望平台" :options="TASK_PLATFORMS" :max="FACET_LIMITS.platform" />
+          <div class="facet-field">
+            <span class="taker-label">参考 World<small class="muted">（最多 {{ FACET_LIMITS.world }} 个）</small></span>
+            <div class="taker-row">
+              <input v-model="worldInput" maxlength="60" placeholder="填写 World 名称或链接" aria-label="参考 World" @keydown.enter.prevent="addWorld" />
+              <button type="button" class="button small secondary" :disabled="!worldInput.trim()" @click="addWorld">添加</button>
+            </div>
+            <div v-if="worlds.length" class="facet-chip-row">
+              <button v-for="world in worlds" :key="world" type="button" class="facet-chip active" @click="removeWorld(world)">{{ world }} ×</button>
+            </div>
+            <small v-if="worldError" class="field-error">{{ worldError }}</small>
+          </div>
+          <span class="eyebrow">氛围标签（可选）</span>
+          <TaskFacetChips v-for="group in ATMOSPHERE_GROUPS" :key="group.key" v-model="atmosphere[group.key]" :label="group.label" :options="group.options" single />
+        </div>
         <div class="taker-field">
           <span class="taker-label">需要几人接取</span>
           <div class="taker-row">

@@ -12,7 +12,8 @@ import CreateTaskDialog from '../components/CreateTaskDialog.vue'
 import FeedbackDialog from '../components/FeedbackDialog.vue'
 import AnnouncementPrompt from '../components/AnnouncementPrompt.vue'
 import { markAnnouncementsSeen, unseenAnnouncements } from '../composables/announcementPrompt'
-import { CATEGORIES } from '../constants'
+import { CATEGORIES, TASK_SKILLS, TASK_PLATFORMS, ATMOSPHERE_TAGS } from '../constants'
+import { facetQueryParams } from '../facets'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -26,14 +27,21 @@ const activeAnnouncements = ref([])
 const promptAnnouncements = ref([])
 const showAnnouncementPrompt = ref(false)
 const busy = ref(false)
-const filters = reactive({ search: '', category: '', status: auth.isAdmin || auth.isStaff ? '' : 'published', pay_type: '' })
+const filters = reactive({ search: '', category: '', status: auth.isAdmin || auth.isStaff ? '' : 'published', pay_type: '', skill: '', platform: '', atmosphere: '' })
 const categories = CATEGORIES
+const skillOptions = TASK_SKILLS
+const platformOptions = TASK_PLATFORMS
+const atmosphereOptions = ATMOSPHERE_TAGS
 const payOptions = [
   { value: '', label: '全部报酬' },
   { value: 'paid', label: '有偿' },
   { value: 'free', label: '无偿' },
 ]
 const isManager = computed(() => auth.isAdmin || auth.isStaff)
+const hasFilters = computed(() => Boolean(
+  filters.search || filters.category || filters.pay_type || filters.skill || filters.platform || filters.atmosphere
+  || filters.status !== (isManager.value ? '' : 'published'),
+))
 // 普通用户在大厅只能查看招募中的委托；超级管理员/管理员可查看全部状态。
 const statuses = computed(() => isManager.value
   ? [{ value: '', label: '全部状态' }, { value: 'published', label: '招募中' }, { value: 'accepted', label: '处理中' }, { value: 'awaiting', label: '待确认' }, { value: 'cancelling', label: '取消确认中' }, { value: 'completed', label: '已完成' }, { value: 'expired', label: '已过期' }]
@@ -68,12 +76,22 @@ let timer
 async function load() {
   loading.value = true
   try {
-    const params = { search: filters.search, category: filters.category, status: filters.status }
+    const params = { search: filters.search, category: filters.category, status: filters.status, ...facetQueryParams(filters) }
     if (filters.pay_type) params.pay_type = filters.pay_type
     const { data } = await api.get('/tasks', { params })
     tasks.value = data
   } catch (error) { toast.error(errorMessage(error, '委托加载失败')) } finally { loading.value = false }
   loadStats()
+}
+function clearFilters() {
+  filters.search = ''
+  filters.category = ''
+  filters.pay_type = ''
+  filters.skill = ''
+  filters.platform = ''
+  filters.atmosphere = ''
+  filters.status = isManager.value ? '' : 'published'
+  load()
 }
 function create() {
   if (!auth.isLoggedIn) return router.push({ path: '/login', query: { redirect: '/' } })
@@ -167,10 +185,16 @@ watch(() => auth.ready, (ready) => { if (ready) loadAnnouncements() }, { immedia
         <select v-model="filters.pay_type" aria-label="报酬筛选" @change="load"><option v-for="item in payOptions" :key="item.value" :value="item.value">{{ item.label }}</option></select>
         <select v-model="filters.category" aria-label="分类筛选" @change="load"><option value="">全部分类</option><option v-for="item in categories" :key="item">{{ item }}</option></select>
       </div>
+      <div class="filterbar facet-filterbar">
+        <select v-model="filters.skill" aria-label="技能筛选" @change="load"><option value="">全部技能</option><option v-for="item in skillOptions" :key="item">{{ item }}</option></select>
+        <select v-model="filters.platform" aria-label="平台筛选" @change="load"><option value="">全部平台</option><option v-for="item in platformOptions" :key="item">{{ item }}</option></select>
+        <select v-model="filters.atmosphere" aria-label="氛围筛选" @change="load"><option value="">全部氛围</option><option v-for="item in atmosphereOptions" :key="item">{{ item }}</option></select>
+        <button v-if="hasFilters" class="button secondary small" type="button" @click="clearFilters">清除筛选</button>
+      </div>
 
       <div v-if="loading" class="task-grid"><div v-for="i in 6" :key="i" class="task-card skeleton" /></div>
       <div v-else-if="tasks.length" class="task-grid"><TaskCard v-for="task in tasks" :key="task.id" :task="task" @select="openTask" /></div>
-      <div v-else class="empty-state"><span>空</span><h3>没有找到相关委托</h3><p>调整筛选条件，或发布第一份委托。</p><button class="button secondary" @click="create">发布委托</button></div>
+      <div v-else class="empty-state"><span>空</span><h3>这片区域暂时没有符合条件的委托</h3><p>试试清除筛选，或发布一份你真正需要的委托。</p><div class="empty-actions"><button v-if="hasFilters" class="button secondary" @click="clearFilters">清除筛选</button><button class="button" @click="create">发布委托</button></div></div>
     </section>
 
     <section class="disclaimer" aria-label="平台免责声明">

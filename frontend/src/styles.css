@@ -172,6 +172,23 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .user-card-head .role-tag { padding: 3px 8px; border-radius: 3px; }
 .admin-tag + .role-tag { margin-left: 8px; }
 .confirm-hint { color: var(--red); background: var(--red-soft); }
+/* 委托模块化标签（技能 / 平台 / World / 氛围） */
+.facet-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.facet-chip { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 10px; border: 1px solid var(--line); border-radius: 14px; color: #52605a; background: white; font-size: 12px; cursor: pointer; transition: border-color .15s, color .15s, background .15s; }
+.facet-chip:hover:not(:disabled) { border-color: #87928c; }
+.facet-chip.active { border-color: var(--green); color: #1d6649; background: var(--green-soft); font-weight: 650; }
+.facet-chip:disabled { opacity: .45; cursor: not-allowed; }
+.facet-chip.static { cursor: default; background: #f4f6f4; }
+.facet-field { display: grid; gap: 7px; }
+.facet-section { display: grid; gap: 16px; padding-top: 18px; border-top: 1px solid var(--line); }
+.facet-section > .eyebrow { margin: 0; }
+.task-facets { display: flex; flex-wrap: wrap; gap: 5px; margin: -6px 0 14px; }
+.task-facets .facet-chip.static { min-height: 22px; padding: 0 8px; font-size: 11px; }
+.facet-groups { display: grid; gap: 10px; margin: 18px 0; padding: 16px 18px; border: 1px solid var(--line); border-radius: 6px; background: #fafbfa; }
+.facet-group { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.facet-group-label { min-width: 74px; color: var(--muted); font-size: 12px; font-weight: 650; }
+.filterbar.facet-filterbar { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin: -12px 0 22px; }
+.empty-state .empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 14px; }
 .task-card h3 { margin: 18px 0 10px; overflow-wrap: anywhere; font-size: 18px; line-height: 1.45; }
 .task-summary { display: -webkit-box; margin-bottom: 20px; overflow: hidden; color: var(--muted); font-size: 13px; line-height: 1.7; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .task-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: auto; padding-top: 15px; border-top: 1px solid #e7eae8; color: #707a75; font-size: 11px; }

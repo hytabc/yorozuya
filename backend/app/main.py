@@ -166,6 +166,7 @@ from .schemas import (
     TalkThreadDetailPageOut,
     TalkThreadListOut,
     TaskCreate,
+    TaskFacetOut,
     TaskMemberOut,
     TaskOut,
     TaskReportOut,
@@ -221,6 +222,14 @@ from .security import (
 )
 from .sugar_frost import router as sugar_frost_router
 from .house import HouseTexture, admin_router as house_admin_router, router as house_router, seed_house_catalog
+from .facets import (
+    facet_filter_ids,
+    facets_for_task,
+    facets_for_tasks,
+    router as task_facets_router,
+    store_facets,
+    validate_facets,
+)
 from .virtual_life import router as virtual_life_router
 from .virtual_life_packs import router as virtual_life_packs_router, seed_virtual_life_packs
 
@@ -664,6 +673,9 @@ app.include_router(virtual_life_packs_router)
 app.include_router(sugar_frost_router)
 app.include_router(house_router)
 app.include_router(house_admin_router)
+# 委托模块化标签（技能 / 平台 / World / 氛围）：/api/tasks/facets 必须早于
+# 下方的 /api/tasks/{task_id} 注册，否则会被路径参数吞掉。
+app.include_router(task_facets_router)
 
 
 def expire_due_tasks(db: Session) -> None:
@@ -940,8 +952,14 @@ def present_members(task: Task, viewer: User | None) -> list[TaskMemberOut]:
     return out
 
 
-def present_task(task: Task, viewer: User | None = None) -> TaskOut:
+def present_task(
+    task: Task,
+    viewer: User | None = None,
+    facets: list[TaskFacetOut] | None = None,
+) -> TaskOut:
     data = TaskOut.model_validate(task)
+    # 标签由调用方批量预取（列表接口避免 N+1）；未传时按空数组处理，旧委托兼容。
+    data.facets = facets or []
     data.reported = any(report.status == ReportStatus.PENDING for report in task.reports)
     # 取消发起者属于内部协作信息，只对委托人/接单人/管理员组暴露。
     if not (is_task_participant(task, viewer) or is_task_manager(viewer)):
@@ -4041,6 +4059,10 @@ def list_tasks(
     category: str = Query(default=""),
     task_status: Annotated[TaskStatusFilter, Query(alias="status")] = None,
     pay_type: str = Query(default=""),
+    skill: str = Query(default=""),
+    platform: str = Query(default=""),
+    world: str = Query(default=""),
+    atmosphere: str = Query(default=""),
     viewer: User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
@@ -4058,8 +4080,18 @@ def list_tasks(
         query = query.where(Task.status == TaskStatus.PUBLISHED)
     if pay_type in ("paid", "free"):
         query = query.where(Task.pay_type == pay_type)
+    # 模块化标签筛选：多个条件之间是「且」的关系，空值表示不筛选。
+    for facet_type, value in (
+        ("skill", skill),
+        ("platform", platform),
+        ("world", world),
+        ("atmosphere", atmosphere),
+    ):
+        if value:
+            query = query.where(Task.id.in_(facet_filter_ids(facet_type, value)))
     tasks = db.scalars(query.order_by(Task.created_at.desc()).limit(200)).unique().all()
-    return [present_task(task, viewer) for task in tasks]
+    facets = facets_for_tasks(db, [task.id for task in tasks])
+    return [present_task(task, viewer, facets.get(task.id, [])) for task in tasks]
 
 
 @app.get("/api/tasks/stats", response_model=TaskStats)
@@ -4098,7 +4130,8 @@ def my_tasks(user: User = Depends(get_current_user), db: Session = Depends(get_d
         user.role == UserRole.STAFF,
     )
     tasks = db.scalars(task_query().where(participation, visibility).order_by(Task.updated_at.desc())).unique().all()
-    return [present_task(task, user) for task in tasks]
+    facets = facets_for_tasks(db, [task.id for task in tasks])
+    return [present_task(task, user, facets.get(task.id, [])) for task in tasks]
 
 
 @app.get("/api/tasks/{task_id}", response_model=TaskOut)
@@ -4117,7 +4150,7 @@ def task_detail(task_id: int, viewer: User | None = Depends(get_optional_user), 
     if reported or task.status != TaskStatus.PUBLISHED:
         if not is_task_manager(viewer) and not is_task_participant(task, viewer):
             raise HTTPException(status_code=404, detail="委托不存在")
-    return present_task(task, viewer)
+    return present_task(task, viewer, facets_for_task(db, task_id))
 
 
 @app.post("/api/tasks", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
@@ -4143,6 +4176,8 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
             raise HTTPException(status_code=422, detail="只能指定当前可用的管理员或志愿者")
     if payload.category not in TASK_CATEGORIES:
         raise HTTPException(status_code=422, detail="委托分类不正确")
+    # 标签先校验再落库：非法标签不会留下半成品委托。
+    facet_items = validate_facets(payload.facets)
     task = Task(
         title=payload.title.strip(),
         description=payload.description.strip(),
@@ -4159,6 +4194,7 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
     )
     db.add(task)
     db.flush()
+    store_facets(db, task.id, facet_items)
     for designated_user in designated_users:
         db.add(
             TaskMember(
@@ -4168,7 +4204,7 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
             )
         )
     db.commit()
-    return present_task(get_task_or_404(db, task.id), user)
+    return present_task(get_task_or_404(db, task.id), user, facets_for_task(db, task.id))
 
 
 @app.post("/api/tasks/{task_id}/report", response_model=TaskReportOut, status_code=status.HTTP_201_CREATED)

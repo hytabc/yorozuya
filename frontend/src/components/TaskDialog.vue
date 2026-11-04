@@ -6,6 +6,7 @@ import ReportDialog from './ReportDialog.vue'
 import StatusBadge from './StatusBadge.vue'
 import UserProfileCard from './UserProfileCard.vue'
 import UserTitleTag from './UserTitleTag.vue'
+import { facetGroups } from '../facets'
 
 const props = defineProps({ task: { type: Object, required: true }, busy: Boolean })
 const emit = defineEmits(['close', 'action', 'reported'])
@@ -30,6 +31,8 @@ const working = computed(() => props.task.status === 'accepted' || props.task.st
 const finished = computed(() => props.task.status === 'completed')
 const requiresPassword = computed(() => props.task.requires_password !== false)
 const anonymousView = computed(() => props.task.is_anonymous && props.task.publisher.id === 0)
+// 标签按「技能 / 平台 / 参考 World / 氛围」分组；旧委托没有标签时整块不渲染。
+const facets = computed(() => facetGroups(props.task.facets))
 
 const required = computed(() => props.task.required_takers)
 const requiredText = computed(() => (required.value == null ? '不限' : `${required.value} 人`))
@@ -104,6 +107,12 @@ function resetPassword() {
         <h2>{{ task.title }}</h2>
       </div>
       <p class="task-description">{{ task.description }}</p>
+      <div v-if="facets.length" class="facet-groups" aria-label="委托标签">
+        <div v-for="group in facets" :key="group.key" class="facet-group">
+          <span class="facet-group-label">{{ group.label }}</span>
+          <span v-for="value in group.values" :key="value" class="facet-chip static">{{ value }}</span>
+        </div>
+      </div>
       <dl class="task-detail-grid">
         <div><dt><UserRound :size="16" />委托人</dt><dd><button v-if="task.publisher.id > 0" class="name-link" type="button" @click="openProfile(task.publisher.id)">{{ task.publisher.nickname }}<UserTitleTag :title="task.publisher.title" /></button><span v-else class="muted">匿名委托人</span></dd></div>
         <div><dt><CalendarClock :size="16" />有效期至</dt><dd>{{ format(task.expires_at) }}</dd></div>

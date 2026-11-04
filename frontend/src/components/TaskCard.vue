@@ -4,6 +4,7 @@ import { CalendarClock, Coins, EyeOff, Ghost, LockOpen, UserRound, UsersRound } 
 import StatusBadge from './StatusBadge.vue'
 import UserTitleTag from './UserTitleTag.vue'
 import { useAuthStore } from '../stores/auth'
+import { cardFacets } from '../facets'
 
 const props = defineProps({ task: { type: Object, required: true }, showRole: Boolean, hint: String })
 defineEmits(['select'])
@@ -23,6 +24,8 @@ const role = computed(() => {
 
 const requiredText = computed(() => (props.task.required_takers == null ? '不限' : props.task.required_takers))
 const joined = computed(() => props.task.members?.filter((m) => m.response_status === 'accepted').length || 0)
+// 卡片只承担「快速判断」：最多 3 个技能 + 1 个平台，其余折叠为 +N。
+const facets = computed(() => cardFacets(props.task.facets))
 </script>
 
 <template>
@@ -41,6 +44,11 @@ const joined = computed(() => props.task.members?.filter((m) => m.response_statu
       <EyeOff v-if="!task.is_visible" :size="18" class="muted" aria-label="已隐藏" />
     </div>
     <h3>{{ task.title }}</h3>
+    <div v-if="facets.platform || facets.skills.length" class="task-facets">
+      <span v-if="facets.platform" class="facet-chip static">{{ facets.platform }}</span>
+      <span v-for="skill in facets.skills" :key="skill" class="facet-chip static">{{ skill }}</span>
+      <span v-if="facets.moreSkills" class="facet-chip static">+{{ facets.moreSkills }}</span>
+    </div>
     <p class="task-summary">{{ task.description }}</p>
     <div class="task-meta">
       <span><UserRound :size="15" />{{ task.publisher.nickname }}<UserTitleTag :title="task.publisher.title" /></span>
