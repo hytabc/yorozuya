@@ -13,7 +13,12 @@ const toast = useToast()
 const canvas = ref(null)
 const copied = ref(false)
 // 用服务端的 OG 落地页：微信/QQ 能拿到标题与描述，随后自动跳回 SPA 详情。
-const url = computed(() => `${window.location.origin}/share/task/${props.task.id}`)
+// 登录用户分享时附带自己的邀请码，落地页会转交给注册页。
+const url = computed(() => {
+  const ref = auth.user?.invite_code
+  const suffix = ref ? `?ref=${encodeURIComponent(ref)}` : ''
+  return `${window.location.origin}/share/task/${props.task.id}${suffix}`
+})
 const canNativeShare = computed(() => typeof navigator !== 'undefined' && Boolean(navigator.share))
 
 async function record(channel) {

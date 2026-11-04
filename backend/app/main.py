@@ -249,6 +249,8 @@ from .points import router as points_router
 from . import ratings as ratings_module
 from .ratings import router as ratings_router
 from .shares import router as shares_router
+from . import invites as invites_module
+from .invites import router as invites_router
 from .events import router as events_router
 from .virtual_life import router as virtual_life_router
 from .virtual_life_packs import router as virtual_life_packs_router, seed_virtual_life_packs
@@ -321,6 +323,7 @@ def initialize_database() -> None:
                     password_hash=hash_password(password),
                     nickname=settings.admin_nickname,
                     is_admin=True,
+                    invite_code=invites_module.generate_invite_code(db),
                 )
             )
             db.commit()
@@ -438,6 +441,36 @@ def migrate_schema() -> None:
             connection.execute(
                 text("CREATE INDEX IF NOT EXISTS ix_users_lifetime_points ON users (lifetime_points)")
             )
+            # 邀请码：存量账号补生成（唯一索引允许 NULL，因此可以逐行安全填充）。
+            if "invite_code" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN invite_code VARCHAR(12)"))
+            if "invited_by_id" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN invited_by_id INTEGER"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS ix_users_invited_by_id ON users (invited_by_id)"))
+            connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_invite_code ON users (invite_code)"))
+            missing_codes = connection.execute(
+                text("SELECT id FROM users WHERE invite_code IS NULL")
+            ).fetchall()
+            if missing_codes:
+                used = {
+                    row[0]
+                    for row in connection.execute(
+                        text("SELECT invite_code FROM users WHERE invite_code IS NOT NULL")
+                    ).fetchall()
+                }
+                for (user_id,) in missing_codes:
+                    while True:
+                        code = "".join(
+                            secrets.choice(invites_module.INVITE_ALPHABET)
+                            for _ in range(invites_module.INVITE_CODE_LENGTH)
+                        )
+                        if code not in used:
+                            break
+                    used.add(code)
+                    connection.execute(
+                        text("UPDATE users SET invite_code = :code WHERE id = :id"),
+                        {"code": code, "id": user_id},
+                    )
             # SQLite 的 ALTER 不能加唯一约束，因此单独建唯一索引；
             # 唯一索引不限制 NULL，存量账号在被强制补充绑定前 email 为空，彼此不冲突。
             connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (email)"))
@@ -743,10 +776,16 @@ app.include_router(events_router)
 app.include_router(points_router)
 app.include_router(ratings_router)
 app.include_router(shares_router)
+app.include_router(invites_router)
 
 
 @app.get("/share/task/{task_id}", response_class=HTMLResponse, include_in_schema=False)
-def share_task_og(task_id: int, request: Request, db: Session = Depends(get_db)):
+def share_task_og(
+    task_id: int,
+    request: Request,
+    ref: str = Query(default="", max_length=12),
+    db: Session = Depends(get_db),
+):
     """分享落地页：只输出 OG meta 并立即跳到 SPA 详情。
 
     不渲染任何用户内容、不加载脚本，避免成为可被注入的公开页面。
@@ -765,6 +804,9 @@ def share_task_og(task_id: int, request: Request, db: Session = Depends(get_db))
     if not task.is_anonymous and task.publisher is not None:
         description += f" · 发布人 {task.publisher.nickname}"
     target = f"{base}/?task={task.id}"
+    ref = re.sub(r"[^A-Za-z0-9]", "", ref)[:12]
+    if ref:
+        target += f"&ref={ref}"
     escape = html_module.escape
     body = (
         "<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\">"
@@ -778,7 +820,7 @@ def share_task_og(task_id: int, request: Request, db: Session = Depends(get_db))
         f"<meta property=\"og:url\" content=\"{escape(target)}\">"
         f"<meta property=\"og:image\" content=\"{escape(base)}/brand/og-16x9.png\">"
         f"<meta name=\"twitter:card\" content=\"summary_large_image\">"
-        f"<meta http-equiv=\"refresh\" content=\"0; url=/?task={task.id}\">"
+        f"<meta http-equiv=\"refresh\" content=\"0; url=/?task={task.id}{f'&ref={ref}' if ref else ''}\">"
         "</head><body>"
         f"<p><a href=\"/?task={task.id}\">正在打开《{escape(task.title)}》…</a></p>"
         "</body></html>"
@@ -1024,6 +1066,9 @@ def present_user_self(user: User) -> UserSelf:
         is_active=user.is_active,
         role=user.role,
         max_concurrent_tasks=user.max_concurrent_tasks,
+        lifetime_points=user.lifetime_points,
+        wallet_points=user.wallet_points,
+        invite_code=user.invite_code,
         created_at=user.created_at,
     )
 
@@ -1934,9 +1979,15 @@ async def register(payload: RegisterRequest, request: Request, db: Session = Dep
         nickname=payload.nickname,
         email=email,
         email_verified=False,
+        invite_code=invites_module.generate_invite_code(db),
     )
     db.add(user)
     db.flush()
+    if payload.invite_code:
+        # 邀请码不存在时不让注册失败：注册本身与邀请解耦，用户可稍后在个人设置补填。
+        inviter = invites_module.resolve_code(db, payload.invite_code)
+        if inviter is not None and inviter.id != user.id:
+            user.invited_by_id = inviter.id
     await _send_verification_mail(db, user, request)
     db.commit()
     return RegisterPendingOut(email_masked=mask_email(email))
@@ -4645,6 +4696,14 @@ def confirm_task(
         # 不会出现「已完成但没有凭证 / 没有积分」或重复发放。
         credentials_module.issue_for_task(db, task)
         points_module.award_task_completion(db, task)
+        # 被邀请人的首个完成委托触发邀请奖励（幂等，按人检查）。
+        participants = {task.publisher_id} | {
+            member.user_id for member in task.members if member.response_status == TaskMemberResponse.ACCEPTED
+        }
+        for participant_id in participants:
+            participant = db.get(User, participant_id)
+            if participant is not None:
+                invites_module.maybe_reward_invite(db, participant)
     elif any(member.confirmed_at is not None for member in task.members) or task.publisher_confirmed_at is not None:
         task.status = TaskStatus.AWAITING
     else:

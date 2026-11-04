@@ -117,6 +117,9 @@ class User(Base):
     is_beta_tester: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     # 会话令牌版本：修改密码时自增，使此前签发的所有登录令牌立即失效。
     token_version: Mapped[int] = mapped_column(default=0)
+    # 邀请：每个账号一个永久邀请码；invited_by_id 在注册或注册后 7 天内绑定，终身不可改。
+    invite_code: Mapped[str | None] = mapped_column(String(12), unique=True, nullable=True, index=True)
+    invited_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     # 头像：仅存相对 uploads 目录的路径；上传后需管理员审核（avatar_visible）才公开展示。
     avatar_path: Mapped[str | None] = mapped_column(String(255), nullable=True)

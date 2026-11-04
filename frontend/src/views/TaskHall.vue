@@ -226,7 +226,13 @@ watch(
   maybeStartOnboarding,
   { flush: 'post' },
 )
-onMounted(() => { load(); bootPrompts(); loadSiteFlags(); openTaskFromQuery() })
+onMounted(() => {
+  // 分享落地页会带 ?ref=<邀请码>：先存下来，注册页再读取。
+  if (typeof route.query.ref === 'string' && route.query.ref) {
+    try { sessionStorage.setItem('wsw_ref', route.query.ref.slice(0, 12)) } catch { /* 隐私模式忽略 */ }
+  }
+  load(); bootPrompts(); loadSiteFlags(); openTaskFromQuery()
+})
 watch(() => route.query.task, openTaskFromQuery)
 watch(() => auth.ready, (ready) => {
   if (!ready) return

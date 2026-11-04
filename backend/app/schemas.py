@@ -70,6 +70,8 @@ class RegisterRequest(RequestModel):
     # 人机验证：builtin 用 captcha_id + captcha_code；turnstile 用 captcha_code 传 token。
     captcha_id: str = Field(default="", max_length=128)
     captcha_code: str = Field(default="", max_length=4096)
+    # 可选邀请码：注册时填写，注册后 7 天内也可补填一次。
+    invite_code: str | None = Field(default=None, max_length=12)
 
 
 class LoginRequest(RequestModel):
@@ -156,6 +158,21 @@ class ShareCreate(RequestModel):
     channel: Literal["dialog", "copy", "qrcode", "native"] = "dialog"
 
 
+class InviteBindRequest(RequestModel):
+    code: str = Field(min_length=4, max_length=12)
+
+
+class InviteInfoOut(BaseModel):
+    code: str
+    invited_total: int = 0
+    valid_this_month: int = 0
+    monthly_limit: int = 5
+    inviter_bonus: int = 20
+    invitee_bonus: int = 10
+    invited_by: bool = False
+    can_bind: bool = False
+
+
 class ShareOut(BaseModel):
     path: str
     title: str
@@ -222,6 +239,8 @@ class UserSelf(UserPublic):
     lifetime_points: int = 0
     # 钱包余额只对本人返回；公开资料里没有这个字段。
     wallet_points: int = 0
+    # 邀请码：前端分享时附带 ?ref=，便于把分享和邀请绑定。
+    invite_code: str | None = None
     is_beta_tester: bool = False
     created_at: datetime
 

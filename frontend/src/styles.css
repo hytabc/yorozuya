@@ -284,6 +284,10 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .share-qr figcaption { max-width: 260px; font-size: 12px; text-align: center; }
 .share-link-field input { font-size: 13px; }
 .share-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.invite-box { display: grid; gap: 10px; padding: 14px 16px; border: 1px dashed var(--line); border-radius: 8px; background: var(--green-soft); }
+.invite-code { display: flex; align-items: baseline; gap: 10px; }
+.invite-code strong { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 20px; letter-spacing: 2px; color: #1d6649; }
+.invite-stats { font-size: 12px; }
 .pay-tag.pay-paid { color: #9a4f17; background: #fdf0e3; }
 .pay-tag.pay-free { color: var(--green); background: var(--green-soft); }
 .role-tag { color: #805066; background: #f4eaf0; }

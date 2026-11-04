@@ -75,6 +75,11 @@ def test_og_landing_page_escapes_and_hides_anonymous_publisher():
         assert "icon" not in body  # 不渲染任何用户内容
         assert "用户og_pub" not in body  # 匿名委托不暴露发布人
 
+        # 邀请码随分享传递，但只保留字母数字并截断。
+        with_ref = client.get(f"/share/task/{task['id']}", params={"ref": "AB<script>12"}).text
+        assert "ref=ABscript12" in with_ref or "ref=ABscript12" in with_ref.lower()
+        assert "<script>" not in with_ref
+
         # 已完成/不存在的委托不再作为分享落地页，直接回首页。
         not_found = client.get("/share/task/999999")
         assert not_found.status_code == 200
