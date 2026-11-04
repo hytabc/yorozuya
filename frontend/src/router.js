@@ -19,6 +19,7 @@ const router = createRouter({
     { path: '/forgot-password', component: () => import('./views/ForgotPasswordView.vue'), meta: { analyticsKey: 'forgot-password' } },
     { path: '/reset-password', component: () => import('./views/ResetPasswordView.vue'), meta: { analyticsKey: 'reset-password' } },
     { path: '/mine', component: () => import('./views/MyTasks.vue'), meta: { auth: true, analyticsKey: 'mine' } },
+    { path: '/daily', component: () => import('./views/DailyView.vue'), meta: { auth: true, analyticsKey: 'daily' } },
     { path: '/profile', component: () => import('./views/ProfileView.vue'), meta: { auth: true, analyticsKey: 'profile' } },
     { path: '/staff', component: () => import('./views/StaffView.vue'), meta: { analyticsKey: 'staff' } },
     { path: '/board', component: () => import('./views/BoardView.vue'), meta: { analyticsKey: 'board' } },

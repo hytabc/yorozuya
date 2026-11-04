@@ -251,6 +251,7 @@ from .ratings import router as ratings_router
 from .shares import router as shares_router
 from . import invites as invites_module
 from .invites import router as invites_router
+from .daily import router as daily_router
 from .events import router as events_router
 from .virtual_life import router as virtual_life_router
 from .virtual_life_packs import router as virtual_life_packs_router, seed_virtual_life_packs
@@ -777,6 +778,7 @@ app.include_router(points_router)
 app.include_router(ratings_router)
 app.include_router(shares_router)
 app.include_router(invites_router)
+app.include_router(daily_router)
 
 
 @app.get("/share/task/{task_id}", response_class=HTMLResponse, include_in_schema=False)
@@ -858,6 +860,7 @@ TALK_BOARDS = {
 
 PAGE_LABELS = {
     "house": "房屋",
+    "daily": "每日任务",
     "hall": "委托大厅",
     "talk": "疑难解答",
     "staff": "成员名录",

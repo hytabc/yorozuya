@@ -162,6 +162,32 @@ class InviteBindRequest(RequestModel):
     code: str = Field(min_length=4, max_length=12)
 
 
+class DailyTaskOut(BaseModel):
+    key: str
+    label: str
+    detail: str = ""
+    reward: int = 0
+    target: int = 1
+    progress: int = 0
+    claimed: bool = False
+    can_claim: bool = False
+
+
+class DailyOut(BaseModel):
+    day: str
+    items: list[DailyTaskOut] = []
+    claimed_count: int = 0
+
+
+class DailyClaimOut(BaseModel):
+    key: str
+    reward: int = 0
+    day: str
+    lifetime_points: int = 0
+    wallet_points: int = 0
+    daily: DailyOut
+
+
 class InviteInfoOut(BaseModel):
     code: str
     invited_total: int = 0
@@ -788,7 +814,7 @@ PageKeyLiteral = Literal[
     "hall", "staff", "board", "talk", "maps", "friends", "stories", "sugar",
     "announcements", "versions", "mine", "profile", "login", "frost",
     "operations", "admin", "life", "life-admin", "house", "terms",
-    "creator", "credential",
+    "creator", "credential", "daily",
     "verify-email", "forgot-password", "reset-password",
 ]
 

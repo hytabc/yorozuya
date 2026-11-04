@@ -288,6 +288,19 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .invite-code { display: flex; align-items: baseline; gap: 10px; }
 .invite-code strong { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 20px; letter-spacing: 2px; color: #1d6649; }
 .invite-stats { font-size: 12px; }
+.daily-summary { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 13px; }
+.daily-summary > span { display: inline-flex; align-items: center; gap: 6px; }
+.daily-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.daily-list > li { display: grid; grid-template-columns: minmax(0, 1fr) 140px 78px auto; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid var(--line); border-left: 3px solid var(--green); border-radius: 6px; background: var(--paper); }
+.daily-list > li.done { border-left-color: var(--muted); opacity: .72; }
+.daily-list > li.clear { border-left-color: var(--yellow); }
+.daily-main { display: grid; gap: 3px; }
+.daily-main strong { display: inline-flex; align-items: center; gap: 6px; }
+.daily-progress { display: grid; gap: 4px; }
+.daily-bar { height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.daily-bar i { display: block; height: 100%; background: var(--green); }
+.daily-reward { display: inline-flex; align-items: center; gap: 4px; color: var(--yellow); font-weight: 700; font-size: 13px; }
+@media (max-width: 720px) { .daily-list > li { grid-template-columns: 1fr; } }
 .pay-tag.pay-paid { color: #9a4f17; background: #fdf0e3; }
 .pay-tag.pay-free { color: var(--green); background: var(--green-soft); }
 .role-tag { color: #805066; background: #f4eaf0; }
