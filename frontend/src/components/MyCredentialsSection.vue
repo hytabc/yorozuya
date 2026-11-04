@@ -27,7 +27,7 @@ onMounted(load)
   <div class="profile-credentials-section">
     <div class="section-heading compact">
       <div>
-        <span class="section-index">07</span>
+        <span class="section-index">09</span>
         <h2>我的凭证</h2>
         <p>完成委托后自动签发；公开的凭证会出现在你的作品集里</p>
       </div>

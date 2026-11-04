@@ -80,6 +80,7 @@ def _completed_participation_count(db: Session, user_id: int) -> int:
         select(func.count()).select_from(Task).where(
             Task.publisher_id == user_id,
             Task.status == TaskStatus.COMPLETED,
+            Task.is_official.is_(False),
         )
     ) or 0
     taken = db.scalar(
@@ -90,6 +91,7 @@ def _completed_participation_count(db: Session, user_id: int) -> int:
             TaskMember.user_id == user_id,
             TaskMember.response_status == TaskMemberResponse.ACCEPTED,
             Task.status == TaskStatus.COMPLETED,
+            Task.is_official.is_(False),
         )
     ) or 0
     return published + taken

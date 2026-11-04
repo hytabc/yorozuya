@@ -16,7 +16,7 @@ from .dependencies import get_current_user
 from .models import Task, User
 from .schemas import ShareCreate, ShareOut
 
-SHARE_CHANNELS = {"dialog", "copy", "qrcode", "native"}
+SHARE_CHANNELS = {"dialog", "copy", "qrcode", "native", "poster"}
 
 
 class TaskShare(Base):

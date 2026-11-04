@@ -254,7 +254,7 @@ onBeforeUnmount(clearPendingPhotos)
           <label>介绍<textarea v-model="form.about" rows="5" maxlength="1000" placeholder="写下想让别人认识的你" /><small>{{ form.about.length }}/1000</small></label>
           <div class="photo-field"><span>照片 <small>单张不超过 5 MiB，最多 {{ MAX_PHOTOS }} 张</small></span>
             <div class="photo-grid edit">
-              <figure v-for="photo in ownProfile?.photos || []" :key="photo.id" :class="{ blocked: !photo.is_visible }"><img :src="photo.image_url" alt="已上传照片" /><span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.moderated ? `已屏蔽：${photo.admin_note || '未说明理由'}` : '待审核' }}</span><button class="icon-button photo-delete" type="button" title="删除照片" aria-label="删除照片" @click="deletePhoto(photo)"><Trash2 :size="15" /></button></figure>
+              <figure v-for="photo in ownProfile?.photos || []" :key="photo.id" :class="{ blocked: !photo.is_visible }"><img :src="photo.image_url" alt="已上传照片" /><span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />已下架：{{ photo.admin_note || '未说明理由' }}</span><button class="icon-button photo-delete" type="button" title="删除照片" aria-label="删除照片" @click="deletePhoto(photo)"><Trash2 :size="15" /></button></figure>
               <figure v-for="(photo, index) in pendingPhotos" :key="photo.url"><img :src="photo.url" alt="待上传照片" /><button class="icon-button photo-delete" type="button" title="移除照片" aria-label="移除照片" @click="removePending(index)"><X :size="15" /></button></figure>
               <label v-if="canAddPhotos" class="photo-add"><ImagePlus :size="22" /><input type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple @change="selectPhotos" /></label>
             </div>
@@ -273,7 +273,7 @@ onBeforeUnmount(clearPendingPhotos)
           <div class="photo-grid detail">
             <figure v-for="photo in detail.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
               <LazyImage class="zoomable" :src="photo.image_url" :alt="`${detail.user.nickname} 的照片`" @click="openViewer(photo, detail.user.nickname)" />
-              <span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />{{ photo.moderated ? `已屏蔽：${photo.admin_note || '未说明理由'}` : '待审核' }}</span>
+              <span v-if="!photo.is_visible" class="photo-blocked sugar-blocked"><EyeOff :size="14" />已下架：{{ photo.admin_note || '未说明理由' }}</span>
             </figure>
           </div>
           <p class="sugar-about">{{ detail.about }}</p>

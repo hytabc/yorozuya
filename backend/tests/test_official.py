@@ -90,6 +90,52 @@ def test_completion_requires_real_activity(monkeypatch):
         assert ratings["slots"] == [] and ratings["can_rate"] is False
 
 
+def test_official_completion_stays_out_of_real_boards(monkeypatch):
+    enable_official(monkeypatch)
+    with TestClient(app) as client:
+        taker = auth(client, "official_boards", role="volunteer")
+        target = official_tasks(client)[0]
+        with api_tests.TestingSession() as db:
+            db.execute(
+                text("UPDATE tasks SET official_key = 'board_post', base_points = 5 WHERE id = :id"),
+                {"id": target["id"]},
+            )
+            db.commit()
+
+        client.post(f"/api/tasks/{target['id']}/accept", headers=taker)
+        client.post("/api/board", headers=taker, json={"content": "官方委托不计入真实榜的测试留言"})
+        done = client.post(f"/api/tasks/{target['id']}/confirm", headers=taker)
+        assert done.status_code == 200, done.text
+        uid = client.get("/api/auth/me", headers=taker).json()["id"]
+
+        # 官方积分保留，但完成数榜不计官方委托。
+        assert client.get("/api/points/me", headers=taker).json()["lifetime_points"] == 5
+        points_board = client.get("/api/rankings", params={"board": "points"}).json()
+        assert any(item["user"]["id"] == uid for item in points_board["items"])
+        completed_board = client.get("/api/rankings", params={"board": "completed"}).json()
+        assert all(item["user"]["id"] != uid for item in completed_board["items"])
+
+        # 足迹与成就的完成类统计也不计官方委托。
+        records = client.get(f"/api/users/{uid}/records").json()
+        assert records["completed_taken"] == 0 and records["completed_published"] == 0
+        assert records["top_categories"] == []
+        achievements = client.get("/api/achievements", headers=taker).json()
+        first_done = next(item for item in achievements["items"] if item["key"] == "first_done")
+        assert first_done["unlocked"] is False and first_done["progress"] == 0
+
+        # 评分体系完全忽略官方委托：即使超过 7 天也不会自动补评。
+        with api_tests.TestingSession() as db:
+            db.execute(
+                text("UPDATE tasks SET completed_at = :past WHERE id = :id"),
+                {"past": datetime.utcnow() - timedelta(days=8), "id": target["id"]},
+            )
+            db.commit()
+        summary = client.get(f"/api/users/{uid}/rating-summary").json()
+        assert summary["taker"]["count"] == 0 and summary["publisher"]["count"] == 0
+        ratings = client.get(f"/api/users/{uid}/ratings", params={"role": "taker"}).json()
+        assert ratings["total"] == 0
+
+
 def test_expired_official_tasks_rotate(monkeypatch):
     enable_official(monkeypatch)
     with TestClient(app) as client:

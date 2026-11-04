@@ -83,8 +83,9 @@ class HouseTexture(Base):
     user_id: Mapped[int] = mapped_column(Integer, index=True)
     name: Mapped[str] = mapped_column(String(64))
     file_path: Mapped[str] = mapped_column(String(160), unique=True)
-    is_visible: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_visible: Mapped[bool] = mapped_column(Boolean, default=True)
     moderated: Mapped[bool] = mapped_column(Boolean, default=False)
+    admin_note: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
 
 class HouseLike(Base):
@@ -200,6 +201,7 @@ class RoomSave(RequestModel):
 
 class Visibility(RequestModel):
     is_visible: bool
+    admin_note: str | None = Field(default=None, max_length=200)
 
 
 class PublicFlag(RequestModel):
@@ -236,6 +238,7 @@ def texture_card(t, viewer=None):
     allowed = t.is_visible or viewer and (viewer.id == t.user_id or is_moderator(viewer))
     return {'id': f'upload-{t.id}', 'recordId': t.id, 'name': t.name, 'creatorId': t.user_id,
             'isVisible': t.is_visible, 'moderated': t.moderated,
+            'adminNote': t.admin_note if allowed else None,
             'url': media_url(t.file_path, public=t.is_visible) if allowed else None}
 
 
@@ -602,9 +605,9 @@ async def upload_texture(file:UploadFile=File(...),user:User=Depends(get_current
     if len(content)>10*1024*1024: raise HTTPException(413,'纹理图片不能超过10 MB')
     ext,clean=normalize_image(content,allowed=AVATAR_SIGNATURES,format_hint='仅支持 PNG 或 JPEG 纹理')
     key=f'house/{uuid4().hex}{ext}'
-    t=HouseTexture(user_id=user.id,name=(file.filename or '自定义纹理')[:64],file_path=key)
+    t=HouseTexture(user_id=user.id,name=(file.filename or '自定义纹理')[:64],file_path=key,is_visible=True)
     try:
-        write_media(key,clean,public=False); db.add(t); db.commit()
+        write_media(key,clean,public=True); db.add(t); db.commit()
     except Exception:
         db.rollback(); delete_media(key); raise HTTPException(503,'纹理保存失败，请稍后重试')
     return texture_card(t,user)
@@ -640,7 +643,12 @@ def moderate(kind:Literal['rooms','furniture','textures'],ident:str,payload:Visi
     if kind=='textures' and not ident.isdigit(): raise HTTPException(404,'纹理不存在')
     item=db.get(model,int(ident) if kind=='textures' else ident)
     if not item: raise HTTPException(404,'内容不存在')
+    if kind=='textures' and not payload.is_visible and not (payload.admin_note or '').strip():
+        raise HTTPException(422,'下架纹理时必须填写理由')
     item.is_visible=payload.is_visible
-    if kind=='textures': item.moderated=True; commit_moderation(db,item.file_path,public=payload.is_visible)
+    if kind=='textures':
+        item.moderated=True
+        item.admin_note=payload.admin_note.strip() if payload.admin_note and payload.admin_note.strip() else None
+        commit_moderation(db,item.file_path,public=payload.is_visible)
     else: db.commit()
     return {'isVisible':item.is_visible}

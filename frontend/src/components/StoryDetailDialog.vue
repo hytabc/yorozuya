@@ -115,8 +115,8 @@ onBeforeUnmount(() => { document.body.classList.remove('modal-open'); window.rem
             <LazyImage :src="photo.image_url" :alt="`${story.title} 的配图`" />
           </figure>
           <figure v-for="photo in myPendingPhotos" :key="photo.id" class="blocked">
-            <img :src="photo.image_url" alt="我上传的待审核配图" />
-            <span class="photo-blocked"><EyeOff :size="14" />{{ photo.moderated ? '未通过审核' : '审核中' }}</span>
+            <img :src="photo.image_url" alt="我上传的已下架配图" />
+            <span class="photo-blocked"><EyeOff :size="14" />已下架：{{ photo.admin_note || '未说明理由' }}</span>
           </figure>
         </div>
 

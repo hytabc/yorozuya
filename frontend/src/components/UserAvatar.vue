@@ -14,7 +14,7 @@ defineProps({
   >
     <LazyImage v-if="user.avatar_url" :src="user.avatar_url" :alt="`${user.nickname} 的头像`" />
     <template v-else>{{ user.nickname?.slice(0, 1) || '?' }}</template>
-    <span v-if="user.avatar_url && !user.avatar_visible" class="u-avatar-pending">审核中</span>
+    <span v-if="user.avatar_url && !user.avatar_visible" class="u-avatar-pending">已下架</span>
   </span>
 </template>
 

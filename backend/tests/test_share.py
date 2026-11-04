@@ -28,6 +28,9 @@ def test_share_records_once_per_task_per_day():
 
         # 同一委托重复分享不重复计数，换一份委托才 +1。
         client.post(f"/api/tasks/{task['id']}/share", headers=publisher, json={"channel": "qrcode"})
+        poster = client.post(f"/api/tasks/{task['id']}/share", headers=publisher, json={"channel": "poster"})
+        assert poster.status_code == 200
+        assert poster.json()["channel"] == "poster"
         again = client.post(f"/api/tasks/{other['id']}/share", headers=publisher)
         assert again.json()["shared_tasks_today"] == 2
 

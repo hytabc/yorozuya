@@ -32,16 +32,21 @@ def user_records(user_id: int, viewer: User | None = Depends(get_optional_user),
             TaskMember.user_id == user_id,
             TaskMember.response_status == TaskMemberResponse.ACCEPTED,
             Task.status == TaskStatus.COMPLETED,
+            Task.is_official.is_(False),
         )
     ) or 0
     published = db.scalar(
         select(func.count()).select_from(Task).where(
             Task.publisher_id == user_id,
             Task.status == TaskStatus.COMPLETED,
+            Task.is_official.is_(False),
         )
     ) or 0
     published_total = db.scalar(
-        select(func.count()).select_from(Task).where(Task.publisher_id == user_id)
+        select(func.count()).select_from(Task).where(
+            Task.publisher_id == user_id,
+            Task.is_official.is_(False),
+        )
     ) or 0
     first_at = db.scalar(
         select(func.min(Task.completed_at))
@@ -51,6 +56,7 @@ def user_records(user_id: int, viewer: User | None = Depends(get_optional_user),
             TaskMember.user_id == user_id,
             TaskMember.response_status == TaskMemberResponse.ACCEPTED,
             Task.status == TaskStatus.COMPLETED,
+            Task.is_official.is_(False),
         )
     )
     last_at = db.scalar(
@@ -61,6 +67,7 @@ def user_records(user_id: int, viewer: User | None = Depends(get_optional_user),
             TaskMember.user_id == user_id,
             TaskMember.response_status == TaskMemberResponse.ACCEPTED,
             Task.status == TaskStatus.COMPLETED,
+            Task.is_official.is_(False),
         )
     )
     categories = db.execute(
@@ -71,6 +78,7 @@ def user_records(user_id: int, viewer: User | None = Depends(get_optional_user),
             TaskMember.user_id == user_id,
             TaskMember.response_status == TaskMemberResponse.ACCEPTED,
             Task.status == TaskStatus.COMPLETED,
+            Task.is_official.is_(False),
         )
         .group_by(Task.category)
         .order_by(func.count().desc())

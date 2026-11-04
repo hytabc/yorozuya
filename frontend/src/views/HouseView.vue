@@ -240,7 +240,7 @@ onBeforeUnmount(()=>{disposed=true;saver?.dispose();disposeClient?.();window.rem
             <select :value="room[key].mode" aria-label="纹理铺贴方式" @change="materialChange(key,'mode',$event.target.value)"><option value="repeat">重复铺贴</option><option value="stretch">拉伸填满</option></select>
           </template>
           <label class="texture-upload">{{ savingTexture?'上传中…':'上传 PNG/JPEG（≤10MB）' }}<input type="file" accept="image/png,image/jpeg" :disabled="savingTexture || locked" @change="uploadTexture" /></label>
-          <div v-for="t in textures" :key="t.id" class="texture-row"><LazyImage :src="t.url" :alt="t.name" /><span>{{ t.name }}<small>{{ t.isVisible?'已公开':t.moderated?'未通过审核':'待审核' }}</small></span><button @click="removeTexture(t)" aria-label="删除纹理">×</button></div>
+          <div v-for="t in textures" :key="t.id" class="texture-row"><LazyImage :src="t.url" :alt="t.name" /><span>{{ t.name }}<small>{{ t.isVisible?'已公开':`已下架${t.adminNote?`：${t.adminNote}`:''}` }}</small></span><button @click="removeTexture(t)" aria-label="删除纹理">×</button></div>
         </aside>
         <aside v-if="tab==='library' && detail" class="house-detail">
           <h2>{{ detail.furniture.name }}</h2><VoxelScene :data="detail.data" readonly compact /><p class="muted">{{ detail.furniture.style }} · {{ detail.data.gridSize }}³ · {{ detail.data.voxels.length.toLocaleString() }}个体素</p>

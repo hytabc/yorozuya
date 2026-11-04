@@ -138,6 +138,7 @@ class UserPhotoOut(ApiModel):
     # 真实地址一律由 visible_user_photos 按 is_visible 生成。
     image_url: str = ""
     is_visible: bool = True
+    admin_note: str | None = None
 
 
 class UserPublic(ApiModel):
@@ -157,7 +158,7 @@ class UserPublic(ApiModel):
 
 
 class ShareCreate(RequestModel):
-    channel: Literal["dialog", "copy", "qrcode", "native"] = "dialog"
+    channel: Literal["dialog", "copy", "qrcode", "native", "poster"] = "dialog"
 
 
 class InviteBindRequest(RequestModel):
@@ -311,12 +312,15 @@ class UserProfileOut(ApiModel):
     photos: list[UserPhotoOut] = []
     avatar_url: str | None = None
     avatar_visible: bool = False
+    # 头像下架理由：只对本人与审核人员填充。
+    avatar_admin_note: str | None = None
     # 评分聚合：只在单用户资料接口里填充，列表接口保持为空以免 N+1。
     ratings: UserRatingSummary | None = None
 
 
 class UserSelf(UserPublic):
     username: str
+    avatar_admin_note: str | None = None
     qq: str | None = None
     qq_public: bool = False
     # 邮箱与验证状态：前端据此决定是否弹出「强制绑定验证」弹窗。
@@ -464,6 +468,8 @@ class TaskOut(ApiModel):
     is_visible: bool
     admin_note: str | None = None
     publisher: UserPublic
+    # 委托人信任摘要（列表批量填充）；匿名委托为空。
+    publisher_trust: dict | None = None
     required_takers: int | None = None
     is_designated: bool = False
     is_anonymous: bool = False
@@ -495,6 +501,7 @@ class AdminUserOut(ApiModel):
     username: str
     nickname: str
     title: str | None = None
+    avatar_admin_note: str | None = None
     # 邮箱与验证状态：监管台据此找出「还没补充绑定邮箱」的存量账号并提供协助。
     email: str | None = None
     email_verified: bool = False
@@ -518,6 +525,7 @@ class AdminUserBetaUpdate(RequestModel):
 
 class AdminPhotoUpdate(RequestModel):
     is_visible: bool
+    admin_note: str | None = Field(default=None, max_length=200)
 
 
 class StaffDirectoryOut(BaseModel):
@@ -892,7 +900,7 @@ PageKeyLiteral = Literal[
     "hall", "staff", "board", "talk", "maps", "friends", "stories", "sugar",
     "announcements", "versions", "mine", "profile", "login", "frost",
     "operations", "admin", "life", "life-admin", "house", "terms",
-    "creator", "credential", "daily", "rankings",
+    "creator", "credential", "daily", "rankings", "achievements", "footprints",
     "verify-email", "forgot-password", "reset-password",
 ]
 
@@ -1053,8 +1061,9 @@ class VrMapLikeState(BaseModel):
 class VrMapPhotoOut(BaseModel):
     id: int
     image_url: str
-    # is_visible=False 的照片仅上传者和管理员组会收到；moderated_at 为空表示审核中
-    is_visible: bool = False
+    # is_visible=False 的照片仅上传者和管理员组会收到；admin_note 为下架理由
+    is_visible: bool = True
+    admin_note: str | None = None
     moderated: bool = False
     uploaded_by_me: bool = False
 
@@ -1099,6 +1108,7 @@ class VrMapPhotoAdminOut(ApiModel):
     id: int
     image_url: str
     is_visible: bool
+    admin_note: str | None = None
     moderated: bool
     map_id: int
     map_name: str
@@ -1149,6 +1159,7 @@ class FriendProfileCardOut(ApiModel):
     about: str
     photos: list[FriendPhotoOut] = []
     friend_count: int = 0
+    trust: dict | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -1274,8 +1285,9 @@ class StoryCommentCreate(RequestModel):
 class StoryPhotoOut(ApiModel):
     id: int
     image_url: str
-    # is_visible=False 的照片仅作者本人和管理员组会收到；moderated 为 False 表示审核中
-    is_visible: bool = False
+    # is_visible=False 的照片仅作者本人和管理员组会收到；admin_note 为下架理由
+    is_visible: bool = True
+    admin_note: str | None = None
     moderated: bool = False
     uploaded_by_me: bool = False
 
@@ -1317,6 +1329,7 @@ class StoryPhotoAdminOut(ApiModel):
     id: int
     image_url: str
     is_visible: bool
+    admin_note: str | None = None
     moderated: bool
     story_id: int
     story_title: str
