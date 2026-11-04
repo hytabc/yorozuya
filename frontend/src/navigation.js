@@ -65,6 +65,7 @@ export const HALLS = [
 // 「更多」包含房屋、每日任务与按权限过滤的管理入口。
 export const MORE_LINKS = [
   { to: '/house', label: '房屋', icon: 'House' },
+  { to: '/rankings', label: '排行榜', icon: 'Trophy' },
   { to: '/daily', label: '每日任务', icon: 'ListChecks', auth: true },
   { to: '/admin', label: '监管台', icon: 'ShieldCheck', moderate: true },
   { to: '/operations', label: '运营台', icon: 'BarChart3', operate: true },

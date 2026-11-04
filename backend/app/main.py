@@ -255,6 +255,7 @@ from .daily import router as daily_router
 from .achievements import router as achievements_router
 from . import levels as levels_module
 from .levels import router as levels_router
+from .rankings import router as rankings_router
 from .events import router as events_router
 from .virtual_life import router as virtual_life_router
 from .virtual_life_packs import router as virtual_life_packs_router, seed_virtual_life_packs
@@ -451,6 +452,8 @@ def migrate_schema() -> None:
             if "invited_by_id" not in user_columns:
                 connection.execute(text("ALTER TABLE users ADD COLUMN invited_by_id INTEGER"))
                 connection.execute(text("CREATE INDEX IF NOT EXISTS ix_users_invited_by_id ON users (invited_by_id)"))
+            if "rank_opt_out" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN rank_opt_out BOOLEAN NOT NULL DEFAULT 0"))
             connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_invite_code ON users (invite_code)"))
             missing_codes = connection.execute(
                 text("SELECT id FROM users WHERE invite_code IS NULL")
@@ -784,6 +787,7 @@ app.include_router(invites_router)
 app.include_router(daily_router)
 app.include_router(achievements_router)
 app.include_router(levels_router)
+app.include_router(rankings_router)
 
 
 @app.get("/share/task/{task_id}", response_class=HTMLResponse, include_in_schema=False)
@@ -866,6 +870,7 @@ TALK_BOARDS = {
 PAGE_LABELS = {
     "house": "房屋",
     "daily": "每日任务",
+    "rankings": "排行榜",
     "hall": "委托大厅",
     "talk": "疑难解答",
     "staff": "成员名录",
@@ -1080,6 +1085,7 @@ def present_user_self(user: User) -> UserSelf:
         lifetime_points=user.lifetime_points,
         wallet_points=user.wallet_points,
         invite_code=user.invite_code,
+        rank_opt_out=user.rank_opt_out,
         level=levels_module.level_for(user.lifetime_points),
         created_at=user.created_at,
     )

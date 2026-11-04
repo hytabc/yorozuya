@@ -51,6 +51,14 @@ async function copyInvite() {
 
 onMounted(loadInvite)
 
+async function toggleRankOptOut(value) {
+  try {
+    const { data } = await api.patch('/rankings/opt-out', { opt_out: value })
+    auth.patchUser({ rank_opt_out: data.rank_opt_out })
+    toast.success(data.rank_opt_out ? '已退出排行榜' : '已重新参与排行榜')
+  } catch (error) { toast.error(errorMessage(error)) }
+}
+
 function openViewer(photo) {
   viewerSrc.value = photo.image_url
   viewerAlt.value = '个人介绍图片'
@@ -327,6 +335,7 @@ async function deleteAvatar() {
         <div class="profile-appearance-section">
           <div class="section-heading compact"><div><span class="section-index">08</span><h2>成就</h2><p>完成委托、获得好评、参与社区都会解锁成就并获得终身积分</p></div></div>
           <AchievementWall />
+          <label class="checkbox-inline rank-opt-out"><input type="checkbox" :checked="auth.user?.rank_opt_out" @change="toggleRankOptOut($event.target.checked)" /><span>不参与排行榜（资料页仍显示等级与评分）</span></label>
         </div>
         <VrchatIdentitySection />
         <MyCredentialsSection />

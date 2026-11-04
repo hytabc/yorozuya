@@ -175,6 +175,29 @@ class DailyTaskOut(BaseModel):
     can_claim: bool = False
 
 
+class RankingEntryOut(BaseModel):
+    rank: int
+    user: UserPublic
+    # 积分榜/完成数榜为整数，评分榜为贝叶斯分。
+    value: float = 0
+    count: int = 0
+    is_me: bool = False
+
+
+class RankingsOut(BaseModel):
+    board: str
+    title: str
+    page: int
+    page_size: int
+    total: int
+    min_count: int = 0
+    items: list[RankingEntryOut] = []
+
+
+class RankOptOutRequest(RequestModel):
+    opt_out: bool
+
+
 class UserLevelOut(BaseModel):
     level: int = 1
     lifetime_points: int = 0
@@ -313,6 +336,7 @@ class UserSelf(UserPublic):
     wallet_points: int = 0
     # 邀请码：前端分享时附带 ?ref=，便于把分享和邀请绑定。
     invite_code: str | None = None
+    rank_opt_out: bool = False
     is_beta_tester: bool = False
     created_at: datetime
 
@@ -860,7 +884,7 @@ PageKeyLiteral = Literal[
     "hall", "staff", "board", "talk", "maps", "friends", "stories", "sugar",
     "announcements", "versions", "mine", "profile", "login", "frost",
     "operations", "admin", "life", "life-admin", "house", "terms",
-    "creator", "credential", "daily",
+    "creator", "credential", "daily", "rankings",
     "verify-email", "forgot-password", "reset-password",
 ]
 

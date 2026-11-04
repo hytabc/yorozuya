@@ -120,6 +120,8 @@ class User(Base):
     # 邀请：每个账号一个永久邀请码；invited_by_id 在注册或注册后 7 天内绑定，终身不可改。
     invite_code: Mapped[str | None] = mapped_column(String(12), unique=True, nullable=True, index=True)
     invited_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    # 不参与排行榜：开启后所有榜单不再返回该用户，但资料页仍展示等级。
+    rank_opt_out: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     # 头像：仅存相对 uploads 目录的路径；上传后需管理员审核（avatar_visible）才公开展示。
     avatar_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
