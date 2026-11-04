@@ -949,6 +949,8 @@ PAGE_LABELS = {
     "house": "房屋",
     "daily": "每日任务",
     "rankings": "排行榜",
+    "achievements": "成就",
+    "footprints": "足迹",
     "hall": "委托大厅",
     "talk": "疑难解答",
     "staff": "成员名录",

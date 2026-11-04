@@ -188,7 +188,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 
 ## 房屋模块（2026-10）
 
-- 导航“更多”现在包含所有人可见的 `/house`，监管台/运营台仍按权限过滤；分享与创作者页面为 `/house/visit/:shareId`、`/house/users/:userId`。
+- 导航“更多”现在包含所有人可见的 `/house`、`/rankings`，登录后出现 `/daily`、`/achievements`、`/footprints`；监管台/运营台仍按权限过滤。分享与创作者页面为 `/house/visit/:shareId`、`/house/users/:userId`。
 - `backend/app/house.py` 独立路由和六张表：房屋、家具、不可变版本、纹理、点赞、留言（家具与版本分表）；一人一套，revision CAS，写接口沿用邮箱闸门。
 - 原创预置家具24类×5款、30款纹理、六套色板、五个示例场景：`backend/app/house_catalog.json`；生成器 `backend/scripts/build_house_assets.py`，素材与来源说明 `docs/done/house-assets.md`。
 - 房间坐标 x/y为地面、z为高度；实例保存 versionId 和 paletteOverrides，改色不改模板。修改官方几何需新增不可变版本，不能覆盖旧版本。
@@ -213,7 +213,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
   - `backend/app/events.py`：`task_events`、`/api/events`、`/api/events/summary`、`/api/events/read`。只记当事人自己的委托动态，不做全站新委托流；事件与状态变更同事务写入。
 - 前端对应：`facets.js` + `TaskFacetChips.vue`、`atmosphereRules.js` + `composables/useAtmosphere.js` + `AtmosphereGate.vue` + `TermsView.vue`（`/terms`）、`trust.js` + `VrTrustBadge.vue` + `TrustDisclosureDialog.vue` + `VrchatIdentitySection.vue`、`credential.js` + `CredentialCard.vue` + `CredentialView.vue` + `CreatorPortfolio.vue` + `MyCredentialsSection.vue`、`hall/space/*`、`events.js` + `NotificationCenter.vue`。
 - 大厅默认视图仍是列表；星图（Three.js 正交场景 + HTML 标签覆盖层）按需加载，`HALL_SPACE_VIEW_ENABLED=false` 可整体关闭，WebGL 失败自动回退列表。布局在 `hall/space/layout.js`，纯函数、确定性、上限 60 条。
-- 新增页面路由：`/terms`、`/credential/:serial`、`/creators/:userId`，全部 `() => import()`；`PageKeyLiteral` 与 `PAGE_LABELS` 已同步加入 `terms` / `creator` / `credential`。
+- 新增页面路由：`/terms`、`/credential/:serial`、`/creators/:userId`、`/achievements`、`/footprints`，全部 `() => import()`；`PageKeyLiteral` 与 `PAGE_LABELS` 已同步加入 `terms` / `creator` / `credential` / `achievements` / `footprints`。
 - 通知中心轮询 30 秒（`document.hidden` 时暂停）；点击事件跳转 `/?task=<id>`，由大厅复用 `TaskDialog`，不新增详情路由。
 - 回归：`backend/tests/test_task_facets.py`、`test_atmosphere.py`、`test_vrchat.py`、`test_credentials.py`、`test_events.py`；前端 `facets` / `atmosphere` / `trust` / `credential` / `hallSpace` / `events` 六个 `.test.mjs`。后端基线已到 251 个用例。
 - ⚠️ 不要删除或弱化 `/terms` 的完整条款；礼仪确认只改变呈现顺序。只有简介验证码通过、且资料来自服务端快照时才能写 `verified=true`；不得伪造 Trust Rank / 账号年龄 / 平台，共同好友/社群/World 仍未接入。
@@ -235,12 +235,12 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - **官方活跃委托**（`official.py`）：以真实 Task 出现在大厅（`is_official` / `official_key`，系统账号 `__official__` 发布），全局共享最多 3 个、随机存活 2~6 小时后轮换；被接取即占位，接单人确认时由 `quest_progress_today()` 核对当天站内动作，通过后一次性发积分；不参与评价。
 - **成就**（`achievements.py`，26 个）：条件由业务表实时计算，打开成就页自动补发；成就只加终身积分。
 - **等级**（`levels.py`）：Lv1~10 由 lifetime 推导（0/50/150/350/700/1200/2000/3200/5000/8000）；接单上限 `max(管理员设置, 2+Lv//3)`、悬赏上限 `Lv×20`、Lv3 起可发悬赏；委托人评分（≥5 条）<3.0 悬赏减半、<2.5 禁悬赏/多人、<2.0 每日发布上限 1。
-- **排行榜**（`rankings.py`）：积分/接单人评分/委托人评分/完成数四榜，`users.rank_opt_out` 可退出。
+- **排行榜**（`rankings.py`）：积分/接单人评分/委托人评分/真实委托四榜，官方委托与 `__official__` 不计入；`users.rank_opt_out` 可退出，开关已移到 `/rankings` 页。
 - **邀请**（`invites.py`）：每人 8 位永久码，注册或 7 天内绑定；被邀请人首单完成后邀请人 +20 / 被邀请人 +10，邀请人每月最多 5 个有效邀请。
 - **分享**（`shares.py` + `GET /share/task/{id}`）：`task_shares` 记渠道；OG 落地页只输出转义后的 meta 并跳回 SPA，分享链接可带 `?ref=<邀请码>`。
-- **人生记录**（`records.py`）：`GET /api/users/{id}/records` 汇总等级/完成数/评分/成就/常做分类；个人设置展示同一份数据与积分流水。
-- 前端：`/daily`、`/rankings`（「更多」入口）、`RatingSection`、`AchievementWall`、`LifeRecords`、`ShareDialog`；官方委托在大厅卡片上带「官方」标记；条款见 `/terms` 七~九节。
-- 回归：`backend/tests/test_points.py`、`test_ratings.py`、`test_daily.py`、`test_official.py`、`test_achievements.py`、`test_levels.py`、`test_rankings.py`、`test_records.py`、`test_invite.py`、`test_share.py`（后端已到 294 个用例）。
+- **人生记录**（`records.py`）：`GET /api/users/{id}/records` 汇总等级/完成数/评分/成就/常做分类；个人设置已拆出 `/achievements` 与 `/footprints`，足迹页展示同一份数据与积分流水，个人页只留入口卡片。
+- 前端：`/daily`、`/rankings`、`/achievements`、`/footprints`（「更多」入口）、`RatingSection`、`AchievementWall`、`LifeRecords`、`ShareDialog`；官方委托在大厅卡片上带「官方」标记；条款见 `/terms` 七~九节。
+- 回归：`backend/tests/test_points.py`、`test_ratings.py`、`test_daily.py`、`test_official.py`、`test_achievements.py`、`test_levels.py`、`test_rankings.py`、`test_records.py`、`test_invite.py`、`test_share.py`（后端已到 298 个用例）。
 - 品牌素材由 `scripts/build-brand-assets.py` 生成到 `frontend/public/brand/`，改色/改尺寸后重跑即可。
 
 ## 主题可读性与新手引导（2026-11）

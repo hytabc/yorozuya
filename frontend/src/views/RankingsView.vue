@@ -21,6 +21,20 @@ const BOARDS = [
 ]
 const totalPages = computed(() => Math.max(1, Math.ceil((data.value.total || 0) / PAGE_SIZE)))
 const isRatingBoard = computed(() => board.value.endsWith('_rating'))
+const rankOptOutBusy = ref(false)
+
+async function toggleRankOptOut(value) {
+  rankOptOutBusy.value = true
+  try {
+    const { data: result } = await api.patch('/rankings/opt-out', { opt_out: value })
+    auth.patchUser({ rank_opt_out: result.rank_opt_out })
+    toast.success(result.rank_opt_out ? '已退出排行榜' : '已重新参与排行榜')
+  } catch (error) {
+    toast.error(errorMessage(error))
+  } finally {
+    rankOptOutBusy.value = false
+  }
+}
 
 async function load() {
   loading.value = true
@@ -79,5 +93,10 @@ onMounted(load)
         <button class="button secondary small" :disabled="page >= totalPages" @click="go(page + 1)">下一页<ChevronRight :size="14" /></button>
       </div>
     </template>
+
+    <label v-if="auth.isLoggedIn" class="checkbox-inline rank-opt-out">
+      <input type="checkbox" :checked="auth.user?.rank_opt_out" :disabled="rankOptOutBusy" @change="toggleRankOptOut($event.target.checked)" />
+      <span>不参与排行榜（资料页仍显示等级与评分）</span>
+    </label>
   </div>
 </template>

@@ -157,7 +157,7 @@ defineExpose({ load })
   <div class="profile-vrchat-section">
     <div class="section-heading compact">
       <div>
-        <span class="section-index">06</span>
+        <span class="section-index">08</span>
         <h2>VRChat 身份</h2>
         <p>自愿绑定，随时解绑；未绑定时不影响发布与接取委托</p>
       </div>
