@@ -232,6 +232,7 @@ from .facets import (
 )
 from . import atmosphere as atmosphere_module
 from .atmosphere import router as atmosphere_router
+from .onboarding import router as onboarding_router
 from .trust import (
     admin_router as vrchat_admin_router,
     router as vrchat_router,
@@ -402,6 +403,11 @@ def migrate_schema() -> None:
                 connection.execute(text("ALTER TABLE users ADD COLUMN theme_mode VARCHAR(16) NOT NULL DEFAULT 'auto'"))
             if "theme_style" not in user_columns:
                 connection.execute(text("ALTER TABLE users ADD COLUMN theme_style VARCHAR(16)"))
+            # 新手引导：存量账号默认 0（从未看过），上线后会各补看一次。
+            if "onboarding_version" not in user_columns:
+                connection.execute(
+                    text("ALTER TABLE users ADD COLUMN onboarding_version INTEGER NOT NULL DEFAULT 0")
+                )
             # SQLite 的 ALTER 不能加唯一约束，因此单独建唯一索引；
             # 唯一索引不限制 NULL，存量账号在被强制补充绑定前 email 为空，彼此不冲突。
             connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (email)"))
@@ -692,6 +698,7 @@ app.include_router(house_admin_router)
 # 下方的 /api/tasks/{task_id} 注册，否则会被路径参数吞掉。
 app.include_router(task_facets_router)
 app.include_router(atmosphere_router)
+app.include_router(onboarding_router)
 app.include_router(vrchat_router)
 app.include_router(vrchat_admin_router)
 app.include_router(vrchat_trust_router)
@@ -928,6 +935,7 @@ def present_user_self(user: User) -> UserSelf:
         notify_email=user.notify_email,
         theme_mode=user.theme_mode or "auto",
         theme_style=user.theme_style,
+        onboarding_version=user.onboarding_version or 0,
         email_gate_required=email_gate_required(user),
         is_admin=user.is_admin,
         is_active=user.is_active,

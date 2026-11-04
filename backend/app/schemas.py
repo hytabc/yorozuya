@@ -180,6 +180,8 @@ class UserSelf(UserPublic):
     # 外观偏好：跟着账号走，登录后前端以服务端值为准。
     theme_mode: Literal["auto", "system", "day", "night"] = "auto"
     theme_style: Literal["classic", "pixel"] | None = None
+    # 新手引导：已看过的引导版本号（0 = 从未看过）；前端据此决定是否展示一次。
+    onboarding_version: int = 0
     # 服务端算好的「需要先完成邮箱验证」标记：前端据此弹强制绑定框，
     # 避免把 require_email_verification 这类策略在前端重写一遍。
     email_gate_required: bool = False
@@ -552,6 +554,16 @@ class AtmosphereStatusOut(BaseModel):
     version: int
     accepted: bool = False
     accepted_version: int = 0
+
+
+class OnboardingAckRequest(RequestModel):
+    """新手引导完成/跳过：携带前端当前展示的引导版本号。"""
+
+    version: int = Field(ge=1, le=1000)
+
+
+class OnboardingStatusOut(BaseModel):
+    onboarding_version: int = 0
 
 
 class AnnouncementWrite(RequestModel):

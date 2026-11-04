@@ -100,6 +100,9 @@ class User(Base):
     # theme_style: classic / pixel；NULL 表示用户没显式选过，前端回落到本地默认。
     theme_mode: Mapped[str] = mapped_column(String(16), default="auto")
     theme_style: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # 新手引导：0 = 从未看过；小于前端 ONBOARDING_VERSION 时展示一次。
+    # 记在账号上而不是浏览器本地，换设备或清缓存后不会重复打扰。
+    onboarding_version: Mapped[int] = mapped_column(Integer, default=0)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     role: Mapped[UserRole] = mapped_column(

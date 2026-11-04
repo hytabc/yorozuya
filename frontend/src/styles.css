@@ -16,6 +16,8 @@
   --blue: #286c86;
   --blue-soft: #e3f1f5;
   --shadow: 0 14px 40px rgba(25, 38, 32, 0.1);
+  /* 原生控件（下拉、日期选择、滚动条）默认按浅色渲染；夜间由 night.css 覆盖为 dark。 */
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -801,4 +803,40 @@ tr.dimmed td { color: #89918d; background: #fafafa; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* ---------- 聚光灯引导（虚拟人生指引与全站新手引导共用） ----------
+   卡片与按钮一律走颜色变量：经典风/像素风、日间/夜间都能直接继承，
+   夜间与像素风的额外覆盖在 night.css 里（它的选择器优先级更高）。 */
+.tour-overlay { position: fixed; inset: 0; z-index: 2147483000; pointer-events: none; }
+.tutorial-mask { position: fixed; background: rgba(7, 15, 12, .76); pointer-events: auto; }
+.tutorial-hole { position: fixed; padding: 0; border: 2px solid var(--green); border-radius: 9px; background: transparent; box-shadow: 0 0 18px rgba(35, 122, 87, .35); pointer-events: auto; cursor: default; }
+.tutorial-hole.actionable { cursor: pointer; }
+.tutorial-card { position: fixed; left: 18px; width: min(440px, calc(100vw - 36px)); max-height: calc(100vh - 36px); overflow: auto; box-sizing: border-box; display: flex; gap: 12px; padding: 18px; border: 1px solid var(--line); border-radius: 16px; color: var(--ink); background: var(--paper); box-shadow: 0 8px 40px rgba(0, 0, 0, .32); pointer-events: auto; outline: none; }
+.guide-avatar { flex-shrink: 0; display: grid; place-items: center; width: 46px; height: 46px; border: 2px solid var(--line); border-radius: 50% 50% 40% 40%; color: var(--green); background: var(--green-soft); font-size: 20px; font-weight: 700; }
+.tutorial-copy { flex: 1; min-width: 0; }
+.tutorial-copy small { color: var(--muted); font-size: 11px; }
+.tutorial-copy h3 { margin: 6px 0; font-size: 17px; }
+.tutorial-copy p { margin: 8px 0; font-size: 13px; line-height: 1.7; }
+.tutorial-controls { display: flex; align-items: center; gap: 6px; margin-top: 14px; }
+.tutorial-controls span { flex: 1; }
+.tutorial-controls button { padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); background: transparent; cursor: pointer; }
+.tutorial-controls .primary { border-color: var(--green); color: var(--paper); background: var(--green); font-weight: 650; }
+.tutorial-controls button:disabled { opacity: .4; cursor: default; }
+.tutorial-controls button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+
+@media (max-width: 680px) {
+  /* 移动端不画箭头与左右避让：卡片固定贴底，更像一张说明抽屉。
+     卡片位置由 JS 内联 style 给出（桌面端左右避让），这里必须用 !important 覆盖，
+     否则 left:18px + width:100% 会横向溢出。 */
+  .tutorial-card {
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    bottom: 0 !important;
+    width: 100%;
+    max-height: 70vh;
+    padding: 16px 16px max(16px, env(safe-area-inset-bottom));
+    border-radius: 14px 14px 0 0;
+  }
 }

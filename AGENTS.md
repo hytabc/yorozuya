@@ -217,3 +217,24 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - 通知中心轮询 30 秒（`document.hidden` 时暂停）；点击事件跳转 `/?task=<id>`，由大厅复用 `TaskDialog`，不新增详情路由。
 - 回归：`backend/tests/test_task_facets.py`、`test_atmosphere.py`、`test_vrchat.py`、`test_credentials.py`、`test_events.py`；前端 `facets` / `atmosphere` / `trust` / `credential` / `hallSpace` / `events` 六个 `.test.mjs`。后端基线已到 251 个用例。
 - ⚠️ 不要删除或弱化 `/terms` 的完整条款；礼仪确认只改变呈现顺序。不要把 `verified` 写成 true，也不要展示未接入的 Trust Rank。
+
+## 主题可读性与新手引导（2026-11）
+
+### 深色模式可读性
+
+- 机制不变：`html[data-theme]`（classic/pixel）× `html[data-mode]`（day/night），夜间样式全部集中在 `frontend/src/night.css`，靠逐条覆盖压过 `styles.css`/`pixel.css` 里写死的日间色。新增组件样式时，**凡是写死深色文字或浅色块的，都要在 `night.css` 补一条 `html[data-mode='night']` 覆盖**。
+- 两个平台级修正在 `styles.css` 的 `:root`（`color-scheme: light`）与 `night.css`（`color-scheme: dark`）：原生下拉、日期选择、滚动条跟随昼夜。`index.html` 的 `theme-color` 仍写日间值，`composables/theme.js` 的 `syncMetaColor()` 会在每次 `applyMode/applyTheme` 时按实际底色改写。
+- ⚠️ `color-scheme: dark` 会让**没有显式背景的 `<button>`** 变成 UA 深灰底（约 `#6b6b6b`）。`button.text-link` 已由 `night.css` 置为透明底；新增同类无底按钮时要一起处理。
+- 语义色（`--ink/--muted/--paper/--green*-/--red*-/--blue*-/--yellow*`）之外，所有"白字压 accent 底"的写法（头像、徽章、页签）在夜间必须换成深色文字，因为 accent 在夜间被提亮；`house.css` 的 `.house-tabs button[aria-selected=true]` 是全局样式，已单独覆盖。
+- 刻意保留的深色岛：大厅星图 `.hall-space-*`、登录页 `.auth-story`、`/life`、`/life-admin`、`/frost`（自带美术体系，**不在夜间范围内**）、`/house` 的 Three.js 画布与用户房间配色（CSS 变量够不到，改 `VoxelScene` 的 `setClearColor` 前先确认）。
+- 回归：`frontend/tests/themeContrast.test.mjs` 解析 `styles.css`/`night.css` 的变量块，对夜间语义色对做 WCAG AA（4.5:1）断言，并检查一批已知漏网选择器是否被覆盖。改夜间配色先跑它。视觉验收用 classic/pixel × day/night 四组合逐页核对。
+
+### 新手引导（首次使用）
+
+- 一次性记录在账号上：`users.onboarding_version`（0 = 从未看过），SQLite 存量库由 `migrate_schema()` 补 `ALTER TABLE users ADD COLUMN onboarding_version INTEGER NOT NULL DEFAULT 0`（在 tasks 提前 return 之前）；`UserSelf`/`present_user_self` 下发该字段。
+- 写入口：`backend/app/onboarding.py` 的 `POST /api/onboarding/complete`（`get_current_user`，受邮箱闸门保护；只增不减、幂等）。前端成功后 `auth.patchUser({ onboarding_version })`。
+- 前端：`composables/onboardingSteps.js` 是纯数据步骤表（5 步）；**递增 `ONBOARDING_VERSION` 会让已看过的账号再看一次新版，设为 `0` 等于整体关停**。锚点用 `data-tour="..."`（测试会扫描源码确认存在），每步可给多个候选选择器，`composables/tourGeometry.js` 的 `pickAnchor()` 取第一个"真正可见"的（680px 以下自动落到 `.mobile-menu`）。
+- `components/TourOverlay.vue` 是共用的展示层（遮罩拼洞、卡片避让、Esc/Tab 焦点陷阱、rAF 跟随、`body.modal-open`）；虚拟人生指引 `LifeTutorial.vue` 与全站引导 `OnboardingTour.vue` 都只是薄包装，步骤语义（`prepare`/`action`）留在各自步骤表里。
+- 触发时机：只在委托大厅 `/` 启动（锚点都在那里），条件为已登录 + 邮箱已验证 + 服务端版本未读；首屏三个浮层按**公告 → 礼仪确认 → 新手引导**串行（`TaskHall.vue` 的 `bootPrompts()` / `maybeStartOnboarding()`）。礼仪确认原本与公告同时弹出并盖住公告，现在先 `await loadAnnouncements()` 再决定是否打开 Gate，**不要改回并发**。
+- 跳过（Skip/Esc）与完成都算"已读"；只有"落地页不是 `/` 时先不展示"不写标记。重看入口在 `/profile` 的「外观」区，跳 `/?tour=1` 强制重播（不重置服务端记录）。
+- 回归：`backend/tests/test_onboarding.py`、`frontend/tests/onboarding.test.mjs`（步骤完整性、一次性判定、关停开关、锚点存在性、`pickAnchor` 选择顺序）。

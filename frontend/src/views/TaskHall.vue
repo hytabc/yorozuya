@@ -11,8 +11,11 @@ import TaskDialog from '../components/TaskDialog.vue'
 import CreateTaskDialog from '../components/CreateTaskDialog.vue'
 import FeedbackDialog from '../components/FeedbackDialog.vue'
 import AnnouncementPrompt from '../components/AnnouncementPrompt.vue'
+import OnboardingTour from '../components/OnboardingTour.vue'
 import { markAnnouncementsSeen, unseenAnnouncements } from '../composables/announcementPrompt'
+import { needsOnboarding } from '../composables/onboardingSteps'
 import {
+  atmosphere,
   loadAtmosphere,
   needsAtmosphereAck,
   openAtmosphereGate,
@@ -36,6 +39,9 @@ const activeAnnouncements = ref([])
 const promptAnnouncements = ref([])
 const showAnnouncementPrompt = ref(false)
 const busy = ref(false)
+// 新手引导：账号级一次性；`?tour=1`（个人设置的「重新查看」）会强制重播一次。
+const tourRef = ref(null)
+const forceTour = ref(Boolean(route.query.tour))
 // 列表始终是默认视图；星图是补充视图，且受服务端开关控制。
 const view = ref('list')
 const spaceEnabled = ref(false)
@@ -84,6 +90,7 @@ function confirmAnnouncements() {
   if (auth.isLoggedIn) markAnnouncementsSeen(activeAnnouncements.value, auth.user?.id)
   showAnnouncementPrompt.value = false
   track('announcement.confirm')
+  openPendingAtmosphere()
 }
 
 let timer
@@ -162,9 +169,23 @@ async function action(key, payload = {}) {
   } catch (error) { toast.error(errorMessage(error)) } finally { busy.value = false }
 }
 // 首次进入委托大厅时展示礼仪确认；已确认过的用户不会再看到。
+// 公告弹窗（z-index 140）与礼仪确认（z-index 1200）同时弹出时后者会盖住前者，
+// 因此先记下"待确认"，等公告关闭后再弹，首屏浮层才能真正串行。
+const atmospherePending = ref(false)
+function openPendingAtmosphere() {
+  if (!atmospherePending.value || showAnnouncementPrompt.value) return
+  atmospherePending.value = false
+  openAtmosphereGate()
+}
 async function checkAtmosphere() {
   await loadAtmosphere({ force: true })
-  if (needsAtmosphereAck()) openAtmosphereGate()
+  atmospherePending.value = needsAtmosphereAck()
+  openPendingAtmosphere()
+}
+// 先取公告再决定要不要弹礼仪确认，否则两条并发请求谁先回来都可能让礼仪盖住公告。
+async function bootPrompts() {
+  await loadAnnouncements()
+  await checkAtmosphere()
 }
 async function loadSiteFlags() {
   try {
@@ -190,18 +211,42 @@ async function openTaskFromQuery() {
     toast.error('该委托已不可查看')
   }
 }
-onMounted(() => { load(); checkAtmosphere(); loadSiteFlags(); openTaskFromQuery() })
+// 首屏可能连着出现三个浮层：公告 → 礼仪确认 → 新手引导。按这个顺序串行，
+// 前一个关闭后才起下一个；引导只在委托大厅启动（它的锚点都在这里）。
+function maybeStartOnboarding() {
+  if (!tourRef.value || !auth.isLoggedIn) return
+  if (forceTour.value) {
+    forceTour.value = false
+    if (route.query.tour) {
+      const query = { ...route.query }
+      delete query.tour
+      router.replace({ path: route.path, query })
+    }
+    tourRef.value.start({ force: true })
+    return
+  }
+  if (!auth.emailVerified || auth.emailGateRequired) return
+  if (!needsOnboarding(auth.user?.onboarding_version)) return
+  if (loading.value || showAnnouncementPrompt.value || atmosphere.open) return
+  tourRef.value.start()
+}
+
+watch(
+  [tourRef, () => auth.ready, () => auth.user?.onboarding_version, loading, showAnnouncementPrompt, () => atmosphere.open],
+  maybeStartOnboarding,
+  { flush: 'post' },
+)
+onMounted(() => { load(); bootPrompts(); loadSiteFlags(); openTaskFromQuery() })
 watch(() => route.query.task, openTaskFromQuery)
 watch(() => auth.ready, (ready) => {
   if (!ready) return
-  loadAnnouncements()
-  checkAtmosphere()
+  bootPrompts()
 }, { immediate: true })
 </script>
 
 <template>
   <div class="page hall-page">
-    <section class="hall-intro">
+    <section class="hall-intro" data-tour="intro">
       <div>
         <span class="eyebrow"><Sparkles :size="15" /> YOROZUYA REQUEST BOARD</span>
         <h1>总有一件事，<br />有人恰好擅长。</h1>
@@ -233,7 +278,7 @@ watch(() => auth.ready, (ready) => {
             <button type="button" class="button small" :class="{ secondary: view !== 'list' }" :aria-pressed="view === 'list'" @click="switchView('list')">列表</button>
             <button type="button" class="button small" :class="{ secondary: view !== 'space' }" :aria-pressed="view === 'space'" @click="switchView('space')">星图</button>
           </div>
-          <button class="button" @click="create"><Plus :size="18" />发布委托</button>
+          <button class="button" data-tour="create-task" @click="create"><Plus :size="18" />发布委托</button>
         </div>
       </div>
       <div class="filterbar">
@@ -275,5 +320,6 @@ watch(() => auth.ready, (ready) => {
     <TaskDialog v-if="selected" :task="selected" :busy="busy" @close="selected = null" @action="action" @reported="reported" />
     <FeedbackDialog v-if="showFeedback" @close="showFeedback = false" />
     <AnnouncementPrompt v-if="showAnnouncementPrompt" :announcements="promptAnnouncements" @confirm="confirmAnnouncements" />
+    <OnboardingTour v-if="auth.isLoggedIn" ref="tourRef" />
   </div>
 </template>

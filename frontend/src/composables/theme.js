@@ -49,15 +49,30 @@ function currentMode() {
 // 实际生效的明暗。auto 档按时间或系统偏好推导，其余档就是用户选的那个。
 export const mode = ref(currentMode())
 
+// 移动端浏览器地址栏/状态栏的颜色：index.html 里写死的浅色会在夜间变成一道亮边，
+// 这里跟着实际生效的底色改写 theme-color，日间值保持原来的 #f4f5f2。
+const DAY_THEME_COLOR = '#f4f5f2'
+const NIGHT_THEME_COLORS = { classic: '#101614', pixel: '#140f0a' }
+
+function syncMetaColor() {
+  const color = mode.value === 'night'
+    ? NIGHT_THEME_COLORS[theme.value] || NIGHT_THEME_COLORS.classic
+    : DAY_THEME_COLOR
+  // 单测里的 document 是精简替身，可能没有 querySelector。
+  document.querySelector?.('meta[name="theme-color"]')?.setAttribute('content', color)
+}
+
 function applyTheme(id) {
   theme.value = id
   document.documentElement.dataset.theme = id
+  syncMetaColor()
   try { localStorage.setItem(THEME_KEY, id) } catch { /* 写入失败不影响本次切换 */ }
 }
 
 function applyMode(id) {
   mode.value = id
   document.documentElement.dataset.mode = id
+  syncMetaColor()
 }
 
 // 每次重新判定都覆盖 dataset，所以 auto 档不需要把推导结果写进 localStorage——

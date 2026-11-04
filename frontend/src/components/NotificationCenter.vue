@@ -69,6 +69,7 @@ onBeforeUnmount(() => {
     <button
       type="button"
       class="icon-button notification-toggle"
+      data-tour="notifications"
       :aria-expanded="open"
       aria-haspopup="dialog"
       :aria-label="badge ? `站内通知，${badge} 条未读` : '站内通知'"
