@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import html as html_module
 import logging
 import re
 import secrets
@@ -15,7 +16,7 @@ from uuid import uuid4
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BeforeValidator, ValidationError
 from sqlalchemy import delete, func, or_, select, text, update
@@ -742,6 +743,47 @@ app.include_router(events_router)
 app.include_router(points_router)
 app.include_router(ratings_router)
 app.include_router(shares_router)
+
+
+@app.get("/share/task/{task_id}", response_class=HTMLResponse, include_in_schema=False)
+def share_task_og(task_id: int, request: Request, db: Session = Depends(get_db)):
+    """分享落地页：只输出 OG meta 并立即跳到 SPA 详情。
+
+    不渲染任何用户内容、不加载脚本，避免成为可被注入的公开页面。
+    """
+    task = db.get(Task, task_id)
+    if task is None or not task.is_visible or task.status != TaskStatus.PUBLISHED:
+        return HTMLResponse(
+            '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=/">'
+            '<title>万事屋</title><a href="/">返回首页</a>'
+        )
+    base = (settings.site_base_url or str(request.base_url)).rstrip("/")
+    title = f"万事屋委托：{task.title}"
+    description = f"{task.category} · 系统基础 {task.base_points} 分"
+    if task.bounty_points:
+        description += f" + 悬赏 {task.bounty_points} 分"
+    if not task.is_anonymous and task.publisher is not None:
+        description += f" · 发布人 {task.publisher.nickname}"
+    target = f"{base}/?task={task.id}"
+    escape = html_module.escape
+    body = (
+        "<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\">"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+        f"<title>{escape(title)}</title>"
+        f"<meta name=\"description\" content=\"{escape(description)}\">"
+        f"<meta property=\"og:type\" content=\"website\">"
+        f"<meta property=\"og:site_name\" content=\"万事屋\">"
+        f"<meta property=\"og:title\" content=\"{escape(title)}\">"
+        f"<meta property=\"og:description\" content=\"{escape(description)}\">"
+        f"<meta property=\"og:url\" content=\"{escape(target)}\">"
+        f"<meta property=\"og:image\" content=\"{escape(base)}/brand/og-16x9.png\">"
+        f"<meta name=\"twitter:card\" content=\"summary_large_image\">"
+        f"<meta http-equiv=\"refresh\" content=\"0; url=/?task={task.id}\">"
+        "</head><body>"
+        f"<p><a href=\"/?task={task.id}\">正在打开《{escape(task.title)}》…</a></p>"
+        "</body></html>"
+    )
+    return HTMLResponse(body, headers={"Cache-Control": "no-store"})
 
 
 def expire_due_tasks(db: Session) -> None:

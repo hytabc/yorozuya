@@ -12,7 +12,8 @@ const auth = useAuthStore()
 const toast = useToast()
 const canvas = ref(null)
 const copied = ref(false)
-const url = computed(() => `${window.location.origin}/?task=${props.task.id}`)
+// 用服务端的 OG 落地页：微信/QQ 能拿到标题与描述，随后自动跳回 SPA 详情。
+const url = computed(() => `${window.location.origin}/share/task/${props.task.id}`)
 const canNativeShare = computed(() => typeof navigator !== 'undefined' && Boolean(navigator.share))
 
 async function record(channel) {

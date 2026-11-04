@@ -46,3 +46,36 @@ def test_share_requires_login_and_valid_channel():
 
         missing = client.post("/api/tasks/999999/share", headers=publisher)
         assert missing.status_code == 404
+
+
+def test_og_landing_page_escapes_and_hides_anonymous_publisher():
+    with TestClient(app) as client:
+        publisher = auth(client, "og_pub")
+        set_qq(client, publisher, "1000000000")
+        task = client.post(
+            "/api/tasks",
+            headers=publisher,
+            json={
+                "title": "标题 <script>alert(1)</script>",
+                "description": "用于验证 OG 落地页转义与匿名裁剪的委托内容。",
+                "category": "其他委托",
+                "required_takers": 1,
+                "expires_in_days": 2,
+                "is_anonymous": True,
+            },
+        ).json()
+
+        page = client.get(f"/share/task/{task['id']}")
+        assert page.status_code == 200
+        body = page.text
+        assert "<script>alert(1)</script>" not in body
+        assert "&lt;script&gt;" in body
+        assert 'property="og:title"' in body
+        assert f"task={task['id']}" in body
+        assert "icon" not in body  # 不渲染任何用户内容
+        assert "用户og_pub" not in body  # 匿名委托不暴露发布人
+
+        # 已完成/不存在的委托不再作为分享落地页，直接回首页。
+        not_found = client.get("/share/task/999999")
+        assert not_found.status_code == 200
+        assert "url=/" in not_found.text
