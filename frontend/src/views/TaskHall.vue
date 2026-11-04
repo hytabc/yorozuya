@@ -47,19 +47,14 @@ const view = ref('list')
 const spaceEnabled = ref(false)
 // 星图选中只用于高亮；打开详情仍由双击/按钮触发，避免单击就弹窗。
 const spaceSelected = ref(null)
-const filters = reactive({ search: '', category: '', status: auth.isAdmin || auth.isStaff ? '' : 'published', pay_type: '', skill: '', platform: '', atmosphere: '' })
+const filters = reactive({ search: '', category: '', status: auth.isAdmin || auth.isStaff ? '' : 'published', skill: '', platform: '', atmosphere: '' })
 const categories = CATEGORIES
 const skillOptions = TASK_SKILLS
 const platformOptions = TASK_PLATFORMS
 const atmosphereOptions = ATMOSPHERE_TAGS
-const payOptions = [
-  { value: '', label: '全部报酬' },
-  { value: 'paid', label: '有偿' },
-  { value: 'free', label: '无偿' },
-]
 const isManager = computed(() => auth.isAdmin || auth.isStaff)
 const hasFilters = computed(() => Boolean(
-  filters.search || filters.category || filters.pay_type || filters.skill || filters.platform || filters.atmosphere
+  filters.search || filters.category || filters.skill || filters.platform || filters.atmosphere
   || filters.status !== (isManager.value ? '' : 'published'),
 ))
 // 普通用户在大厅只能查看招募中的委托；超级管理员/管理员可查看全部状态。
@@ -98,7 +93,6 @@ async function load() {
   loading.value = true
   try {
     const params = { search: filters.search, category: filters.category, status: filters.status, ...facetQueryParams(filters) }
-    if (filters.pay_type) params.pay_type = filters.pay_type
     const { data } = await api.get('/tasks', { params })
     tasks.value = data
   } catch (error) { toast.error(errorMessage(error, '委托加载失败')) } finally { loading.value = false }
@@ -107,7 +101,6 @@ async function load() {
 function clearFilters() {
   filters.search = ''
   filters.category = ''
-  filters.pay_type = ''
   filters.skill = ''
   filters.platform = ''
   filters.atmosphere = ''
@@ -138,8 +131,7 @@ async function action(key, payload = {}) {
   try {
     const url = `/tasks/${selected.value.id}`
     let data
-    if (key === 'accept') ({ data } = await api.post(`${url}/accept`, { password: payload.password ?? null }))
-    else if (key === 'password') ({ data } = await api.patch(`${url}/password`, { password: payload.password }))
+    if (key === 'accept') ({ data } = await api.post(`${url}/accept`))
     else ({ data } = await api.post(`${url}/${key}`))
     selected.value = data
     const index = tasks.value.findIndex((item) => item.id === data.id)
@@ -152,7 +144,6 @@ async function action(key, payload = {}) {
       cancel: data.status === 'cancelled' ? '委托已取消' : '已发起取消，等待双方确认',
       'confirm-cancel': data.status === 'cancelled' ? '双方已同意，委托已取消' : '你已同意取消，等待其他人确认',
       'cancel-continue': '取消已撤销，委托继续',
-      password: '接取密码已更新，请把新密码告知接单人',
     }
     toast.success(messages[key])
     const trackedEvents = {
@@ -162,7 +153,6 @@ async function action(key, payload = {}) {
       confirm: 'task.confirm',
       cancel: 'task.cancel',
       'confirm-cancel': 'task.cancel_confirm',
-      password: 'task.password',
     }
     if (trackedEvents[key]) track(trackedEvents[key])
     loadStats()
@@ -284,7 +274,6 @@ watch(() => auth.ready, (ready) => {
       <div class="filterbar">
         <label class="search-field"><Search :size="18" /><input v-model="filters.search" placeholder="搜索委托标题或内容" aria-label="搜索委托" @input="search" /></label>
         <label class="select-field"><SlidersHorizontal :size="17" /><select v-model="filters.status" aria-label="状态筛选" @change="load"><option v-for="item in statuses" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
-        <select v-model="filters.pay_type" aria-label="报酬筛选" @change="load"><option v-for="item in payOptions" :key="item.value" :value="item.value">{{ item.label }}</option></select>
         <select v-model="filters.category" aria-label="分类筛选" @change="load"><option value="">全部分类</option><option v-for="item in categories" :key="item">{{ item }}</option></select>
       </div>
       <div class="filterbar facet-filterbar">

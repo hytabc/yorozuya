@@ -34,13 +34,12 @@ async function load() {
   try { tasks.value = (await api.get('/tasks/mine')).data } catch (error) { toast.error(errorMessage(error)) } finally { loading.value = false }
 }
 
-async function action(key, payload = {}) {
+async function action(key) {
   busy.value = true
   try {
     const url = `/tasks/${selected.value.id}`
     let data
-    if (key === 'accept') ({ data } = await api.post(`${url}/accept`, { password: payload.password }))
-    else if (key === 'password') ({ data } = await api.patch(`${url}/password`, { password: payload.password }))
+    if (key === 'accept') ({ data } = await api.post(`${url}/accept`))
     else ({ data } = await api.post(`${url}/${key}`))
     selected.value = data
     tasks.value[tasks.value.findIndex((item) => item.id === data.id)] = data
@@ -52,7 +51,6 @@ async function action(key, payload = {}) {
       cancel: data.status === 'cancelled' ? '委托已取消' : '已发起取消，等待双方确认',
       'confirm-cancel': data.status === 'cancelled' ? '双方已同意，委托已取消' : '你已同意取消，等待其他人确认',
       'cancel-continue': '取消已撤销，委托继续',
-      password: '接取密码已更新，请把新密码告知接单人',
     }
     toast.success(messages[key])
     const trackedEvents = {
@@ -62,7 +60,6 @@ async function action(key, payload = {}) {
       confirm: 'task.confirm',
       cancel: 'task.cancel',
       'confirm-cancel': 'task.cancel_confirm',
-      password: 'task.password',
     }
     if (trackedEvents[key]) track(trackedEvents[key])
   } catch (error) { toast.error(errorMessage(error)) } finally { busy.value = false }

@@ -15,7 +15,7 @@ export const onboardingSteps = [
   {
     id: 'create',
     title: '有需要就先发一份委托',
-    text: '写清想完成的事、分类和报酬即可发布；可以设置接取密码、指定接单人，也可以匿名。记得先填好 QQ，志愿者才能联系你。',
+    text: '写清想完成的事和分类即可发布；可以指定接单人，也可以匿名。记得先填好 QQ，接单人才联系得上你。',
     targets: ['[data-tour="create-task"]', '.hall-heading-actions .button'],
   },
   {

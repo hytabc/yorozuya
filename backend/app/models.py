@@ -166,9 +166,6 @@ class Task(Base):
     title: Mapped[str] = mapped_column(String(80), index=True)
     description: Mapped[str] = mapped_column(Text)
     category: Mapped[str] = mapped_column(String(24), default="其他")
-    # 是否有偿：paid=有偿, free=无偿
-    pay_type: Mapped[str] = mapped_column(String(8), default="paid", index=True)
-    reward: Mapped[str | None] = mapped_column(String(60), nullable=True)
     status: Mapped[TaskStatus] = mapped_column(
         SqlEnum(TaskStatus, values_callable=lambda values: [item.value for item in values]),
         default=TaskStatus.PUBLISHED,
@@ -177,8 +174,6 @@ class Task(Base):
     is_visible: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     admin_note: Mapped[str | None] = mapped_column(String(200), nullable=True)
     publisher_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    # 委托人设置的接取密码；null 表示公开接取，否则只存哈希且不回传明文。
-    accept_password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # 需要几人接取该委托：null 表示人数不限（仅能由委托人手动点击开始）
     required_takers: Mapped[int | None] = mapped_column(nullable=True)
     # 指定管理员/志愿者的委托不会向大厅开放接取，须等全部指定人员响应后开始。
@@ -217,10 +212,6 @@ class Task(Base):
     )
 
     # ---- 便捷判断 ----
-    @property
-    def requires_password(self) -> bool:
-        return bool(self.accept_password_hash)
-
     @property
     def all_confirmed(self) -> bool:
         """委托人与所有接单人都已确认完成。"""

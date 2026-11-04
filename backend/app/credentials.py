@@ -72,8 +72,6 @@ def build_snapshot(db: Session, task: Task) -> dict:
     return {
         "title": task.title,
         "category": task.category,
-        "pay_type": task.pay_type,
-        "reward": task.reward,
         "skills": values("skill"),
         "platforms": values("platform"),
         "worlds": values("world"),

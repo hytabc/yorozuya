@@ -24,8 +24,8 @@ test('标签词表与后端白名单的数量上限一致', () => {
   assert.equal(TASK_PLATFORMS.length, 4)
   // 氛围各维度的取值不允许重复，否则单选分组会互相干扰。
   assert.equal(new Set(ATMOSPHERE_TAGS).size, ATMOSPHERE_TAGS.length)
-  assert.equal(ATMOSPHERE_GROUPS.length, 5)
-  assert.equal(ATMOSPHERE_TAGS.length, 17)
+  assert.equal(ATMOSPHERE_GROUPS.length, 4)
+  assert.equal(ATMOSPHERE_TAGS.length, 13)
 })
 
 test('toggleFacet 追加、移除并遵守上限', () => {

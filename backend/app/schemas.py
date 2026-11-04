@@ -260,11 +260,6 @@ class TaskCreate(RequestModel):
     title: str = Field(min_length=2, max_length=80)
     description: str = Field(min_length=10, max_length=3000)
     category: str = Field(min_length=1, max_length=24)
-    # paid=有偿 free=无偿
-    pay_type: Literal["paid", "free"] = "paid"
-    reward: str | None = Field(default=None, max_length=60)
-    # null 表示公开接取；设置密码时仍要求 4-32 位。
-    accept_password: str | None = Field(default=None, min_length=4, max_length=32)
     # 需要几人接取；null / 缺省表示人数不限（只能由委托人手动开始）
     required_takers: int | None = Field(default=None, ge=1, le=999)
     # 非空时为指定委托，只允许名单内的管理员/志愿者响应。
@@ -274,14 +269,6 @@ class TaskCreate(RequestModel):
     expires_in_days: Literal[1, 2, 3, 5, 10]
     # 模块化标签：技能 / 平台 / 参考 World / 氛围，均可选。
     facets: list[TaskFacetIn] = Field(default_factory=list, max_length=16)
-
-
-class AcceptRequest(RequestModel):
-    password: str | None = Field(default=None, max_length=72)
-
-
-class PasswordUpdate(RequestModel):
-    password: str = Field(min_length=4, max_length=32)
 
 
 class UserPasswordUpdate(RequestModel):
@@ -310,13 +297,10 @@ class TaskOut(ApiModel):
     title: str
     description: str
     category: str
-    reward: str | None
-    pay_type: str = "paid"
     status: TaskStatus
     is_visible: bool
     admin_note: str | None = None
     publisher: UserPublic
-    requires_password: bool
     required_takers: int | None = None
     is_designated: bool = False
     is_anonymous: bool = False

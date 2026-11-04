@@ -19,7 +19,6 @@ const toast = useToast()
 const hasContact = computed(() => Boolean(auth.user?.qq))
 const busy = ref(false)
 const unlimited = ref(false)
-const passwordless = ref(false)
 const categories = CATEGORIES
 const directory = ref({ staff: [], volunteers: [] })
 const designated = ref(false)
@@ -58,9 +57,6 @@ const form = reactive({
   title: '',
   description: '',
   category: '',
-  pay_type: 'paid',
-  reward: '',
-  accept_password: '',
   required_takers: 1,
   is_anonymous: false,
   expires_in_days: 1,
@@ -84,9 +80,6 @@ async function submit() {
     const payload = {
       ...form,
       required_takers: unlimited.value ? null : form.required_takers,
-      pay_type: form.pay_type,
-      reward: form.pay_type === 'paid' ? (form.reward || null) : null,
-      accept_password: passwordless.value ? null : form.accept_password,
       designated_user_ids: designated.value ? designatedIds.value : [],
       facets: buildFacets({
         skills: skills.value,
@@ -117,7 +110,7 @@ onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeE
   <div class="modal-backdrop" @mousedown.self="$emit('close')">
     <section class="dialog create-dialog" role="dialog" aria-modal="true" aria-label="发布新委托">
       <button class="icon-button dialog-close" aria-label="关闭" title="关闭" @click="$emit('close')"><X :size="20" /></button>
-      <div class="dialog-heading"><span class="eyebrow">NEW REQUEST</span><h2>发布新委托</h2><p>把交付目标、时间和报酬说清楚，更容易遇到合适的人。</p></div>
+      <div class="dialog-heading"><span class="eyebrow">NEW REQUEST</span><h2>发布新委托</h2><p>把交付目标和时间说清楚，更容易遇到合适的人。</p></div>
       <div v-if="!hasContact" class="notice risk-notice" role="alert">
         <strong><TriangleAlert :size="17" />发布委托需要先添加联系方式</strong>
         <p>接单人需要靠 QQ 联系你确认细节并完成交付，请先在个人设置中填写 QQ 号。</p>
@@ -126,17 +119,7 @@ onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeE
       <form class="form-stack" @submit.prevent="submit">
         <label>委托标题<input v-model.trim="form.title" required minlength="2" maxlength="80" placeholder="一句话说明需要什么" /></label>
         <label>详细说明<textarea v-model.trim="form.description" required minlength="10" maxlength="3000" rows="6" placeholder="说明背景、具体要求和交付方式"></textarea><small>{{ form.description.length }}/3000</small></label>
-        <div class="form-row">
-          <label>委托分类<select v-model="form.category" required><option value="" disabled>请选择委托类型</option><option v-for="item in categories" :key="item">{{ item }}</option></select></label>
-          <div class="pay-field">
-            <span class="taker-label">是否付费</span>
-            <div class="pay-toggle" role="radiogroup" aria-label="是否付费">
-              <button type="button" role="radio" :aria-checked="form.pay_type === 'paid'" :class="{ active: form.pay_type === 'paid' }" @click="form.pay_type = 'paid'">有偿</button>
-              <button type="button" role="radio" :aria-checked="form.pay_type === 'free'" :class="{ active: form.pay_type === 'free' }" @click="form.pay_type = 'free'">无偿</button>
-            </div>
-          </div>
-        </div>
-        <label v-if="form.pay_type === 'paid'">报酬说明<input v-model.trim="form.reward" maxlength="60" placeholder="如：50 元 / 一杯奶茶" /></label>
+        <label>委托分类<select v-model="form.category" required><option value="" disabled>请选择委托类型</option><option v-for="item in categories" :key="item">{{ item }}</option></select></label>
         <div class="facet-section">
           <span class="eyebrow">技能与平台（可选）</span>
           <TaskFacetChips v-model="skills" label="技能" :options="TASK_SKILLS" :max="FACET_LIMITS.skill" hint="选填，帮助合适的人更快找到这份委托。" />
@@ -165,7 +148,7 @@ onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeE
         </div>
         <div class="designated-field">
           <label class="checkbox-inline"><input v-model="designated" type="checkbox" /><span>指定管理员/志愿者接取</span></label>
-          <small class="field-hint">指定委托无需密码，仅名单内人员可响应；单人接受即开始，多人需全部响应后开始。</small>
+          <small class="field-hint">指定委托仅名单内人员可响应；单人接受即开始，多人需全部响应后开始。</small>
           <div v-if="designated" class="designated-list">
             <label v-for="person in designatedUsers" :key="person.id" class="designated-option">
               <input v-model="designatedIds" type="checkbox" :value="person.id" />
@@ -178,20 +161,6 @@ onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeE
         <div class="anonymous-field">
           <label class="checkbox-inline"><input v-model="form.is_anonymous" type="checkbox" /><span>匿名发布</span></label>
           <small class="field-hint">匿名委托在大厅不公开昵称与个人资料，仅显示标题和内容；接取后联系方式仅双方可见。</small>
-        </div>
-        <div v-if="!designated" class="access-field">
-          <span class="taker-label">接取方式</span>
-          <div class="pay-toggle" role="radiogroup" aria-label="接取方式">
-            <button type="button" role="radio" :aria-checked="!passwordless" :class="{ active: !passwordless }" @click="passwordless = false">密码接取</button>
-            <button type="button" role="radio" :aria-checked="passwordless" :class="{ active: passwordless }" @click="passwordless = true">无密码</button>
-          </div>
-        </div>
-        <label v-if="!designated && !passwordless">接取密码<input v-model="form.accept_password" type="password" required minlength="4" maxlength="32" autocomplete="new-password" placeholder="4-32 位，每位接单人凭此密码接取" />
-          <small class="field-hint">每位接单人都要用这个密码接取。密码不会在站内展示，请通过 QQ 私下告知每一位你选定的人。</small>
-        </label>
-        <div v-else-if="!designated" class="notice risk-notice" role="alert">
-          <strong><TriangleAlert :size="17" />无密码接取风险</strong>
-          <p>所有非管理员用户无需联系你确认即可直接加入，可能快速占满名额；达到所需人数后委托会自动开始。请确认委托内容适合公开接取。</p>
         </div>
         <label>有效期（自发布起）<select v-model.number="form.expires_in_days" required><option v-for="days in expiryOptions" :key="days" :value="days">{{ days }} 天</option></select></label>
         <div class="dialog-footer"><button type="button" class="button secondary" @click="$emit('close')">暂不发布</button><button class="button" :disabled="busy || !hasContact || (designated && !designatedIds.length)">{{ busy ? '发布中…' : '确认发布' }}</button></div>

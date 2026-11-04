@@ -134,7 +134,6 @@ def test_anonymous_task_trims_publisher_trust():
                 "title": "匿名委托信任裁剪",
                 "description": "匿名委托不得在接口层泄露发布者的 VRChat 身份。",
                 "category": "其他委托",
-                "pay_type": "free",
                 "is_anonymous": True,
                 "required_takers": 1,
                 "expires_in_days": 2,
@@ -152,9 +151,9 @@ def test_anonymous_task_trims_publisher_trust():
         assert participant["publisher"]["display_name"] == "VRC 昵称"
 
         # 普通非匿名委托：发布者与已接受成员都在返回里。
-        public = create_task(client, publisher, password="vr-pub-1", required=1, title="公开委托信任")
+        public = create_task(client, publisher, required=1, title="公开委托信任")
         bind(client, taker, name="接单人昵称", profile="usr_beef1234")
-        client.post(f"/api/tasks/{public['id']}/accept", headers=taker, json={"password": "vr-pub-1"})
+        client.post(f"/api/tasks/{public['id']}/accept", headers=taker)
         summary = client.get(f"/api/tasks/{public['id']}/trust", headers=stranger).json()
         assert summary["anonymous"] is False
         # 发布者在前面已开启 identity 披露，因此这里可见其显示名。

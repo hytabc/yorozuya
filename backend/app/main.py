@@ -108,7 +108,6 @@ from .models import (
     VolunteerApplication,
 )
 from .schemas import (
-    AcceptRequest,
     AccountRequest,
     ActionAckOut,
     EmailChangeRequest,
@@ -143,7 +142,6 @@ from .schemas import (
     FriendProfileDetailOut,
     FriendRequestOut,
     LoginRequest,
-    PasswordUpdate,
     PageMetric,
     PageDwellCreate,
     PageViewCreate,
@@ -442,15 +440,6 @@ def migrate_schema() -> None:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN is_anonymous BOOLEAN NOT NULL DEFAULT 0"))
         if "started_at" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN started_at DATETIME"))
-        if "pay_type" not in task_columns:
-            connection.execute(text("ALTER TABLE tasks ADD COLUMN pay_type VARCHAR(8)"))
-            # 旧委托回填：填了报酬说明视为有偿，否则视为无偿
-            connection.execute(
-                text("UPDATE tasks SET pay_type = 'paid' WHERE pay_type IS NULL AND reward IS NOT NULL AND reward <> ''")
-            )
-            connection.execute(
-                text("UPDATE tasks SET pay_type = 'free' WHERE pay_type IS NULL")
-            )
         if "cancelled_at" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN cancelled_at DATETIME"))
         if "cancel_requested_by" not in task_columns:
@@ -4093,7 +4082,6 @@ def list_tasks(
     search: str = Query(default="", max_length=80),
     category: str = Query(default=""),
     task_status: Annotated[TaskStatusFilter, Query(alias="status")] = None,
-    pay_type: str = Query(default=""),
     skill: str = Query(default=""),
     platform: str = Query(default=""),
     world: str = Query(default=""),
@@ -4113,8 +4101,6 @@ def list_tasks(
         query = query.where(Task.status == task_status)
     elif not is_task_manager(viewer):
         query = query.where(Task.status == TaskStatus.PUBLISHED)
-    if pay_type in ("paid", "free"):
-        query = query.where(Task.pay_type == pay_type)
     # 模块化标签筛选：多个条件之间是「且」的关系，空值表示不筛选。
     for facet_type, value in (
         ("skill", skill),
@@ -4218,14 +4204,10 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
         title=payload.title.strip(),
         description=payload.description.strip(),
         category=payload.category,
-        pay_type=payload.pay_type,
-        reward=payload.reward.strip() if payload.reward else None,
         expires_at=now + timedelta(days=payload.expires_in_days),
         publisher_id=user.id,
         is_anonymous=payload.is_anonymous,
         required_takers=len(designated_user_ids) if designated_user_ids else payload.required_takers,
-        # 指定委托无须密码，响应权限由指定名单保证。
-        accept_password_hash=None if designated_user_ids else (hash_password(payload.accept_password) if payload.accept_password else None),
         is_designated=bool(designated_user_ids),
     )
     db.add(task)
@@ -4354,13 +4336,12 @@ def set_report_limit(
 @app.post("/api/tasks/{task_id}/accept", response_model=TaskOut)
 def accept_task(
     task_id: int,
-    payload: AcceptRequest,
     request: Request,
     background: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """加入委托（有密码时需凭正确密码，无密码时所有非管理员用户可加入）。"""
+    """加入委托：所有可见的非管理员用户都可直接加入。"""
     atmosphere_module.enforce_ack(db, user)
     expire_due_tasks(db)
     task = get_task_or_404(db, task_id)
@@ -4421,11 +4402,6 @@ def accept_task(
         joined = db.scalar(select(func.count()).select_from(TaskMember).where(TaskMember.task_id == task.id)) or 0
         if joined >= task.required_takers:
             raise HTTPException(status_code=409, detail="需要的人数已满，委托即将开始")
-    if task.requires_password:
-        # 限流尝试次数，防止暴力枚举 4 位起的接取密码。
-        enforce("accept-password", str(user.id), 10, 300)
-        if not payload.password or not verify_password(payload.password, task.accept_password_hash):
-            raise HTTPException(status_code=403, detail="接取密码不正确，请联系委托人确认")
     # 在支持行锁的数据库上串行化同一用户的接单操作，避免并发突破个人上限。
     db.scalar(select(User).where(User.id == user.id).with_for_update())
     if active_task_count(db, user.id) >= user.max_concurrent_tasks:
@@ -4580,25 +4556,6 @@ def confirm_task(
             exclude=user,
         )
     return present_task(confirmed, user)
-
-
-@app.patch("/api/tasks/{task_id}/password", response_model=TaskOut)
-def update_task_password(
-    task_id: int,
-    payload: PasswordUpdate,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """委托人重设接取密码：仅在委托尚未开始时可用。"""
-    task = get_task_or_404(db, task_id)
-    if task.publisher_id != user.id:
-        raise HTTPException(status_code=403, detail="只有委托人可以重设接取密码")
-    if task.status != TaskStatus.PUBLISHED:
-        raise HTTPException(status_code=409, detail="委托开始后不能重设密码")
-    task.accept_password_hash = hash_password(payload.password)
-    task.updated_at = datetime.utcnow()
-    db.commit()
-    return present_task(get_task_or_404(db, task_id), user)
 
 
 @app.post("/api/tasks/{task_id}/cancel", response_model=TaskOut)

@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { CalendarClock, Coins, Flag, KeyRound, LockOpen, MessageCircle, UserRound, UsersRound, X } from '@lucide/vue'
+import { CalendarClock, Flag, LockOpen, MessageCircle, UserRound, UsersRound, X } from '@lucide/vue'
 import { useAuthStore } from '../stores/auth'
 import ReportDialog from './ReportDialog.vue'
 import StatusBadge from './StatusBadge.vue'
@@ -13,7 +13,6 @@ import { facetGroups } from '../facets'
 const props = defineProps({ task: { type: Object, required: true }, busy: Boolean })
 const emit = defineEmits(['close', 'action', 'reported'])
 const auth = useAuthStore()
-const password = ref('')
 const profileUserId = ref(null)
 const showReport = ref(false)
 // 委托双方的信任摘要：匿名委托由服务端在接口层裁剪，前端无需再判断。
@@ -44,7 +43,6 @@ const published = computed(() => props.task.status === 'published')
 const designated = computed(() => Boolean(props.task.is_designated))
 const working = computed(() => props.task.status === 'accepted' || props.task.status === 'awaiting')
 const finished = computed(() => props.task.status === 'completed')
-const requiresPassword = computed(() => props.task.requires_password !== false)
 const anonymousView = computed(() => props.task.is_anonymous && props.task.publisher.id === 0)
 // 标签按「技能 / 平台 / 参考 World / 氛围」分组；旧委托没有标签时整块不渲染。
 const facets = computed(() => facetGroups(props.task.facets))
@@ -105,12 +103,7 @@ onMounted(async () => {
 onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeEventListener('keydown', onKey) })
 
 function emitAccept() {
-  if (!requiresPassword.value || password.value) emit('action', 'accept', { password: requiresPassword.value ? password.value : null })
-}
-function resetPassword() {
-  const next = window.prompt(requiresPassword.value ? '输入新的接取密码（4-32 位），旧密码将立即失效' : '输入接取密码（4-32 位），设置后需凭密码接取', '')
-  if (next === null) return
-  emit('action', 'password', { password: next.trim() })
+  emit('action', 'accept')
 }
 </script>
 
@@ -133,8 +126,7 @@ function resetPassword() {
         <div><dt><UserRound :size="16" />委托人</dt><dd><button v-if="task.publisher.id > 0" class="name-link" type="button" @click="openProfile(task.publisher.id)">{{ task.publisher.nickname }}<UserTitleTag :title="task.publisher.title" /></button><span v-else class="muted">匿名委托人</span><VrTrustBadge v-if="!anonymousView" :trust="taskTrust?.publisher" show-empty /></dd></div>
         <div><dt><CalendarClock :size="16" />有效期至</dt><dd>{{ format(task.expires_at) }}</dd></div>
         <div><dt><UsersRound :size="16" />需要接取人数</dt><dd>{{ requiredText }}<span v-if="!anonymousView" class="muted">（已响应 {{ joinedCount }} 人<template v-if="pendingCount">，待响应 {{ pendingCount }} 人</template>）</span></dd></div>
-        <div><dt><component :is="designated ? UsersRound : (requiresPassword ? KeyRound : LockOpen)" :size="16" />接取方式</dt><dd>{{ designated ? '指定人员响应' : (requiresPassword ? '凭密码接取' : '无需密码，直接接取') }}</dd></div>
-        <div><dt><Coins :size="16" />是否付费</dt><dd><span class="pay-tag" :class="`pay-${task.pay_type || 'paid'}`">{{ task.pay_type === 'free' ? '无偿' : '有偿' }}</span><template v-if="task.pay_type !== 'free' && task.reward"> · {{ task.reward }}</template><span v-if="task.pay_type !== 'free' && !task.reward" class="muted"> · 报酬待协商</span></dd></div>
+        <div><dt><component :is="designated ? UsersRound : LockOpen" :size="16" />接取方式</dt><dd>{{ designated ? '指定人员响应' : '公开接取' }}</dd></div>
         <div v-if="task.contact_qq"><dt><MessageCircle :size="16" />委托人 QQ</dt><dd>{{ task.contact_qq }}</dd></div>
       </dl>
 
@@ -159,15 +151,14 @@ function resetPassword() {
       <!-- 待开始（招募中） -->
       <div v-if="published && !auth.isLoggedIn" class="notice info-notice">
         <strong>想接这份委托？</strong>
-        <p v-if="requiresPassword"><template v-if="anonymousView">登录后凭密码接取即可成为协作成员；接取后双方联系方式互见，可线下洽谈。</template><template v-else>登录后即可看到委托人 QQ 并洽谈；委托人同意后会把接取密码告诉你（本委托共需 {{ requiredText }}）。</template></p>
-        <p v-else><template v-if="anonymousView">这是匿名无密码委托，所有权限等级的非管理员用户登录后均可直接接取；接取后双方联系方式互见。</template><template v-else>这是无密码委托，所有权限等级的非管理员用户登录后均可直接接取（本委托共需 {{ requiredText }}）。</template></p>
+        <p v-if="anonymousView">这是匿名委托，所有非管理员用户登录后均可直接接取（本委托共需 {{ requiredText }}）；接取后双方联系方式互见。</p>
+        <p v-else>登录后即可看到委托人 QQ 并洽谈，也可直接接取（本委托共需 {{ requiredText }}）。</p>
       </div>
 
       <div v-if="published && isPublisher && !isMember" class="notice info-notice">
         <strong>委托待开始，等待接单人</strong>
         <p v-if="designated">已指定 {{ requiredText }}，已响应 {{ joinedCount }} 人，待响应 {{ pendingCount }} 人。所有被指定人员响应后，委托才会开始。</p>
-        <p v-else-if="requiresPassword">已加入 {{ joinedCount }} / {{ requiredText }}。凑齐人数会自动开始，也可以等接单人联系你谈妥后手动开始；想换人先重设密码。</p>
-        <p v-else>已加入 {{ joinedCount }} / {{ requiredText }}。所有权限等级的非管理员用户均可直接接取，凑齐人数会自动开始。</p>
+        <p v-else>已加入 {{ joinedCount }} / {{ requiredText }}。凑齐人数会自动开始，也可以等接单人联系你谈妥后手动开始。</p>
       </div>
 
       <div v-if="published && isMember && !isPublisher && !pendingMember" class="notice success-notice">
@@ -176,24 +167,20 @@ function resetPassword() {
         <p v-else>委托人开始后即可进行任务。</p>
       </div>
       <div v-if="canRespondDesignated" class="take-panel">
-        <div class="notice info-notice"><strong>你被指定接取此委托</strong><p>无需密码，请选择接受或拒绝。接受后将按协作成员参与完成确认。</p></div>
+        <div class="notice info-notice"><strong>你被指定接取此委托</strong><p>请选择接受或拒绝。接受后将按协作成员参与完成确认。</p></div>
         <div class="accept-tools"><button class="button" :disabled="busy" @click="$emit('action', 'accept')">{{ busy ? '处理中…' : '接受委托' }}</button><button class="button secondary" :disabled="busy" @click="$emit('action', 'leave')">拒绝委托</button></div>
       </div>
 
       <div v-if="canTakePanel" class="take-panel">
         <div class="notice info-notice">
-          <strong>{{ requiresPassword ? '接取流程' : '公开接取' }}</strong>
-          <p v-if="requiresPassword"><template v-if="anonymousView"><KeyRound :size="14" /> 匿名委托：请输入委托人私下告知的接取密码，接取后双方联系方式互见，可线下洽谈。</template><template v-else><MessageCircle :size="14" /> 先联系委托人洽谈<template v-if="!task.contact_qq">（委托人暂未填写 QQ，可稍后再来或换个委托试试）</template><template v-else>：QQ {{ task.contact_qq }}</template>；<KeyRound :size="14" /> 对方同意后会把接取密码告诉你。</template></p>
-          <p v-else><template v-if="anonymousView"><LockOpen :size="14" /> 匿名委托已开放直接接取，无需密码。接取后双方联系方式互见，可线下洽谈。</template><template v-else><LockOpen :size="14" />委托人已开放直接接取，无需密码。接取后你将成为协作成员，并需要参与完成及取消确认。</template></p>
+          <strong>公开接取</strong>
+          <p v-if="anonymousView"><LockOpen :size="14" /> 匿名委托已开放直接接取。接取后双方联系方式互见，可线下洽谈。</p>
+          <p v-else><LockOpen :size="14" />委托人已开放直接接取。接取后你将成为协作成员，并需要参与完成及取消确认。</p>
         </div>
-        <div v-if="requiresPassword" class="accept-tools">
-          <input v-model.trim="password" type="password" minlength="1" maxlength="72" autocomplete="off" placeholder="输入委托人提供的接取密码" aria-label="接取密码" @keydown.enter="emitAccept" />
-          <button class="button" :disabled="busy || !password" @click="emitAccept">{{ busy ? '处理中…' : '凭密码接取' }}</button>
-        </div>
-        <div v-else class="accept-tools"><button class="button wide" :disabled="busy" @click="emitAccept">{{ busy ? '处理中…' : '直接接取' }}</button></div>
+        <div class="accept-tools"><button class="button wide" :disabled="busy" @click="emitAccept">{{ busy ? '处理中…' : '直接接取' }}</button></div>
       </div>
 
-      <!-- 普通用户也可凭密码接取带密码的委托 -->
+      <!-- 超级管理员不参与接取 -->
       <div v-if="published && auth.isLoggedIn && !isPublisher && !isMember && auth.isAdmin" class="notice info-notice">
         <strong>超级管理员账号不接取委托</strong>
         <p>超级管理员负责平台管理；如需测试接取流程，请使用志愿者账号。</p>
@@ -239,7 +226,6 @@ function resetPassword() {
         <div class="dialog-actions">
           <button v-if="canReport" class="button secondary small" :disabled="busy" @click="showReport = true"><Flag :size="14" />举报</button>
           <button v-if="published && isPublisher && !isMember && !designated" class="button" :disabled="busy || joinedCount === 0" @click="$emit('action', 'start')">{{ busy ? '处理中…' : '开始委托任务' }}</button>
-          <button v-if="published && isPublisher && !isMember && !designated" class="button secondary small" :disabled="busy" @click="resetPassword">{{ requiresPassword ? '重设接取密码' : '设置接取密码' }}</button>
           <button v-if="published && isMember && !isPublisher && !designated && !cancelling" class="button danger small" :disabled="busy" @click="$emit('action', 'leave')">{{ busy ? '处理中…' : '退出接取' }}</button>
           <button v-if="cancellable && !cancelling" class="button danger small" :disabled="busy" @click="$emit('action', 'cancel')">{{ busy ? '处理中…' : '取消委托' }}</button>
           <button v-if="cancelling && isParticipant && cancelAgreedByMe" class="button secondary small" :disabled="busy" @click="$emit('action', 'cancel-continue')">{{ busy ? '处理中…' : '撤回，继续委托' }}</button>
@@ -248,7 +234,7 @@ function resetPassword() {
             <button class="button secondary small" :disabled="busy" @click="$emit('action', 'cancel-continue')">{{ busy ? '处理中…' : '继续委托' }}</button>
           </template>
           <button v-if="confirmCopy && !viewerConfirmed" class="button" :disabled="busy" @click="$emit('action', 'confirm')">{{ busy ? '处理中…' : confirmCopy.label }}</button>
-          <button v-if="published && !auth.isLoggedIn" class="button" @click="$emit('action', 'login')">{{ requiresPassword ? '登录后联系委托人' : '登录后直接接取' }}</button>
+          <button v-if="published && !auth.isLoggedIn" class="button" @click="$emit('action', 'login')">登录后直接接取</button>
         </div>
       </footer>
       <ReportDialog v-if="showReport" :task="task" @close="showReport = false" @reported="$emit('reported')" />

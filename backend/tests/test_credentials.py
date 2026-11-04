@@ -24,10 +24,8 @@ def publish(client, publisher, title, skills=None, password="cred-pw-1", anonymo
         "title": title,
         "description": "用于验证完成凭证与作品集聚合的正文内容。",
         "category": "技术疑难",
-        "pay_type": "free",
         "required_takers": 1,
         "expires_in_days": 2,
-        "accept_password": password,
         "is_anonymous": anonymous,
         "facets": [{"facet_type": "skill", "value": value} for value in (skills or [])],
     }

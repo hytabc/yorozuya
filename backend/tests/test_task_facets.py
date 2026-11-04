@@ -21,7 +21,6 @@ def publish(client, headers, title, facets, **extra):
         "title": title,
         "description": "用于验证委托模块化标签的正文内容，长度满足限制。",
         "category": "技术疑难",
-        "pay_type": "free",
         "expires_in_days": 2,
         "facets": facets,
         **extra,
@@ -137,7 +136,7 @@ def test_facet_filters_and_legacy_tasks():
             ],
         ).json()
         # 旧委托：不带 facets 字段也应正常创建并返回空数组。
-        legacy = create_task(client, publisher, password=None, required=None, title="没有标签的委托")
+        legacy = create_task(client, publisher, required=None, title="没有标签的委托")
         assert legacy["facets"] == []
 
         assert [item["id"] for item in client.get("/api/tasks", params={"skill": "Blender"}).json()] == [blender["id"]]
@@ -155,7 +154,7 @@ def test_update_facets_permissions_and_started_window():
         publisher = auth(client, "facet_edit_pub")
         other = auth(client, "facet_edit_other")
         taker = auth(client, "facet_edit_taker", role="volunteer")
-        task = create_task(client, publisher, password="facet-pw-1", required=1)
+        task = create_task(client, publisher, required=1)
         task_id = task["id"]
 
         replaced = client.patch(
@@ -185,7 +184,7 @@ def test_update_facets_permissions_and_started_window():
         assert "不能再修改标签" in started.json()["detail"]
 
         # 清空标签也是合法操作。
-        task2 = create_task(client, publisher, password="facet-pw-2", required=2, title="待清空标签")
+        task2 = create_task(client, publisher, required=2, title="待清空标签")
         client.patch(
             f"/api/tasks/{task2['id']}/facets",
             headers=publisher,
