@@ -200,3 +200,20 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - 三轴移动（x/y地面，z高度）、50%/100%/200%缩放、首次教程；工坊八种材质、自由颜色、吸管及最多64种组合/8192块/32³网格，旧大模型保留而不继续扩大。`Slot.material` 缺省沿用旧渲染，`Placement.scale` 缺省1。
 - 新增收藏表 `house_furniture_favorites`、`/api/house/furniture/{id}/favorite` 与 `/copy`；副本独立保存。`/api/house/rooms` 为参观列表，参观与留言读取需登录；前端“参观”标签只读浏览确认发布的快照。
 - 三维交互回归 `frontend/tests/houseScene.test.mjs` 使用实际Three.js几何和射线，GPU/DOM使用测试替身；并不替代真实浏览器视觉与触控验收。
+
+## 信任层与空间化委托（2026-11）
+
+> 设计与决策依据见 `docs/计划书-VRChat信任层与空间化委托.md`、`docs/vrchat-api-notes.md`、`docs/osc-bridge.md`。
+
+- 新模块均照 `house.py` 的方式：模型 + `APIRouter(prefix=...)` + 字典序列化，在 `main.py` 顶部 import、`include_router` 区挂载，不往 `main.py` 堆业务。
+  - `backend/app/facets.py`：`task_facets`（技能/平台/World/氛围）、`/api/tasks/facets`、`PATCH /api/tasks/{id}/facets`。词表与 `frontend/src/constants.js` 的 `TASK_SKILLS` / `TASK_PLATFORMS` / `ATMOSPHERE_GROUPS` / `FACET_LIMITS` **必须同步**。
+  - `backend/app/atmosphere.py`：`atmosphere_acks`、`/api/atmosphere/status|ack`；`enforce_ack()` 挂在发布与接取，超管豁免，`ATMOSPHERE_GATE_ENABLED=false` 可放行；pytest 下跳过。
+  - `backend/app/trust.py`：`vrchat_identities`、`/api/vrchat/*`、`/api/users/{id}/trust`、`/api/tasks/{id}/trust`、`/api/admin/vrchat/*`。**软绑定**：只存显示名与主页链接，`verified` 恒为 false；不存密码/令牌，不调外部 API；披露在接口层裁剪；匿名委托直接返回 `publisher=null`。
+  - `backend/app/credentials.py`：`task_credentials`、`/api/credentials/*`、`/api/admin/credentials/{id}`、`/api/creators/*`。凭证在 `confirm_task` 完成判断的**同一事务**内签发（`issue_for_task`），`(task_id,taker_id)` 唯一保证幂等，快照不可篡改；编号 `WS-{年}-{id 补 6 位}`。
+  - `backend/app/events.py`：`task_events`、`/api/events`、`/api/events/summary`、`/api/events/read`。只记当事人自己的委托动态，不做全站新委托流；事件与状态变更同事务写入。
+- 前端对应：`facets.js` + `TaskFacetChips.vue`、`atmosphereRules.js` + `composables/useAtmosphere.js` + `AtmosphereGate.vue` + `TermsView.vue`（`/terms`）、`trust.js` + `VrTrustBadge.vue` + `TrustDisclosureDialog.vue` + `VrchatIdentitySection.vue`、`credential.js` + `CredentialCard.vue` + `CredentialView.vue` + `CreatorPortfolio.vue` + `MyCredentialsSection.vue`、`hall/space/*`、`events.js` + `NotificationCenter.vue`。
+- 大厅默认视图仍是列表；星图（Three.js 正交场景 + HTML 标签覆盖层）按需加载，`HALL_SPACE_VIEW_ENABLED=false` 可整体关闭，WebGL 失败自动回退列表。布局在 `hall/space/layout.js`，纯函数、确定性、上限 60 条。
+- 新增页面路由：`/terms`、`/credential/:serial`、`/creators/:userId`，全部 `() => import()`；`PageKeyLiteral` 与 `PAGE_LABELS` 已同步加入 `terms` / `creator` / `credential`。
+- 通知中心轮询 30 秒（`document.hidden` 时暂停）；点击事件跳转 `/?task=<id>`，由大厅复用 `TaskDialog`，不新增详情路由。
+- 回归：`backend/tests/test_task_facets.py`、`test_atmosphere.py`、`test_vrchat.py`、`test_credentials.py`、`test_events.py`；前端 `facets` / `atmosphere` / `trust` / `credential` / `hallSpace` / `events` 六个 `.test.mjs`。后端基线已到 251 个用例。
+- ⚠️ 不要删除或弱化 `/terms` 的完整条款；礼仪确认只改变呈现顺序。不要把 `verified` 写成 true，也不要展示未接入的 Trust Rank。
