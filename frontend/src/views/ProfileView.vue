@@ -12,6 +12,7 @@ import UserTitleTag from '../components/UserTitleTag.vue'
 import LazyImage from '../components/LazyImage.vue'
 import ImageLightbox from '../components/ImageLightbox.vue'
 import VrchatIdentitySection from '../components/VrchatIdentitySection.vue'
+import MyCredentialsSection from '../components/MyCredentialsSection.vue'
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
 const AVATAR_TYPES = new Set(['image/jpeg', 'image/png'])
@@ -282,6 +283,7 @@ async function deleteAvatar() {
           </p>
         </div>
         <VrchatIdentitySection />
+        <MyCredentialsSection />
       </section>
     </div>
 

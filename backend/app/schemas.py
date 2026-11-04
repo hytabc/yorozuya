@@ -592,6 +592,7 @@ PageKeyLiteral = Literal[
     "hall", "staff", "board", "talk", "maps", "friends", "stories", "sugar",
     "announcements", "versions", "mine", "profile", "login", "frost",
     "operations", "admin", "life", "life-admin", "house", "terms",
+    "creator", "credential",
     "verify-email", "forgot-password", "reset-password",
 ]
 

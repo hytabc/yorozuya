@@ -237,6 +237,12 @@ from .trust import (
     router as vrchat_router,
     trust_router as vrchat_trust_router,
 )
+from . import credentials as credentials_module
+from .credentials import (
+    admin_router as credential_admin_router,
+    portfolio_router as creator_portfolio_router,
+    router as credential_router,
+)
 from .virtual_life import router as virtual_life_router
 from .virtual_life_packs import router as virtual_life_packs_router, seed_virtual_life_packs
 
@@ -687,6 +693,9 @@ app.include_router(atmosphere_router)
 app.include_router(vrchat_router)
 app.include_router(vrchat_admin_router)
 app.include_router(vrchat_trust_router)
+app.include_router(credential_router)
+app.include_router(credential_admin_router)
+app.include_router(creator_portfolio_router)
 
 
 def expire_due_tasks(db: Session) -> None:
@@ -736,6 +745,8 @@ PAGE_LABELS = {
     "forgot-password": "找回密码",
     "reset-password": "重置密码",
     "terms": "使用条款",
+    "creator": "创作者作品集",
+    "credential": "委托凭证",
 }
 
 # 关键行为事件白名单：前端 track() 的 event_key 必须在这里，未知事件不入库（防脏数据）。
@@ -4506,6 +4517,9 @@ def confirm_task(
     if task.all_confirmed:
         task.status = TaskStatus.COMPLETED
         task.completed_at = now
+        # 与完成确认同一事务签发凭证：任何一步失败都整体回滚，
+        # 不会出现「已完成但没有凭证」或被重复签发。
+        credentials_module.issue_for_task(db, task)
     elif any(member.confirmed_at is not None for member in task.members) or task.publisher_confirmed_at is not None:
         task.status = TaskStatus.AWAITING
     else:

@@ -79,6 +79,7 @@ onMounted(async () => {
           <span v-if="!photo.is_visible"><EyeOff :size="13" />已屏蔽</span>
         </figure>
       </div>
+      <RouterLink class="text-link user-card-portfolio" :to="`/creators/${user.id}`">查看作品集与凭证</RouterLink>
       <div v-if="!hideContact && user.qq" class="user-card-qq"><MessageCircle :size="15" /><span><strong>QQ：{{ user.qq }}</strong><small>{{ (user.role === 'staff' || user.role === 'volunteer') && user.qq_public ? '该成员已选择公开联系方式' : '你们已建立委托协作，联系方式已向你开放' }}</small></span></div>
       <div v-else-if="!hideContact" class="user-card-qq muted"><KeyRound :size="15" /><span><strong>暂无可见联系方式</strong><small>{{ ['staff', 'volunteer'].includes(user.role) && !user.qq_public ? '该成员未在成员名录中公开 QQ' : (['mascot', 'disciplinarian'].includes(user.role) ? '该成员的联系方式不在名录中公开' : '仅共同协作者可见对方 QQ') }}</small></span></div>
       <p v-else class="user-card-privacy muted"><MessageCircle :size="15" />联系方式不在公开资料中展示</p>

@@ -31,6 +31,9 @@ const router = createRouter({
     { path: '/versions', component: () => import('./views/VersionsView.vue'), meta: { analyticsKey: 'versions' } },
     // 完整免责与使用条款：礼仪确认页与页脚都会链到这里。
     { path: '/terms', component: () => import('./views/TermsView.vue'), meta: { analyticsKey: 'terms' } },
+    // 凭证与作品集：凭证按编号可分享，作品集对外展示。
+    { path: '/credential/:serial', component: () => import('./views/CredentialView.vue'), meta: { analyticsKey: 'credential' } },
+    { path: '/creators/:userId', component: () => import('./views/CreatorPortfolio.vue'), meta: { analyticsKey: 'creator' } },
     { path: '/operations', component: () => import('./views/OperationsView.vue'), meta: { operations: true, analyticsKey: 'operations' } },
     { path: '/frost', component: () => import('./views/SugarFrost.vue'), meta: { auth: true, analyticsKey: 'frost' } },
     { path: '/life', component: () => import('./views/VrLife.vue'), meta: { lifeOnly: true, analyticsKey: 'life' } },
