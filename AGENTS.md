@@ -218,6 +218,30 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - 回归：`backend/tests/test_task_facets.py`、`test_atmosphere.py`、`test_vrchat.py`、`test_credentials.py`、`test_events.py`；前端 `facets` / `atmosphere` / `trust` / `credential` / `hallSpace` / `events` 六个 `.test.mjs`。后端基线已到 251 个用例。
 - ⚠️ 不要删除或弱化 `/terms` 的完整条款；礼仪确认只改变呈现顺序。不要把 `verified` 写成 true，也不要展示未接入的 Trust Rank。
 
+## 积分 / 评分 / 每日任务 / 成就 / 等级（2026-11）
+
+> 已删除 `Task.pay_type` / `reward` / `accept_password_hash`：委托报酬只由积分承载，接取不再需要密码。
+
+- **积分两口袋**（`backend/app/points.py`，`point_ledger`）：
+  - `users.lifetime_points` 公开、只增不减，决定等级/榜单/成就；`users.wallet_points` 仅本人可见，只能用于发悬赏。
+  - 统一入口 `award_points()`，带幂等来源（`user_id+kind+source_type+source_id`）；余额不足只扣到 0。
+  - 历史补偿：迁移新增列时按「完成接单 ×10 + 完成发布 ×3」一次性回填。
+- **委托积分**：`Task.scale`(small 5 / medium 15 / large 40) × 分类系数(0.8~1.3) = `base_points`，发布时固化；`bounty_points` 发布时从钱包托管，取消/过期/全员拒绝全额退回。
+  - 完成时先发 `base × 0.6`（`TaskMember.base_points_earned` 记录折算后基数）与悬赏（人均分，余数退回）；评价后按星级结算尾差。
+  - 防刷：同对用户第 1/2/3 次系数 1/0.5/0.25、第 4 次起 0；每日系统积分上限 60（Asia/Shanghai）；注册 7 天内系统积分减半。
+- **评价**（`backend/app/ratings.py`，`task_ratings`）：0~5 半星 11 档、双向、7 天窗口、双盲（双方提交即互见）、24h 内可改一次、逾期自动 3 星；0 星必选原因，≤2 星必填 ≥15 字。
+  - 聚合与榜单用贝叶斯平滑 `(10×4.0+Σ)/(10+n)`，评分榜要求 ≥5 条；`rating_appeals` 支持 14 天内申诉，撤销/改星会重算积分。
+- **每日任务**（`daily.py`）：固定 5 项（发布≥30 字 +2、完成 +4、评价 +1、分享 +1、全清 +2）+ 每天确定性抽 3 条官方活跃委托（`official_quest_claims`），按 Asia/Shanghai 0 点刷新，需手动领取。
+- **成就**（`achievements.py`，26 个）：条件由业务表实时计算，打开成就页自动补发；成就只加终身积分。
+- **等级**（`levels.py`）：Lv1~10 由 lifetime 推导（0/50/150/350/700/1200/2000/3200/5000/8000）；接单上限 `max(管理员设置, 2+Lv//3)`、悬赏上限 `Lv×20`、Lv3 起可发悬赏；委托人评分（≥5 条）<3.0 悬赏减半、<2.5 禁悬赏/多人、<2.0 每日发布上限 1。
+- **排行榜**（`rankings.py`）：积分/接单人评分/委托人评分/完成数四榜，`users.rank_opt_out` 可退出。
+- **邀请**（`invites.py`）：每人 8 位永久码，注册或 7 天内绑定；被邀请人首单完成后邀请人 +20 / 被邀请人 +10，邀请人每月最多 5 个有效邀请。
+- **分享**（`shares.py` + `GET /share/task/{id}`）：`task_shares` 记渠道；OG 落地页只输出转义后的 meta 并跳回 SPA，分享链接可带 `?ref=<邀请码>`。
+- **人生记录**（`records.py`）：`GET /api/users/{id}/records` 汇总等级/完成数/评分/成就/常做分类；个人设置展示同一份数据与积分流水。
+- 前端：`/daily`、`/rankings`（「更多」入口）、`RatingSection`、`AchievementWall`、`LifeRecords`、`ShareDialog`；条款见 `/terms` 七~九节。
+- 回归：`backend/tests/test_points.py`、`test_ratings.py`、`test_daily.py`、`test_achievements.py`、`test_levels.py`、`test_rankings.py`、`test_records.py`、`test_invite.py`、`test_share.py`（后端已到 293 个用例）。
+- 品牌素材由 `scripts/build-brand-assets.py` 生成到 `frontend/public/brand/`，改色/改尺寸后重跑即可。
+
 ## 主题可读性与新手引导（2026-11）
 
 ### 深色模式可读性
