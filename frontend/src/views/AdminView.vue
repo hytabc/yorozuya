@@ -11,6 +11,7 @@ import LazyImage from '../components/LazyImage.vue'
 import { roleLabel } from '../constants'
 
 const HouseModeration = defineAsyncComponent(() => import('../house/HouseModeration.vue'))
+const RatingAppealAdmin = defineAsyncComponent(() => import('../components/admin/RatingAppealAdmin.vue'))
 const toast = useToast()
 const auth = useAuthStore()
 const router = useRouter()
@@ -53,6 +54,7 @@ const tabState = reactive({
   vrmaps: { loaded: false, loading: false },
   photos: { loaded: false, loading: false },
   feedback: { loaded: false, loading: false },
+  'rating-appeals': { loaded: false, loading: false },
 })
 const isFirstLoad = (tab) => !tabState[tab]?.loaded
 const savingUserId = ref(null)
@@ -414,6 +416,7 @@ watch(activeTab, (tab) => loadTab(tab))
       <button :class="{ active: activeTab === 'house' }" role="tab" :aria-selected="activeTab === 'house'" @click="activeTab = 'house'">房屋管理</button>
       <button :class="{ active: activeTab === 'photos' }" role="tab" :aria-selected="activeTab === 'photos'" @click="activeTab = 'photos'">图片管理<span v-if="pendingStoryPhotos + (stats.pending_house_textures || 0)">{{ pendingStoryPhotos + (stats.pending_house_textures || 0) }}</span></button>
       <button v-if="!auth.isDisciplinarian" :class="{ active: activeTab === 'feedback' }" role="tab" :aria-selected="activeTab === 'feedback'" @click="activeTab = 'feedback'">用户反馈<span v-if="pendingFeedbacks">{{ pendingFeedbacks }}</span></button>
+      <button :class="{ active: activeTab === 'rating-appeals' }" role="tab" :aria-selected="activeTab === 'rating-appeals'" @click="activeTab = 'rating-appeals'">评价申诉</button>
     </div>
 
     <section v-if="activeTab === 'reports'" class="admin-table-section">
@@ -661,6 +664,8 @@ watch(activeTab, (tab) => loadTab(tab))
     </section>
 
     <section v-else-if="activeTab === 'house'" class="admin-table-section"><HouseModeration @moderated="loadSummary" /></section>
+
+    <section v-else-if="activeTab === 'rating-appeals'" class="admin-table-section"><RatingAppealAdmin /></section>
 
     <section v-else-if="activeTab === 'feedback'" class="admin-table-section">
       <div class="admin-toolbar"><div><h2>用户反馈</h2><span>待处理 {{ pendingFeedbacks }} 条</span></div><span class="muted"><MessageCircle :size="15" /> 提交者会收到处理状态与回复</span></div>

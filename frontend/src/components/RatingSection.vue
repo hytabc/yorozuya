@@ -11,6 +11,9 @@ const busy = ref(false)
 const data = ref({ deadline: null, role: null, can_rate: false, slots: [] })
 // rateeId -> 正在编辑的表单；null 表示不在编辑。
 const editing = ref(null)
+const appealFor = ref(null)
+const appealReason = ref('')
+const appealing = ref(false)
 const draft = reactive({ stars_half: 10, comment: '', reason_code: '' })
 const REASONS = [
   { value: 'not_delivered', label: '未交付' },
@@ -88,6 +91,22 @@ async function submit(slot) {
   }
 }
 
+async function submitAppeal(ratingId) {
+  if (appealReason.value.trim().length < 20) return
+  appealing.value = true
+  try {
+    await api.post(`/ratings/${ratingId}/appeal`, { reason: appealReason.value.trim() })
+    toast.success('申诉已提交，管理员复核后会更新结果')
+    appealFor.value = null
+    appealReason.value = ''
+    await load()
+  } catch (error) {
+    toast.error(errorMessage(error))
+  } finally {
+    appealing.value = false
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -136,10 +155,27 @@ onMounted(load)
         <button type="button" class="button small" @click="startRate(slot)">评价 {{ slot.counterpart.nickname }}</button>
       </div>
 
-      <p v-if="slot.their_rating" class="rating-comment their">
-        <span class="muted">对方对你的评价：</span><span class="rating-stars"><Star :size="13" />{{ starsText(slot.their_rating.stars * 2) }}</span>
-        {{ slot.their_rating.comment || '' }}
-      </p>
+      <div v-if="slot.their_rating" class="rating-received">
+        <p v-if="slot.their_rating.revoked" class="muted rating-wait">对方给你的这条评价已被管理员撤销，不再计入评分。</p>
+        <template v-else>
+          <p class="rating-comment their">
+            <span class="muted">对方对你的评价：</span><span class="rating-stars"><Star :size="13" />{{ starsText(slot.their_rating.stars * 2) }}</span>
+            {{ slot.their_rating.comment || '' }}
+            <span v-if="slot.their_rating.reason_label" class="rating-reason">{{ slot.their_rating.reason_label }}</span>
+          </p>
+          <button v-if="slot.their_rating.stars <= 2" type="button" class="text-link" @click="appealFor = appealFor === slot.their_rating.id ? null : slot.their_rating.id">申请复核</button>
+          <div v-if="appealFor === slot.their_rating.id" class="rating-form">
+            <label>申诉理由（至少 20 字）
+              <textarea v-model="appealReason" rows="3" maxlength="500" placeholder="说明实际发生了什么，方便管理员核实" />
+              <small>{{ appealReason.length }}/500</small>
+            </label>
+            <div class="rating-actions">
+              <button type="button" class="button small" :disabled="appealing || appealReason.trim().length < 20" @click="submitAppeal(slot.their_rating.id)">{{ appealing ? '提交中…' : '提交申诉' }}</button>
+              <button type="button" class="button secondary small" @click="appealFor = null">取消</button>
+            </div>
+          </div>
+        </template>
+      </div>
       <p v-else class="muted rating-wait">对方还没评价；双方都提交后会立即互相可见，否则 7 天后自动公开。</p>
     </article>
   </section>

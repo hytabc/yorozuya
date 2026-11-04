@@ -188,3 +188,92 @@ def test_rating_summary_uses_bayesian_prior():
         # 资料接口会带上聚合分，列表接口不带（避免 N+1）。
         profile = client.get(f"/api/users/{taker_id}", headers=taker).json()
         assert profile["ratings"]["taker"]["count"] == 1
+
+
+def admin_headers(client):
+    login = client.post("/api/auth/login", json={"username": "admin", "password": "Admin123!"})
+    return {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+
+def test_appeal_revoke_recalculates_and_is_moderated():
+    with TestClient(app) as client:
+        publisher, taker, publisher_id, taker_id, task = setup_pair(client, "appeal_pub", "appeal_taker")
+        rating = client.post(
+            f"/api/tasks/{task['id']}/ratings",
+            headers=publisher,
+            json={"ratee_id": taker_id, "stars_half": 4, "comment": "交付内容和约定差距比较大，很多细节没有按要求完成"},
+        ).json()
+        assert client.get("/api/points/me", headers=taker).json()["wallet_points"] == 2
+
+        # 只有被评价人可以申诉。
+        denied = client.post(f"/api/ratings/{rating['id']}/appeal", headers=publisher, json={"reason": "我就是想试试申诉能不能用，随便写一段够长的话"})
+        assert denied.status_code == 403
+
+        appeal = client.post(
+            f"/api/ratings/{rating['id']}/appeal",
+            headers=taker,
+            json={"reason": "对方没有按照约定提供协作条件，实际交付标准与我完成的内容一致，请复核。"},
+        )
+        assert appeal.status_code == 201, appeal.text
+        appeal_id = appeal.json()["id"]
+
+        duplicated = client.post(
+            f"/api/ratings/{rating['id']}/appeal",
+            headers=taker,
+            json={"reason": "重复提交一次，应该被拒绝，因为已经有待处理的申诉了。"},
+        )
+        assert duplicated.status_code == 409
+
+        admin = admin_headers(client)
+        pending = client.get("/api/admin/rating-appeals", headers=admin).json()
+        assert any(item["id"] == appeal_id for item in pending)
+
+        resolved = client.post(
+            f"/api/admin/rating-appeals/{appeal_id}/resolve",
+            headers=admin,
+            json={"action": "revoke", "note": "核实后撤销该评价"},
+        )
+        assert resolved.status_code == 200
+        assert resolved.json()["status"] == "approved"
+
+        # 撤销后不再计入聚合分，积分按 0 星重算（只扣钱包，不追债）。
+        summary = client.get(f"/api/users/{taker_id}/rating-summary").json()
+        assert summary["taker"]["count"] == 0
+        assert client.get("/api/points/me", headers=taker).json() == {"lifetime_points": 3, "wallet_points": 0}
+
+
+def test_appeal_limits_and_moderator_only():
+    with TestClient(app) as client:
+        publisher, taker, publisher_id, taker_id, task = setup_pair(client, "limit_appeal_pub", "limit_appeal_taker")
+        rating = client.post(
+            f"/api/tasks/{task['id']}/ratings",
+            headers=publisher,
+            json={"ratee_id": taker_id, "stars_half": 4, "comment": "交付内容和约定差距比较大，很多细节没有按要求完成"},
+        ).json()
+        mine = client.get("/api/ratings/appeals/mine", headers=taker)
+        assert mine.status_code == 200 and mine.json() == []
+
+        # 普通用户不能看管理员列表。
+        assert client.get("/api/admin/rating-appeals", headers=taker).status_code == 403
+
+        appeal = client.post(
+            f"/api/ratings/{rating['id']}/appeal",
+            headers=taker,
+            json={"reason": "对方没有按照约定提供协作条件，实际交付标准与我完成的内容一致，请复核。"},
+        ).json()
+        admin = admin_headers(client)
+        rejected = client.post(
+            f"/api/admin/rating-appeals/{appeal['id']}/resolve",
+            headers=admin,
+            json={"action": "reject", "note": "证据不足"},
+        )
+        assert rejected.json()["status"] == "rejected"
+        # 驳回后评价仍然有效。
+        assert client.get(f"/api/users/{taker_id}/rating-summary").json()["taker"]["count"] == 1
+
+        again = client.post(
+            f"/api/admin/rating-appeals/{appeal['id']}/resolve",
+            headers=admin,
+            json={"action": "reject"},
+        )
+        assert again.status_code == 409

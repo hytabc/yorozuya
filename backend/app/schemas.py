@@ -567,6 +567,8 @@ class RatingOut(ApiModel):
     revealed: bool = False
     editable_until: datetime | None = None
     can_edit: bool = False
+    # 申诉撤销后为 True：前端据此隐藏内容并停止展示申诉入口。
+    revoked: bool = False
 
 
 class RatingSlotOut(BaseModel):
@@ -584,6 +586,34 @@ class TaskRatingsOut(ApiModel):
     slots: list[RatingSlotOut] = []
     # 非参与者看到的已解盲评价。
     public: list[RatingOut] = []
+
+
+class RatingAppealCreate(RequestModel):
+    reason: str = Field(min_length=20, max_length=500)
+
+
+class RatingAppealResolve(RequestModel):
+    action: Literal["reject", "revoke", "change"]
+    # action=change 时必填，其余情况忽略。
+    stars_half: int | None = Field(default=None, ge=0, le=10)
+    note: str | None = Field(default=None, max_length=300)
+
+
+class RatingAppealOut(ApiModel):
+    id: int
+    rating_id: int
+    reason: str
+    status: str
+    admin_note: str | None = None
+    created_at: datetime
+    handled_at: datetime | None = None
+    user: UserPublic
+    # 被申诉评价的摘要（管理员列表与本人查询都需要）。
+    stars: float = 0
+    comment: str | None = None
+    rater_role: str = ""
+    task_id: int = 0
+    task_title: str = ""
 
 
 class RatingPublicOut(ApiModel):

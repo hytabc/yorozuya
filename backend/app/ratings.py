@@ -19,10 +19,13 @@ from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstr
 from sqlalchemy.orm import Mapped, Session, joinedload, mapped_column, relationship
 
 from .database import Base, get_db
-from .dependencies import get_current_user, get_optional_user
+from .dependencies import get_content_moderator, get_current_user, get_optional_user
 from .models import Task, TaskMember, TaskMemberResponse, TaskStatus, User
 from .points import PointLedger, _round_half_up, award_points, remaining_system_points
 from .schemas import (
+    RatingAppealCreate,
+    RatingAppealOut,
+    RatingAppealResolve,
     RatingCreate,
     RatingOut,
     RatingPublicOut,
@@ -81,6 +84,26 @@ class TaskRating(Base):
     @property
     def stars(self) -> float:
         return self.stars_half / 2
+
+
+class RatingAppeal(Base):
+    """差评申诉：被评者可申请复核，管理员撤销或改星后重算积分与聚合分。"""
+
+    __tablename__ = "rating_appeals"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    rating_id: Mapped[int] = mapped_column(ForeignKey("task_ratings.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    reason: Mapped[str] = mapped_column(String(500), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), default="pending", index=True)
+    handled_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    handled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    admin_note: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+    rating: Mapped[TaskRating] = relationship()
+    user: Mapped[User] = relationship(foreign_keys=[user_id])
+    handled_by: Mapped[User | None] = relationship(foreign_keys=[handled_by_id])
 
 
 def rating_deadline(task: Task) -> datetime | None:
@@ -285,6 +308,7 @@ def present_rating(rating: TaskRating, revealed: bool, viewer: User | None) -> R
         revealed=revealed,
         editable_until=rating.created_at + timedelta(hours=RATING_EDIT_HOURS),
         can_edit=editable,
+        revoked=rating.revoked_at is not None,
     )
 
 
@@ -530,3 +554,138 @@ def user_ratings(
         for row in visible[start:start + page_size]
     ]
     return RatingPublicPage(total=total, page=page, page_size=page_size, items=items)
+
+
+# ---- 差评申诉（被评者发起，管理员复核） ----
+
+
+def _present_appeal(appeal: RatingAppeal) -> RatingAppealOut:
+    from .main import present_user_public
+
+    rating = appeal.rating
+    return RatingAppealOut(
+        id=appeal.id,
+        rating_id=appeal.rating_id,
+        reason=appeal.reason,
+        status=appeal.status,
+        admin_note=appeal.admin_note,
+        created_at=appeal.created_at,
+        handled_at=appeal.handled_at,
+        user=present_user_public(appeal.user, None),
+        stars=rating.stars if rating else 0,
+        comment=rating.comment if rating else None,
+        rater_role=rating.rater_role if rating else "",
+        task_id=rating.task_id if rating else 0,
+        task_title=rating.task.title if rating and rating.task else "",
+    )
+
+
+@router.post("/ratings/{rating_id}/appeal", response_model=RatingAppealOut, status_code=status.HTTP_201_CREATED)
+def appeal_rating(
+    rating_id: int,
+    payload: RatingAppealCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    rating = db.get(TaskRating, rating_id)
+    if rating is None:
+        raise HTTPException(status_code=404, detail="评价不存在")
+    if rating.ratee_id != user.id:
+        raise HTTPException(status_code=403, detail="只有被评价人可以申诉")
+    if rating.revoked_at is not None:
+        raise HTTPException(status_code=409, detail="该评价已被撤销")
+    if _now() >= rating.created_at + timedelta(days=RATING_APPEAL_DAYS):
+        raise HTTPException(status_code=409, detail=f"申诉时限为收到评价后 {RATING_APPEAL_DAYS} 天")
+    pending = db.scalar(
+        select(RatingAppeal.id).where(RatingAppeal.rating_id == rating.id, RatingAppeal.status == "pending")
+    )
+    if pending is not None:
+        raise HTTPException(status_code=409, detail="该评价已有待处理的申诉")
+    recent = db.scalar(
+        select(func.count()).select_from(RatingAppeal).where(
+            RatingAppeal.user_id == user.id,
+            RatingAppeal.created_at >= _now() - timedelta(days=30),
+        )
+    ) or 0
+    if recent >= 3:
+        raise HTTPException(status_code=429, detail="30 天内最多申诉 3 次")
+    appeal = RatingAppeal(rating_id=rating.id, user_id=user.id, reason=payload.reason.strip())
+    db.add(appeal)
+    db.commit()
+    db.refresh(appeal)
+    return _present_appeal(appeal)
+
+
+@router.get("/ratings/appeals/mine", response_model=list[RatingAppealOut])
+def my_appeals(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    rows = db.scalars(
+        select(RatingAppeal)
+        .options(joinedload(RatingAppeal.rating).joinedload(TaskRating.task), joinedload(RatingAppeal.user))
+        .where(RatingAppeal.user_id == user.id)
+        .order_by(RatingAppeal.created_at.desc())
+        .limit(50)
+    ).unique().all()
+    return [_present_appeal(row) for row in rows]
+
+
+@router.get("/admin/rating-appeals", response_model=list[RatingAppealOut])
+def admin_appeals(
+    status_filter: str = Query(default="pending", alias="status", pattern="^(pending|approved|rejected|all)$"),
+    _: User = Depends(get_content_moderator),
+    db: Session = Depends(get_db),
+):
+    query = (
+        select(RatingAppeal)
+        .options(joinedload(RatingAppeal.rating).joinedload(TaskRating.task), joinedload(RatingAppeal.user))
+        .order_by(RatingAppeal.created_at.asc())
+        .limit(200)
+    )
+    if status_filter != "all":
+        query = query.where(RatingAppeal.status == status_filter)
+    rows = db.scalars(query).unique().all()
+    return [_present_appeal(row) for row in rows]
+
+
+@router.post("/admin/rating-appeals/{appeal_id}/resolve", response_model=RatingAppealOut)
+def resolve_appeal(
+    appeal_id: int,
+    payload: RatingAppealResolve,
+    admin: User = Depends(get_content_moderator),
+    db: Session = Depends(get_db),
+):
+    appeal = db.scalar(
+        select(RatingAppeal)
+        .options(joinedload(RatingAppeal.rating).joinedload(TaskRating.task), joinedload(RatingAppeal.user))
+        .where(RatingAppeal.id == appeal_id)
+    )
+    if appeal is None:
+        raise HTTPException(status_code=404, detail="申诉不存在")
+    if appeal.status != "pending":
+        raise HTTPException(status_code=409, detail="该申诉已处理")
+    rating = appeal.rating
+    if rating is None:
+        raise HTTPException(status_code=404, detail="评价不存在")
+
+    now = _now()
+    if payload.action == "reject":
+        appeal.status = "rejected"
+        appeal.admin_note = payload.note
+    else:
+        if payload.action == "change":
+            if payload.stars_half is None:
+                raise HTTPException(status_code=422, detail="改星时必须提供星级")
+            rating.stars_half = payload.stars_half
+        else:
+            rating.revoked_at = now
+            rating.revoked_by_id = admin.id
+        rating.admin_note = payload.note
+        # 星数变化或撤销后重算该单积分（撤销按 0 星结算，只从钱包扣）。
+        if rating.rater_role == "publisher":
+            apply_rating_settlement(db, rating.task, rating.ratee_id, rating.stars_half if rating.revoked_at is None else 0)
+        appeal.status = "approved"
+        appeal.admin_note = payload.note
+    appeal.handled_by_id = admin.id
+    appeal.handled_at = now
+    db.commit()
+    db.refresh(appeal)
+    return _present_appeal(appeal)
