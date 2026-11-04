@@ -243,6 +243,7 @@ from .credentials import (
     router as credential_router,
 )
 from .events import record_event as record_task_event
+from . import points as points_module
 from .points import router as points_router
 from .events import router as events_router
 from .virtual_life import router as virtual_life_router
@@ -467,6 +468,13 @@ def migrate_schema() -> None:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN is_anonymous BOOLEAN NOT NULL DEFAULT 0"))
         if "started_at" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN started_at DATETIME"))
+        # 积分体系：存量委托不回填基础积分（只有新委托参与积分结算）。
+        if "scale" not in task_columns:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN scale VARCHAR(8) NOT NULL DEFAULT 'small'"))
+        if "base_points" not in task_columns:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN base_points INTEGER NOT NULL DEFAULT 0"))
+        if "bounty_points" not in task_columns:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN bounty_points INTEGER NOT NULL DEFAULT 0"))
         if "cancelled_at" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN cancelled_at DATETIME"))
         if "cancel_requested_by" not in task_columns:
@@ -726,16 +734,21 @@ app.include_router(points_router)
 
 
 def expire_due_tasks(db: Session) -> None:
-    result = db.execute(
-        update(Task)
-        .where(
-            Task.expires_at <= datetime.utcnow(),
+    now = datetime.utcnow()
+    due = db.scalars(
+        select(Task).where(
+            Task.expires_at <= now,
             Task.status.in_([TaskStatus.PUBLISHED, TaskStatus.ACCEPTED, TaskStatus.AWAITING, TaskStatus.CANCELLING]),
         )
-        .values(status=TaskStatus.EXPIRED, updated_at=datetime.utcnow())
-    )
-    if result.rowcount:
-        db.commit()
+    ).all()
+    if not due:
+        return
+    for task in due:
+        task.status = TaskStatus.EXPIRED
+        task.updated_at = now
+        # 过期即视为没有完成，托管的悬赏退回发布者（幂等）。
+        points_module.refund_bounty(db, task)
+    db.commit()
 
 
 # 疑难解答区子版块：key 落库、label 展示；前端 constants.js 的 TALK_BOARDS 需保持一致。
@@ -4226,12 +4239,20 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
             raise HTTPException(status_code=422, detail="只能指定当前可用的管理员或志愿者")
     if payload.category not in TASK_CATEGORIES:
         raise HTTPException(status_code=422, detail="委托分类不正确")
+    if payload.bounty_points > user.wallet_points:
+        raise HTTPException(
+            status_code=422,
+            detail=f"悬赏积分不足：当前可用 {user.wallet_points} 分，最多可托管 {user.wallet_points} 分",
+        )
     # 标签先校验再落库：非法标签不会留下半成品委托。
     facet_items = validate_facets(payload.facets)
     task = Task(
         title=payload.title.strip(),
         description=payload.description.strip(),
         category=payload.category,
+        scale=payload.scale,
+        base_points=points_module.task_base_points(payload.category, payload.scale),
+        bounty_points=payload.bounty_points,
         expires_at=now + timedelta(days=payload.expires_in_days),
         publisher_id=user.id,
         is_anonymous=payload.is_anonymous,
@@ -4240,6 +4261,7 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
     )
     db.add(task)
     db.flush()
+    points_module.escrow_bounty(db, task)
     store_facets(db, task.id, facet_items)
     for designated_user in designated_users:
         db.add(
@@ -4404,6 +4426,7 @@ def accept_task(
             else:
                 task.status = TaskStatus.CANCELLED
                 task.cancelled_at = datetime.utcnow()
+                points_module.refund_bounty(db, task)
         record_task_event(
             db,
             task,
@@ -4524,6 +4547,7 @@ def leave_task(task_id: int, user: User = Depends(get_current_user), db: Session
             else:
                 task.status = TaskStatus.CANCELLED
                 task.cancelled_at = datetime.utcnow()
+                points_module.refund_bounty(db, task)
         db.commit()
         return present_task(get_task_or_404(db, task_id), user)
     db.delete(membership)
@@ -4560,9 +4584,10 @@ def confirm_task(
     if task.all_confirmed:
         task.status = TaskStatus.COMPLETED
         task.completed_at = now
-        # 与完成确认同一事务签发凭证：任何一步失败都整体回滚，
-        # 不会出现「已完成但没有凭证」或被重复签发。
+        # 与完成确认同一事务签发凭证并发放积分：任何一步失败都整体回滚，
+        # 不会出现「已完成但没有凭证 / 没有积分」或重复发放。
         credentials_module.issue_for_task(db, task)
+        points_module.award_task_completion(db, task)
     elif any(member.confirmed_at is not None for member in task.members) or task.publisher_confirmed_at is not None:
         task.status = TaskStatus.AWAITING
     else:
@@ -4606,6 +4631,7 @@ def request_cancel_task(task_id: int, user: User = Depends(get_current_user), db
         task.status = TaskStatus.CANCELLED
         task.cancelled_at = now
         task.updated_at = now
+        points_module.refund_bounty(db, task)
         db.commit()
         return present_task(get_task_or_404(db, task_id), user)
     # 进入取消确认：记录发起人与要恢复的状态，发起人视为已同意
@@ -4661,6 +4687,7 @@ def confirm_cancel_task(
     if task.all_agree_to_cancel:
         task.status = TaskStatus.CANCELLED
         task.cancelled_at = now
+        points_module.refund_bounty(db, task)
         record_task_event(db, task, "cancelled", f"《{task.title}》经全体同意后已取消", exclude=user)
     task.updated_at = now
     db.commit()

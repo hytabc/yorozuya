@@ -169,6 +169,12 @@ class Task(Base):
     title: Mapped[str] = mapped_column(String(80), index=True)
     description: Mapped[str] = mapped_column(Text)
     category: Mapped[str] = mapped_column(String(24), default="其他")
+    # 规模档位（small/medium/large）决定系统基础积分，分类系数在 points.py 里按类别微调。
+    scale: Mapped[str] = mapped_column(String(8), default="small")
+    # 创建时算好的系统基础积分，避免后续改系数影响已发布的委托。
+    base_points: Mapped[int] = mapped_column(Integer, default=0)
+    # 发布者额外托管的悬赏积分（从钱包扣除，完成时发给接单人）。
+    bounty_points: Mapped[int] = mapped_column(Integer, default=0)
     status: Mapped[TaskStatus] = mapped_column(
         SqlEnum(TaskStatus, values_callable=lambda values: [item.value for item in values]),
         default=TaskStatus.PUBLISHED,

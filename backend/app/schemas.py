@@ -265,6 +265,10 @@ class TaskCreate(RequestModel):
     title: str = Field(min_length=2, max_length=80)
     description: str = Field(min_length=10, max_length=3000)
     category: str = Field(min_length=1, max_length=24)
+    # 规模档位决定系统基础积分：small=5 / medium=15 / large=40，再按分类系数微调。
+    scale: Literal["small", "medium", "large"] = "small"
+    # 额外悬赏积分：从发布者钱包托管，完成时发给接单人。
+    bounty_points: int = Field(default=0, ge=0, le=200)
     # 需要几人接取；null / 缺省表示人数不限（只能由委托人手动开始）
     required_takers: int | None = Field(default=None, ge=1, le=999)
     # 非空时为指定委托，只允许名单内的管理员/志愿者响应。
@@ -302,6 +306,9 @@ class TaskOut(ApiModel):
     title: str
     description: str
     category: str
+    scale: str = "small"
+    base_points: int = 0
+    bounty_points: int = 0
     status: TaskStatus
     is_visible: bool
     admin_note: str | None = None
@@ -536,6 +543,17 @@ class PointLedgerPage(BaseModel):
     page: int
     page_size: int
     items: list[PointLedgerOut] = []
+
+
+class PointsRules(BaseModel):
+    """积分规则（前端发布页据此实时预览，避免把系数在两端各写一份）。"""
+
+    scale_points: dict[str, int]
+    scale_labels: dict[str, str]
+    category_factors: dict[str, float]
+    bounty_min: int
+    bounty_max: int
+    advance_ratio: float
 
 
 class TaskStats(BaseModel):

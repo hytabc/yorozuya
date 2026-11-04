@@ -259,6 +259,9 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .status-cancelling { color: var(--red); background: var(--red-soft); }
 .category-tag { color: #5a625f; }
 .pay-tag { display: inline-flex; align-items: center; min-height: 24px; padding: 0 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.point-preview { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; color: #1d6649; background: var(--green-soft); font-size: 13px; }
+.point-preview small { color: var(--muted); }
+.point-reward { color: var(--green); font-weight: 650; }
 .pay-tag.pay-paid { color: #9a4f17; background: #fdf0e3; }
 .pay-tag.pay-free { color: var(--green); background: var(--green-soft); }
 .role-tag { color: #805066; background: #f4eaf0; }

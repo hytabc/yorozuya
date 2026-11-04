@@ -17,12 +17,111 @@ from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from .database import Base, get_db
 from .dependencies import get_current_user
-from .models import User
-from .schemas import PointLedgerOut, PointLedgerPage, PointsSummary
+from .models import Task, TaskMemberResponse, User
+from .schemas import PointLedgerOut, PointLedgerPage, PointsRules, PointsSummary
+
+# 系统基础积分：档位 × 分类系数，四舍五入取整，最低 1 分。
+SCALE_POINTS = {"small": 5, "medium": 15, "large": 40}
+SCALE_LABELS = {"small": "小", "medium": "中", "large": "大"}
+CATEGORY_FACTORS = {
+    "萌新上路": 0.8,
+    "心理倾听": 1.2,
+    "技术疑难": 1.3,
+    "VRC寻图": 1.0,
+    "搭子召集": 0.9,
+    "其他委托": 1.0,
+}
+BOUNTY_MIN = 0
+BOUNTY_MAX = 200
+# 完成时先发基础积分的 60%，评价后按星级结算尾款。
+ADVANCE_RATIO = 0.6
+
+
+def task_base_points(category: str, scale: str) -> int:
+    return max(1, int(round(SCALE_POINTS.get(scale, SCALE_POINTS["small"]) * CATEGORY_FACTORS.get(category, 1.0))))
+
+
+def escrow_bounty(db: Session, task: Task) -> bool:
+    """发布时把悬赏积分从钱包托管（同事务，失败则整笔委托回滚）。"""
+    if task.bounty_points <= 0:
+        return False
+    return award_points(
+        db,
+        task.publisher_id,
+        kind="bounty_escrow",
+        wallet=-task.bounty_points,
+        note=f"托管悬赏《{task.title}》",
+        source_type="task",
+        source_id=task.id,
+    )
+
+
+def refund_bounty(db: Session, task: Task) -> bool:
+    """取消/过期时把托管中的悬赏全额退回发布者（幂等）。"""
+    if task.bounty_points <= 0:
+        return False
+    return award_points(
+        db,
+        task.publisher_id,
+        kind="bounty_refund",
+        wallet=task.bounty_points,
+        note=f"退回悬赏《{task.title}》",
+        source_type="task",
+        source_id=task.id,
+    )
+
+
+def award_task_completion(db: Session, task: Task) -> None:
+    """委托完成时发放基础积分预付款与悬赏（幂等，可在同一事务里调用）。"""
+    takers = [member for member in task.members if member.response_status == TaskMemberResponse.ACCEPTED]
+    if not takers:
+        refund_bounty(db, task)
+        return
+    advance = int(round(task.base_points * ADVANCE_RATIO))
+    for member in takers:
+        award_points(
+            db,
+            member.user_id,
+            kind="task_reward",
+            lifetime=advance,
+            wallet=advance,
+            note=f"完成《{task.title}》",
+            source_type="task",
+            source_id=task.id,
+        )
+    if task.bounty_points <= 0:
+        return
+    share, remainder = divmod(task.bounty_points, len(takers))
+    for member in takers:
+        if share:
+            award_points(
+                db,
+                member.user_id,
+                kind="bounty_reward",
+                lifetime=share,
+                wallet=share,
+                note=f"《{task.title}》悬赏",
+                source_type="task",
+                source_id=task.id,
+            )
+    if remainder:
+        award_points(
+            db,
+            task.publisher_id,
+            kind="bounty_remainder",
+            wallet=remainder,
+            note=f"《{task.title}》悬赏余数退回",
+            source_type="task",
+            source_id=task.id,
+        )
 
 POINT_KIND_LABELS = {
     "task_reward": "委托奖励",
     "task_bounty": "悬赏积分",
+    "bounty_escrow": "托管悬赏",
+    "bounty_refund": "退回悬赏",
+    "bounty_reward": "悬赏收入",
+    "bounty_remainder": "悬赏余数退回",
     "rating_settle": "评价结算",
     "rating_revoke": "申诉调整",
     "achievement": "成就奖励",
@@ -117,6 +216,18 @@ def award_points(
 
 
 router = APIRouter(prefix="/api/points", tags=["points"])
+
+
+@router.get("/rules", response_model=PointsRules)
+def points_rules():
+    return PointsRules(
+        scale_points=SCALE_POINTS,
+        scale_labels=SCALE_LABELS,
+        category_factors=CATEGORY_FACTORS,
+        bounty_min=BOUNTY_MIN,
+        bounty_max=BOUNTY_MAX,
+        advance_ratio=ADVANCE_RATIO,
+    )
 
 
 @router.get("/me", response_model=PointsSummary)

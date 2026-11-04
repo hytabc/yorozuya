@@ -57,9 +57,27 @@ const form = reactive({
   title: '',
   description: '',
   category: '',
+  scale: 'small',
+  bounty_points: 0,
   required_takers: 1,
   is_anonymous: false,
   expires_in_days: 1,
+})
+// 积分规则由服务端下发，避免档位/系数在前后端各写一份。
+const rules = ref({
+  scale_points: { small: 5, medium: 15, large: 40 },
+  scale_labels: { small: '小', medium: '中', large: '大' },
+  category_factors: {},
+  bounty_min: 0,
+  bounty_max: 200,
+  advance_ratio: 0.6,
+})
+const wallet = computed(() => auth.user?.wallet_points || 0)
+const bountyLimit = computed(() => Math.min(rules.value.bounty_max, wallet.value))
+const previewBase = computed(() => {
+  if (!form.category) return rules.value.scale_points[form.scale] || 0
+  const factor = rules.value.category_factors[form.category] ?? 1
+  return Math.max(1, Math.round((rules.value.scale_points[form.scale] || 5) * factor))
 })
 
 async function submit() {
@@ -102,6 +120,7 @@ function goAddContact() {
 onMounted(() => { document.body.classList.add('modal-open'); window.addEventListener('keydown', onKey) })
 onMounted(async () => {
   try { directory.value = (await api.get('/staff')).data } catch { directory.value = { staff: [], volunteers: [] } }
+  try { rules.value = { ...rules.value, ...(await api.get('/points/rules')).data } } catch { /* 用内置规则兜底 */ }
 })
 onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeEventListener('keydown', onKey) })
 </script>
@@ -120,6 +139,14 @@ onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeE
         <label>委托标题<input v-model.trim="form.title" required minlength="2" maxlength="80" placeholder="一句话说明需要什么" /></label>
         <label>详细说明<textarea v-model.trim="form.description" required minlength="10" maxlength="3000" rows="6" placeholder="说明背景、具体要求和交付方式"></textarea><small>{{ form.description.length }}/3000</small></label>
         <label>委托分类<select v-model="form.category" required><option value="" disabled>请选择委托类型</option><option v-for="item in categories" :key="item">{{ item }}</option></select></label>
+        <div class="form-row">
+          <label>委托规模<select v-model="form.scale"><option v-for="(label, key) in rules.scale_labels" :key="key" :value="key">{{ label }}（基础 {{ rules.scale_points[key] }} 分）</option></select></label>
+          <label>额外悬赏<input v-model.number="form.bounty_points" type="number" :min="rules.bounty_min" :max="bountyLimit" step="1" /><small class="field-hint">当前可用 {{ wallet }} 分，最多可托管 {{ bountyLimit }} 分；悬赏直接压给对方，取消或过期会退回。</small></label>
+        </div>
+        <div class="point-preview">
+          <strong>完成后接单人可得 {{ previewBase }} 分<template v-if="form.bounty_points > 0"> + 悬赏 {{ form.bounty_points }} 分</template></strong>
+          <small>系统积分按评价星级结算（5 星全额，0 星为 0），完成时先发 {{ Math.round(rules.advance_ratio * 100) }}%。</small>
+        </div>
         <div class="facet-section">
           <span class="eyebrow">技能与平台（可选）</span>
           <TaskFacetChips v-model="skills" label="技能" :options="TASK_SKILLS" :max="FACET_LIMITS.skill" hint="选填，帮助合适的人更快找到这份委托。" />

@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { CalendarClock, EyeOff, Ghost, UserRound, UsersRound } from '@lucide/vue'
+import { CalendarClock, Coins, EyeOff, Ghost, UserRound, UsersRound } from '@lucide/vue'
 import StatusBadge from './StatusBadge.vue'
 import UserTitleTag from './UserTitleTag.vue'
 import { useAuthStore } from '../stores/auth'
@@ -52,6 +52,7 @@ const facets = computed(() => cardFacets(props.task.facets))
       <span><UserRound :size="15" />{{ task.publisher.nickname }}<UserTitleTag :title="task.publisher.title" /></span>
       <span><CalendarClock :size="15" />{{ deadline }}</span>
       <span v-if="(!task.is_anonymous || task.publisher.id > 0) && (task.members?.length || task.required_takers != null)"><UsersRound :size="15" />已 {{ joined }}/需 {{ requiredText }} 人</span>
+      <span v-if="task.base_points || task.bounty_points" class="point-reward"><Coins :size="15" />{{ task.base_points }} 分<template v-if="task.bounty_points"> + 悬赏 {{ task.bounty_points }}</template></span>
     </div>
   </article>
 </template>

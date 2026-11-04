@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { CalendarClock, Flag, LockOpen, MessageCircle, UserRound, UsersRound, X } from '@lucide/vue'
+import { CalendarClock, Coins, Flag, LockOpen, MessageCircle, UserRound, UsersRound, X } from '@lucide/vue'
 import { useAuthStore } from '../stores/auth'
 import ReportDialog from './ReportDialog.vue'
 import StatusBadge from './StatusBadge.vue'
@@ -127,6 +127,7 @@ function emitAccept() {
         <div><dt><CalendarClock :size="16" />有效期至</dt><dd>{{ format(task.expires_at) }}</dd></div>
         <div><dt><UsersRound :size="16" />需要接取人数</dt><dd>{{ requiredText }}<span v-if="!anonymousView" class="muted">（已响应 {{ joinedCount }} 人<template v-if="pendingCount">，待响应 {{ pendingCount }} 人</template>）</span></dd></div>
         <div><dt><component :is="designated ? UsersRound : LockOpen" :size="16" />接取方式</dt><dd>{{ designated ? '指定人员响应' : '公开接取' }}</dd></div>
+        <div v-if="task.base_points || task.bounty_points"><dt><Coins :size="16" />积分奖励</dt><dd>系统基础 {{ task.base_points }} 分<template v-if="task.bounty_points"> · 悬赏 {{ task.bounty_points }} 分</template><span class="muted">（完成后按双方评价星级结算）</span></dd></div>
         <div v-if="task.contact_qq"><dt><MessageCircle :size="16" />委托人 QQ</dt><dd>{{ task.contact_qq }}</dd></div>
       </dl>
 
