@@ -111,6 +111,20 @@ def test_bio_challenge_verifies_and_publishes_real_fields(monkeypatch):
         assert guest["verified"] is True and guest["display_name"] == "ColdRain"
 
 
+def test_bio_matching_accepts_old_tokens_and_zero_width(monkeypatch):
+    profile = use_profile(monkeypatch)
+    with TestClient(app) as client:
+        alice = auth(client, "vrchat_bio_match")
+        started = start(client, alice)
+        code = started["challenge"]["code"]
+        spaced = " \u200b".join(code)
+        # 旧验证码在前、当前验证码在后，且当前码被空格/零宽字符拆开。
+        profile["bio"] = f"旧的 vrcverify{'0' * 32} 新的 {spaced}"
+        checked = client.post("/api/vrchat/link/check", headers=alice)
+        assert checked.status_code == 200, checked.text
+        assert checked.json()["verified"] is True
+
+
 def test_refresh_downgrades_and_restores_when_bio_changes(monkeypatch):
     profile = use_profile(monkeypatch)
     with TestClient(app) as client:
