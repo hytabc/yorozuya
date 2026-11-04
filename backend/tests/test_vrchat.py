@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta
 
 import httpx
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
@@ -372,14 +373,25 @@ def test_password_bot_login_with_totp_and_retry(monkeypatch):
                 headers={"set-cookie": "twoFactorAuth=def; Path=/"},
             )
         if path.endswith("/users/usr_target"):
+            # 用户端点没有 bio；About Me 只在公开资料端点返回。
             return httpx.Response(
                 200,
                 json={
                     "id": "usr_target",
                     "displayName": "ColdRain",
-                    "bio": "",
                     "tags": ["system_trust_known"],
                     "date_joined": "2020-01-01T00:00:00.000Z",
+                    "last_platform": "standalonewindows",
+                },
+            )
+        if path.endswith("/profile/usr_target"):
+            return httpx.Response(
+                200,
+                json={
+                    "id": "usr_target",
+                    "displayName": "ColdRain",
+                    "bio": "简介里的验证码",
+                    "trustTags": ["system_trust_trusted"],
                 },
             )
         return httpx.Response(404)
@@ -394,4 +406,40 @@ def test_password_bot_login_with_totp_and_retry(monkeypatch):
     trust._reset_bot_session()
     profile = trust.fetch_profile("usr_target")
     assert profile["id"] == "usr_target"
+    assert profile["bio"] == "简介里的验证码"
+    assert profile["date_joined"] == "2020-01-01T00:00:00.000Z"
+    assert profile["last_platform"] == "standalonewindows"
+    assert profile["trustTags"] == ["system_trust_trusted"]
     assert any("twofactorauth" in item.url.path for item in calls)
+    assert any(item.url.path.endswith("/profile/usr_target") for item in calls)
+
+
+def test_public_profile_forbidden_reports_visibility(monkeypatch):
+    monkeypatch.setattr(trust.settings, "vrchat_bot_auth_cookie", "")
+    monkeypatch.setattr(trust.settings, "vrchat_bot_username", "bot")
+    monkeypatch.setattr(trust.settings, "vrchat_bot_password", "secret")
+    monkeypatch.setattr(trust.settings, "vrchat_bot_totp_secret", "")
+
+    def handler(request):
+        path = request.url.path
+        if path.endswith("/auth/user"):
+            return httpx.Response(200, json={"id": "usr_bot"})
+        if path.endswith("/users/usr_target"):
+            return httpx.Response(
+                200, json={"id": "usr_target", "displayName": "ColdRain"}
+            )
+        if path.endswith("/profile/usr_target"):
+            return httpx.Response(403)
+        return httpx.Response(404)
+
+    def client_factory():
+        return httpx.Client(
+            transport=httpx.MockTransport(handler), headers={"User-Agent": "test"}
+        )
+
+    monkeypatch.setattr(trust, "_new_http_client", client_factory)
+    trust._reset_bot_session()
+    with pytest.raises(trust.VRChatError) as error:
+        trust.fetch_profile("usr_target")
+    assert error.value.status_code == 503
+    assert "公开资料" in error.value.detail
