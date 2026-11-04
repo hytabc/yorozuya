@@ -17,7 +17,7 @@ const BOARDS = [
   { key: 'points', label: '累计积分' },
   { key: 'taker_rating', label: '接单人评分' },
   { key: 'publisher_rating', label: '委托人评分' },
-  { key: 'completed', label: '完成数' },
+  { key: 'completed', label: '真实委托' },
 ]
 const totalPages = computed(() => Math.max(1, Math.ceil((data.value.total || 0) / PAGE_SIZE)))
 const isRatingBoard = computed(() => board.value.endsWith('_rating'))
@@ -55,7 +55,7 @@ onMounted(load)
 <template>
   <div class="page inner-page ranking-page">
     <div class="page-title">
-      <div><span class="eyebrow"><Trophy :size="15" />RANKINGS</span><h1>排行榜</h1><p>评分榜使用贝叶斯平滑并至少 5 条评价，一次满分不会直接霸榜；完成数与积分公开可查。</p></div>
+      <div><span class="eyebrow"><Trophy :size="15" />RANKINGS</span><h1>排行榜</h1><p>评分榜使用贝叶斯平滑并至少 5 条评价，一次满分不会直接霸榜；真实委托完成数与积分公开可查，官方委托不计入。</p></div>
     </div>
     <div class="tabs" role="tablist" aria-label="排行榜类别">
       <button v-for="item in BOARDS" :key="item.key" role="tab" :aria-selected="board === item.key" :class="{ active: board === item.key }" @click="pick(item.key)">{{ item.label }}</button>

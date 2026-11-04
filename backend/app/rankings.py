@@ -19,7 +19,7 @@ RANKING_BOARDS = {
     "points": "累计积分榜",
     "taker_rating": "接单人评分榜",
     "publisher_rating": "委托人评分榜",
-    "completed": "完成数榜",
+    "completed": "真实委托榜",
 }
 RATING_MIN_COUNT = 5
 RANKING_LIMIT = 100
@@ -35,7 +35,12 @@ def _eval_rating(db: Session, role: str) -> list[tuple[int, float, int]]:
             func.count(),
             func.sum(TaskRating.stars_half),
         )
-        .where(TaskRating.rater_role == role, TaskRating.revoked_at.is_(None))
+        .join(Task, Task.id == TaskRating.task_id)
+        .where(
+            TaskRating.rater_role == role,
+            TaskRating.revoked_at.is_(None),
+            Task.is_official.is_(False),
+        )
         .group_by(TaskRating.ratee_id)
         .having(func.count() >= RATING_MIN_COUNT)
     ).all()
@@ -52,7 +57,7 @@ def _eval_completed(db: Session) -> list[tuple[int, float, int]]:
     published = dict(
         db.execute(
             select(Task.publisher_id, func.count())
-            .where(Task.status == TaskStatus.COMPLETED)
+            .where(Task.status == TaskStatus.COMPLETED, Task.is_official.is_(False))
             .group_by(Task.publisher_id)
         ).all()
     )
@@ -60,7 +65,11 @@ def _eval_completed(db: Session) -> list[tuple[int, float, int]]:
         db.execute(
             select(TaskMember.user_id, func.count(func.distinct(Task.id)))
             .join(Task, Task.id == TaskMember.task_id)
-            .where(TaskMember.response_status == TaskMemberResponse.ACCEPTED, Task.status == TaskStatus.COMPLETED)
+            .where(
+                TaskMember.response_status == TaskMemberResponse.ACCEPTED,
+                Task.status == TaskStatus.COMPLETED,
+                Task.is_official.is_(False),
+            )
             .group_by(TaskMember.user_id)
         ).all()
     )

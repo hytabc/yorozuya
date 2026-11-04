@@ -697,6 +697,18 @@ def migrate_schema() -> None:
                 connection.execute(text("CREATE INDEX ix_vr_map_photos_map_id ON vr_map_photos (map_id)"))
                 connection.execute(text("CREATE INDEX ix_vr_map_photos_user_id ON vr_map_photos (user_id)"))
                 connection.execute(text("CREATE INDEX ix_vr_map_photos_is_visible ON vr_map_photos (is_visible)"))
+        # 官方委托不进入真实委托榜与评分体系：历史自动补评一次性软作废。
+        if inspector.has_table("task_ratings") and "is_official" in task_columns:
+            rating_columns = {column["name"] for column in inspector.get_columns("task_ratings")}
+            if "revoked_at" not in rating_columns:
+                connection.execute(text("ALTER TABLE task_ratings ADD COLUMN revoked_at DATETIME"))
+            connection.execute(
+                text(
+                    "UPDATE task_ratings SET revoked_at = CURRENT_TIMESTAMP "
+                    "WHERE automatic = 1 AND revoked_at IS NULL "
+                    "AND task_id IN (SELECT id FROM tasks WHERE is_official = 1)"
+                )
+            )
 
 
 @asynccontextmanager

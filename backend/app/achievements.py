@@ -79,38 +79,57 @@ def achievement_metrics(db: Session, user: User) -> dict[str, int]:
             TaskMember.user_id == user.id,
             TaskMember.response_status == TaskMemberResponse.ACCEPTED,
             Task.status == TaskStatus.COMPLETED,
+            Task.is_official.is_(False),
         ),
     )
-    published_total = _scalar(db, select(func.count()).select_from(Task).where(Task.publisher_id == user.id))
+    published_total = _scalar(
+        db,
+        select(func.count()).select_from(Task).where(
+            Task.publisher_id == user.id,
+            Task.is_official.is_(False),
+        ),
+    )
     good_received = _scalar(
         db,
-        select(func.count()).select_from(TaskRating).where(
+        select(func.count()).select_from(TaskRating)
+        .join(Task, Task.id == TaskRating.task_id)
+        .where(
             TaskRating.ratee_id == user.id,
             TaskRating.rater_role == "publisher",
             TaskRating.revoked_at.is_(None),
             TaskRating.stars_half >= 8,
+            Task.is_official.is_(False),
         ),
     )
     perfect_received = _scalar(
         db,
-        select(func.count()).select_from(TaskRating).where(
+        select(func.count()).select_from(TaskRating)
+        .join(Task, Task.id == TaskRating.task_id)
+        .where(
             TaskRating.ratee_id == user.id,
             TaskRating.rater_role == "publisher",
             TaskRating.revoked_at.is_(None),
             TaskRating.stars_half == 10,
+            Task.is_official.is_(False),
         ),
     )
     bad_received = _scalar(
         db,
-        select(func.count()).select_from(TaskRating).where(
+        select(func.count()).select_from(TaskRating)
+        .join(Task, Task.id == TaskRating.task_id)
+        .where(
             TaskRating.ratee_id == user.id,
             TaskRating.rater_role == "publisher",
             TaskRating.revoked_at.is_(None),
             TaskRating.stars_half < 8,
+            Task.is_official.is_(False),
         ),
     )
     rated_given = _scalar(
-        db, select(func.count()).select_from(TaskRating).where(TaskRating.rater_id == user.id)
+        db,
+        select(func.count()).select_from(TaskRating)
+        .join(Task, Task.id == TaskRating.task_id)
+        .where(TaskRating.rater_id == user.id, Task.is_official.is_(False)),
     )
     invite_valid = _scalar(
         db,

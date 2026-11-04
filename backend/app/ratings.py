@@ -236,7 +236,12 @@ def settle_due_ratings(db: Session) -> None:
     cutoff = _now() - timedelta(days=RATING_WINDOW_DAYS)
     tasks = db.scalars(
         select(Task)
-        .where(Task.status == TaskStatus.COMPLETED, Task.completed_at.isnot(None), Task.completed_at <= cutoff)
+        .where(
+            Task.status == TaskStatus.COMPLETED,
+            Task.completed_at.isnot(None),
+            Task.completed_at <= cutoff,
+            Task.is_official.is_(False),
+        )
         .order_by(Task.id)
         .limit(100)
     ).unique().all()
@@ -349,7 +354,13 @@ def _stats(rows: list[TaskRating]) -> RatingStatsOut:
 
 def user_rating_summary(db: Session, user_id: int) -> UserRatingSummary:
     rows = db.scalars(
-        select(TaskRating).where(TaskRating.ratee_id == user_id, TaskRating.revoked_at.is_(None))
+        select(TaskRating)
+        .join(Task, Task.id == TaskRating.task_id)
+        .where(
+            TaskRating.ratee_id == user_id,
+            TaskRating.revoked_at.is_(None),
+            Task.is_official.is_(False),
+        )
     ).all()
     return UserRatingSummary(
         # 接单人评分来自委托人（rater_role=publisher），委托人评分反之。
@@ -522,11 +533,13 @@ def user_ratings(
     settle_due_ratings(db)
     rows = db.scalars(
         select(TaskRating)
+        .join(Task, Task.id == TaskRating.task_id)
         .options(joinedload(TaskRating.rater), joinedload(TaskRating.task))
         .where(
             TaskRating.ratee_id == user_id,
             TaskRating.rater_role == role,
             TaskRating.revoked_at.is_(None),
+            Task.is_official.is_(False),
         )
         .order_by(TaskRating.created_at.desc())
     ).unique().all()
