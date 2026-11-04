@@ -231,7 +231,7 @@ defineExpose({ load })
           <div class="notice info-notice">
             <strong>通过简介验证码确认是你本人</strong>
             <p>服务端会用站点机器人账号读取你的公开资料；<strong>不会保存你的 VRChat 密码</strong>。生成验证码后，把它写入 VRChat 个人简介，再由服务端核对。</p>
-            <p v-if="!status.bot_configured" class="form-error">站点尚未配置 VRChat 机器人，暂时无法验证，请联系管理员。</p>
+            <p v-if="!status.bot_configured" class="form-error">站点尚未配置 VRChat 机器人。请在根目录 .env 设置 VRCHAT_BOT_AUTH_COOKIE，或 VRCHAT_BOT_USERNAME + VRCHAT_BOT_PASSWORD（2FA 再加 VRCHAT_BOT_TOTP_SECRET），然后重启后端。</p>
           </div>
           <div class="dialog-actions">
             <button type="button" class="button secondary" :disabled="busy" @click="load">重新读取</button>
