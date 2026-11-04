@@ -1,6 +1,7 @@
 """VRChat 身份：简介验证码、真实资料快照、披露裁剪与后台黑名单。"""
 from datetime import datetime, timedelta
 
+import httpx
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
@@ -24,6 +25,7 @@ PROFILE = {
 def setup_function():
     api_tests.setup_function()
     app.dependency_overrides[get_db] = api_tests.override_db
+    trust._reset_bot_session()
 
 
 def use_profile(monkeypatch, **overrides):
@@ -153,6 +155,9 @@ def test_anonymous_task_trust_is_cropped(monkeypatch):
 
 def test_admin_can_lookup_unbind_and_ban(monkeypatch):
     profile = use_profile(monkeypatch)
+    monkeypatch.setattr(trust.settings, "vrchat_bot_auth_cookie", "")
+    monkeypatch.setattr(trust.settings, "vrchat_bot_username", "")
+    monkeypatch.setattr(trust.settings, "vrchat_bot_password", "")
     with TestClient(app) as client:
         alice = auth(client, "vrchat_admin_target")
         bob = auth(client, "vrchat_admin_other")
@@ -304,3 +309,75 @@ def test_admin_endpoints_require_roles(monkeypatch):
         assert client.patch(
             "/api/admin/vrchat/config", headers=alice, json={"enabled": True}
         ).status_code == 403
+
+
+def test_bot_auth_mode_prefers_cookie_then_password(monkeypatch):
+    monkeypatch.setattr(trust.settings, "vrchat_bot_auth_cookie", "auth=cookie")
+    monkeypatch.setattr(trust.settings, "vrchat_bot_username", "bot")
+    monkeypatch.setattr(trust.settings, "vrchat_bot_password", "secret")
+    assert trust.bot_auth_mode() == "cookie"
+    assert trust.bot_configured() is True
+
+    monkeypatch.setattr(trust.settings, "vrchat_bot_auth_cookie", "")
+    assert trust.bot_auth_mode() == "password"
+
+    monkeypatch.setattr(trust.settings, "vrchat_bot_password", "")
+    assert trust.bot_auth_mode() is None
+    assert trust.bot_configured() is False
+
+
+def test_totp_code_matches_rfc_vector(monkeypatch):
+    monkeypatch.setattr(trust.time, "time", lambda: 59)
+    assert trust._totp_code("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ") == "287082"
+
+
+def test_password_bot_login_with_totp_and_retry(monkeypatch):
+    monkeypatch.setattr(trust.settings, "vrchat_bot_auth_cookie", "")
+    monkeypatch.setattr(trust.settings, "vrchat_bot_username", "bot@example.com")
+    monkeypatch.setattr(trust.settings, "vrchat_bot_password", "secret")
+    monkeypatch.setattr(trust.settings, "vrchat_bot_totp_secret", "JBSWY3DPEHPK3PXP")
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        path = request.url.path
+        if path.endswith("/auth/user"):
+            auth_calls = [item for item in calls if item.url.path.endswith("/auth/user")]
+            if len(auth_calls) == 1:
+                assert request.headers.get("authorization", "").startswith("Basic ")
+                return httpx.Response(
+                    200,
+                    json={"requiresTwoFactorAuth": ["totp"]},
+                    headers={"set-cookie": "auth=abc; Path=/"},
+                )
+            return httpx.Response(200, json={"id": "usr_bot"})
+        if path.endswith("/auth/twofactorauth/totp/verify"):
+            return httpx.Response(
+                200,
+                json={},
+                headers={"set-cookie": "twoFactorAuth=def; Path=/"},
+            )
+        if path.endswith("/users/usr_target"):
+            return httpx.Response(
+                200,
+                json={
+                    "id": "usr_target",
+                    "displayName": "ColdRain",
+                    "bio": "",
+                    "tags": ["system_trust_known"],
+                    "date_joined": "2020-01-01T00:00:00.000Z",
+                },
+            )
+        return httpx.Response(404)
+
+    def client_factory():
+        return httpx.Client(
+            transport=httpx.MockTransport(handler),
+            headers={"User-Agent": "test"},
+        )
+
+    monkeypatch.setattr(trust, "_new_http_client", client_factory)
+    trust._reset_bot_session()
+    profile = trust.fetch_profile("usr_target")
+    assert profile["id"] == "usr_target"
+    assert any("twofactorauth" in item.url.path for item in calls)

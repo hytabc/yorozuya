@@ -763,7 +763,7 @@ watch(activeTab, (tab) => loadTab(tab))
         <div class="admin-stats">
           <div><span>功能</span><strong>{{ vrchatAdmin.enabled ? '已开启' : '已关闭' }}</strong></div>
           <div><span>新绑定</span><strong>{{ vrchatAdmin.allow_new_links ? '允许' : '暂停' }}</strong></div>
-          <div><span>机器人</span><strong>{{ vrchatAdmin.bot_configured ? '已配置' : '未配置' }}</strong></div>
+          <div><span>机器人</span><strong>{{ vrchatAdmin.bot_auth_mode === 'cookie' ? 'Cookie' : vrchatAdmin.bot_auth_mode === 'password' ? '账号密码' : '未配置' }}</strong></div>
           <div><span>已拉黑</span><strong>{{ vrchatAdmin.banned || 0 }}</strong></div>
         </div>
         <p v-if="vrchatAdmin.bot_last_error" class="form-error">机器人上次错误：{{ vrchatAdmin.bot_last_error }}</p>

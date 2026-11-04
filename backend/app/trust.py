@@ -15,9 +15,14 @@
 """
 from __future__ import annotations
 
+import base64
+import binascii
+import hashlib
+import hmac
 import json
 import re
 import secrets
+import struct
 import threading
 import time
 import unicodedata
@@ -282,8 +287,17 @@ def integration_state(db: Session) -> dict:
     }
 
 
+def bot_auth_mode() -> str | None:
+    """cookie 优先；否则使用机器人账号密码 + TOTP。"""
+    if (settings.vrchat_bot_auth_cookie or "").strip():
+        return "cookie"
+    if (settings.vrchat_bot_username or "").strip() and (settings.vrchat_bot_password or "").strip():
+        return "password"
+    return None
+
+
 def bot_configured() -> bool:
-    return bool((settings.vrchat_bot_auth_cookie or "").strip())
+    return bot_auth_mode() is not None
 
 
 def _cookie_header() -> str:
@@ -293,6 +307,143 @@ def _cookie_header() -> str:
     if "=" in raw:
         return raw
     return f"auth={raw}"
+
+
+_BOT_SESSION: dict[str, object] = {"client": None, "mode": None}
+
+
+def _reset_bot_session() -> None:
+    client = _BOT_SESSION.get("client")
+    if client is not None:
+        try:
+            client.close()
+        except Exception:
+            pass
+    _BOT_SESSION["client"] = None
+    _BOT_SESSION["mode"] = None
+
+
+def _new_http_client() -> httpx.Client:
+    return httpx.Client(
+        timeout=settings.vrchat_http_timeout_seconds,
+        headers={"Accept": "application/json", "User-Agent": settings.vrchat_user_agent},
+        follow_redirects=True,
+    )
+
+
+def _totp_code(secret: str) -> str:
+    """标准 TOTP（SHA1 / 6 位 / 30 秒），避免为一个功能新增依赖。"""
+    normalized = re.sub(r"\s+", "", secret or "").upper()
+    if not normalized:
+        raise VRChatError(503, "VRChat 机器人需要 2FA，但未配置 VRCHAT_BOT_TOTP_SECRET")
+    padded = normalized + "=" * ((8 - len(normalized) % 8) % 8)
+    try:
+        key = base64.b32decode(padded)
+    except (ValueError, binascii.Error) as error:
+        raise VRChatError(503, "VRChat 机器人 TOTP 密钥格式不正确") from error
+    counter = int(time.time()) // 30
+    digest = hmac.new(key, struct.pack(">Q", counter), hashlib.sha1).digest()
+    offset = digest[-1] & 0x0F
+    code = (struct.unpack(">I", digest[offset : offset + 4])[0] & 0x7FFFFFFF) % 1_000_000
+    return f"{code:06d}"
+
+
+def _login_bot(client: httpx.Client) -> None:
+    """用机器人账号密码登录；支持 TOTP 2FA。密码/TOTP 只读 .env，不落库、不打日志。"""
+    username = (settings.vrchat_bot_username or "").strip()
+    password = settings.vrchat_bot_password or ""
+    if not username or not password:
+        raise VRChatError(503, "VRChat 机器人账号未配置")
+    base = (settings.vrchat_api_base or "").rstrip("/")
+    try:
+        response = client.get(f"{base}/auth/user", auth=(username, password))
+    except httpx.HTTPError as error:
+        _BOT_STATE["last_error"] = "连接 VRChat 失败"
+        raise VRChatError(503, "VRChat 暂时不可用，请稍后再试") from error
+    if response.status_code in (401, 403):
+        _BOT_STATE["last_error"] = "机器人账号或密码不正确"
+        raise VRChatError(503, "VRChat 机器人账号或密码不正确")
+    if response.status_code >= 400:
+        _BOT_STATE["last_error"] = f"机器人登录失败（{response.status_code}）"
+        raise VRChatError(503, "VRChat 机器人登录失败")
+
+    try:
+        body = response.json()
+    except ValueError:
+        body = {}
+    if isinstance(body, dict) and body.get("requiresTwoFactorAuth"):
+        methods = body.get("requiresTwoFactorAuth") or []
+        if "totp" not in methods:
+            _BOT_STATE["last_error"] = "机器人需要不支持的二次验证方式"
+            raise VRChatError(503, "VRChat 机器人需要不支持的二次验证方式")
+        if not (settings.vrchat_bot_totp_secret or "").strip():
+            _BOT_STATE["last_error"] = "机器人需要 2FA，但未配置 TOTP"
+            raise VRChatError(503, "VRChat 机器人需要 2FA，请配置 VRCHAT_BOT_TOTP_SECRET")
+        try:
+            verify = client.post(
+                f"{base}/auth/twofactorauth/totp/verify",
+                json={"code": _totp_code(settings.vrchat_bot_totp_secret)},
+            )
+        except httpx.HTTPError as error:
+            _BOT_STATE["last_error"] = "连接 VRChat 失败"
+            raise VRChatError(503, "VRChat 暂时不可用，请稍后再试") from error
+        if verify.status_code >= 400:
+            _BOT_STATE["last_error"] = "机器人 2FA 验证失败"
+            raise VRChatError(503, "VRChat 机器人 2FA 验证失败")
+        again = client.get(f"{base}/auth/user")
+        if again.status_code >= 400:
+            _BOT_STATE["last_error"] = "机器人登录失败"
+            raise VRChatError(503, "VRChat 机器人登录失败")
+    _BOT_STATE["last_error"] = None
+
+
+def _ensure_bot_client() -> httpx.Client:
+    mode = bot_auth_mode()
+    if mode is None:
+        raise VRChatError(503, "VRChat 机器人尚未配置，请联系管理员")
+    existing = _BOT_SESSION.get("client")
+    if existing is not None and _BOT_SESSION.get("mode") == mode:
+        return existing
+    _reset_bot_session()
+    client = _new_http_client()
+    try:
+        if mode == "cookie":
+            client.headers["Cookie"] = _cookie_header()
+        else:
+            _login_bot(client)
+    except Exception as error:
+        _BOT_STATE["last_error"] = getattr(error, "detail", "机器人登录失败")
+        try:
+            client.close()
+        except Exception:
+            pass
+        raise
+    _BOT_SESSION["client"] = client
+    _BOT_SESSION["mode"] = mode
+    return client
+
+
+def _bot_get(path: str) -> httpx.Response:
+    base = (settings.vrchat_api_base or "").rstrip("/")
+    client = _ensure_bot_client()
+    try:
+        response = client.get(f"{base}{path}")
+    except httpx.HTTPError as error:
+        _BOT_STATE["last_error"] = "连接 VRChat 失败"
+        raise VRChatError(503, "VRChat 暂时不可用，请稍后再试") from error
+    if response.status_code in (401, 403):
+        # 会话可能过期：清掉后重新登录/重设 cookie，只重试一次。
+        _reset_bot_session()
+        client = _ensure_bot_client()
+        try:
+            response = client.get(f"{base}{path}")
+        except httpx.HTTPError as error:
+            _BOT_STATE["last_error"] = "连接 VRChat 失败"
+            raise VRChatError(503, "VRChat 暂时不可用，请稍后再试") from error
+        if response.status_code in (401, 403):
+            _BOT_STATE["last_error"] = "机器人会话失效"
+            raise VRChatError(503, "VRChat 机器人会话已失效，请联系管理员")
+    return response
 
 
 def fetch_profile(vrchat_user_id: str) -> dict:
@@ -307,26 +458,7 @@ def fetch_profile(vrchat_user_id: str) -> dict:
             time.sleep(wait)
         _BOT_LAST_CALL = time.monotonic()
 
-    url = f"{(settings.vrchat_api_base or '').rstrip('/')}/users/{vrchat_user_id}"
-    headers = {
-        "Accept": "application/json",
-        "User-Agent": settings.vrchat_user_agent,
-        "Cookie": _cookie_header(),
-    }
-    try:
-        response = httpx.get(
-            url,
-            headers=headers,
-            timeout=settings.vrchat_http_timeout_seconds,
-            follow_redirects=True,
-        )
-    except httpx.HTTPError as error:
-        _BOT_STATE["last_error"] = "连接 VRChat 失败"
-        raise VRChatError(503, "VRChat 暂时不可用，请稍后再试") from error
-
-    if response.status_code in (401, 403):
-        _BOT_STATE["last_error"] = "机器人会话失效"
-        raise VRChatError(503, "VRChat 机器人会话已失效，请联系管理员")
+    response = _bot_get(f"/users/{vrchat_user_id}")
     if response.status_code == 404:
         raise VRChatError(404, "找不到该 VRChat 用户")
     if response.status_code == 429:
@@ -709,6 +841,7 @@ def admin_status(_: User = Depends(get_role_manager), db: Session = Depends(get_
         "unlinked": counts.get(STATUS_UNLINKED, 0),
         "banned": banned,
         "bot_configured": bot_configured(),
+        "bot_auth_mode": bot_auth_mode(),
         "bot_last_error": _BOT_STATE["last_error"],
         "bot_last_success_at": _iso(_BOT_STATE["last_success_at"]),
     }

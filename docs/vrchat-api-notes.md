@@ -26,8 +26,10 @@
 
 ### 安全与运维
 
-- 机器人 cookie 只放 `.env` 的 `VRCHAT_BOT_AUTH_COOKIE`，**不入库、不进日志、不进前端**；
-- 不保存用户的 VRChat 密码、Cookie 或令牌；
+- 机器人认证二选一，全部只放 `.env`，**不入库、不进日志、不进前端**：
+  - `VRCHAT_BOT_AUTH_COOKIE`（推荐，不保存密码）；
+  - `VRCHAT_BOT_USERNAME` + `VRCHAT_BOT_PASSWORD`，开启 2FA 时再加 `VRCHAT_BOT_TOTP_SECRET`（标准 TOTP，SHA1/6 位/30 秒）。
+- 不保存**用户**的 VRChat 密码、Cookie 或令牌；
 - 机器人请求串行 + 最小间隔，尊重 `429` 与 `Retry-After`；
 - 连续 5 次验证失败冷却 5 分钟；
 - 机器人会话失效时 **fail-closed**，明确提示「暂时不可用」，不伪造数据；
@@ -59,6 +61,6 @@
 
 1. 创建一个**专用 VRChat 机器人账号**（不要使用个人主号），开启 2FA；
 2. 在浏览器登录后复制 `authcookie`（或完整 `auth=…; twoFactorAuth=…`）；
-3. 写入根目录 `.env` 的 `VRCHAT_BOT_AUTH_COOKIE`，按需修改 `VRCHAT_USER_AGENT`；
+3. 写入根目录 `.env`：任选 `VRCHAT_BOT_AUTH_COOKIE`，或 `VRCHAT_BOT_USERNAME` + `VRCHAT_BOT_PASSWORD` +（如开启 2FA）`VRCHAT_BOT_TOTP_SECRET`；按需修改 `VRCHAT_USER_AGENT`；
 4. 重启后端；在监管台「VRChat」标签查看机器人状态与上次错误；
 5. cookie 失效时重新登录复制并替换，重启后端。

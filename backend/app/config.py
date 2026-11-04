@@ -68,6 +68,10 @@ class Settings(BaseSettings):
     # 站点机器人账号的 auth cookie：只放 .env，不入库、不进日志。
     # 支持 ``authcookie_...`` 或 ``auth=...; twoFactorAuth=...`` 两种写法。
     vrchat_bot_auth_cookie: str = ""
+    # 也可以改用机器人账号密码 + TOTP（二选一；密码/TOTP 同样只放 .env）。
+    vrchat_bot_username: str = ""
+    vrchat_bot_password: str = ""
+    vrchat_bot_totp_secret: str = ""
     vrchat_api_base: str = "https://api.vrchat.cloud/api/1"
     # VRChat 要求可识别的 User-Agent；生产请改成带联系方式的描述值。
     vrchat_user_agent: str = "yorozuya/1.0"
