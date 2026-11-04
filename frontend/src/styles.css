@@ -322,6 +322,19 @@ input:focus, select:focus, textarea:focus { border-color: #74847c; box-shadow: 0
 .ranking-user { display: inline-flex; align-items: center; gap: 8px; font-weight: 650; }
 .ranking-value { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: var(--green); }
 .ranking-count { font-size: 12px; text-align: right; }
+.life-records { display: grid; gap: 12px; }
+.life-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.life-grid > div { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); }
+.life-grid span { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
+.life-grid strong { font-size: 18px; }
+.life-grid small { font-size: 11px; }
+.life-dates { font-size: 13px !important; }
+.life-categories { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
+.ledger-title { margin: 18px 0 8px; font-size: 14px; }
+.ledger-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.ledger-list li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; font-size: 13px; }
+.ledger-list strong { color: var(--green); }
+.ledger-list strong.minus { color: var(--red); }
 @media (max-width: 720px) { .ranking-list > li { grid-template-columns: 32px minmax(0, 1fr) auto; } .ranking-count { display: none; } }
 .pay-tag.pay-paid { color: #9a4f17; background: #fdf0e3; }
 .pay-tag.pay-free { color: var(--green); background: var(--green-soft); }

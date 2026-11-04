@@ -288,6 +288,23 @@ class UserRatingSummary(BaseModel):
     publisher: RatingStatsOut = Field(default_factory=RatingStatsOut)
 
 
+class UserRecordsOut(BaseModel):
+    user_id: int
+    lifetime_points: int = 0
+    level: int = 1
+    next_threshold: int | None = None
+    joined_days: int = 0
+    completed_taken: int = 0
+    completed_published: int = 0
+    published_total: int = 0
+    first_completed_at: datetime | None = None
+    last_completed_at: datetime | None = None
+    taker_rating: RatingStatsOut = Field(default_factory=RatingStatsOut)
+    publisher_rating: RatingStatsOut = Field(default_factory=RatingStatsOut)
+    achievements_unlocked: int = 0
+    top_categories: list[dict] = []
+
+
 class UserProfileOut(ApiModel):
     """用户资料；QQ 按名录公开偏好及协作关系控制可见性。"""
     id: int

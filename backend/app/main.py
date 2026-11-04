@@ -256,6 +256,7 @@ from .achievements import router as achievements_router
 from . import levels as levels_module
 from .levels import router as levels_router
 from .rankings import router as rankings_router
+from .records import router as records_router
 from .events import router as events_router
 from .virtual_life import router as virtual_life_router
 from .virtual_life_packs import router as virtual_life_packs_router, seed_virtual_life_packs
@@ -788,6 +789,7 @@ app.include_router(daily_router)
 app.include_router(achievements_router)
 app.include_router(levels_router)
 app.include_router(rankings_router)
+app.include_router(records_router)
 
 
 @app.get("/share/task/{task_id}", response_class=HTMLResponse, include_in_schema=False)

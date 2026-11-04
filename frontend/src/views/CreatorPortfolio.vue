@@ -9,6 +9,7 @@ import UserAvatar from '../components/UserAvatar.vue'
 import UserTitleTag from '../components/UserTitleTag.vue'
 import CredentialCard from '../components/CredentialCard.vue'
 import AchievementWall from '../components/AchievementWall.vue'
+import LifeRecords from '../components/LifeRecords.vue'
 
 const route = useRoute()
 const toast = useToast()
@@ -97,13 +98,18 @@ onMounted(load)
       </section>
 
       <section class="creator-wall">
-        <div class="section-heading"><div><span class="section-index">01</span><h2>成就</h2><p>只展示已解锁的成就</p></div></div>
+        <div class="section-heading"><div><span class="section-index">01</span><h2>人生记录</h2><p>来自真实委托与评价的累计数据</p></div></div>
+        <LifeRecords :user-id="userId" />
+      </section>
+
+      <section class="creator-wall">
+        <div class="section-heading"><div><span class="section-index">02</span><h2>成就</h2><p>只展示已解锁的成就</p></div></div>
         <AchievementWall :user-id="userId" />
       </section>
 
       <section class="creator-wall">
         <div class="section-heading">
-          <div><span class="section-index">02</span><h2>凭证墙</h2><p>只展示作者设为「公开」且未被撤销的凭证</p></div>
+          <div><span class="section-index">03</span><h2>凭证墙</h2><p>只展示作者设为「公开」且未被撤销的凭证</p></div>
         </div>
         <div v-if="wall.items.length" class="credential-grid">
           <RouterLink v-for="item in wall.items" :key="item.serial" class="credential-link" :to="`/credential/${item.serial}`">
