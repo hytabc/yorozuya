@@ -177,21 +177,26 @@ def test_bounty_is_escrowed_and_refunded_on_cancel():
     with TestClient(app) as client:
         publisher = auth(client, "points_bounty_pub")
         set_qq(client, publisher, "1000000000")
-        top_up(client, publisher, 50)
+        # Lv3 起才能发悬赏（终身积分 ≥150），160 分刚好够等级与钱包测试。
+        top_up(client, publisher, 160)
 
         created = publish_task(client, publisher, bounty_points=30)
         assert created.status_code == 201, created.text
         assert created.json()["bounty_points"] == 30
-        assert client.get("/api/points/me", headers=publisher).json()["wallet_points"] == 20
+        assert client.get("/api/points/me", headers=publisher).json()["wallet_points"] == 130
 
-        # 超出余额被拒绝，且不产生委托
-        too_much = publish_task(client, publisher, bounty_points=40)
+        # 超过等级上限被拒绝
+        too_much = publish_task(client, publisher, bounty_points=70)
         assert too_much.status_code == 422
-        assert "悬赏积分不足" in too_much.json()["detail"]
+        assert "悬赏上限" in too_much.json()["detail"]
+        # 超过钱包余额同样被拒绝
+        broke = publish_task(client, publisher, bounty_points=195)
+        assert broke.status_code == 422
+        assert "悬赏积分不足" in broke.json()["detail"]
 
         cancelled = client.post(f"/api/tasks/{created.json()['id']}/cancel", headers=publisher)
         assert cancelled.json()["status"] == "cancelled"
-        assert client.get("/api/points/me", headers=publisher).json()["wallet_points"] == 50
+        assert client.get("/api/points/me", headers=publisher).json()["wallet_points"] == 160
 
 
 def age_account(client, headers, days=30):
@@ -218,7 +223,7 @@ def test_completion_splits_advance_and_bounty():
         taker = auth(client, "points_done_taker", role="volunteer")
         age_account(client, taker)
         set_qq(client, publisher, "1000000000")
-        top_up(client, publisher, 40)
+        top_up(client, publisher, 250)
 
         task = publish_task(client, publisher, bounty_points=10).json()
         assert task["base_points"] == 5
@@ -229,7 +234,7 @@ def test_completion_splits_advance_and_bounty():
         taker_points = client.get("/api/points/me", headers=taker).json()
         assert taker_points == {"lifetime_points": 13, "wallet_points": 13}
         publisher_points = client.get("/api/points/me", headers=publisher).json()
-        assert publisher_points["wallet_points"] == 30
+        assert publisher_points["wallet_points"] == 240
 
         kinds = [item["kind"] for item in client.get("/api/points/ledger", headers=taker).json()["items"]]
         assert set(kinds) == {"task_reward", "bounty_reward"}
@@ -239,15 +244,15 @@ def test_expired_task_refunds_bounty():
     with TestClient(app) as client:
         publisher = auth(client, "points_expire_pub")
         set_qq(client, publisher, "1000000000")
-        top_up(client, publisher, 20)
+        top_up(client, publisher, 250)
         task = publish_task(client, publisher, bounty_points=20).json()
-        assert client.get("/api/points/me", headers=publisher).json()["wallet_points"] == 0
+        assert client.get("/api/points/me", headers=publisher).json()["wallet_points"] == 230
 
         with api_tests.TestingSession() as db:
             db.execute(text("UPDATE tasks SET expires_at = '2000-01-01 00:00:00'"))
             db.commit()
         client.get("/api/tasks")  # 触发惰性过期
-        assert client.get("/api/points/me", headers=publisher).json()["wallet_points"] == 20
+        assert client.get("/api/points/me", headers=publisher).json()["wallet_points"] == 250
 
 
 def earned_of(client, task_id, taker_id):

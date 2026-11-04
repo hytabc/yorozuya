@@ -253,6 +253,8 @@ from . import invites as invites_module
 from .invites import router as invites_router
 from .daily import router as daily_router
 from .achievements import router as achievements_router
+from . import levels as levels_module
+from .levels import router as levels_router
 from .events import router as events_router
 from .virtual_life import router as virtual_life_router
 from .virtual_life_packs import router as virtual_life_packs_router, seed_virtual_life_packs
@@ -781,6 +783,7 @@ app.include_router(shares_router)
 app.include_router(invites_router)
 app.include_router(daily_router)
 app.include_router(achievements_router)
+app.include_router(levels_router)
 
 
 @app.get("/share/task/{task_id}", response_class=HTMLResponse, include_in_schema=False)
@@ -1030,8 +1033,11 @@ def visible_avatar(user: User, viewer: User | None = None) -> str | None:
 
 
 def present_user_public(user: User, viewer: User | None = None) -> UserPublic:
+    from .levels import level_for
+
     return UserPublic(
         id=user.id, nickname=user.nickname, title=user.title, bio=user.bio,
+        lifetime_points=user.lifetime_points, level=level_for(user.lifetime_points),
         photos=visible_user_photos(user, viewer),
         avatar_url=visible_avatar(user, viewer), avatar_visible=user.avatar_visible,
         is_beta_tester=user.is_beta_tester,
@@ -1074,6 +1080,7 @@ def present_user_self(user: User) -> UserSelf:
         lifetime_points=user.lifetime_points,
         wallet_points=user.wallet_points,
         invite_code=user.invite_code,
+        level=levels_module.level_for(user.lifetime_points),
         created_at=user.created_at,
     )
 
@@ -1082,6 +1089,7 @@ def present_user_profile(user: User, viewer: User | None = None) -> UserProfileO
     return UserProfileOut(
         id=user.id, nickname=user.nickname, title=user.title, bio=user.bio, qq=user.qq, qq_public=user.qq_public,
         is_admin=user.is_admin,
+        lifetime_points=user.lifetime_points, level=levels_module.level_for(user.lifetime_points),
         role=user.role, created_at=user.created_at, photos=visible_user_photos(user, viewer),
         avatar_url=visible_avatar(user, viewer), avatar_visible=user.avatar_visible, is_beta_tester=user.is_beta_tester,
     )
@@ -4352,11 +4360,31 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
             raise HTTPException(status_code=422, detail="只能指定当前可用的管理员或志愿者")
     if payload.category not in TASK_CATEGORIES:
         raise HTTPException(status_code=422, detail="委托分类不正确")
+    # 信誉等级与委托人评分共同决定发布权限（先判等级，再判余额）。
+    privilege = levels_module.privileges(db, user)
+    if payload.bounty_points > 0 and not privilege.can_post_bounty:
+        raise HTTPException(status_code=403, detail="信誉等级达到 Lv3 后才能发布悬赏委托")
     if payload.bounty_points > user.wallet_points:
         raise HTTPException(
             status_code=422,
             detail=f"悬赏积分不足：当前可用 {user.wallet_points} 分，最多可托管 {user.wallet_points} 分",
         )
+    if payload.bounty_points > 0 and payload.bounty_points > privilege.bounty_cap:
+        raise HTTPException(
+            status_code=422,
+            detail=f"当前悬赏上限为 {privilege.bounty_cap} 分（Lv{privilege.level}）",
+        )
+    if payload.required_takers and payload.required_takers > 1 and not privilege.multi_taker:
+        raise HTTPException(status_code=403, detail="委托人评分较低，暂时只能发布单人委托")
+    today_start = points_module.day_start_utc()
+    today_published = db.scalar(
+        select(func.count()).select_from(Task).where(
+            Task.publisher_id == user.id,
+            Task.created_at >= today_start,
+        )
+    ) or 0
+    if today_published >= privilege.daily_publish_limit:
+        raise HTTPException(status_code=429, detail=f"今日发布数量已达上限（{privilege.daily_publish_limit} 份）")
     # 标签先校验再落库：非法标签不会留下半成品委托。
     facet_items = validate_facets(payload.facets)
     task = Task(
@@ -4524,10 +4552,11 @@ def accept_task(
             raise HTTPException(status_code=409, detail="你已响应此指定委托")
         # 在支持行锁的数据库上串行化同一用户的接单操作，避免并发突破个人上限。
         db.scalar(select(User).where(User.id == user.id).with_for_update())
-        if active_task_count(db, user.id) >= user.max_concurrent_tasks:
+        limit = levels_module.privileges(db, user).taker_limit
+        if active_task_count(db, user.id) >= limit:
             raise HTTPException(
                 status_code=409,
-                detail=f"你同时接取的委托已达上限（{user.max_concurrent_tasks} 个）",
+                detail=f"你同时接取的委托已达上限（{limit} 个）",
             )
         existing_member.response_status = TaskMemberResponse.ACCEPTED
         task.updated_at = datetime.utcnow()
@@ -4568,10 +4597,11 @@ def accept_task(
             raise HTTPException(status_code=409, detail="需要的人数已满，委托即将开始")
     # 在支持行锁的数据库上串行化同一用户的接单操作，避免并发突破个人上限。
     db.scalar(select(User).where(User.id == user.id).with_for_update())
-    if active_task_count(db, user.id) >= user.max_concurrent_tasks:
+    limit = levels_module.privileges(db, user).taker_limit
+    if active_task_count(db, user.id) >= limit:
         raise HTTPException(
             status_code=409,
-            detail=f"你同时接取的委托已达上限（{user.max_concurrent_tasks} 个）",
+            detail=f"你同时接取的委托已达上限（{limit} 个）",
         )
     db.add(TaskMember(task_id=task.id, user_id=user.id))
     record_task_event(

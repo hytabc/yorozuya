@@ -175,6 +175,9 @@ def test_task_create_limit_stops_writes(monkeypatch):
         headers, _ = email_tests.auth(client, "task_rate")
         assert client.patch("/api/users/me", headers=headers, json={"nickname": "限流用户", "qq": "12345678"}).status_code == 200
         enable_limits(monkeypatch)
+        # 本用例只验证频率限流；把「每日发布上限」放宽，避免先被业务上限拦下。
+        from app import levels as levels_module
+        monkeypatch.setattr(levels_module, "DEFAULT_DAILY_PUBLISH_LIMIT", 100)
         payload = {"title": "限流测试", "description": "用于确认超限不再写入数据库", "category": "技术疑难", "expires_in_days": 2}
         for _ in range(20):
             response = client.post("/api/tasks", headers=headers, json=payload)

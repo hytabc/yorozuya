@@ -89,7 +89,7 @@ onMounted(load)
             <span class="role-tag"><Award :size="13" />已完成 {{ profile.credential_count }} 份公开委托</span>
             <span v-if="ratings?.taker?.count" class="role-tag"><Star :size="13" />接单 {{ ratings.taker.average }} 星 · {{ ratings.taker.count }} 评</span>
             <span v-if="ratings?.publisher?.count" class="role-tag"><Star :size="13" />委托 {{ ratings.publisher.average }} 星 · {{ ratings.publisher.count }} 评</span>
-            <span v-if="profile.user.lifetime_points" class="role-tag"><Coins :size="13" />累计 {{ profile.user.lifetime_points }} 积分</span>
+            <span v-if="profile.user.lifetime_points" class="role-tag"><Coins :size="13" />Lv{{ profile.user.level }} · 累计 {{ profile.user.lifetime_points }} 积分</span>
             <span v-for="tag in profile.tags" :key="tag.value" class="facet-chip static">{{ portfolioTagLabel(tag) }}</span>
           </div>
           <p class="field-hint">标签由完成记录反向生成，不能自行新增或修改；同一技能完成 2 次以上才会出现。</p>

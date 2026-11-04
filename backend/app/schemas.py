@@ -147,6 +147,8 @@ class UserPublic(ApiModel):
     bio: str | None = None
     # 终身累计积分（公开）；钱包余额只在 UserSelf 里返回。
     lifetime_points: int = 0
+    # 信誉等级：由 lifetime_points 推导，只升不降。
+    level: int = 1
     photos: list[UserPhotoOut] = []
     # avatar_url 仅在查看者有权看到时由后端填充；未过审头像仅本人和管理员组可见
     avatar_url: str | None = None
@@ -171,6 +173,19 @@ class DailyTaskOut(BaseModel):
     progress: int = 0
     claimed: bool = False
     can_claim: bool = False
+
+
+class UserLevelOut(BaseModel):
+    level: int = 1
+    lifetime_points: int = 0
+    next_threshold: int | None = None
+    taker_limit: int = 2
+    bounty_cap: int = 20
+    can_post_bounty: bool = False
+    multi_taker: bool = True
+    daily_publish_limit: int = 5
+    publisher_rating_active: bool = False
+    publisher_bayes: float = 0
 
 
 class AchievementOut(ApiModel):
@@ -262,6 +277,8 @@ class UserProfileOut(ApiModel):
     role: UserRole = UserRole.USER
     is_beta_tester: bool = False
     created_at: datetime
+    lifetime_points: int = 0
+    level: int = 1
     photos: list[UserPhotoOut] = []
     avatar_url: str | None = None
     avatar_visible: bool = False

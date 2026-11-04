@@ -141,7 +141,7 @@ onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeE
         <label>委托分类<select v-model="form.category" required><option value="" disabled>请选择委托类型</option><option v-for="item in categories" :key="item">{{ item }}</option></select></label>
         <div class="form-row">
           <label>委托规模<select v-model="form.scale"><option v-for="(label, key) in rules.scale_labels" :key="key" :value="key">{{ label }}（基础 {{ rules.scale_points[key] }} 分）</option></select></label>
-          <label>额外悬赏<input v-model.number="form.bounty_points" type="number" :min="rules.bounty_min" :max="bountyLimit" step="1" /><small class="field-hint">当前可用 {{ wallet }} 分，最多可托管 {{ bountyLimit }} 分；悬赏直接压给对方，取消或过期会退回。</small></label>
+          <label>额外悬赏<input v-model.number="form.bounty_points" type="number" :min="rules.bounty_min" :max="bountyLimit" step="1" /><small class="field-hint">当前可用 {{ wallet }} 分，最多可托管 {{ bountyLimit }} 分；信誉等级 Lv3 起才能发布悬赏。取消或过期会退回。</small></label>
         </div>
         <div class="point-preview">
           <strong>完成后接单人可得 {{ previewBase }} 分<template v-if="form.bounty_points > 0"> + 悬赏 {{ form.bounty_points }} 分</template></strong>
