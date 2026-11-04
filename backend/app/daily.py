@@ -13,11 +13,27 @@ from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from .database import Base, get_db
 from .dependencies import get_current_user
-from .models import Task, TaskMember, TaskMemberResponse, TaskStatus, User
+from .house import HouseRoom
+from .models import (
+    BoardMessage,
+    FriendProfile,
+    Story,
+    StoryComment,
+    TalkReply,
+    TalkThread,
+    Task,
+    TaskMember,
+    TaskMemberResponse,
+    TaskStatus,
+    User,
+    VrMapLike,
+    VrMapPhoto,
+)
 from .points import award_points, day_start_utc
 from .ratings import TaskRating
-from .schemas import DailyOut, DailyTaskOut, DailyClaimOut
+from .schemas import DailyOut, DailyTaskOut, DailyClaimOut, OfficialQuestOut
 from .shares import TaskShare
+from .sugar_frost import SugarFrostSave
 
 DAILY_TASKS = (
     {"key": "publish", "label": "发布 1 份委托", "detail": "描述不少于 30 字", "reward": 2, "target": 1},
@@ -28,6 +44,41 @@ DAILY_TASKS = (
 )
 DAILY_KEYS = {item["key"] for item in DAILY_TASKS}
 MAIN_TASKS = ("publish", "complete", "rate", "share")
+
+# 官方活跃委托：每天按日期确定性抽 3 条（所有用户相同），完成后领取少量积分。
+OFFICIAL_POOL = (
+    {"key": "board_post", "label": "在留言板发一条留言", "reward": 5, "target": 1},
+    {"key": "story_comment", "label": "给一篇故事写评论", "reward": 5, "target": 1},
+    {"key": "story_publish", "label": "发布一篇故事", "reward": 8, "target": 1},
+    {"key": "friend_profile", "label": "更新交友厅资料", "reward": 5, "target": 1},
+    {"key": "map_photo", "label": "上传一张地图实拍", "reward": 5, "target": 1},
+    {"key": "map_like", "label": "给一张推荐地图点赞", "reward": 2, "target": 1},
+    {"key": "talk_post", "label": "在疑难解答发一个主题", "reward": 3, "target": 1},
+    {"key": "talk_reply", "label": "回复一条疑难解答", "reward": 3, "target": 1},
+    {"key": "frost_play", "label": "推进一局糖霜世界", "reward": 3, "target": 1},
+    {"key": "house_save", "label": "保存一次自己的房屋", "reward": 8, "target": 1},
+)
+DAILY_OFFICIAL_COUNT = 3
+
+
+class OfficialQuestClaim(Base):
+    __tablename__ = "official_quest_claims"
+    __table_args__ = (UniqueConstraint("user_id", "day", "quest_key", name="uq_official_claim"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    day: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    quest_key: Mapped[str] = mapped_column(String(16), nullable=False)
+    reward: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
+def official_quests_for_day(day: str) -> list[dict]:
+    """按日期确定性抽取，保证同一天所有用户看到同一组委托。"""
+    import random
+
+    keys = sorted(OFFICIAL_POOL, key=lambda item: item["key"])
+    return random.Random(f"wsw-{day}").sample(keys, DAILY_OFFICIAL_COUNT)
 
 
 class UserDailyClaim(Base):
@@ -104,6 +155,57 @@ def _progress(db: Session, user_id: int, start: datetime) -> dict[str, int]:
     }
 
 
+def _count(db: Session, model, *conditions) -> int:
+    return db.scalar(select(func.count()).select_from(model).where(*conditions)) or 0
+
+
+def _official_progress(db: Session, user_id: int, start: datetime) -> dict[str, int]:
+    iso = start.isoformat()
+    return {
+        "board_post": _count(db, BoardMessage, BoardMessage.user_id == user_id, BoardMessage.created_at >= start),
+        "story_comment": _count(db, StoryComment, StoryComment.user_id == user_id, StoryComment.created_at >= start),
+        "story_publish": _count(db, Story, Story.author_id == user_id, Story.created_at >= start),
+        "friend_profile": _count(db, FriendProfile, FriendProfile.user_id == user_id, FriendProfile.updated_at >= start),
+        "map_photo": _count(db, VrMapPhoto, VrMapPhoto.user_id == user_id, VrMapPhoto.created_at >= start),
+        "map_like": _count(db, VrMapLike, VrMapLike.user_id == user_id, VrMapLike.created_at >= start),
+        "talk_post": _count(db, TalkThread, TalkThread.user_id == user_id, TalkThread.created_at >= start),
+        "talk_reply": _count(db, TalkReply, TalkReply.user_id == user_id, TalkReply.created_at >= start),
+        "frost_play": _count(db, SugarFrostSave, SugarFrostSave.user_id == user_id, SugarFrostSave.updated_at >= iso),
+        "house_save": _count(db, HouseRoom, HouseRoom.user_id == user_id, HouseRoom.updated_at >= iso),
+    }
+
+
+def _official_claims(db: Session, user_id: int, day: str) -> set[str]:
+    return set(
+        db.scalars(
+            select(OfficialQuestClaim.quest_key).where(
+                OfficialQuestClaim.user_id == user_id,
+                OfficialQuestClaim.day == day,
+            )
+        ).all()
+    )
+
+
+def _official_snapshot(db: Session, user_id: int, day: str, start: datetime) -> list[OfficialQuestOut]:
+    progress = _official_progress(db, user_id, start)
+    claimed = _official_claims(db, user_id, day)
+    items = []
+    for quest in official_quests_for_day(day):
+        done = progress.get(quest["key"], 0) >= quest["target"]
+        items.append(
+            OfficialQuestOut(
+                key=quest["key"],
+                label=quest["label"],
+                reward=quest["reward"],
+                target=quest["target"],
+                progress=min(progress.get(quest["key"], 0), quest["target"]),
+                claimed=quest["key"] in claimed,
+                can_claim=done and quest["key"] not in claimed,
+            )
+        )
+    return items
+
+
 def daily_snapshot(db: Session, user: User) -> DailyOut:
     day = current_day()
     start = day_start_utc()
@@ -127,10 +229,51 @@ def daily_snapshot(db: Session, user: User) -> DailyOut:
                 can_claim=reached and not claimed,
             )
         )
-    return DailyOut(day=day, items=items, claimed_count=len(claims))
+    return DailyOut(day=day, items=items, claimed_count=len(claims), official=_official_snapshot(db, user.id, day, start))
 
 
 router = APIRouter(prefix="/api/daily", tags=["daily"])
+
+
+@router.post("/official/{quest_key}/claim", response_model=DailyClaimOut)
+def claim_official(
+    quest_key: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    day = current_day()
+    start = day_start_utc()
+    quest = next((item for item in official_quests_for_day(day) if item["key"] == quest_key), None)
+    if quest is None:
+        raise HTTPException(status_code=404, detail="今天的官方委托里没有这一项")
+    if quest_key in _official_claims(db, user.id, day):
+        raise HTTPException(status_code=409, detail="今日已领取过该委托")
+    if _official_progress(db, user.id, start).get(quest_key, 0) < quest["target"]:
+        raise HTTPException(status_code=409, detail="委托尚未完成")
+    claim = OfficialQuestClaim(user_id=user.id, day=day, quest_key=quest_key, reward=quest["reward"])
+    db.add(claim)
+    db.flush()
+    award_points(
+        db,
+        user.id,
+        kind="daily",
+        lifetime=quest["reward"],
+        wallet=quest["reward"],
+        note=f"官方委托：{quest['label']}",
+        source_type="official_claim",
+        source_id=claim.id,
+        idempotent=True,
+    )
+    db.commit()
+    db.refresh(user)
+    return DailyClaimOut(
+        key=quest_key,
+        reward=quest["reward"],
+        day=day,
+        lifetime_points=user.lifetime_points,
+        wallet_points=user.wallet_points,
+        daily=daily_snapshot(db, user),
+    )
 
 
 @router.get("", response_model=DailyOut)

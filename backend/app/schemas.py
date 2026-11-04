@@ -173,10 +173,21 @@ class DailyTaskOut(BaseModel):
     can_claim: bool = False
 
 
+class OfficialQuestOut(BaseModel):
+    key: str
+    label: str
+    reward: int = 0
+    target: int = 1
+    progress: int = 0
+    claimed: bool = False
+    can_claim: bool = False
+
+
 class DailyOut(BaseModel):
     day: str
     items: list[DailyTaskOut] = []
     claimed_count: int = 0
+    official: list[OfficialQuestOut] = []
 
 
 class DailyClaimOut(BaseModel):

@@ -89,3 +89,41 @@ def test_all_clear_requires_four_claims():
         client.post("/api/daily/share/claim", headers=publisher)
         # 还剩评价与完成未领取，全清仍不可领。
         assert items(client, publisher)["all_clear"]["can_claim"] is False
+
+
+def test_official_quests_are_stable_per_day():
+    from app import daily as daily_module
+
+    first = [item["key"] for item in daily_module.official_quests_for_day("2026-11-04")]
+    second = [item["key"] for item in daily_module.official_quests_for_day("2026-11-04")]
+    assert first == second and len(first) == 3
+    assert set(first).issubset({item["key"] for item in daily_module.OFFICIAL_POOL})
+    # 换一天通常会换一批（至少不是硬编码同一组）。
+    other = [item["key"] for item in daily_module.official_quests_for_day("2026-11-05")]
+    assert other != first
+
+
+def test_official_quest_claim(monkeypatch):
+    from app import daily as daily_module
+
+    quest = {"key": "board_post", "label": "在留言板发一条留言", "reward": 5, "target": 1}
+    monkeypatch.setattr(daily_module, "official_quests_for_day", lambda day: [quest])
+
+    with TestClient(app) as client:
+        user = auth(client, "official_user")
+        snapshot = client.get("/api/daily", headers=user).json()
+        assert snapshot["official"] == [
+            {"key": "board_post", "label": quest["label"], "reward": 5, "target": 1, "progress": 0, "claimed": False, "can_claim": False}
+        ]
+
+        client.post("/api/board", headers=user, json={"content": "今天的官方委托：来留言板打个卡。"})
+        assert client.get("/api/daily", headers=user).json()["official"][0]["can_claim"] is True
+
+        claimed = client.post("/api/daily/official/board_post/claim", headers=user)
+        assert claimed.status_code == 200, claimed.text
+        assert claimed.json()["reward"] == 5
+        assert client.get("/api/points/me", headers=user).json()["lifetime_points"] == 5
+        assert client.post("/api/daily/official/board_post/claim", headers=user).status_code == 409
+
+        # 不在今日列表里的 key 不能领。
+        assert client.post("/api/daily/official/map_like/claim", headers=user).status_code == 404
