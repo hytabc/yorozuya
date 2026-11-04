@@ -180,6 +180,9 @@ class Task(Base):
     base_points: Mapped[int] = mapped_column(Integer, default=0)
     # 发布者额外托管的悬赏积分（从钱包扣除，完成时发给接单人）。
     bounty_points: Mapped[int] = mapped_column(Integer, default=0)
+    # 官方活跃委托：由系统账号发布，全局共享最多 3 个，完成后由系统核对站内动作发积分。
+    is_official: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    official_key: Mapped[str | None] = mapped_column(String(24), nullable=True)
     status: Mapped[TaskStatus] = mapped_column(
         SqlEnum(TaskStatus, values_callable=lambda values: [item.value for item in values]),
         default=TaskStatus.PUBLISHED,

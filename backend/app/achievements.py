@@ -127,12 +127,10 @@ def achievement_metrics(db: Session, user: User) -> dict[str, int]:
         .join(TalkThread, TalkThread.accepted_reply_id == TalkReply.id)
         .where(TalkReply.user_id == user.id),
     )
-    from .daily import OfficialQuestClaim, UserDailyClaim
+    from .daily import UserDailyClaim
 
     daily_claims = _scalar(
         db, select(func.count()).select_from(UserDailyClaim).where(UserDailyClaim.user_id == user.id)
-    ) + _scalar(
-        db, select(func.count()).select_from(OfficialQuestClaim).where(OfficialQuestClaim.user_id == user.id)
     )
     shares = _scalar(db, select(func.count()).select_from(TaskShare).where(TaskShare.user_id == user.id))
     house_saved = _scalar(db, select(func.count()).select_from(HouseRoom).where(HouseRoom.user_id == user.id))

@@ -257,6 +257,7 @@ from . import levels as levels_module
 from .levels import router as levels_router
 from .rankings import router as rankings_router
 from .records import router as records_router
+from . import official as official_module
 from .events import router as events_router
 from .virtual_life import router as virtual_life_router
 from .virtual_life_packs import router as virtual_life_packs_router, seed_virtual_life_packs
@@ -520,6 +521,11 @@ def migrate_schema() -> None:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN base_points INTEGER NOT NULL DEFAULT 0"))
         if "bounty_points" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN bounty_points INTEGER NOT NULL DEFAULT 0"))
+        if "is_official" not in task_columns:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN is_official BOOLEAN NOT NULL DEFAULT 0"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_tasks_is_official ON tasks (is_official)"))
+        if "official_key" not in task_columns:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN official_key VARCHAR(24)"))
         if inspector.has_table("task_members"):
             member_columns = {column["name"] for column in inspector.get_columns("task_members")}
             if "base_points_earned" not in member_columns:
@@ -4258,6 +4264,7 @@ def list_tasks(
     db: Session = Depends(get_db),
 ):
     expire_due_tasks(db)
+    official_module.ensure_official_tasks(db)
     reported_ids = select(TaskReport.task_id).where(TaskReport.status == ReportStatus.PENDING)
     query = task_query().where(Task.is_visible.is_(True), ~Task.id.in_(reported_ids))
     if search:
@@ -4278,7 +4285,7 @@ def list_tasks(
     ):
         if value:
             query = query.where(Task.id.in_(facet_filter_ids(facet_type, value)))
-    tasks = db.scalars(query.order_by(Task.created_at.desc()).limit(200)).unique().all()
+    tasks = db.scalars(query.order_by(Task.is_official.desc(), Task.created_at.desc()).limit(200)).unique().all()
     facets = facets_for_tasks(db, [task.id for task in tasks])
     return [present_task(task, viewer, facets.get(task.id, [])) for task in tasks]
 
@@ -4717,6 +4724,15 @@ def confirm_task(
     """完成确认：委托人（发布人）与每一位接单人都需要确认；全部确认后委托才算完成。"""
     expire_due_tasks(db)
     task = get_task_or_404(db, task_id)
+    if task.is_official:
+        # 官方委托：接单人确认时由系统核对站内动作，核对通过即完成并发放积分。
+        if user.id == task.publisher_id:
+            raise HTTPException(status_code=403, detail="官方委托由系统自动确认")
+        if not official_module.complete_official_task(db, task, user):
+            db.rollback()
+            raise HTTPException(status_code=409, detail="系统还没有检测到今天对应的站内动作，请先完成再把委托确认")
+        db.commit()
+        return present_task(get_task_or_404(db, task_id), user)
     if task.status not in (TaskStatus.ACCEPTED, TaskStatus.AWAITING):
         raise HTTPException(status_code=409, detail="当前状态不能确认完成")
     now = datetime.utcnow()

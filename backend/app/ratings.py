@@ -376,6 +376,9 @@ def task_ratings(
         raise HTTPException(status_code=404, detail="委托不存在")
     if task.status != TaskStatus.COMPLETED:
         return TaskRatingsOut(deadline=None, role=None, can_rate=False, slots=[])
+    if task.is_official:
+        # 官方委托没有真实协作对象，不参与互评。
+        return TaskRatingsOut(deadline=None, role=None, can_rate=False, slots=[])
 
     deadline = rating_deadline(task)
     can_rate = deadline is not None and _now() < deadline
@@ -434,6 +437,8 @@ def create_rating(
 ):
     settle_due_ratings(db)
     task = _require_completed_task(db, task_id)
+    if task.is_official:
+        raise HTTPException(status_code=403, detail="官方委托不参与评价")
     role = _role_of(task, user)
     if role is None:
         raise HTTPException(status_code=403, detail="只有该委托的委托人或接单人才能评价")
