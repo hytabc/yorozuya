@@ -64,7 +64,6 @@ VRCHAT_USER_ID = re.compile(r"usr_[0-9a-fA-F-]{4,}")
 VRCHAT_HOSTS = {"vrchat.com", "www.vrchat.com"}
 CHALLENGE_LABEL = "万事屋 VRChat 验证"
 CHALLENGE_PREFIX = "vrcverify"
-CHALLENGE_TOKEN = re.compile(r"vrcverify[0-9a-f]{32}", re.IGNORECASE)
 MAX_CHALLENGE_FAILURES = 5
 CHALLENGE_COOLDOWN_SECONDS = 300
 
@@ -166,19 +165,27 @@ def _iso(value: datetime | None) -> str | None:
     return value.isoformat() + "Z" if value else None
 
 
-def normalize_for_matching(text: str) -> str:
+def _match_text(text: str) -> str:
+    """匹配用归一化：NFKC、去零宽/格式字符、去全部空白、转小写。
+
+    VRChat 在保存简介时可能插入零宽空格、换行或全角字符；用户也可能在
+    简介里保留旧验证码。这里只关心“当前码是否作为子串出现”。
+    """
     normalized = unicodedata.normalize("NFKC", text or "")
     normalized = normalized.translate(_DASH_TRANSLATION)
-    return re.sub(r"\s+", " ", normalized)
+    normalized = "".join(
+        char for char in normalized if unicodedata.category(char) != "Cf"
+    )
+    return re.sub(r"\s+", "", normalized).lower()
+
+
+def bio_contains_token(bio: str, token: str) -> bool:
+    needle = _match_text(token)
+    return bool(needle) and needle in _match_text(bio)
 
 
 def challenge_text(token: str) -> str:
     return f"【{CHALLENGE_LABEL} - {token}】"
-
-
-def extract_challenge_token(bio: str) -> str | None:
-    match = CHALLENGE_TOKEN.search(normalize_for_matching(bio).lower())
-    return match.group(0) if match else None
 
 
 def normalize_trust_rank(tags) -> str:
@@ -725,15 +732,20 @@ def link_check(user: User = Depends(get_current_user), db: Session = Depends(get
         raise HTTPException(status_code=409, detail="验证码已过期，请重新获取")
 
     profile = _fetch_or_http(identity.vrchat_user_id)
-    found = extract_challenge_token(str(profile.get("bio") or ""))
-    if found != identity.challenge_token.lower():
+    bio = str(profile.get("bio") or "")
+    if not bio_contains_token(bio, identity.challenge_token or ""):
         identity.challenge_failures = (identity.challenge_failures or 0) + 1
         identity.last_error = "简介中未找到验证码"
         if identity.challenge_failures >= MAX_CHALLENGE_FAILURES:
             identity.challenge_locked_until = now + timedelta(seconds=CHALLENGE_COOLDOWN_SECONDS)
             identity.challenge_failures = 0
         db.commit()
-        raise HTTPException(status_code=409, detail="简介中未找到验证码，请保存后再试")
+        detail = (
+            "VRChat 返回的简介为空，未找到验证码；请确认个人资料可见性，或稍等缓存刷新后再试"
+            if not bio.strip()
+            else "简介中未找到验证码；请确认码完整写在 Bio 中、未被截断，并稍等 10-60 秒后再试"
+        )
+        raise HTTPException(status_code=409, detail=detail)
 
     apply_profile(identity, profile)
     identity.status = STATUS_VERIFIED
@@ -762,8 +774,8 @@ def refresh(user: User = Depends(get_current_user), db: Session = Depends(get_db
     profile = _fetch_or_http(identity.vrchat_user_id)
     apply_profile(identity, profile)
     if identity.challenge_token:
-        found = extract_challenge_token(str(profile.get("bio") or ""))
-        if found == identity.challenge_token.lower():
+        bio = str(profile.get("bio") or "")
+        if bio_contains_token(bio, identity.challenge_token):
             identity.status = STATUS_VERIFIED
             identity.verified_at = datetime.utcnow()
             identity.last_verified_at = identity.verified_at
