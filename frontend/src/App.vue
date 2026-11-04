@@ -9,6 +9,7 @@ import AppHeader from './components/AppHeader.vue'
 import ToastHost from './components/ToastHost.vue'
 import KanbanNiang from './components/KanbanNiang.vue'
 import EmailVerificationGate from './components/EmailVerificationGate.vue'
+import AtmosphereGate from './components/AtmosphereGate.vue'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -61,6 +62,8 @@ function switchMode() {
     </main>
     <footer v-if="!route.meta.lifeOnly && !route.meta.lifeManager" class="app-version">
       <RouterLink to="/versions">V0.2-Beta</RouterLink>
+      <span class="footer-sep" aria-hidden="true">·</span>
+      <RouterLink to="/terms">使用条款</RouterLink>
       <template v-if="siteConfig.icp">
         <span class="footer-sep" aria-hidden="true">·</span>
         <a :href="siteConfig.icp_url" target="_blank" rel="noopener noreferrer">{{ siteConfig.icp }}</a>
@@ -93,6 +96,8 @@ function switchMode() {
     </button>
     <!-- 未完成邮箱验证时的强制绑定浮层：/life、/life-admin 这类全屏页也要挡，故挂在根部 -->
     <EmailVerificationGate />
+    <!-- 委托礼仪确认：首次进入大厅、发布或接取前展示，版本更新后重新触发 -->
+    <AtmosphereGate />
     <!-- 看板娘走付费大模型，后端要求登录；未登录时直接不渲染入口。 -->
     <KanbanNiang v-if="auth.isLoggedIn && !route.meta.lifeOnly && !route.meta.lifeManager && route.path !== '/house'" />
   </div>

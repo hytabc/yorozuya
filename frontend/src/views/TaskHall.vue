@@ -12,6 +12,11 @@ import CreateTaskDialog from '../components/CreateTaskDialog.vue'
 import FeedbackDialog from '../components/FeedbackDialog.vue'
 import AnnouncementPrompt from '../components/AnnouncementPrompt.vue'
 import { markAnnouncementsSeen, unseenAnnouncements } from '../composables/announcementPrompt'
+import {
+  loadAtmosphere,
+  needsAtmosphereAck,
+  openAtmosphereGate,
+} from '../composables/useAtmosphere'
 import { CATEGORIES, TASK_SKILLS, TASK_PLATFORMS, ATMOSPHERE_TAGS } from '../constants'
 import { facetQueryParams } from '../facets'
 
@@ -95,6 +100,8 @@ function clearFilters() {
 }
 function create() {
   if (!auth.isLoggedIn) return router.push({ path: '/login', query: { redirect: '/' } })
+  // 发布前先完成礼仪确认；确认后用户再点一次发布即可（不做自动续跳，避免歧义）。
+  if (needsAtmosphereAck()) return openAtmosphereGate()
   showCreate.value = true
 }
 function openTask(task) {
@@ -110,6 +117,7 @@ function reported() {
 
 async function action(key, payload = {}) {
   if (key === 'login') return router.push({ path: '/login', query: { redirect: '/' } })
+  if (key === 'accept' && needsAtmosphereAck()) return openAtmosphereGate()
   busy.value = true
   try {
     const url = `/tasks/${selected.value.id}`
@@ -144,8 +152,17 @@ async function action(key, payload = {}) {
     loadStats()
   } catch (error) { toast.error(errorMessage(error)) } finally { busy.value = false }
 }
-onMounted(load)
-watch(() => auth.ready, (ready) => { if (ready) loadAnnouncements() }, { immediate: true })
+// 首次进入委托大厅时展示礼仪确认；已确认过的用户不会再看到。
+async function checkAtmosphere() {
+  await loadAtmosphere({ force: true })
+  if (needsAtmosphereAck()) openAtmosphereGate()
+}
+onMounted(() => { load(); checkAtmosphere() })
+watch(() => auth.ready, (ready) => {
+  if (!ready) return
+  loadAnnouncements()
+  checkAtmosphere()
+}, { immediate: true })
 </script>
 
 <template>
@@ -197,43 +214,12 @@ watch(() => auth.ready, (ready) => { if (ready) loadAnnouncements() }, { immedia
       <div v-else class="empty-state"><span>空</span><h3>这片区域暂时没有符合条件的委托</h3><p>试试清除筛选，或发布一份你真正需要的委托。</p><div class="empty-actions"><button v-if="hasFilters" class="button secondary" @click="clearFilters">清除筛选</button><button class="button" @click="create">发布委托</button></div></div>
     </section>
 
-    <section class="disclaimer" aria-label="平台免责声明">
-      <div class="section-heading">
-        <div><span class="section-index">02</span><h2>免责声明</h2><p>使用本站即代表你已阅读并同意以下条款</p></div>
-      </div>
-      <div class="disclaimer-body">
-        <div class="disclaimer-part">
-          <h3>一、平台性质说明</h3>
-          <p>本网站仅为信息撮合平台，提供委托需求发布、志愿者接单申请的信息展示服务。平台不参与、不担保、不介入任何委托的执行、报酬交易、线下沟通。所有委托内容由发布用户自行编写，平台不对委托内容真实性、合法性做前置人工审核，违规内容依靠用户举报机制进行处理。</p>
-        </div>
-        <div class="disclaimer-part">
-          <h3>二、关于委托</h3>
-          <ol>
-            <li>平台不收取任何服务费、抽成，不接收、不处理任何资金流转。委托人与志愿者之间的报酬、转账、押金等全部由双方私下自行协商完成。</li>
-            <li>平台不对资金安全、交易履约做任何担保。请用户提高警惕，谨防诈骗，拒绝任何提前缴纳押金、预付款等要求。</li>
-          </ol>
-        </div>
-        <div class="disclaimer-part">
-          <h3>三、双向自愿规则</h3>
-          <p>本平台委托为双向自愿配对模式。委托人、志愿者均拥有随时取消委托的权利，平台不强制任何一方履行委托。因取消委托、沟通分歧产生的纠纷，由双方自行协商解决，平台不承担调解、赔付责任。</p>
-        </div>
-        <div class="disclaimer-part">
-          <h3>四、用户责任</h3>
-          <ol>
-            <li>用户注册、发布委托、申请接单，代表用户承诺所提交的信息真实合法，不得发布色情、暴力、诈骗、违法违规内容。</li>
-            <li>用户在平台外私下联系沟通产生的人身、财产、名誉损害，全部由当事人自行承担，本平台不承担法律责任。</li>
-          </ol>
-        </div>
-        <div class="disclaimer-part">
-          <h3>五、举报与处置</h3>
-          <ol>
-            <li>若发现违规委托、违规账号，用户可使用网站举报功能提交举报。</li>
-            <li>平台收到举报后，将在空闲时间对内容进行核查，有权下架违规委托、限制或封禁违规账号；但不保证100%拦截全部违规内容。</li>
-          </ol>
-        </div>
-        <div class="disclaimer-part">
-          <h3>六、法律免责</h3>
-          <p>因用户自身行为导致的一切损失，本平台不承担任何民事、刑事赔偿责任。如发生法律纠纷，由当事双方通过司法途径解决。</p>
+    <section class="hall-notice" role="note" aria-label="使用条款入口">
+      <div class="notice-content">
+        <TriangleAlert :size="19" class="notice-icon" />
+        <div>
+          <strong>这里不担保交易，但这里记录信誉</strong>
+          <p>进入大厅前会先展示一屏委托礼仪。完整的平台性质说明、委托规则、用户责任与法律免责条款，始终保留在 <RouterLink class="text-link" to="/terms">使用条款</RouterLink> 页面。</p>
         </div>
       </div>
     </section>

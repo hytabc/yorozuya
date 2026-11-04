@@ -230,6 +230,8 @@ from .facets import (
     store_facets,
     validate_facets,
 )
+from . import atmosphere as atmosphere_module
+from .atmosphere import router as atmosphere_router
 from .virtual_life import router as virtual_life_router
 from .virtual_life_packs import router as virtual_life_packs_router, seed_virtual_life_packs
 
@@ -676,6 +678,7 @@ app.include_router(house_admin_router)
 # 委托模块化标签（技能 / 平台 / World / 氛围）：/api/tasks/facets 必须早于
 # 下方的 /api/tasks/{task_id} 注册，否则会被路径参数吞掉。
 app.include_router(task_facets_router)
+app.include_router(atmosphere_router)
 
 
 def expire_due_tasks(db: Session) -> None:
@@ -724,6 +727,7 @@ PAGE_LABELS = {
     "verify-email": "邮箱验证",
     "forgot-password": "找回密码",
     "reset-password": "重置密码",
+    "terms": "使用条款",
 }
 
 # 关键行为事件白名单：前端 track() 的 event_key 必须在这里，未知事件不入库（防脏数据）。
@@ -4156,6 +4160,7 @@ def task_detail(task_id: int, viewer: User | None = Depends(get_optional_user), 
 @app.post("/api/tasks", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
 def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     enforce("task-create", str(user.id), 20, 600)
+    atmosphere_module.enforce_ack(db, user)
     if not user.qq:
         raise HTTPException(status_code=422, detail="发布委托需要先填写联系方式（QQ），请在个人设置中添加后再发布")
     now = datetime.utcnow()
@@ -4317,6 +4322,7 @@ def accept_task(
     db: Session = Depends(get_db),
 ):
     """加入委托（有密码时需凭正确密码，无密码时所有非管理员用户可加入）。"""
+    atmosphere_module.enforce_ack(db, user)
     expire_due_tasks(db)
     task = get_task_or_404(db, task_id)
     if not task.is_visible:

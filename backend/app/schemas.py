@@ -540,6 +540,18 @@ class SiteConfigOut(BaseModel):
     icp_url: str = "https://beian.miit.gov.cn/"
 
 
+class AtmosphereAckRequest(RequestModel):
+    """礼仪确认：携带前端当前看到的版本号，版本不一致时后端拒绝。"""
+
+    version: int = Field(ge=1, le=1000)
+
+
+class AtmosphereStatusOut(BaseModel):
+    version: int
+    accepted: bool = False
+    accepted_version: int = 0
+
+
 class AnnouncementWrite(RequestModel):
     kind: AnnouncementKind
     title: str = Field(min_length=2, max_length=80)
@@ -579,7 +591,7 @@ class AnnouncementOut(ApiModel):
 PageKeyLiteral = Literal[
     "hall", "staff", "board", "talk", "maps", "friends", "stories", "sugar",
     "announcements", "versions", "mine", "profile", "login", "frost",
-    "operations", "admin", "life", "life-admin", "house",
+    "operations", "admin", "life", "life-admin", "house", "terms",
     "verify-email", "forgot-password", "reset-password",
 ]
 

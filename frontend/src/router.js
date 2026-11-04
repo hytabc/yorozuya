@@ -29,6 +29,8 @@ const router = createRouter({
     { path: '/sugar', component: () => import('./views/SugarClub.vue'), meta: { auth: true, analyticsKey: 'sugar' } },
     { path: '/announcements', component: () => import('./views/AnnouncementsView.vue'), meta: { analyticsKey: 'announcements' } },
     { path: '/versions', component: () => import('./views/VersionsView.vue'), meta: { analyticsKey: 'versions' } },
+    // 完整免责与使用条款：礼仪确认页与页脚都会链到这里。
+    { path: '/terms', component: () => import('./views/TermsView.vue'), meta: { analyticsKey: 'terms' } },
     { path: '/operations', component: () => import('./views/OperationsView.vue'), meta: { operations: true, analyticsKey: 'operations' } },
     { path: '/frost', component: () => import('./views/SugarFrost.vue'), meta: { auth: true, analyticsKey: 'frost' } },
     { path: '/life', component: () => import('./views/VrLife.vue'), meta: { lifeOnly: true, analyticsKey: 'life' } },

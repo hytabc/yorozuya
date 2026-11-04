@@ -8,6 +8,7 @@ import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import { CATEGORIES, TASK_SKILLS, TASK_PLATFORMS, ATMOSPHERE_GROUPS, FACET_LIMITS } from '../constants'
 import { buildFacets } from '../facets'
+import { needsAtmosphereAck, openAtmosphereGate } from '../composables/useAtmosphere'
 import TaskFacetChips from './TaskFacetChips.vue'
 import UserTitleTag from './UserTitleTag.vue'
 
@@ -74,6 +75,12 @@ async function submit() {
   }
   busy.value = true
   try {
+    // 服务端同样会校验（403），这里先拦一次避免用户白填一遍表单。
+    if (needsAtmosphereAck()) {
+      emit('close')
+      openAtmosphereGate()
+      return
+    }
     const payload = {
       ...form,
       required_takers: unlimited.value ? null : form.required_takers,
