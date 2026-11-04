@@ -190,7 +190,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 
 - 导航“更多”现在包含所有人可见的 `/house`，监管台/运营台仍按权限过滤；分享与创作者页面为 `/house/visit/:shareId`、`/house/users/:userId`。
 - `backend/app/house.py` 独立路由和六张表：房屋、家具、不可变版本、纹理、点赞、留言（家具与版本分表）；一人一套，revision CAS，写接口沿用邮箱闸门。
-- 原创预置家具24类×5款、30款纹理、六套色板、五个示例场景：`backend/app/house_catalog.json`；生成器 `backend/scripts/build_house_assets.py`，素材与来源说明 `docs/house-assets.md`。
+- 原创预置家具24类×5款、30款纹理、六套色板、五个示例场景：`backend/app/house_catalog.json`；生成器 `backend/scripts/build_house_assets.py`，素材与来源说明 `docs/done/house-assets.md`。
 - 房间坐标 x/y为地面、z为高度；实例保存 versionId 和 paletteOverrides，改色不改模板。修改官方几何需新增不可变版本，不能覆盖旧版本。
 - 房屋纹理属于 `_MEDIA_PHOTO_MODELS`，需走净化、媒体 helper、数据库公开访问校验和启动对账；审核在图片管理，房屋/家具审核在房屋管理，均使用 get_content_moderator。
 - 前端 `frontend/src/house/`：纯逻辑引擎、Three.js画布、工坊、账号隔离IndexedDB草稿和串行CAS保存。异步凭证请求固定 ownerToken；换账号后不得保存旧草稿。
@@ -200,3 +200,41 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - 三轴移动（x/y地面，z高度）、50%/100%/200%缩放、首次教程；工坊八种材质、自由颜色、吸管及最多64种组合/8192块/32³网格，旧大模型保留而不继续扩大。`Slot.material` 缺省沿用旧渲染，`Placement.scale` 缺省1。
 - 新增收藏表 `house_furniture_favorites`、`/api/house/furniture/{id}/favorite` 与 `/copy`；副本独立保存。`/api/house/rooms` 为参观列表，参观与留言读取需登录；前端“参观”标签只读浏览确认发布的快照。
 - 三维交互回归 `frontend/tests/houseScene.test.mjs` 使用实际Three.js几何和射线，GPU/DOM使用测试替身；并不替代真实浏览器视觉与触控验收。
+
+## 信任层与空间化委托（2026-11）
+
+> 设计与决策依据见 `docs/计划书-VRChat信任层与空间化委托.md`、`docs/vrchat-api-notes.md`、`docs/osc-bridge.md`。
+
+- 新模块均照 `house.py` 的方式：模型 + `APIRouter(prefix=...)` + 字典序列化，在 `main.py` 顶部 import、`include_router` 区挂载，不往 `main.py` 堆业务。
+  - `backend/app/facets.py`：`task_facets`（技能/平台/World/氛围）、`/api/tasks/facets`、`PATCH /api/tasks/{id}/facets`。词表与 `frontend/src/constants.js` 的 `TASK_SKILLS` / `TASK_PLATFORMS` / `ATMOSPHERE_GROUPS` / `FACET_LIMITS` **必须同步**。
+  - `backend/app/atmosphere.py`：`atmosphere_acks`、`/api/atmosphere/status|ack`；`enforce_ack()` 挂在发布与接取，超管豁免，`ATMOSPHERE_GATE_ENABLED=false` 可放行；pytest 下跳过。
+  - `backend/app/trust.py`：`vrchat_identities`、`/api/vrchat/*`、`/api/users/{id}/trust`、`/api/tasks/{id}/trust`、`/api/admin/vrchat/*`。**软绑定**：只存显示名与主页链接，`verified` 恒为 false；不存密码/令牌，不调外部 API；披露在接口层裁剪；匿名委托直接返回 `publisher=null`。
+  - `backend/app/credentials.py`：`task_credentials`、`/api/credentials/*`、`/api/admin/credentials/{id}`、`/api/creators/*`。凭证在 `confirm_task` 完成判断的**同一事务**内签发（`issue_for_task`），`(task_id,taker_id)` 唯一保证幂等，快照不可篡改；编号 `WS-{年}-{id 补 6 位}`。
+  - `backend/app/events.py`：`task_events`、`/api/events`、`/api/events/summary`、`/api/events/read`。只记当事人自己的委托动态，不做全站新委托流；事件与状态变更同事务写入。
+- 前端对应：`facets.js` + `TaskFacetChips.vue`、`atmosphereRules.js` + `composables/useAtmosphere.js` + `AtmosphereGate.vue` + `TermsView.vue`（`/terms`）、`trust.js` + `VrTrustBadge.vue` + `TrustDisclosureDialog.vue` + `VrchatIdentitySection.vue`、`credential.js` + `CredentialCard.vue` + `CredentialView.vue` + `CreatorPortfolio.vue` + `MyCredentialsSection.vue`、`hall/space/*`、`events.js` + `NotificationCenter.vue`。
+- 大厅默认视图仍是列表；星图（Three.js 正交场景 + HTML 标签覆盖层）按需加载，`HALL_SPACE_VIEW_ENABLED=false` 可整体关闭，WebGL 失败自动回退列表。布局在 `hall/space/layout.js`，纯函数、确定性、上限 60 条。
+- 新增页面路由：`/terms`、`/credential/:serial`、`/creators/:userId`，全部 `() => import()`；`PageKeyLiteral` 与 `PAGE_LABELS` 已同步加入 `terms` / `creator` / `credential`。
+- 通知中心轮询 30 秒（`document.hidden` 时暂停）；点击事件跳转 `/?task=<id>`，由大厅复用 `TaskDialog`，不新增详情路由。
+- 回归：`backend/tests/test_task_facets.py`、`test_atmosphere.py`、`test_vrchat.py`、`test_credentials.py`、`test_events.py`；前端 `facets` / `atmosphere` / `trust` / `credential` / `hallSpace` / `events` 六个 `.test.mjs`。后端基线已到 251 个用例。
+- ⚠️ 不要删除或弱化 `/terms` 的完整条款；礼仪确认只改变呈现顺序。不要把 `verified` 写成 true，也不要展示未接入的 Trust Rank。
+
+## 主题可读性与新手引导（2026-11）
+
+### 深色模式可读性
+
+- 机制不变：`html[data-theme]`（classic/pixel）× `html[data-mode]`（day/night），夜间样式全部集中在 `frontend/src/night.css`，靠逐条覆盖压过 `styles.css`/`pixel.css` 里写死的日间色。新增组件样式时，**凡是写死深色文字或浅色块的，都要在 `night.css` 补一条 `html[data-mode='night']` 覆盖**。
+- 两个平台级修正在 `styles.css` 的 `:root`（`color-scheme: light`）与 `night.css`（`color-scheme: dark`）：原生下拉、日期选择、滚动条跟随昼夜。`index.html` 的 `theme-color` 仍写日间值，`composables/theme.js` 的 `syncMetaColor()` 会在每次 `applyMode/applyTheme` 时按实际底色改写。
+- ⚠️ `color-scheme: dark` 会让**没有显式背景的 `<button>`** 变成 UA 深灰底（约 `#6b6b6b`）。`button.text-link` 已由 `night.css` 置为透明底；新增同类无底按钮时要一起处理。
+- 语义色（`--ink/--muted/--paper/--green*-/--red*-/--blue*-/--yellow*`）之外，所有"白字压 accent 底"的写法（头像、徽章、页签）在夜间必须换成深色文字，因为 accent 在夜间被提亮；`house.css` 的 `.house-tabs button[aria-selected=true]` 是全局样式，已单独覆盖。
+- 刻意保留的深色岛：大厅星图 `.hall-space-*`、登录页 `.auth-story`、`/life`、`/life-admin`、`/frost`（自带美术体系，**不在夜间范围内**）、`/house` 的 Three.js 画布与用户房间配色（CSS 变量够不到，改 `VoxelScene` 的 `setClearColor` 前先确认）。
+- 回归：`frontend/tests/themeContrast.test.mjs` 解析 `styles.css`/`night.css` 的变量块，对夜间语义色对做 WCAG AA（4.5:1）断言，并检查一批已知漏网选择器是否被覆盖。改夜间配色先跑它。视觉验收用 classic/pixel × day/night 四组合逐页核对。
+
+### 新手引导（首次使用）
+
+- 一次性记录在账号上：`users.onboarding_version`（0 = 从未看过），SQLite 存量库由 `migrate_schema()` 补 `ALTER TABLE users ADD COLUMN onboarding_version INTEGER NOT NULL DEFAULT 0`（在 tasks 提前 return 之前）；`UserSelf`/`present_user_self` 下发该字段。
+- 写入口：`backend/app/onboarding.py` 的 `POST /api/onboarding/complete`（`get_current_user`，受邮箱闸门保护；只增不减、幂等）。前端成功后 `auth.patchUser({ onboarding_version })`。
+- 前端：`composables/onboardingSteps.js` 是纯数据步骤表（5 步）；**递增 `ONBOARDING_VERSION` 会让已看过的账号再看一次新版，设为 `0` 等于整体关停**。锚点用 `data-tour="..."`（测试会扫描源码确认存在），每步可给多个候选选择器，`composables/tourGeometry.js` 的 `pickAnchor()` 取第一个"真正可见"的（680px 以下自动落到 `.mobile-menu`）。
+- `components/TourOverlay.vue` 是共用的展示层（遮罩拼洞、卡片避让、Esc/Tab 焦点陷阱、rAF 跟随、`body.modal-open`）；虚拟人生指引 `LifeTutorial.vue` 与全站引导 `OnboardingTour.vue` 都只是薄包装，步骤语义（`prepare`/`action`）留在各自步骤表里。
+- 触发时机：只在委托大厅 `/` 启动（锚点都在那里），条件为已登录 + 邮箱已验证 + 服务端版本未读；首屏三个浮层按**公告 → 礼仪确认 → 新手引导**串行（`TaskHall.vue` 的 `bootPrompts()` / `maybeStartOnboarding()`）。礼仪确认原本与公告同时弹出并盖住公告，现在先 `await loadAnnouncements()` 再决定是否打开 Gate，**不要改回并发**。
+- 跳过（Skip/Esc）与完成都算"已读"；只有"落地页不是 `/` 时先不展示"不写标记。重看入口在 `/profile` 的「外观」区，跳 `/?tour=1` 强制重播（不重置服务端记录）。
+- 回归：`backend/tests/test_onboarding.py`、`frontend/tests/onboarding.test.mjs`（步骤完整性、一次性判定、关停开关、锚点存在性、`pickAnchor` 选择顺序）。

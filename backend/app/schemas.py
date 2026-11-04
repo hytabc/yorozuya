@@ -180,6 +180,8 @@ class UserSelf(UserPublic):
     # 外观偏好：跟着账号走，登录后前端以服务端值为准。
     theme_mode: Literal["auto", "system", "day", "night"] = "auto"
     theme_style: Literal["classic", "pixel"] | None = None
+    # 新手引导：已看过的引导版本号（0 = 从未看过）；前端据此决定是否展示一次。
+    onboarding_version: int = 0
     # 服务端算好的「需要先完成邮箱验证」标记：前端据此弹强制绑定框，
     # 避免把 require_email_verification 这类策略在前端重写一遍。
     email_gate_required: bool = False
@@ -235,6 +237,25 @@ class CaptchaChallenge(ApiModel):
     vaptcha_vid: str | None = None
 
 
+FacetTypeLiteral = Literal["skill", "platform", "world", "atmosphere"]
+
+
+class TaskFacetIn(RequestModel):
+    """创建/修改委托时提交的模块化标签；白名单与数量上限由 facets.py 校验。"""
+
+    facet_type: FacetTypeLiteral
+    value: str = Field(min_length=1, max_length=64)
+
+
+class TaskFacetUpdate(RequestModel):
+    facets: list[TaskFacetIn] = Field(default_factory=list, max_length=16)
+
+
+class TaskFacetOut(BaseModel):
+    facet_type: str
+    value: str
+
+
 class TaskCreate(RequestModel):
     title: str = Field(min_length=2, max_length=80)
     description: str = Field(min_length=10, max_length=3000)
@@ -251,6 +272,8 @@ class TaskCreate(RequestModel):
     # 匿名发布：大厅仅展示标题和内容，接取后联系方式仅双方可见。
     is_anonymous: bool = False
     expires_in_days: Literal[1, 2, 3, 5, 10]
+    # 模块化标签：技能 / 平台 / 参考 World / 氛围，均可选。
+    facets: list[TaskFacetIn] = Field(default_factory=list, max_length=16)
 
 
 class AcceptRequest(RequestModel):
@@ -311,6 +334,8 @@ class TaskOut(ApiModel):
     started_at: datetime | None = None
     completed_at: datetime | None = None
     cancelled_at: datetime | None = None
+    # 模块化标签由各端点批量预取后填充；旧委托没有标签时为空数组。
+    facets: list[TaskFacetOut] = []
 
 
 class AdminTaskUpdate(RequestModel):
@@ -515,6 +540,30 @@ class SiteConfigOut(BaseModel):
     """
     icp: str = ""
     icp_url: str = "https://beian.miit.gov.cn/"
+    # 大厅「星图」入口是否可用；列表始终可用，星图只是补充视图。
+    hall_space_view: bool = True
+
+
+class AtmosphereAckRequest(RequestModel):
+    """礼仪确认：携带前端当前看到的版本号，版本不一致时后端拒绝。"""
+
+    version: int = Field(ge=1, le=1000)
+
+
+class AtmosphereStatusOut(BaseModel):
+    version: int
+    accepted: bool = False
+    accepted_version: int = 0
+
+
+class OnboardingAckRequest(RequestModel):
+    """新手引导完成/跳过：携带前端当前展示的引导版本号。"""
+
+    version: int = Field(ge=1, le=1000)
+
+
+class OnboardingStatusOut(BaseModel):
+    onboarding_version: int = 0
 
 
 class AnnouncementWrite(RequestModel):
@@ -556,7 +605,8 @@ class AnnouncementOut(ApiModel):
 PageKeyLiteral = Literal[
     "hall", "staff", "board", "talk", "maps", "friends", "stories", "sugar",
     "announcements", "versions", "mine", "profile", "login", "frost",
-    "operations", "admin", "life", "life-admin", "house",
+    "operations", "admin", "life", "life-admin", "house", "terms",
+    "creator", "credential",
     "verify-email", "forgot-password", "reset-password",
 ]
 

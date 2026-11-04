@@ -8,6 +8,7 @@ import { OFFICIAL_GROUP } from '../constants'
 import { HALLS, hallContainsPath, moreLinks, visibleItems } from '../navigation'
 import UserAvatar from './UserAvatar.vue'
 import UserTitleTag from './UserTitleTag.vue'
+import NotificationCenter from './NotificationCenter.vue'
 
 const auth = useAuthStore()
 const toast = useToast()
@@ -114,7 +115,7 @@ onBeforeUnmount(() => {
         <span><strong>万事屋</strong><small>YOROZUYA BOARD</small></span>
       </RouterLink>
 
-      <nav class="desktop-nav" aria-label="主导航">
+      <nav class="desktop-nav" data-tour="nav" aria-label="主导航">
         <template v-for="hall in halls" :key="hall.id">
           <RouterLink v-if="hall.items.length === 1" :to="hall.items[0].to">{{ hall.items[0].label }}</RouterLink>
           <div v-else class="nav-more-wrap">
@@ -159,7 +160,8 @@ onBeforeUnmount(() => {
           <span class="gc-text">{{ groupRevealed ? OFFICIAL_GROUP.id : OFFICIAL_GROUP.label }}</span>
         </button>
         <template v-if="auth.isLoggedIn">
-          <RouterLink to="/profile" class="user-chip">
+          <NotificationCenter />
+          <RouterLink to="/profile" class="user-chip" data-tour="profile">
             <UserAvatar :user="auth.user" :size="30" />
             <span>{{ auth.user?.nickname }}</span><UserTitleTag :title="auth.user?.title" />
           </RouterLink>
@@ -171,7 +173,7 @@ onBeforeUnmount(() => {
           <RouterLink class="text-link desktop-only" to="/login">登录</RouterLink>
           <RouterLink class="button small desktop-only" to="/register">加入万事屋</RouterLink>
         </template>
-        <button class="icon-button mobile-menu" :aria-expanded="open" aria-label="打开菜单" @click="open = !open">
+        <button class="icon-button mobile-menu" data-tour="nav-mobile" :aria-expanded="open" aria-label="打开菜单" @click="open = !open">
           <X v-if="open" :size="21" /><Menu v-else :size="21" />
         </button>
       </div>

@@ -22,8 +22,5 @@ export const LIFE_TUTORIAL_STEPS = [
   { id:'next-day',title:'开启新的一天',text:'“下一天”恢复精力，并重置当天对话与动作首次奖励资格，不删除历史。教学只介绍，不会推进天数。',target:'.life-footer' },
   { id:'finish',title:'准备好出发啦',text:'返回按钮会离开页面；设置目前尚未开放。以后可点“新手指引”重看。完成或跳过仅记录此账号在本浏览器看过指引，不影响服务器存档。',target:'.header-actions' },
 ]
-export function spotlightRect(rect, width, height) {
-  if (!rect || rect.width <= 0 || rect.height <= 0 || rect.bottom <= 0 || rect.top >= height || rect.right <= 0 || rect.left >= width) return null
-  const left = Math.max(0, rect.left - 6), top = Math.max(0, rect.top - 6)
-  return { left, top, width: Math.max(0, Math.min(width, rect.right + 6) - left), height: Math.max(0, Math.min(height, rect.bottom + 6) - top) }
-}
+// 几何工具与全站新手引导共用（tourGeometry.js），这里保留同名导出以兼容既有引用。
+export { spotlightRect } from './tourGeometry.js'

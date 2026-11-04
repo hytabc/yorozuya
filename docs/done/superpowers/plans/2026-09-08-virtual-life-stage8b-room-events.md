@@ -4,7 +4,7 @@
 
 **Goal:** 房间里出现可点击的事件入口，点开后是群聊式弹窗（多角色轮流说话、点击推进、选项点分支后汇回），每天一次、7 天剧本，管理端线性编辑器可配。
 
-**Architecture:** 全部实现代码由 DeepSeek harness（`npx @deepseek-ai/dsh --profile headless`，cwd=项目根）编写；Kimi 只写 brief、跑测试/构建/E2E、审 diff、打回重写、提交。数据形状与 spec（`docs/superpowers/specs/2026-09-08-virtual-life-events-and-ending-design.md`）一致。
+**Architecture:** 全部实现代码由 DeepSeek harness（`npx @deepseek-ai/dsh --profile headless`，cwd=项目根）编写；Kimi 只写 brief、跑测试/构建/E2E、审 diff、打回重写、提交。数据形状与 spec（`docs/done/superpowers/specs/2026-09-08-virtual-life-events-and-ending-design.md`）一致。
 
 **Tech Stack:** Vue 3 `<script setup>` / FastAPI + pydantic / node --test + pytest。
 

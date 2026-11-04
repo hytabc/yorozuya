@@ -1,7 +1,7 @@
 """Build original, deterministic voxel furniture and seamless textures (no downloads).
 
 Run from the repository root: backend/.venv/bin/python backend/scripts/build_house_assets.py
-Shapes and palettes are authored for this project; see docs/house-assets.md.
+Shapes and palettes are authored for this project; see docs/done/house-assets.md.
 """
 import json
 import math

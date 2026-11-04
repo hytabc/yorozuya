@@ -1,6 +1,7 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
-import { CalendarDays, EyeOff, Heart, ImagePlus, KeyRound, Mail, Moon, Save, ShieldCheck, Store, Sun, Trash2, UserRound } from '@lucide/vue'
+import { useRouter } from 'vue-router'
+import { CalendarDays, Compass, EyeOff, Heart, ImagePlus, KeyRound, Mail, Moon, Save, ShieldCheck, Store, Sun, Trash2, UserRound } from '@lucide/vue'
 import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { track } from '../analytics'
 import { useAuthStore } from '../stores/auth'
@@ -11,11 +12,14 @@ import UserAvatar from '../components/UserAvatar.vue'
 import UserTitleTag from '../components/UserTitleTag.vue'
 import LazyImage from '../components/LazyImage.vue'
 import ImageLightbox from '../components/ImageLightbox.vue'
+import VrchatIdentitySection from '../components/VrchatIdentitySection.vue'
+import MyCredentialsSection from '../components/MyCredentialsSection.vue'
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
 const AVATAR_TYPES = new Set(['image/jpeg', 'image/png'])
 
 const auth = useAuthStore()
+const router = useRouter()
 const toast = useToast()
 const busy = ref(false)
 const passwordBusy = ref(false)
@@ -100,6 +104,11 @@ function chooseTheme(id) {
 function chooseMode(id) {
   setModeSource(id)
   saveAppearance({ theme_mode: id })
+}
+
+// 引导的高亮锚点都在委托大厅，所以「重新查看」回到大厅并强制重播一次。
+function replayGuide() {
+  router.push({ path: '/', query: { tour: '1' } })
 }
 
 async function save() {
@@ -279,7 +288,12 @@ async function deleteAvatar() {
             <span v-if="modeSource === 'day' || modeSource === 'night'">（已固定，不再自动切换）</span>
             <span v-if="appearanceBusy">保存中…</span>
           </p>
+          <button class="button secondary small guide-replay" type="button" @click="replayGuide">
+            <Compass :size="15" />重新查看新手引导
+          </button>
         </div>
+        <VrchatIdentitySection />
+        <MyCredentialsSection />
       </section>
     </div>
 
@@ -356,6 +370,10 @@ async function deleteAvatar() {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.guide-replay {
+  margin-top: 16px;
 }
 
 .profile-summary .u-avatar {

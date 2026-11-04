@@ -6,6 +6,9 @@ import ReportDialog from './ReportDialog.vue'
 import StatusBadge from './StatusBadge.vue'
 import UserProfileCard from './UserProfileCard.vue'
 import UserTitleTag from './UserTitleTag.vue'
+import VrTrustBadge from './VrTrustBadge.vue'
+import { api } from '../api'
+import { facetGroups } from '../facets'
 
 const props = defineProps({ task: { type: Object, required: true }, busy: Boolean })
 const emit = defineEmits(['close', 'action', 'reported'])
@@ -13,6 +16,19 @@ const auth = useAuthStore()
 const password = ref('')
 const profileUserId = ref(null)
 const showReport = ref(false)
+// 委托双方的信任摘要：匿名委托由服务端在接口层裁剪，前端无需再判断。
+const taskTrust = ref(null)
+function memberTrust(userId) {
+  return taskTrust.value?.members?.find((item) => item.user_id === userId) || null
+}
+async function loadTrust() {
+  if (!auth.isLoggedIn) return
+  try {
+    taskTrust.value = (await api.get(`/tasks/${props.task.id}/trust`)).data
+  } catch {
+    taskTrust.value = null
+  }
+}
 
 function openProfile(userId) {
   if (!auth.isLoggedIn) return emit('action', 'login')
@@ -30,6 +46,8 @@ const working = computed(() => props.task.status === 'accepted' || props.task.st
 const finished = computed(() => props.task.status === 'completed')
 const requiresPassword = computed(() => props.task.requires_password !== false)
 const anonymousView = computed(() => props.task.is_anonymous && props.task.publisher.id === 0)
+// 标签按「技能 / 平台 / 参考 World / 氛围」分组；旧委托没有标签时整块不渲染。
+const facets = computed(() => facetGroups(props.task.facets))
 
 const required = computed(() => props.task.required_takers)
 const requiredText = computed(() => (required.value == null ? '不限' : `${required.value} 人`))
@@ -82,6 +100,7 @@ function onKey(event) { if (event.key === 'Escape') emit('close') }
 onMounted(async () => {
   document.body.classList.add('modal-open')
   window.addEventListener('keydown', onKey)
+  loadTrust()
 })
 onUnmounted(() => { document.body.classList.remove('modal-open'); window.removeEventListener('keydown', onKey) })
 
@@ -104,8 +123,14 @@ function resetPassword() {
         <h2>{{ task.title }}</h2>
       </div>
       <p class="task-description">{{ task.description }}</p>
+      <div v-if="facets.length" class="facet-groups" aria-label="委托标签">
+        <div v-for="group in facets" :key="group.key" class="facet-group">
+          <span class="facet-group-label">{{ group.label }}</span>
+          <span v-for="value in group.values" :key="value" class="facet-chip static">{{ value }}</span>
+        </div>
+      </div>
       <dl class="task-detail-grid">
-        <div><dt><UserRound :size="16" />委托人</dt><dd><button v-if="task.publisher.id > 0" class="name-link" type="button" @click="openProfile(task.publisher.id)">{{ task.publisher.nickname }}<UserTitleTag :title="task.publisher.title" /></button><span v-else class="muted">匿名委托人</span></dd></div>
+        <div><dt><UserRound :size="16" />委托人</dt><dd><button v-if="task.publisher.id > 0" class="name-link" type="button" @click="openProfile(task.publisher.id)">{{ task.publisher.nickname }}<UserTitleTag :title="task.publisher.title" /></button><span v-else class="muted">匿名委托人</span><VrTrustBadge v-if="!anonymousView" :trust="taskTrust?.publisher" show-empty /></dd></div>
         <div><dt><CalendarClock :size="16" />有效期至</dt><dd>{{ format(task.expires_at) }}</dd></div>
         <div><dt><UsersRound :size="16" />需要接取人数</dt><dd>{{ requiredText }}<span v-if="!anonymousView" class="muted">（已响应 {{ joinedCount }} 人<template v-if="pendingCount">，待响应 {{ pendingCount }} 人</template>）</span></dd></div>
         <div><dt><component :is="designated ? UsersRound : (requiresPassword ? KeyRound : LockOpen)" :size="16" />接取方式</dt><dd>{{ designated ? '指定人员响应' : (requiresPassword ? '凭密码接取' : '无需密码，直接接取') }}</dd></div>
@@ -125,7 +150,7 @@ function resetPassword() {
           </li>
           <li v-for="m in task.members" :key="m.user.id" :class="{ confirmed: canSeeProgress && m.confirmed_at, declined: m.response_status === 'declined', pending: m.response_status === 'pending' }">
             <span class="crew-tag">{{ m.user.id === auth.user?.id ? '我' : '接' }}</span>
-            <button class="name-link" type="button" @click="openProfile(m.user.id)">{{ m.user.nickname }}</button><UserTitleTag :title="m.user.title" /><span v-if="m.qq && canSeeProgress" class="crew-qq muted">QQ {{ m.qq }}</span><em v-if="m.response_status === 'pending'">待响应</em><em v-else-if="m.response_status === 'declined'">已拒绝</em><em v-else-if="canSeeProgress && m.confirmed_at">已确认</em>
+            <button class="name-link" type="button" @click="openProfile(m.user.id)">{{ m.user.nickname }}</button><UserTitleTag :title="m.user.title" /><VrTrustBadge v-if="!anonymousView" :trust="memberTrust(m.user.id)" compact /><span v-if="m.qq && canSeeProgress" class="crew-qq muted">QQ {{ m.qq }}</span><em v-if="m.response_status === 'pending'">待响应</em><em v-else-if="m.response_status === 'declined'">已拒绝</em><em v-else-if="canSeeProgress && m.confirmed_at">已确认</em>
           </li>
         </ul>
         <p v-if="canSeeProgress && (working || finished)" class="crew-progress muted">确认进度 {{ confirmedCount }} / {{ totalPeople }}<template v-if="!everyoneConfirmed"> · 还差 {{ totalPeople - confirmedCount }} 人确认</template></p>

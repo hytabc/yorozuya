@@ -7,6 +7,7 @@ import UserAvatar from './UserAvatar.vue'
 import UserTitleTag from './UserTitleTag.vue'
 import LazyImage from './LazyImage.vue'
 import ImageLightbox from './ImageLightbox.vue'
+import VrTrustBadge from './VrTrustBadge.vue'
 
 const props = defineProps({
   userId: { type: Number, default: null },
@@ -20,6 +21,17 @@ const error = ref('')
 const user = ref(props.initialUser)
 const viewerSrc = ref('')
 const viewerAlt = ref('')
+// 信任摘要需登录；游客或接口不可用时静默不展示，不影响资料卡片。
+const trust = ref(null)
+
+async function loadTrust(userId) {
+  if (!userId) return
+  try {
+    trust.value = (await api.get(`/users/${userId}/trust`)).data
+  } catch {
+    trust.value = null
+  }
+}
 
 function openViewer(photo) {
   viewerSrc.value = photo.image_url
@@ -32,6 +44,8 @@ const joined = (value) =>
     : ''
 
 onMounted(async () => {
+  const targetId = props.userId || props.initialUser?.id
+  loadTrust(targetId)
   if (props.initialUser) return
   try {
     user.value = (await api.get(`/users/${props.userId}`)).data
@@ -56,6 +70,7 @@ onMounted(async () => {
           <span class="user-card-since muted"><CalendarDays :size="14" />{{ joined(user.created_at) }} 加入</span>
         </div>
       </div>
+      <VrTrustBadge :trust="trust" show-empty class="user-card-trust" />
       <p v-if="user.bio" class="user-card-bio">{{ user.bio }}</p>
       <p v-else class="user-card-bio muted">这个人还没有填写简介。</p>
       <div v-if="user.photos?.length" class="user-profile-photos">
@@ -64,6 +79,7 @@ onMounted(async () => {
           <span v-if="!photo.is_visible"><EyeOff :size="13" />已屏蔽</span>
         </figure>
       </div>
+      <RouterLink class="text-link user-card-portfolio" :to="`/creators/${user.id}`">查看作品集与凭证</RouterLink>
       <div v-if="!hideContact && user.qq" class="user-card-qq"><MessageCircle :size="15" /><span><strong>QQ：{{ user.qq }}</strong><small>{{ (user.role === 'staff' || user.role === 'volunteer') && user.qq_public ? '该成员已选择公开联系方式' : '你们已建立委托协作，联系方式已向你开放' }}</small></span></div>
       <div v-else-if="!hideContact" class="user-card-qq muted"><KeyRound :size="15" /><span><strong>暂无可见联系方式</strong><small>{{ ['staff', 'volunteer'].includes(user.role) && !user.qq_public ? '该成员未在成员名录中公开 QQ' : (['mascot', 'disciplinarian'].includes(user.role) ? '该成员的联系方式不在名录中公开' : '仅共同协作者可见对方 QQ') }}</small></span></div>
       <p v-else class="user-card-privacy muted"><MessageCircle :size="15" />联系方式不在公开资料中展示</p>
