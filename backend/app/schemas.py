@@ -538,6 +538,8 @@ class SiteConfigOut(BaseModel):
     """
     icp: str = ""
     icp_url: str = "https://beian.miit.gov.cn/"
+    # 大厅「星图」入口是否可用；列表始终可用，星图只是补充视图。
+    hall_space_view: bool = True
 
 
 class AtmosphereAckRequest(RequestModel):

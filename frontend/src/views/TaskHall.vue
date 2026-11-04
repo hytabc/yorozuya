@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { MessageCircle, Plus, Search, SlidersHorizontal, Sparkles, TriangleAlert } from '@lucide/vue'
 import { api, errorMessage } from '../api'
@@ -20,6 +20,9 @@ import {
 import { CATEGORIES, TASK_SKILLS, TASK_PLATFORMS, ATMOSPHERE_TAGS } from '../constants'
 import { facetQueryParams } from '../facets'
 
+// 星图按需加载：Three.js 不进入大厅首屏 chunk，切到星图时才拉取。
+const HallSpaceView = defineAsyncComponent(() => import('../hall/space/HallSpaceView.vue'))
+
 const auth = useAuthStore()
 const router = useRouter()
 const toast = useToast()
@@ -32,6 +35,11 @@ const activeAnnouncements = ref([])
 const promptAnnouncements = ref([])
 const showAnnouncementPrompt = ref(false)
 const busy = ref(false)
+// 列表始终是默认视图；星图是补充视图，且受服务端开关控制。
+const view = ref('list')
+const spaceEnabled = ref(false)
+// 星图选中只用于高亮；打开详情仍由双击/按钮触发，避免单击就弹窗。
+const spaceSelected = ref(null)
 const filters = reactive({ search: '', category: '', status: auth.isAdmin || auth.isStaff ? '' : 'published', pay_type: '', skill: '', platform: '', atmosphere: '' })
 const categories = CATEGORIES
 const skillOptions = TASK_SKILLS
@@ -157,7 +165,20 @@ async function checkAtmosphere() {
   await loadAtmosphere({ force: true })
   if (needsAtmosphereAck()) openAtmosphereGate()
 }
-onMounted(() => { load(); checkAtmosphere() })
+async function loadSiteFlags() {
+  try {
+    const { data } = await api.get('/site-config')
+    spaceEnabled.value = Boolean(data.hall_space_view)
+  } catch {
+    spaceEnabled.value = false
+  }
+}
+function switchView(next) {
+  if (next === 'space' && !spaceEnabled.value) return
+  view.value = next
+  spaceSelected.value = null
+}
+onMounted(() => { load(); checkAtmosphere(); loadSiteFlags() })
 watch(() => auth.ready, (ready) => {
   if (!ready) return
   loadAnnouncements()
@@ -194,7 +215,13 @@ watch(() => auth.ready, (ready) => {
     <section class="task-workspace">
       <div class="section-heading">
         <div><span class="section-index">01</span><h2>委托大厅</h2><p>浏览当前公开委托</p></div>
-        <button class="button" @click="create"><Plus :size="18" />发布委托</button>
+        <div class="hall-heading-actions">
+          <div v-if="spaceEnabled" class="hall-view-switch" role="group" aria-label="视图切换">
+            <button type="button" class="button small" :class="{ secondary: view !== 'list' }" :aria-pressed="view === 'list'" @click="switchView('list')">列表</button>
+            <button type="button" class="button small" :class="{ secondary: view !== 'space' }" :aria-pressed="view === 'space'" @click="switchView('space')">星图</button>
+          </div>
+          <button class="button" @click="create"><Plus :size="18" />发布委托</button>
+        </div>
       </div>
       <div class="filterbar">
         <label class="search-field"><Search :size="18" /><input v-model="filters.search" placeholder="搜索委托标题或内容" aria-label="搜索委托" @input="search" /></label>
@@ -210,6 +237,14 @@ watch(() => auth.ready, (ready) => {
       </div>
 
       <div v-if="loading" class="task-grid"><div v-for="i in 6" :key="i" class="task-card skeleton" /></div>
+      <HallSpaceView
+        v-else-if="view === 'space'"
+        :tasks="tasks"
+        :selected="spaceSelected"
+        @select="spaceSelected = $event"
+        @open="openTask"
+        @fallback="switchView('list')"
+      />
       <div v-else-if="tasks.length" class="task-grid"><TaskCard v-for="task in tasks" :key="task.id" :task="task" @select="openTask" /></div>
       <div v-else class="empty-state"><span>空</span><h3>这片区域暂时没有符合条件的委托</h3><p>试试清除筛选，或发布一份你真正需要的委托。</p><div class="empty-actions"><button v-if="hasFilters" class="button secondary" @click="clearFilters">清除筛选</button><button class="button" @click="create">发布委托</button></div></div>
     </section>

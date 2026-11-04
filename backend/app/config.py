@@ -124,6 +124,8 @@ class Settings(BaseSettings):
     # 委托礼仪确认（准入层）是否在服务端强制执行发布/接取。
     # 前端遮罩仍会照常展示；关闭此开关只放行接口，不删除任何已确认记录。
     atmosphere_gate_enabled: bool = True
+    # 大厅星图（空间化浏览）入口开关：关闭后前端只保留列表视图。
+    hall_space_view_enabled: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

@@ -1754,6 +1754,7 @@ def site_config():
     return SiteConfigOut(
         icp=settings.site_icp.strip(),
         icp_url=settings.safe_site_icp_url,
+        hall_space_view=settings.hall_space_view_enabled,
     )
 
 
