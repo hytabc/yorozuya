@@ -4,10 +4,14 @@ import assert from 'node:assert/strict'
 import {
   DISCLOSURE_DEFAULT,
   TRUST_DISCLOSURE,
+  TRUST_RANK_COLORS,
+  commonFriendsText,
+  commonGroupsText,
   disclosureCount,
   disclosurePatch,
   platformLabel,
   trustSummary,
+  worldNames,
 } from '../src/trust.js'
 
 test('披露项与后端 DISCLOSURE_KEYS 一致，默认全关', () => {
@@ -17,10 +21,10 @@ test('披露项与后端 DISCLOSURE_KEYS 一致，默认全关', () => {
   )
   assert.deepEqual(Object.keys(DISCLOSURE_DEFAULT).sort(), TRUST_DISCLOSURE.map((item) => item.key).sort())
   assert.equal(disclosureCount(DISCLOSURE_DEFAULT), 0)
-  // 已验证可用的四项；共同好友/社群/World 仍等待后续接入。
+  // 七项均已接入；共同好友只统计站点机器人可见范围。
   assert.deepEqual(
     TRUST_DISCLOSURE.filter((item) => item.available).map((item) => item.key),
-    ['identity', 'trust_rank', 'account_age', 'platform'],
+    ['identity', 'trust_rank', 'account_age', 'platform', 'common_friends', 'common_groups', 'worlds'],
   )
 })
 
@@ -48,9 +52,39 @@ test('trustSummary 不伪造 Trust Rank 或账号年龄', () => {
     stale: false,
   })
   assert.equal(verified.level, '熟识用户')
+  assert.equal(verified.levelColor, '#FF7B42')
   assert.equal(verified.text, 'ColdRain · 熟识用户 · 账号 5 年 2 个月 · PC')
   assert.ok(verified.source.includes('简介验证码'))
   assert.equal(platformLabel('android'), 'Quest / Android')
+  assert.equal(TRUST_RANK_COLORS.trusted_user, '#8143E6')
+})
+
+test('共同好友 / 共同社群 / 常驻 World 的展示文案', () => {
+  assert.equal(commonFriendsText({ common_friends: 0 }), '暂无站点共同好友')
+  assert.equal(commonFriendsText({ common_friends: 3 }), '站点共同好友 3 位')
+  assert.equal(commonFriendsText({}), '')
+
+  assert.equal(
+    commonGroupsText({
+      common_groups: [
+        { id: 'grp_a', name: '砂糖社' },
+        { id: 'grp_b', name: '摄影同好' },
+      ],
+    }),
+    '共同社群：砂糖社、摄影同好',
+  )
+  assert.equal(commonGroupsText({ common_groups: [] }), '')
+
+  assert.deepEqual(
+    worldNames({
+      worlds: [
+        { name: '万事屋', source: 'home' },
+        { name: '咖啡厅', source: 'manual' },
+      ],
+    }),
+    ['万事屋', '咖啡厅'],
+  )
+  assert.deepEqual(worldNames({ worlds: ['旧格式世界'] }), ['旧格式世界'])
 })
 
 test('disclosurePatch 只发送白名单布尔值', () => {

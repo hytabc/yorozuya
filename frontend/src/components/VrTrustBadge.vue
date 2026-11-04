@@ -18,7 +18,11 @@ const profileUrl = computed(() => (props.trust?.profile_url?.startsWith('https:/
   <span v-if="summary" class="vr-trust" :class="{ compact, stale: summary.stale }" :title="summary.source">
     <BadgeCheck v-if="summary.verified" :size="13" aria-hidden="true" />
     <TriangleAlert v-else :size="13" aria-hidden="true" />
-    <span>{{ summary.text }}</span>
+    <span class="vr-trust-name">{{ summary.name || '已绑定 VRChat' }}</span>
+    <span class="vr-trust-sep">·</span>
+    <span class="vr-trust-level" :style="{ color: summary.levelColor }">{{ summary.level }}</span>
+    <span v-if="summary.accountAge" class="vr-trust-extra">· 账号 {{ summary.accountAge }}</span>
+    <span v-if="summary.platform" class="vr-trust-extra">· {{ summary.platform }}</span>
     <span v-if="summary.stale" class="vr-trust-stale">数据可能已过期</span>
     <a v-if="profileUrl" class="vr-trust-link" :href="profileUrl" target="_blank" rel="noopener noreferrer" :title="summary.source" @click.stop><Link2 :size="12" />主页</a>
   </span>

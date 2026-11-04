@@ -8,6 +8,7 @@ import UserTitleTag from './UserTitleTag.vue'
 import LazyImage from './LazyImage.vue'
 import ImageLightbox from './ImageLightbox.vue'
 import VrTrustBadge from './VrTrustBadge.vue'
+import VrTrustFacts from './VrTrustFacts.vue'
 
 const props = defineProps({
   userId: { type: Number, default: null },
@@ -77,6 +78,7 @@ onMounted(async () => {
         </div>
       </div>
       <VrTrustBadge :trust="trust" show-empty class="user-card-trust" />
+      <VrTrustFacts :trust="trust" />
       <p v-if="user.bio" class="user-card-bio">{{ user.bio }}</p>
       <p v-else class="user-card-bio muted">这个人还没有填写简介。</p>
       <div v-if="user.photos?.length" class="user-profile-photos">

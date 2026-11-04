@@ -9,6 +9,7 @@ import StatusBadge from './StatusBadge.vue'
 import UserProfileCard from './UserProfileCard.vue'
 import UserTitleTag from './UserTitleTag.vue'
 import VrTrustBadge from './VrTrustBadge.vue'
+import VrTrustFacts from './VrTrustFacts.vue'
 import { api } from '../api'
 import { facetGroups } from '../facets'
 
@@ -136,6 +137,11 @@ function emitAccept() {
         <div v-if="task.base_points || task.bounty_points"><dt><Coins :size="16" />积分奖励</dt><dd>系统基础 {{ task.base_points }} 分<template v-if="task.bounty_points"> · 悬赏 {{ task.bounty_points }} 分</template><span class="muted">（完成后按双方评价星级结算）</span></dd></div>
         <div v-if="task.contact_qq"><dt><MessageCircle :size="16" />委托人 QQ</dt><dd>{{ task.contact_qq }}</dd></div>
       </dl>
+      <VrTrustFacts
+        v-if="!anonymousView && !task.is_official"
+        :trust="taskTrust?.publisher"
+        class="task-publisher-trust-facts"
+      />
 
       <!-- 点击成员名称查看个人资料 -->
       <UserProfileCard v-if="profileUserId" :user-id="profileUserId" @close="profileUserId = null" />

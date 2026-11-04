@@ -49,12 +49,16 @@
   - `PATCH /api/vrchat/disclosure`
 - 公开信任摘要：`GET /api/users/{id}/trust`、`GET /api/tasks/{id}/trust`（游客可读，按披露裁剪；匿名委托 `publisher=null`）。
 - 后台：`GET /api/admin/vrchat/status`、`PATCH /api/admin/vrchat/config`、`GET /api/admin/vrchat/accounts?vrchat_user_id=`、解绑/拉黑/解除拉黑、`GET /api/admin/vrchat/bans`。
-- 披露项：`identity`、`trust_rank`、`account_age`、`platform`、`common_friends`、`common_groups`、`worlds`；前四项已可用，后三项仍未接入。
-- Trust Rank 映射：`system_trust_legend` / `system_trust_veteran` → 可信用户；`system_trust_trusted` → 熟识用户；`system_trust_known` → 用户；`system_trust_basic` → 新用户；`system_trust_visitor` → 游客；未知 → 未识别。
+- 披露项：`identity`、`trust_rank`、`account_age`、`platform`、`common_friends`、`common_groups`、`worlds`；七项均已接入。
+- Trust Rank 映射与游戏内颜色：`system_trust_legend` / `system_trust_veteran` → 可信用户 `#8143E6`；`system_trust_trusted` → 熟识用户 `#FF7B42`；`system_trust_known` → 用户 `#2BCF5C`；`system_trust_basic` → 新用户 `#1778FF`；`system_trust_visitor` → 游客 `#808080`；未知 → 未识别 `#8A8A8A`。
+- 共同社群：读取双方 `GET /users/{id}/groups` 的公开社群并求交集；双方都绑定且都开启披露时才返回，最多 3 个名称。
+- 共同好友：VRChat 只提供“与当前登录账号（站点机器人）的共同好友数”`GET /users/{id}/mutuals`，因此展示为“站点共同好友”，不伪装成查看者与目标之间的好友关系。
+- 常驻 World：自动读取 `GET /users/{id}` 的 `homeLocation` 并解析 World 名称；用户可在个人设置手动补充最多 3 个，手动项不会被刷新覆盖。
+- 用户接口新增 `PATCH /api/vrchat/worlds` 保存手动常驻 World；`GET /api/vrchat/status` 返回 `groups`、`group_count`、`mutual_friends`、`home_world`、`manual_worlds`、`worlds`。
 
 ## 4. 仍未接入
 
-- 共同好友、共同社群、常驻 World：需要双方授权与额外接口语义，当前不展示、不伪造；
+- 查看者与目标之间的完整共同好友列表：VRChat 不提供任意用户的好友列表，只提供“与当前登录账号”的共同好友；因此本站在共同好友上使用站点机器人视角并明确标注范围。
 - OSC 游戏内推送：服务端无法直接向用户客户端发 OSC，文档见 `docs/osc-bridge.md`。
 
 ## 5. 运维步骤

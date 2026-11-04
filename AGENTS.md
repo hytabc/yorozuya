@@ -216,7 +216,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - 新增页面路由：`/terms`、`/credential/:serial`、`/creators/:userId`、`/achievements`、`/footprints`，全部 `() => import()`；`PageKeyLiteral` 与 `PAGE_LABELS` 已同步加入 `terms` / `creator` / `credential` / `achievements` / `footprints`。
 - 通知中心轮询 30 秒（`document.hidden` 时暂停）；点击事件跳转 `/?task=<id>`，由大厅复用 `TaskDialog`，不新增详情路由。
 - 回归：`backend/tests/test_task_facets.py`、`test_atmosphere.py`、`test_vrchat.py`、`test_credentials.py`、`test_events.py`；前端 `facets` / `atmosphere` / `trust` / `credential` / `hallSpace` / `events` 六个 `.test.mjs`。后端基线已到 251 个用例。
-- ⚠️ 不要删除或弱化 `/terms` 的完整条款；礼仪确认只改变呈现顺序。只有简介验证码通过、且资料来自服务端快照时才能写 `verified=true`；不得伪造 Trust Rank / 账号年龄 / 平台，共同好友/社群/World 仍未接入。
+- ⚠️ 不要删除或弱化 `/terms` 的完整条款；礼仪确认只改变呈现顺序。只有简介验证码通过、且资料来自服务端快照时才能写 `verified=true`；不得伪造 Trust Rank / 账号年龄 / 平台。共同社群用双方公开社群交集；共同好友只能拿到“与站点机器人”的数量并必须标注范围；常驻 World 自动读主页 World + 手动补充，不能伪造。
 
 ## 积分 / 评分 / 每日任务 / 成就 / 等级（2026-11）
 
