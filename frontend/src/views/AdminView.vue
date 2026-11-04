@@ -766,6 +766,7 @@ watch(activeTab, (tab) => loadTab(tab))
           <div><span>机器人</span><strong>{{ vrchatAdmin.bot_auth_mode === 'cookie' ? 'Cookie' : vrchatAdmin.bot_auth_mode === 'password' ? '账号密码' : '未配置' }}</strong></div>
           <div><span>已拉黑</span><strong>{{ vrchatAdmin.banned || 0 }}</strong></div>
         </div>
+        <p v-if="!vrchatAdmin.bot_configured" class="form-error">未配置机器人：请在根目录 .env 设置 VRCHAT_BOT_AUTH_COOKIE，或 VRCHAT_BOT_USERNAME + VRCHAT_BOT_PASSWORD（2FA 再加 VRCHAT_BOT_TOTP_SECRET），然后重启后端。</p>
         <p v-if="vrchatAdmin.bot_last_error" class="form-error">机器人上次错误：{{ vrchatAdmin.bot_last_error }}</p>
         <div class="dialog-actions">
           <button class="button secondary small" :disabled="vrchatBusy" @click="saveVrchatConfig({ enabled: !vrchatAdmin.enabled })">{{ vrchatAdmin.enabled ? '关闭功能' : '开启功能' }}</button>
