@@ -368,7 +368,6 @@ def test_notification_switch_is_respected():
                 "title": "通知开关测试委托",
                 "description": "用于验证关掉通知后不再收到事件邮件。",
                 "category": "其他委托",
-                "pay_type": "free",
                 "expires_in_days": 1,
             },
         )
@@ -414,7 +413,6 @@ def test_notification_skips_accounts_without_verified_email():
                 "title": "无邮箱账号的委托",
                 "description": "未验证邮箱的账号不应收到事件邮件。",
                 "category": "其他委托",
-                "pay_type": "free",
                 "expires_in_days": 1,
             },
         )

@@ -30,7 +30,6 @@ export const ATMOSPHERE_GROUPS = [
   { key: 'contact', label: '沟通方式', options: ['文字为主', '语音沟通', '游戏内沟通'] },
   { key: 'pace', label: '节奏', options: ['轻松推进', '紧凑交付', '可长期协作'] },
   { key: 'boundary', label: '边界', options: ['可录屏', '不录屏', '可二次创作', '不可二次创作'] },
-  { key: 'payment', label: '报酬', options: ['有偿', '无偿', '以物易物', '可协商'] },
   { key: 'expectation', label: '期望', options: ['新手友好', '需要经验', '可指导'] },
 ]
 
@@ -42,7 +41,7 @@ export const FACET_LABELS = { skill: '技能', platform: '平台', world: '参�
 // 管理员（内部值 staff）继承志愿者的接单权限，并可管理用户权限等级、处理用户反馈。
 export const ROLE_LABELS = { user: '普通用户', volunteer: '志愿者', staff: '管理员', mascot: '看板娘', disciplinarian: '风纪委员' }
 export const ROLE_HINTS = {
-  user: '普通用户：可发布委托，凭正确密码也可接取带密码委托',
+  user: '普通用户：可发布委托，也可接取委托',
   volunteer: '志愿者：可发布委托，也可接取全部委托',
   staff: '管理员：拥有志愿者权限，并可管理用户权限等级、处理用户反馈',
   mascot: '看板娘：负责网站公告、活动公告与社区运营数据分析',

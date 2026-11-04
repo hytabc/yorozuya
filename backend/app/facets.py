@@ -49,7 +49,6 @@ ATMOSPHERE_GROUPS = (
     {"key": "contact", "label": "沟通方式", "options": ("文字为主", "语音沟通", "游戏内沟通")},
     {"key": "pace", "label": "节奏", "options": ("轻松推进", "紧凑交付", "可长期协作")},
     {"key": "boundary", "label": "边界", "options": ("可录屏", "不录屏", "可二次创作", "不可二次创作")},
-    {"key": "payment", "label": "报酬", "options": ("有偿", "无偿", "以物易物", "可协商")},
     {"key": "expectation", "label": "期望", "options": ("新手友好", "需要经验", "可指导")},
 )
 ATMOSPHERES = tuple(option for group in ATMOSPHERE_GROUPS for option in group["options"])

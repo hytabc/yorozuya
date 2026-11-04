@@ -15,8 +15,13 @@ const mode = ref(props.initialMode)
 const busy = ref(false)
 const error = ref('')
 const captchaField = ref(null)
-const form = reactive({ username: '', password: '', nickname: '', email: '', remember: true })
+const form = reactive({ username: '', password: '', nickname: '', email: '', invite_code: '', remember: true })
 const fieldErrors = reactive({ username: '', password: '', nickname: '', email: '' })
+// 分享链接里的 ?ref=<邀请码> 自动填入；OG 落地页跳转时也会先存进 sessionStorage。
+const refCode = typeof route.query.ref === 'string'
+  ? route.query.ref
+  : (sessionStorage.getItem('wsw_ref') || '')
+if (refCode) form.invite_code = refCode.slice(0, 12).toUpperCase()
 // 注册成功后展示「去邮箱验证」面板：注册不再直接登录。
 const pendingEmailMasked = ref('')
 // 验证邮件可能没送到：面板里允许带人机验证重发一次。
@@ -117,6 +122,7 @@ async function submit() {
         password: form.password,
         nickname: form.nickname,
         email: form.email,
+        ...(form.invite_code.trim() ? { invite_code: form.invite_code.trim().toUpperCase() } : {}),
         ...captcha,
       })
       pendingEmailMasked.value = result?.email_masked || form.email
@@ -220,6 +226,7 @@ function switchMode(next) {
           <label>{{ isRegister ? '用户名' : '用户名或邮箱' }}<div class="input-with-icon" :class="{ invalid: fieldErrors.username }"><UserRound :size="18" /><input v-model="form.username" autocomplete="username" :placeholder="isRegister ? '字母、数字或下划线' : '用户名或注册邮箱'" :aria-invalid="Boolean(fieldErrors.username)" :aria-describedby="fieldErrors.username ? 'username-error' : undefined" @blur="validateRegistrationField('username')" @input="updateInvalidField('username')" /></div><small v-if="fieldErrors.username" id="username-error" class="field-error" role="alert">{{ fieldErrors.username }}</small></label>
           <label v-if="isRegister">邮箱<div class="input-with-icon" :class="{ invalid: fieldErrors.email }"><Mail :size="18" /><input v-model="form.email" type="email" autocomplete="email" placeholder="用于验证与找回密码" :aria-invalid="Boolean(fieldErrors.email)" :aria-describedby="fieldErrors.email ? 'email-error' : undefined" @blur="validateRegistrationField('email')" @input="updateInvalidField('email')" /></div><small v-if="fieldErrors.email" id="email-error" class="field-error" role="alert">{{ fieldErrors.email }}</small><small v-else class="field-hint">注册后需要点击验证邮件里的链接才能登录。</small></label>
           <label>密码<div class="input-with-icon" :class="{ invalid: fieldErrors.password }"><KeyRound :size="18" /><input v-model="form.password" type="password" :autocomplete="isRegister ? 'new-password' : 'current-password'" placeholder="至少 8 位" :aria-invalid="Boolean(fieldErrors.password)" :aria-describedby="fieldErrors.password ? 'password-error' : undefined" @blur="validateRegistrationField('password')" @input="updateInvalidField('password')" /></div><small v-if="fieldErrors.password" id="password-error" class="field-error" role="alert">{{ fieldErrors.password }}</small></label>
+          <label v-if="isRegister">邀请码（选填）<input v-model="form.invite_code" maxlength="12" placeholder="朋友分享的 8 位邀请码" /><small class="field-hint">被邀请完成第一个委托后，你和朋友都会获得积分。</small></label>
           <CaptchaField ref="captchaField" />
           <div v-if="!isRegister" class="remember-field">
             <label class="checkbox-inline"><input v-model="form.remember" type="checkbox" /><span>自动登录</span></label>

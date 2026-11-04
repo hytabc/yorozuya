@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import html as html_module
 import logging
 import re
 import secrets
@@ -15,7 +16,7 @@ from uuid import uuid4
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BeforeValidator, ValidationError
 from sqlalchemy import delete, func, or_, select, text, update
@@ -108,7 +109,6 @@ from .models import (
     VolunteerApplication,
 )
 from .schemas import (
-    AcceptRequest,
     AccountRequest,
     ActionAckOut,
     EmailChangeRequest,
@@ -143,7 +143,6 @@ from .schemas import (
     FriendProfileDetailOut,
     FriendRequestOut,
     LoginRequest,
-    PasswordUpdate,
     PageMetric,
     PageDwellCreate,
     PageViewCreate,
@@ -245,6 +244,19 @@ from .credentials import (
     router as credential_router,
 )
 from .events import record_event as record_task_event
+from . import points as points_module
+from .points import router as points_router
+from . import ratings as ratings_module
+from .ratings import router as ratings_router
+from .shares import router as shares_router
+from . import invites as invites_module
+from .invites import router as invites_router
+from .daily import router as daily_router
+from .achievements import router as achievements_router
+from . import levels as levels_module
+from .levels import router as levels_router
+from .rankings import router as rankings_router
+from .records import router as records_router
 from .events import router as events_router
 from .virtual_life import router as virtual_life_router
 from .virtual_life_packs import router as virtual_life_packs_router, seed_virtual_life_packs
@@ -317,6 +329,7 @@ def initialize_database() -> None:
                     password_hash=hash_password(password),
                     nickname=settings.admin_nickname,
                     is_admin=True,
+                    invite_code=invites_module.generate_invite_code(db),
                 )
             )
             db.commit()
@@ -408,6 +421,64 @@ def migrate_schema() -> None:
                 connection.execute(
                     text("ALTER TABLE users ADD COLUMN onboarding_version INTEGER NOT NULL DEFAULT 0")
                 )
+            # 积分账户：新增列时一次性回填历史补偿，避免老用户在新排行榜里从零开始。
+            if "lifetime_points" not in user_columns:
+                connection.execute(
+                    text("ALTER TABLE users ADD COLUMN lifetime_points INTEGER NOT NULL DEFAULT 0")
+                )
+                if inspector.has_table("tasks") and inspector.has_table("task_members"):
+                    connection.execute(
+                        text(
+                            "UPDATE users SET lifetime_points = ("
+                            "  SELECT COALESCE(COUNT(*), 0) * 10 FROM task_members tm"
+                            "  JOIN tasks t ON t.id = tm.task_id"
+                            "  WHERE tm.user_id = users.id AND tm.response_status = 'accepted'"
+                            "    AND t.status = 'completed'"
+                            ") + ("
+                            "  SELECT COALESCE(COUNT(*), 0) * 3 FROM tasks t"
+                            "  WHERE t.publisher_id = users.id AND t.status = 'completed'"
+                            ")"
+                        )
+                    )
+            if "wallet_points" not in user_columns:
+                connection.execute(
+                    text("ALTER TABLE users ADD COLUMN wallet_points INTEGER NOT NULL DEFAULT 0")
+                )
+            connection.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_users_lifetime_points ON users (lifetime_points)")
+            )
+            # 邀请码：存量账号补生成（唯一索引允许 NULL，因此可以逐行安全填充）。
+            if "invite_code" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN invite_code VARCHAR(12)"))
+            if "invited_by_id" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN invited_by_id INTEGER"))
+                connection.execute(text("CREATE INDEX IF NOT EXISTS ix_users_invited_by_id ON users (invited_by_id)"))
+            if "rank_opt_out" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN rank_opt_out BOOLEAN NOT NULL DEFAULT 0"))
+            connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_invite_code ON users (invite_code)"))
+            missing_codes = connection.execute(
+                text("SELECT id FROM users WHERE invite_code IS NULL")
+            ).fetchall()
+            if missing_codes:
+                used = {
+                    row[0]
+                    for row in connection.execute(
+                        text("SELECT invite_code FROM users WHERE invite_code IS NOT NULL")
+                    ).fetchall()
+                }
+                for (user_id,) in missing_codes:
+                    while True:
+                        code = "".join(
+                            secrets.choice(invites_module.INVITE_ALPHABET)
+                            for _ in range(invites_module.INVITE_CODE_LENGTH)
+                        )
+                        if code not in used:
+                            break
+                    used.add(code)
+                    connection.execute(
+                        text("UPDATE users SET invite_code = :code WHERE id = :id"),
+                        {"code": code, "id": user_id},
+                    )
             # SQLite 的 ALTER 不能加唯一约束，因此单独建唯一索引；
             # 唯一索引不限制 NULL，存量账号在被强制补充绑定前 email 为空，彼此不冲突。
             connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (email)"))
@@ -442,15 +513,19 @@ def migrate_schema() -> None:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN is_anonymous BOOLEAN NOT NULL DEFAULT 0"))
         if "started_at" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN started_at DATETIME"))
-        if "pay_type" not in task_columns:
-            connection.execute(text("ALTER TABLE tasks ADD COLUMN pay_type VARCHAR(8)"))
-            # 旧委托回填：填了报酬说明视为有偿，否则视为无偿
-            connection.execute(
-                text("UPDATE tasks SET pay_type = 'paid' WHERE pay_type IS NULL AND reward IS NOT NULL AND reward <> ''")
-            )
-            connection.execute(
-                text("UPDATE tasks SET pay_type = 'free' WHERE pay_type IS NULL")
-            )
+        # 积分体系：存量委托不回填基础积分（只有新委托参与积分结算）。
+        if "scale" not in task_columns:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN scale VARCHAR(8) NOT NULL DEFAULT 'small'"))
+        if "base_points" not in task_columns:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN base_points INTEGER NOT NULL DEFAULT 0"))
+        if "bounty_points" not in task_columns:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN bounty_points INTEGER NOT NULL DEFAULT 0"))
+        if inspector.has_table("task_members"):
+            member_columns = {column["name"] for column in inspector.get_columns("task_members")}
+            if "base_points_earned" not in member_columns:
+                connection.execute(
+                    text("ALTER TABLE task_members ADD COLUMN base_points_earned INTEGER NOT NULL DEFAULT 0")
+                )
         if "cancelled_at" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN cancelled_at DATETIME"))
         if "cancel_requested_by" not in task_columns:
@@ -706,19 +781,82 @@ app.include_router(credential_router)
 app.include_router(credential_admin_router)
 app.include_router(creator_portfolio_router)
 app.include_router(events_router)
+app.include_router(points_router)
+app.include_router(ratings_router)
+app.include_router(shares_router)
+app.include_router(invites_router)
+app.include_router(daily_router)
+app.include_router(achievements_router)
+app.include_router(levels_router)
+app.include_router(rankings_router)
+app.include_router(records_router)
+
+
+@app.get("/share/task/{task_id}", response_class=HTMLResponse, include_in_schema=False)
+def share_task_og(
+    task_id: int,
+    request: Request,
+    ref: str = Query(default="", max_length=12),
+    db: Session = Depends(get_db),
+):
+    """分享落地页：只输出 OG meta 并立即跳到 SPA 详情。
+
+    不渲染任何用户内容、不加载脚本，避免成为可被注入的公开页面。
+    """
+    task = db.get(Task, task_id)
+    if task is None or not task.is_visible or task.status != TaskStatus.PUBLISHED:
+        return HTMLResponse(
+            '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=/">'
+            '<title>万事屋</title><a href="/">返回首页</a>'
+        )
+    base = (settings.site_base_url or str(request.base_url)).rstrip("/")
+    title = f"万事屋委托：{task.title}"
+    description = f"{task.category} · 系统基础 {task.base_points} 分"
+    if task.bounty_points:
+        description += f" + 悬赏 {task.bounty_points} 分"
+    if not task.is_anonymous and task.publisher is not None:
+        description += f" · 发布人 {task.publisher.nickname}"
+    target = f"{base}/?task={task.id}"
+    ref = re.sub(r"[^A-Za-z0-9]", "", ref)[:12]
+    if ref:
+        target += f"&ref={ref}"
+    escape = html_module.escape
+    body = (
+        "<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\">"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+        f"<title>{escape(title)}</title>"
+        f"<meta name=\"description\" content=\"{escape(description)}\">"
+        f"<meta property=\"og:type\" content=\"website\">"
+        f"<meta property=\"og:site_name\" content=\"万事屋\">"
+        f"<meta property=\"og:title\" content=\"{escape(title)}\">"
+        f"<meta property=\"og:description\" content=\"{escape(description)}\">"
+        f"<meta property=\"og:url\" content=\"{escape(target)}\">"
+        f"<meta property=\"og:image\" content=\"{escape(base)}/brand/og-16x9.png\">"
+        f"<meta name=\"twitter:card\" content=\"summary_large_image\">"
+        f"<meta http-equiv=\"refresh\" content=\"0; url=/?task={task.id}{f'&ref={ref}' if ref else ''}\">"
+        "</head><body>"
+        f"<p><a href=\"/?task={task.id}\">正在打开《{escape(task.title)}》…</a></p>"
+        "</body></html>"
+    )
+    return HTMLResponse(body, headers={"Cache-Control": "no-store"})
 
 
 def expire_due_tasks(db: Session) -> None:
-    result = db.execute(
-        update(Task)
-        .where(
-            Task.expires_at <= datetime.utcnow(),
+    now = datetime.utcnow()
+    due = db.scalars(
+        select(Task).where(
+            Task.expires_at <= now,
             Task.status.in_([TaskStatus.PUBLISHED, TaskStatus.ACCEPTED, TaskStatus.AWAITING, TaskStatus.CANCELLING]),
         )
-        .values(status=TaskStatus.EXPIRED, updated_at=datetime.utcnow())
-    )
-    if result.rowcount:
-        db.commit()
+    ).all()
+    if not due:
+        return
+    for task in due:
+        task.status = TaskStatus.EXPIRED
+        task.updated_at = now
+        # 过期即视为没有完成，托管的悬赏退回发布者（幂等）。
+        points_module.refund_bounty(db, task)
+    db.commit()
 
 
 # 疑难解答区子版块：key 落库、label 展示；前端 constants.js 的 TALK_BOARDS 需保持一致。
@@ -733,6 +871,8 @@ TALK_BOARDS = {
 
 PAGE_LABELS = {
     "house": "房屋",
+    "daily": "每日任务",
+    "rankings": "排行榜",
     "hall": "委托大厅",
     "talk": "疑难解答",
     "staff": "成员名录",
@@ -900,8 +1040,11 @@ def visible_avatar(user: User, viewer: User | None = None) -> str | None:
 
 
 def present_user_public(user: User, viewer: User | None = None) -> UserPublic:
+    from .levels import level_for
+
     return UserPublic(
         id=user.id, nickname=user.nickname, title=user.title, bio=user.bio,
+        lifetime_points=user.lifetime_points, level=level_for(user.lifetime_points),
         photos=visible_user_photos(user, viewer),
         avatar_url=visible_avatar(user, viewer), avatar_visible=user.avatar_visible,
         is_beta_tester=user.is_beta_tester,
@@ -941,6 +1084,11 @@ def present_user_self(user: User) -> UserSelf:
         is_active=user.is_active,
         role=user.role,
         max_concurrent_tasks=user.max_concurrent_tasks,
+        lifetime_points=user.lifetime_points,
+        wallet_points=user.wallet_points,
+        invite_code=user.invite_code,
+        rank_opt_out=user.rank_opt_out,
+        level=levels_module.level_for(user.lifetime_points),
         created_at=user.created_at,
     )
 
@@ -949,6 +1097,7 @@ def present_user_profile(user: User, viewer: User | None = None) -> UserProfileO
     return UserProfileOut(
         id=user.id, nickname=user.nickname, title=user.title, bio=user.bio, qq=user.qq, qq_public=user.qq_public,
         is_admin=user.is_admin,
+        lifetime_points=user.lifetime_points, level=levels_module.level_for(user.lifetime_points),
         role=user.role, created_at=user.created_at, photos=visible_user_photos(user, viewer),
         avatar_url=visible_avatar(user, viewer), avatar_visible=user.avatar_visible, is_beta_tester=user.is_beta_tester,
     )
@@ -1851,9 +2000,15 @@ async def register(payload: RegisterRequest, request: Request, db: Session = Dep
         nickname=payload.nickname,
         email=email,
         email_verified=False,
+        invite_code=invites_module.generate_invite_code(db),
     )
     db.add(user)
     db.flush()
+    if payload.invite_code:
+        # 邀请码不存在时不让注册失败：注册本身与邀请解耦，用户可稍后在个人设置补填。
+        inviter = invites_module.resolve_code(db, payload.invite_code)
+        if inviter is not None and inviter.id != user.id:
+            user.invited_by_id = inviter.id
     await _send_verification_mail(db, user, request)
     db.commit()
     return RegisterPendingOut(email_masked=mask_email(email))
@@ -2294,6 +2449,7 @@ def user_profile(user_id: int, viewer: User | None = Depends(get_optional_user),
     if target is None or not target.is_active:
         raise HTTPException(status_code=404, detail="用户不存在")
     data = present_user_profile(target, viewer)
+    data.ratings = ratings_module.user_rating_summary(db, target.id)
     if not can_view_user_qq(db, viewer, target):
         data.qq = None
     # 是否超管属于敏感的运营信息，只对本人与管理组成员展示。
@@ -2312,6 +2468,7 @@ def user_public_profile(user_id: int, viewer: User | None = Depends(get_optional
     if target is None or not target.is_active:
         raise HTTPException(status_code=404, detail="用户不存在")
     data = present_user_profile(target, viewer)
+    data.ratings = ratings_module.user_rating_summary(db, target.id)
     data.qq = None
     return data
 
@@ -4093,7 +4250,6 @@ def list_tasks(
     search: str = Query(default="", max_length=80),
     category: str = Query(default=""),
     task_status: Annotated[TaskStatusFilter, Query(alias="status")] = None,
-    pay_type: str = Query(default=""),
     skill: str = Query(default=""),
     platform: str = Query(default=""),
     world: str = Query(default=""),
@@ -4113,8 +4269,6 @@ def list_tasks(
         query = query.where(Task.status == task_status)
     elif not is_task_manager(viewer):
         query = query.where(Task.status == TaskStatus.PUBLISHED)
-    if pay_type in ("paid", "free"):
-        query = query.where(Task.pay_type == pay_type)
     # 模块化标签筛选：多个条件之间是「且」的关系，空值表示不筛选。
     for facet_type, value in (
         ("skill", skill),
@@ -4165,6 +4319,7 @@ def my_tasks(user: User = Depends(get_current_user), db: Session = Depends(get_d
         user.role == UserRole.STAFF,
     )
     tasks = db.scalars(task_query().where(participation, visibility).order_by(Task.updated_at.desc())).unique().all()
+    ratings_module.settle_due_ratings(db)
     facets = facets_for_tasks(db, [task.id for task in tasks])
     return [present_task(task, user, facets.get(task.id, [])) for task in tasks]
 
@@ -4172,6 +4327,7 @@ def my_tasks(user: User = Depends(get_current_user), db: Session = Depends(get_d
 @app.get("/api/tasks/{task_id}", response_model=TaskOut)
 def task_detail(task_id: int, viewer: User | None = Depends(get_optional_user), db: Session = Depends(get_db)):
     expire_due_tasks(db)
+    ratings_module.settle_due_ratings(db)
     task = get_task_or_404(db, task_id)
     if not task.is_visible and not can_view_hidden_task(task, viewer):
         raise HTTPException(status_code=404, detail="委托不存在")
@@ -4212,24 +4368,49 @@ def create_task(payload: TaskCreate, user: User = Depends(get_current_user), db:
             raise HTTPException(status_code=422, detail="只能指定当前可用的管理员或志愿者")
     if payload.category not in TASK_CATEGORIES:
         raise HTTPException(status_code=422, detail="委托分类不正确")
+    # 信誉等级与委托人评分共同决定发布权限（先判等级，再判余额）。
+    privilege = levels_module.privileges(db, user)
+    if payload.bounty_points > 0 and not privilege.can_post_bounty:
+        raise HTTPException(status_code=403, detail="信誉等级达到 Lv3 后才能发布悬赏委托")
+    if payload.bounty_points > user.wallet_points:
+        raise HTTPException(
+            status_code=422,
+            detail=f"悬赏积分不足：当前可用 {user.wallet_points} 分，最多可托管 {user.wallet_points} 分",
+        )
+    if payload.bounty_points > 0 and payload.bounty_points > privilege.bounty_cap:
+        raise HTTPException(
+            status_code=422,
+            detail=f"当前悬赏上限为 {privilege.bounty_cap} 分（Lv{privilege.level}）",
+        )
+    if payload.required_takers and payload.required_takers > 1 and not privilege.multi_taker:
+        raise HTTPException(status_code=403, detail="委托人评分较低，暂时只能发布单人委托")
+    today_start = points_module.day_start_utc()
+    today_published = db.scalar(
+        select(func.count()).select_from(Task).where(
+            Task.publisher_id == user.id,
+            Task.created_at >= today_start,
+        )
+    ) or 0
+    if today_published >= privilege.daily_publish_limit:
+        raise HTTPException(status_code=429, detail=f"今日发布数量已达上限（{privilege.daily_publish_limit} 份）")
     # 标签先校验再落库：非法标签不会留下半成品委托。
     facet_items = validate_facets(payload.facets)
     task = Task(
         title=payload.title.strip(),
         description=payload.description.strip(),
         category=payload.category,
-        pay_type=payload.pay_type,
-        reward=payload.reward.strip() if payload.reward else None,
+        scale=payload.scale,
+        base_points=points_module.task_base_points(payload.category, payload.scale),
+        bounty_points=payload.bounty_points,
         expires_at=now + timedelta(days=payload.expires_in_days),
         publisher_id=user.id,
         is_anonymous=payload.is_anonymous,
         required_takers=len(designated_user_ids) if designated_user_ids else payload.required_takers,
-        # 指定委托无须密码，响应权限由指定名单保证。
-        accept_password_hash=None if designated_user_ids else (hash_password(payload.accept_password) if payload.accept_password else None),
         is_designated=bool(designated_user_ids),
     )
     db.add(task)
     db.flush()
+    points_module.escrow_bounty(db, task)
     store_facets(db, task.id, facet_items)
     for designated_user in designated_users:
         db.add(
@@ -4354,13 +4535,12 @@ def set_report_limit(
 @app.post("/api/tasks/{task_id}/accept", response_model=TaskOut)
 def accept_task(
     task_id: int,
-    payload: AcceptRequest,
     request: Request,
     background: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """加入委托（有密码时需凭正确密码，无密码时所有非管理员用户可加入）。"""
+    """加入委托：所有可见的非管理员用户都可直接加入。"""
     atmosphere_module.enforce_ack(db, user)
     expire_due_tasks(db)
     task = get_task_or_404(db, task_id)
@@ -4380,10 +4560,11 @@ def accept_task(
             raise HTTPException(status_code=409, detail="你已响应此指定委托")
         # 在支持行锁的数据库上串行化同一用户的接单操作，避免并发突破个人上限。
         db.scalar(select(User).where(User.id == user.id).with_for_update())
-        if active_task_count(db, user.id) >= user.max_concurrent_tasks:
+        limit = levels_module.privileges(db, user).taker_limit
+        if active_task_count(db, user.id) >= limit:
             raise HTTPException(
                 status_code=409,
-                detail=f"你同时接取的委托已达上限（{user.max_concurrent_tasks} 个）",
+                detail=f"你同时接取的委托已达上限（{limit} 个）",
             )
         existing_member.response_status = TaskMemberResponse.ACCEPTED
         task.updated_at = datetime.utcnow()
@@ -4395,6 +4576,7 @@ def accept_task(
             else:
                 task.status = TaskStatus.CANCELLED
                 task.cancelled_at = datetime.utcnow()
+                points_module.refund_bounty(db, task)
         record_task_event(
             db,
             task,
@@ -4421,17 +4603,13 @@ def accept_task(
         joined = db.scalar(select(func.count()).select_from(TaskMember).where(TaskMember.task_id == task.id)) or 0
         if joined >= task.required_takers:
             raise HTTPException(status_code=409, detail="需要的人数已满，委托即将开始")
-    if task.requires_password:
-        # 限流尝试次数，防止暴力枚举 4 位起的接取密码。
-        enforce("accept-password", str(user.id), 10, 300)
-        if not payload.password or not verify_password(payload.password, task.accept_password_hash):
-            raise HTTPException(status_code=403, detail="接取密码不正确，请联系委托人确认")
     # 在支持行锁的数据库上串行化同一用户的接单操作，避免并发突破个人上限。
     db.scalar(select(User).where(User.id == user.id).with_for_update())
-    if active_task_count(db, user.id) >= user.max_concurrent_tasks:
+    limit = levels_module.privileges(db, user).taker_limit
+    if active_task_count(db, user.id) >= limit:
         raise HTTPException(
             status_code=409,
-            detail=f"你同时接取的委托已达上限（{user.max_concurrent_tasks} 个）",
+            detail=f"你同时接取的委托已达上限（{limit} 个）",
         )
     db.add(TaskMember(task_id=task.id, user_id=user.id))
     record_task_event(
@@ -4520,6 +4698,7 @@ def leave_task(task_id: int, user: User = Depends(get_current_user), db: Session
             else:
                 task.status = TaskStatus.CANCELLED
                 task.cancelled_at = datetime.utcnow()
+                points_module.refund_bounty(db, task)
         db.commit()
         return present_task(get_task_or_404(db, task_id), user)
     db.delete(membership)
@@ -4556,9 +4735,18 @@ def confirm_task(
     if task.all_confirmed:
         task.status = TaskStatus.COMPLETED
         task.completed_at = now
-        # 与完成确认同一事务签发凭证：任何一步失败都整体回滚，
-        # 不会出现「已完成但没有凭证」或被重复签发。
+        # 与完成确认同一事务签发凭证并发放积分：任何一步失败都整体回滚，
+        # 不会出现「已完成但没有凭证 / 没有积分」或重复发放。
         credentials_module.issue_for_task(db, task)
+        points_module.award_task_completion(db, task)
+        # 被邀请人的首个完成委托触发邀请奖励（幂等，按人检查）。
+        participants = {task.publisher_id} | {
+            member.user_id for member in task.members if member.response_status == TaskMemberResponse.ACCEPTED
+        }
+        for participant_id in participants:
+            participant = db.get(User, participant_id)
+            if participant is not None:
+                invites_module.maybe_reward_invite(db, participant)
     elif any(member.confirmed_at is not None for member in task.members) or task.publisher_confirmed_at is not None:
         task.status = TaskStatus.AWAITING
     else:
@@ -4582,25 +4770,6 @@ def confirm_task(
     return present_task(confirmed, user)
 
 
-@app.patch("/api/tasks/{task_id}/password", response_model=TaskOut)
-def update_task_password(
-    task_id: int,
-    payload: PasswordUpdate,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """委托人重设接取密码：仅在委托尚未开始时可用。"""
-    task = get_task_or_404(db, task_id)
-    if task.publisher_id != user.id:
-        raise HTTPException(status_code=403, detail="只有委托人可以重设接取密码")
-    if task.status != TaskStatus.PUBLISHED:
-        raise HTTPException(status_code=409, detail="委托开始后不能重设密码")
-    task.accept_password_hash = hash_password(payload.password)
-    task.updated_at = datetime.utcnow()
-    db.commit()
-    return present_task(get_task_or_404(db, task_id), user)
-
-
 @app.post("/api/tasks/{task_id}/cancel", response_model=TaskOut)
 def request_cancel_task(task_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """发起取消委托：委托人或任一接单人都可在未完成阶段发起，进入取消确认(cancelling)。
@@ -4621,6 +4790,7 @@ def request_cancel_task(task_id: int, user: User = Depends(get_current_user), db
         task.status = TaskStatus.CANCELLED
         task.cancelled_at = now
         task.updated_at = now
+        points_module.refund_bounty(db, task)
         db.commit()
         return present_task(get_task_or_404(db, task_id), user)
     # 进入取消确认：记录发起人与要恢复的状态，发起人视为已同意
@@ -4676,6 +4846,7 @@ def confirm_cancel_task(
     if task.all_agree_to_cancel:
         task.status = TaskStatus.CANCELLED
         task.cancelled_at = now
+        points_module.refund_bounty(db, task)
         record_task_event(db, task, "cancelled", f"《{task.title}》经全体同意后已取消", exclude=user)
     task.updated_at = now
     db.commit()

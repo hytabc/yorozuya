@@ -1,7 +1,7 @@
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { CalendarDays, Compass, EyeOff, Heart, ImagePlus, KeyRound, Mail, Moon, Save, ShieldCheck, Store, Sun, Trash2, UserRound } from '@lucide/vue'
+import { CalendarDays, Compass, Copy, EyeOff, Heart, ImagePlus, KeyRound, Mail, Moon, Save, ShieldCheck, Store, Sun, Trash2, UserRound } from '@lucide/vue'
 import { api, errorMessage, imageUploadErrorMessage } from '../api'
 import { track } from '../analytics'
 import { useAuthStore } from '../stores/auth'
@@ -13,6 +13,8 @@ import UserTitleTag from '../components/UserTitleTag.vue'
 import LazyImage from '../components/LazyImage.vue'
 import ImageLightbox from '../components/ImageLightbox.vue'
 import VrchatIdentitySection from '../components/VrchatIdentitySection.vue'
+import AchievementWall from '../components/AchievementWall.vue'
+import LifeRecords from '../components/LifeRecords.vue'
 import MyCredentialsSection from '../components/MyCredentialsSection.vue'
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
@@ -29,6 +31,45 @@ const appearanceBusy = ref(false)
 const photos = ref(auth.user.photos || [])
 const viewerSrc = ref('')
 const viewerAlt = ref('')
+const invite = ref(null)
+const inviteCopied = ref(false)
+const ledger = ref({ total: 0, page: 1, page_size: 20, items: [] })
+const ledgerBusy = ref(false)
+
+async function loadLedger(page = 1) {
+  ledgerBusy.value = true
+  try {
+    const { data } = await api.get('/points/ledger', { params: { page, page_size: 20 } })
+    ledger.value = page === 1 ? data : { ...data, items: [...ledger.value.items, ...data.items] }
+  } catch { /* 流水加载失败不影响页面 */ } finally { ledgerBusy.value = false }
+}
+
+onMounted(() => { loadInvite(); loadLedger() })
+
+async function loadInvite() {
+  try { invite.value = (await api.get('/invite/me')).data } catch { invite.value = null }
+}
+
+async function copyInvite() {
+  if (!invite.value?.code) return
+  try {
+    await navigator.clipboard.writeText(`${window.location.origin}/register?ref=${invite.value.code}`)
+    inviteCopied.value = true
+    toast.success('邀请链接已复制')
+    setTimeout(() => { inviteCopied.value = false }, 1600)
+  } catch {
+    toast.error('复制失败，请手动复制邀请码')
+  }
+}
+
+
+async function toggleRankOptOut(value) {
+  try {
+    const { data } = await api.patch('/rankings/opt-out', { opt_out: value })
+    auth.patchUser({ rank_opt_out: data.rank_opt_out })
+    toast.success(data.rank_opt_out ? '已退出排行榜' : '已重新参与排行榜')
+  } catch (error) { toast.error(errorMessage(error)) }
+}
 
 function openViewer(photo) {
   viewerSrc.value = photo.image_url
@@ -267,7 +308,18 @@ async function deleteAvatar() {
           </div>
         </div>
         <div class="profile-appearance-section">
-          <div class="section-heading compact"><div><span class="section-index">05</span><h2>外观</h2><p>页面风格与深色模式偏好保存在账号上，换设备登录依然生效</p></div></div>
+          <div class="section-heading compact"><div><span class="section-index">06</span><h2>邀请好友</h2><p>被邀请人完成首个委托后，双方都会获得积分</p></div></div>
+          <div v-if="invite" class="invite-box">
+            <div class="invite-code"><span class="muted">我的邀请码</span><strong>{{ invite.code }}</strong></div>
+            <div class="invite-stats muted">
+              已邀请 {{ invite.invited_total }} 人 · 本月有效 {{ invite.valid_this_month }}/{{ invite.monthly_limit }}
+            </div>
+            <p class="field-hint">对方完成首个委托后你获得 {{ invite.inviter_bonus }} 分，对方获得 {{ invite.invitee_bonus }} 分；超出月度上限不再计分。</p>
+            <button type="button" class="button secondary small" @click="copyInvite"><Copy :size="15" />{{ inviteCopied ? '已复制' : '复制邀请链接' }}</button>
+          </div>
+        </div>
+        <div class="profile-appearance-section">
+          <div class="section-heading compact"><div><span class="section-index">07</span><h2>外观</h2><p>页面风格与深色模式偏好保存在账号上，换设备登录依然生效</p></div></div>
           <p class="appearance-label">页面风格</p>
           <div class="mode-options">
             <label v-for="item in THEMES" :key="item.id" class="mode-option" :class="{ active: theme === item.id }">
@@ -291,6 +343,24 @@ async function deleteAvatar() {
           <button class="button secondary small guide-replay" type="button" @click="replayGuide">
             <Compass :size="15" />重新查看新手引导
           </button>
+        </div>
+        <div class="profile-appearance-section">
+          <div class="section-heading compact"><div><span class="section-index">08</span><h2>成就</h2><p>完成委托、获得好评、参与社区都会解锁成就并获得终身积分</p></div></div>
+          <AchievementWall />
+          <label class="checkbox-inline rank-opt-out"><input type="checkbox" :checked="auth.user?.rank_opt_out" @change="toggleRankOptOut($event.target.checked)" /><span>不参与排行榜（资料页仍显示等级与评分）</span></label>
+        </div>
+        <div class="profile-appearance-section">
+          <div class="section-heading compact"><div><span class="section-index">09</span><h2>我的足迹</h2><p>累计完成、评分与积分流水</p></div></div>
+          <LifeRecords :user-id="auth.user.id" />
+          <h3 class="ledger-title">积分流水</h3>
+          <ul class="ledger-list">
+            <li v-for="item in ledger.items" :key="item.id">
+              <span>{{ item.kind_label }}<small v-if="item.note" class="muted"> · {{ item.note }}</small></span>
+              <strong :class="{ minus: item.wallet_delta < 0 }">{{ item.wallet_delta > 0 ? '+' : '' }}{{ item.wallet_delta }}</strong>
+            </li>
+          </ul>
+          <p v-if="!ledger.items.length" class="muted">还没有积分记录。</p>
+          <button v-if="ledger.items.length < ledger.total" type="button" class="button secondary small" :disabled="ledgerBusy" @click="loadLedger(ledger.page + 1)">{{ ledgerBusy ? '加载中…' : '加载更多' }}</button>
         </div>
         <VrchatIdentitySection />
         <MyCredentialsSection />

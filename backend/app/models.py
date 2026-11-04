@@ -111,9 +111,17 @@ class User(Base):
         index=True,
     )
     max_concurrent_tasks: Mapped[int] = mapped_column(default=2)
+    # 积分：lifetime 为终身累计（只增不减，公开，用于等级/榜单）；wallet 为可用余额（仅本人可见）。
+    lifetime_points: Mapped[int] = mapped_column(Integer, default=0, index=True)
+    wallet_points: Mapped[int] = mapped_column(Integer, default=0)
     is_beta_tester: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     # 会话令牌版本：修改密码时自增，使此前签发的所有登录令牌立即失效。
     token_version: Mapped[int] = mapped_column(default=0)
+    # 邀请：每个账号一个永久邀请码；invited_by_id 在注册或注册后 7 天内绑定，终身不可改。
+    invite_code: Mapped[str | None] = mapped_column(String(12), unique=True, nullable=True, index=True)
+    invited_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    # 不参与排行榜：开启后所有榜单不再返回该用户，但资料页仍展示等级。
+    rank_opt_out: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     # 头像：仅存相对 uploads 目录的路径；上传后需管理员审核（avatar_visible）才公开展示。
     avatar_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -166,9 +174,12 @@ class Task(Base):
     title: Mapped[str] = mapped_column(String(80), index=True)
     description: Mapped[str] = mapped_column(Text)
     category: Mapped[str] = mapped_column(String(24), default="其他")
-    # 是否有偿：paid=有偿, free=无偿
-    pay_type: Mapped[str] = mapped_column(String(8), default="paid", index=True)
-    reward: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    # 规模档位（small/medium/large）决定系统基础积分，分类系数在 points.py 里按类别微调。
+    scale: Mapped[str] = mapped_column(String(8), default="small")
+    # 创建时算好的系统基础积分，避免后续改系数影响已发布的委托。
+    base_points: Mapped[int] = mapped_column(Integer, default=0)
+    # 发布者额外托管的悬赏积分（从钱包扣除，完成时发给接单人）。
+    bounty_points: Mapped[int] = mapped_column(Integer, default=0)
     status: Mapped[TaskStatus] = mapped_column(
         SqlEnum(TaskStatus, values_callable=lambda values: [item.value for item in values]),
         default=TaskStatus.PUBLISHED,
@@ -177,8 +188,6 @@ class Task(Base):
     is_visible: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     admin_note: Mapped[str | None] = mapped_column(String(200), nullable=True)
     publisher_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    # 委托人设置的接取密码；null 表示公开接取，否则只存哈希且不回传明文。
-    accept_password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # 需要几人接取该委托：null 表示人数不限（仅能由委托人手动点击开始）
     required_takers: Mapped[int | None] = mapped_column(nullable=True)
     # 指定管理员/志愿者的委托不会向大厅开放接取，须等全部指定人员响应后开始。
@@ -218,10 +227,6 @@ class Task(Base):
 
     # ---- 便捷判断 ----
     @property
-    def requires_password(self) -> bool:
-        return bool(self.accept_password_hash)
-
-    @property
     def all_confirmed(self) -> bool:
         """委托人与所有接单人都已确认完成。"""
         if self.publisher_confirmed_at is None:
@@ -260,6 +265,8 @@ class TaskMember(Base):
     )
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     cancel_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # 完成时按防刷规则折算后的系统基础积分；评价结算以它为基数（0 表示历史委托）。
+    base_points_earned: Mapped[int] = mapped_column(Integer, default=0)
 
     task: Mapped[Task] = relationship(back_populates="members")
     user: Mapped[User] = relationship(foreign_keys=[user_id], back_populates="memberships")

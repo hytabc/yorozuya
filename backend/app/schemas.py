@@ -70,6 +70,8 @@ class RegisterRequest(RequestModel):
     # 人机验证：builtin 用 captcha_id + captcha_code；turnstile 用 captcha_code 传 token。
     captcha_id: str = Field(default="", max_length=128)
     captcha_code: str = Field(default="", max_length=4096)
+    # 可选邀请码：注册时填写，注册后 7 天内也可补填一次。
+    invite_code: str | None = Field(default=None, max_length=12)
 
 
 class LoginRequest(RequestModel):
@@ -143,11 +145,164 @@ class UserPublic(ApiModel):
     nickname: str
     title: str | None = None
     bio: str | None = None
+    # 终身累计积分（公开）；钱包余额只在 UserSelf 里返回。
+    lifetime_points: int = 0
+    # 信誉等级：由 lifetime_points 推导，只升不降。
+    level: int = 1
     photos: list[UserPhotoOut] = []
     # avatar_url 仅在查看者有权看到时由后端填充；未过审头像仅本人和管理员组可见
     avatar_url: str | None = None
     avatar_visible: bool = False
     is_beta_tester: bool = False
+
+
+class ShareCreate(RequestModel):
+    channel: Literal["dialog", "copy", "qrcode", "native"] = "dialog"
+
+
+class InviteBindRequest(RequestModel):
+    code: str = Field(min_length=4, max_length=12)
+
+
+class DailyTaskOut(BaseModel):
+    key: str
+    label: str
+    detail: str = ""
+    reward: int = 0
+    target: int = 1
+    progress: int = 0
+    claimed: bool = False
+    can_claim: bool = False
+
+
+class RankingEntryOut(BaseModel):
+    rank: int
+    user: UserPublic
+    # 积分榜/完成数榜为整数，评分榜为贝叶斯分。
+    value: float = 0
+    count: int = 0
+    is_me: bool = False
+
+
+class RankingsOut(BaseModel):
+    board: str
+    title: str
+    page: int
+    page_size: int
+    total: int
+    min_count: int = 0
+    items: list[RankingEntryOut] = []
+
+
+class RankOptOutRequest(RequestModel):
+    opt_out: bool
+
+
+class UserLevelOut(BaseModel):
+    level: int = 1
+    lifetime_points: int = 0
+    next_threshold: int | None = None
+    taker_limit: int = 2
+    bounty_cap: int = 20
+    can_post_bounty: bool = False
+    multi_taker: bool = True
+    daily_publish_limit: int = 5
+    publisher_rating_active: bool = False
+    publisher_bayes: float = 0
+
+
+class AchievementOut(ApiModel):
+    key: str
+    category: str
+    name: str
+    description: str
+    reward: int = 0
+    target: int = 1
+    progress: int = 0
+    unlocked: bool = False
+    unlocked_at: datetime | None = None
+
+
+class AchievementWallOut(BaseModel):
+    unlocked: int = 0
+    total: int = 0
+    items: list[AchievementOut] = []
+
+
+class OfficialQuestOut(BaseModel):
+    key: str
+    label: str
+    reward: int = 0
+    target: int = 1
+    progress: int = 0
+    claimed: bool = False
+    can_claim: bool = False
+
+
+class DailyOut(BaseModel):
+    day: str
+    items: list[DailyTaskOut] = []
+    claimed_count: int = 0
+    official: list[OfficialQuestOut] = []
+
+
+class DailyClaimOut(BaseModel):
+    key: str
+    reward: int = 0
+    day: str
+    lifetime_points: int = 0
+    wallet_points: int = 0
+    daily: DailyOut
+
+
+class InviteInfoOut(BaseModel):
+    code: str
+    invited_total: int = 0
+    valid_this_month: int = 0
+    monthly_limit: int = 5
+    inviter_bonus: int = 20
+    invitee_bonus: int = 10
+    invited_by: bool = False
+    can_bind: bool = False
+
+
+class ShareOut(BaseModel):
+    path: str
+    title: str
+    channel: str
+    shared_tasks_today: int = 0
+
+
+class RatingStatsOut(BaseModel):
+    count: int = 0
+    average: float = 0
+    # 贝叶斯平滑分：(C × m + Σstars) / (C + count)，避免「只做一单 5 星」霸榜。
+    bayes: float = 0
+    good: int = 0
+    neutral: int = 0
+    bad: int = 0
+
+
+class UserRatingSummary(BaseModel):
+    taker: RatingStatsOut = Field(default_factory=RatingStatsOut)
+    publisher: RatingStatsOut = Field(default_factory=RatingStatsOut)
+
+
+class UserRecordsOut(BaseModel):
+    user_id: int
+    lifetime_points: int = 0
+    level: int = 1
+    next_threshold: int | None = None
+    joined_days: int = 0
+    completed_taken: int = 0
+    completed_published: int = 0
+    published_total: int = 0
+    first_completed_at: datetime | None = None
+    last_completed_at: datetime | None = None
+    taker_rating: RatingStatsOut = Field(default_factory=RatingStatsOut)
+    publisher_rating: RatingStatsOut = Field(default_factory=RatingStatsOut)
+    achievements_unlocked: int = 0
+    top_categories: list[dict] = []
 
 
 class UserProfileOut(ApiModel):
@@ -162,9 +317,13 @@ class UserProfileOut(ApiModel):
     role: UserRole = UserRole.USER
     is_beta_tester: bool = False
     created_at: datetime
+    lifetime_points: int = 0
+    level: int = 1
     photos: list[UserPhotoOut] = []
     avatar_url: str | None = None
     avatar_visible: bool = False
+    # 评分聚合：只在单用户资料接口里填充，列表接口保持为空以免 N+1。
+    ratings: UserRatingSummary | None = None
 
 
 class UserSelf(UserPublic):
@@ -189,6 +348,12 @@ class UserSelf(UserPublic):
     is_active: bool
     role: UserRole = UserRole.USER
     max_concurrent_tasks: int
+    lifetime_points: int = 0
+    # 钱包余额只对本人返回；公开资料里没有这个字段。
+    wallet_points: int = 0
+    # 邀请码：前端分享时附带 ?ref=，便于把分享和邀请绑定。
+    invite_code: str | None = None
+    rank_opt_out: bool = False
     is_beta_tester: bool = False
     created_at: datetime
 
@@ -260,11 +425,10 @@ class TaskCreate(RequestModel):
     title: str = Field(min_length=2, max_length=80)
     description: str = Field(min_length=10, max_length=3000)
     category: str = Field(min_length=1, max_length=24)
-    # paid=有偿 free=无偿
-    pay_type: Literal["paid", "free"] = "paid"
-    reward: str | None = Field(default=None, max_length=60)
-    # null 表示公开接取；设置密码时仍要求 4-32 位。
-    accept_password: str | None = Field(default=None, min_length=4, max_length=32)
+    # 规模档位决定系统基础积分：small=5 / medium=15 / large=40，再按分类系数微调。
+    scale: Literal["small", "medium", "large"] = "small"
+    # 额外悬赏积分：从发布者钱包托管，完成时发给接单人。
+    bounty_points: int = Field(default=0, ge=0, le=200)
     # 需要几人接取；null / 缺省表示人数不限（只能由委托人手动开始）
     required_takers: int | None = Field(default=None, ge=1, le=999)
     # 非空时为指定委托，只允许名单内的管理员/志愿者响应。
@@ -274,14 +438,6 @@ class TaskCreate(RequestModel):
     expires_in_days: Literal[1, 2, 3, 5, 10]
     # 模块化标签：技能 / 平台 / 参考 World / 氛围，均可选。
     facets: list[TaskFacetIn] = Field(default_factory=list, max_length=16)
-
-
-class AcceptRequest(RequestModel):
-    password: str | None = Field(default=None, max_length=72)
-
-
-class PasswordUpdate(RequestModel):
-    password: str = Field(min_length=4, max_length=32)
 
 
 class UserPasswordUpdate(RequestModel):
@@ -310,13 +466,13 @@ class TaskOut(ApiModel):
     title: str
     description: str
     category: str
-    reward: str | None
-    pay_type: str = "paid"
+    scale: str = "small"
+    base_points: int = 0
+    bounty_points: int = 0
     status: TaskStatus
     is_visible: bool
     admin_note: str | None = None
     publisher: UserPublic
-    requires_password: bool
     required_takers: int | None = None
     is_designated: bool = False
     is_anonymous: bool = False
@@ -525,6 +681,145 @@ class AdminSummary(BaseModel):
     pending_house_textures: int = 0
 
 
+class RatingCreate(RequestModel):
+    """提交评价：stars_half 以半星为单位（0~10），0 星必须给原因。"""
+
+    ratee_id: int
+    stars_half: int = Field(ge=0, le=10)
+    comment: str | None = Field(default=None, max_length=200)
+    reason_code: str | None = Field(default=None, max_length=24)
+
+
+class RatingUpdate(RequestModel):
+    stars_half: int = Field(ge=0, le=10)
+    comment: str | None = Field(default=None, max_length=200)
+    reason_code: str | None = Field(default=None, max_length=24)
+
+
+class RatingOut(ApiModel):
+    id: int
+    rater_id: int
+    ratee_id: int
+    rater_role: str
+    stars: float
+    comment: str | None = None
+    reason_code: str | None = None
+    reason_label: str | None = None
+    automatic: bool = False
+    created_at: datetime
+    revealed: bool = False
+    editable_until: datetime | None = None
+    can_edit: bool = False
+    # 申诉撤销后为 True：前端据此隐藏内容并停止展示申诉入口。
+    revoked: bool = False
+
+
+class RatingSlotOut(BaseModel):
+    counterpart: UserPublic
+    my_rating: RatingOut | None = None
+    their_rating: RatingOut | None = None
+    can_rate: bool = False
+    can_edit: bool = False
+
+
+class TaskRatingsOut(ApiModel):
+    deadline: datetime | None = None
+    role: str | None = None
+    can_rate: bool = False
+    slots: list[RatingSlotOut] = []
+    # 非参与者看到的已解盲评价。
+    public: list[RatingOut] = []
+
+
+class RatingAppealCreate(RequestModel):
+    reason: str = Field(min_length=20, max_length=500)
+
+
+class RatingAppealResolve(RequestModel):
+    action: Literal["reject", "revoke", "change"]
+    # action=change 时必填，其余情况忽略。
+    stars_half: int | None = Field(default=None, ge=0, le=10)
+    note: str | None = Field(default=None, max_length=300)
+
+
+class RatingAppealOut(ApiModel):
+    id: int
+    rating_id: int
+    reason: str
+    status: str
+    admin_note: str | None = None
+    created_at: datetime
+    handled_at: datetime | None = None
+    user: UserPublic
+    # 被申诉评价的摘要（管理员列表与本人查询都需要）。
+    stars: float = 0
+    comment: str | None = None
+    rater_role: str = ""
+    task_id: int = 0
+    task_title: str = ""
+
+
+class RatingPublicOut(ApiModel):
+    id: int
+    stars: float
+    comment: str | None = None
+    reason_code: str | None = None
+    reason_label: str | None = None
+    role: str
+    task_id: int
+    task_title: str = ""
+    task_category: str = ""
+    rater: UserPublic
+    created_at: datetime
+    automatic: bool = False
+
+
+class RatingPublicPage(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    items: list[RatingPublicOut] = []
+
+
+class PointsSummary(BaseModel):
+    """积分概览：终身累计公开，钱包余额仅本人可见。"""
+
+    lifetime_points: int = 0
+    wallet_points: int = 0
+
+
+class PointLedgerOut(BaseModel):
+    id: int
+    kind: str
+    kind_label: str
+    lifetime_delta: int = 0
+    wallet_delta: int = 0
+    note: str | None = None
+    created_at: datetime
+
+
+class PointLedgerPage(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    items: list[PointLedgerOut] = []
+
+
+class PointsRules(BaseModel):
+    """积分规则（前端发布页据此实时预览，避免把系数在两端各写一份）。"""
+
+    scale_points: dict[str, int]
+    scale_labels: dict[str, str]
+    category_factors: dict[str, float]
+    bounty_min: int
+    bounty_max: int
+    advance_ratio: float
+    pair_decay: dict[int, float]
+    daily_system_cap: int
+    new_account_days: int
+    new_account_factor: float
+
+
 class TaskStats(BaseModel):
     """大厅顶部统计：仅返回数量，不含任何委托内容。"""
     published: int
@@ -606,7 +901,7 @@ PageKeyLiteral = Literal[
     "hall", "staff", "board", "talk", "maps", "friends", "stories", "sugar",
     "announcements", "versions", "mine", "profile", "login", "frost",
     "operations", "admin", "life", "life-admin", "house", "terms",
-    "creator", "credential",
+    "creator", "credential", "daily", "rankings",
     "verify-email", "forgot-password", "reset-password",
 ]
 

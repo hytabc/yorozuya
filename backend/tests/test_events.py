@@ -32,15 +32,13 @@ def test_events_follow_task_lifecycle():
                 "title": "事件流委托",
                 "description": "用于验证站内事件流在生命周期各节点的写入。",
                 "category": "其他委托",
-                "pay_type": "free",
                 "required_takers": 1,
                 "expires_in_days": 2,
-                "accept_password": "evt-pw-1",
             },
         ).json()
         task_id = task["id"]
 
-        client.post(f"/api/tasks/{task_id}/accept", headers=taker, json={"password": "evt-pw-1"})
+        client.post(f"/api/tasks/{task_id}/accept", headers=taker)
         # required_takers=1：接取即自动开始。
         client.post(f"/api/tasks/{task_id}/confirm", headers=taker)
         final = client.post(f"/api/tasks/{task_id}/confirm", headers=publisher)
@@ -101,7 +99,6 @@ def test_event_pagination_and_designated_notice():
                     "title": f"指定委托 {index}",
                     "description": "用于验证指定委托的站内事件与分页约定。",
                     "category": "其他委托",
-                    "pay_type": "free",
                     "designated_user_ids": [taker_id],
                     "expires_in_days": 2,
                 },
@@ -133,14 +130,12 @@ def test_cancel_and_hidden_events():
                 "title": "取消事件委托",
                 "description": "用于验证取消发起与最终取消的站内事件。",
                 "category": "其他委托",
-                "pay_type": "free",
                 "required_takers": 3,
                 "expires_in_days": 2,
-                "accept_password": "evt-cancel-1",
             },
         ).json()
         task_id = task["id"]
-        client.post(f"/api/tasks/{task_id}/accept", headers=taker, json={"password": "evt-cancel-1"})
+        client.post(f"/api/tasks/{task_id}/accept", headers=taker)
 
         assert client.post(f"/api/tasks/{task_id}/cancel", headers=publisher).json()["status"] == "cancelling"
         assert "cancel_requested" in kinds(client, taker)
@@ -154,7 +149,6 @@ def test_cancel_and_hidden_events():
                 "title": "将被隐藏的委托",
                 "description": "用于验证管理员隐藏委托时会给发布者写入事件。",
                 "category": "其他委托",
-                "pay_type": "free",
                 "expires_in_days": 2,
             },
         ).json()

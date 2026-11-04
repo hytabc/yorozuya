@@ -72,7 +72,6 @@ def test_gate_blocks_publish_and_accept_until_acknowledged(monkeypatch):
                 "title": "未确认礼仪的委托",
                 "description": "未完成礼仪确认时发布应当被拒绝。",
                 "category": "其他委托",
-                "pay_type": "free",
                 "expires_in_days": 1,
             },
         )
@@ -84,7 +83,7 @@ def test_gate_blocks_publish_and_accept_until_acknowledged(monkeypatch):
             headers=publisher,
             json={"version": atmosphere.ATMOSPHERE_VERSION},
         )
-        created = create_task(client, publisher, password="atm-pw-1", required=1)
+        created = create_task(client, publisher, required=1)
         assert created["id"] > 0
 
         # 接取同样受闸门保护；确认后即可凭密码接取。
@@ -112,7 +111,6 @@ def test_gate_blocks_publish_and_accept_until_acknowledged(monkeypatch):
                 "title": "超管发布的委托",
                 "description": "超管不应被礼仪闸门拦住，但仍需先填写 QQ。",
                 "category": "其他委托",
-                "pay_type": "free",
                 "expires_in_days": 1,
             },
         )

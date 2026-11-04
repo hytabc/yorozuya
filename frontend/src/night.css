@@ -165,6 +165,10 @@ html[data-mode='night'] .status-badge,
 html[data-mode='night'] .category-tag { color: #9db0a8; background: #212b27; }
 html[data-mode='night'] .status-cancelled { color: #97a49e; background: #232c29; }
 html[data-mode='night'] .pay-tag.pay-paid { color: #e8b482; background: #2e2114; }
+html[data-mode='night'] .point-preview { color: #8fd7b0; background: #1e2f27; }
+html[data-mode='night'] .invite-box { background: #1e2f27; }
+html[data-mode='night'] .invite-code strong { color: #8fd7b0; }
+html[data-mode='night'] .point-reward { color: #8fd7b0; }
 html[data-mode='night'] .title-tag { border-color: #574a22; color: #dcc07e; background: #2a2413; }
 
 /* 日间硬编码的次要正文（#4e5954 / #55605a / #707a75）不会跟随变量，

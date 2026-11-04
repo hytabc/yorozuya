@@ -30,6 +30,10 @@ export default defineConfig({
         target: proxyTarget,
         changeOrigin: true,
       },
+      '/share': {
+        target: proxyTarget,
+        changeOrigin: true,
+      },
     },
   },
 })

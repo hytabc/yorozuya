@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { BarChart3, BookOpen, BriefcaseBusiness, Check, ChevronDown, CircleQuestionMark, Gamepad2, HeartHandshake, History, House, LogOut, Map, Megaphone, Menu, MessageCircle, MessagesSquare, ShieldCheck, Snowflake, Sparkles, Store, UserPlus, UserRound, Users, X } from '@lucide/vue'
+import { BarChart3, BookOpen, BriefcaseBusiness, Check, ChevronDown, CircleQuestionMark, Gamepad2, HeartHandshake, History, House, ListChecks, LogOut, Map, Megaphone, Menu, MessageCircle, MessagesSquare, ShieldCheck, Snowflake, Sparkles, Store, Trophy, UserPlus, UserRound, Users, X } from '@lucide/vue'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/toast'
 import { OFFICIAL_GROUP } from '../constants'
@@ -24,7 +24,7 @@ const mobileGroup = ref(null)
 const ICONS = {
   BriefcaseBusiness, MessagesSquare, CircleQuestionMark, Gamepad2, Sparkles, Snowflake,
   BookOpen, Map, UserPlus, HeartHandshake, Users, Store, Megaphone, History,
-  ShieldCheck, BarChart3, House,
+  ShieldCheck, BarChart3, House, ListChecks, Trophy,
 }
 
 // 六个大厅，按当前身份过滤条目；整组无可见条目时隐藏。
@@ -111,7 +111,7 @@ onBeforeUnmount(() => {
   <header class="topbar">
     <div class="topbar-inner">
       <RouterLink to="/" class="brand" aria-label="万事屋委托站首页">
-        <span class="brand-mark">万</span>
+        <img class="brand-logo" src="/brand/logo-square-512.png" alt="" width="40" height="40" />
         <span><strong>万事屋</strong><small>YOROZUYA BOARD</small></span>
       </RouterLink>
 
