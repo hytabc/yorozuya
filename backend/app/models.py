@@ -260,6 +260,8 @@ class TaskMember(Base):
     )
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     cancel_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # 完成时按防刷规则折算后的系统基础积分；评价结算以它为基数（0 表示历史委托）。
+    base_points_earned: Mapped[int] = mapped_column(Integer, default=0)
 
     task: Mapped[Task] = relationship(back_populates="members")
     user: Mapped[User] = relationship(foreign_keys=[user_id], back_populates="memberships")

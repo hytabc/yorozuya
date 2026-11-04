@@ -554,6 +554,10 @@ class PointsRules(BaseModel):
     bounty_min: int
     bounty_max: int
     advance_ratio: float
+    pair_decay: dict[int, float]
+    daily_system_cap: int
+    new_account_days: int
+    new_account_factor: float
 
 
 class TaskStats(BaseModel):

@@ -475,6 +475,12 @@ def migrate_schema() -> None:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN base_points INTEGER NOT NULL DEFAULT 0"))
         if "bounty_points" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN bounty_points INTEGER NOT NULL DEFAULT 0"))
+        if inspector.has_table("task_members"):
+            member_columns = {column["name"] for column in inspector.get_columns("task_members")}
+            if "base_points_earned" not in member_columns:
+                connection.execute(
+                    text("ALTER TABLE task_members ADD COLUMN base_points_earned INTEGER NOT NULL DEFAULT 0")
+                )
         if "cancelled_at" not in task_columns:
             connection.execute(text("ALTER TABLE tasks ADD COLUMN cancelled_at DATETIME"))
         if "cancel_requested_by" not in task_columns:

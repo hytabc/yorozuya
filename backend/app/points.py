@@ -9,7 +9,8 @@
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint, func, select, update
@@ -17,8 +18,12 @@ from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from .database import Base, get_db
 from .dependencies import get_current_user
-from .models import Task, TaskMemberResponse, User
+from .models import Task, TaskMember, TaskMemberResponse, TaskStatus, User
 from .schemas import PointLedgerOut, PointLedgerPage, PointsRules, PointsSummary
+
+# 每日上限只统计系统发放的积分；悬赏、成就、邀请、每日任务不计入。
+SYSTEM_POINT_KINDS = ("task_reward", "rating_settle")
+LOCAL_TZ = ZoneInfo("Asia/Shanghai")
 
 # 系统基础积分：档位 × 分类系数，四舍五入取整，最低 1 分。
 SCALE_POINTS = {"small": 5, "medium": 15, "large": 40}
@@ -35,10 +40,66 @@ BOUNTY_MIN = 0
 BOUNTY_MAX = 200
 # 完成时先发基础积分的 60%，评价后按星级结算尾款。
 ADVANCE_RATIO = 0.6
+# 防刷：同一对用户重复合作的系统积分衰减（第 1/2/3 次，第 4 次起为 0）。
+PAIR_DECAY = {1: 1.0, 2: 0.5, 3: 0.25}
+# 防刷：每日可获得的系统积分上限（悬赏、成就、邀请不受限）。
+DAILY_SYSTEM_CAP = 60
+# 防刷：注册 7 天内的新账号获得的系统积分减半。
+NEW_ACCOUNT_DAYS = 7
+NEW_ACCOUNT_FACTOR = 0.5
+
+
+def _round_half_up(value: float) -> int:
+    """四舍五入（Python 内置 round 是银行家舍入，2.5 会变 2，积分场景不适合）。"""
+    return int(value + 0.5) if value >= 0 else -int(-value + 0.5)
 
 
 def task_base_points(category: str, scale: str) -> int:
-    return max(1, int(round(SCALE_POINTS.get(scale, SCALE_POINTS["small"]) * CATEGORY_FACTORS.get(category, 1.0))))
+    return max(1, _round_half_up(SCALE_POINTS.get(scale, SCALE_POINTS["small"]) * CATEGORY_FACTORS.get(category, 1.0)))
+
+
+def day_start_utc(now: datetime | None = None) -> datetime:
+    """以 Asia/Shanghai 的 0 点作为「今天」的边界，返回 UTC naive 时间。"""
+    current = (now or datetime.utcnow()).replace(tzinfo=timezone.utc).astimezone(LOCAL_TZ)
+    return current.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def system_points_today(db: Session, user_id: int) -> int:
+    return db.scalar(
+        select(func.coalesce(func.sum(PointLedger.lifetime_delta), 0)).where(
+            PointLedger.user_id == user_id,
+            PointLedger.kind.in_(SYSTEM_POINT_KINDS),
+            PointLedger.created_at >= day_start_utc(),
+        )
+    ) or 0
+
+
+def remaining_system_points(db: Session, user_id: int) -> int:
+    return max(0, DAILY_SYSTEM_CAP - system_points_today(db, user_id))
+
+
+def pair_completed_count(db: Session, publisher_id: int, taker_id: int, exclude_task_id: int) -> int:
+    return db.scalar(
+        select(func.count(func.distinct(Task.id)))
+        .select_from(Task)
+        .join(TaskMember, TaskMember.task_id == Task.id)
+        .where(
+            Task.publisher_id == publisher_id,
+            TaskMember.user_id == taker_id,
+            Task.status == TaskStatus.COMPLETED,
+            Task.id != exclude_task_id,
+        )
+    ) or 0
+
+
+def effective_system_points(db: Session, task: Task, member: TaskMember) -> int:
+    """按同对衰减与新号折扣折算本次可得的系统基础积分。"""
+    collaboration = pair_completed_count(db, task.publisher_id, member.user_id, task.id) + 1
+    factor = PAIR_DECAY.get(collaboration, 0.0)
+    created_at = member.user.created_at if member.user is not None else None
+    if created_at is not None and created_at > datetime.utcnow() - timedelta(days=NEW_ACCOUNT_DAYS):
+        factor *= NEW_ACCOUNT_FACTOR
+    return max(0, _round_half_up(task.base_points * factor))
 
 
 def escrow_bounty(db: Session, task: Task) -> bool:
@@ -77,8 +138,12 @@ def award_task_completion(db: Session, task: Task) -> None:
     if not takers:
         refund_bounty(db, task)
         return
-    advance = int(round(task.base_points * ADVANCE_RATIO))
     for member in takers:
+        earned = effective_system_points(db, task, member)
+        member.base_points_earned = earned
+        advance = min(_round_half_up(earned * ADVANCE_RATIO), remaining_system_points(db, member.user_id))
+        if advance <= 0:
+            continue
         award_points(
             db,
             member.user_id,
@@ -227,6 +292,10 @@ def points_rules():
         bounty_min=BOUNTY_MIN,
         bounty_max=BOUNTY_MAX,
         advance_ratio=ADVANCE_RATIO,
+        pair_decay=PAIR_DECAY,
+        daily_system_cap=DAILY_SYSTEM_CAP,
+        new_account_days=NEW_ACCOUNT_DAYS,
+        new_account_factor=NEW_ACCOUNT_FACTOR,
     )
 
 
