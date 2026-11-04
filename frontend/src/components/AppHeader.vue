@@ -111,7 +111,7 @@ onBeforeUnmount(() => {
   <header class="topbar">
     <div class="topbar-inner">
       <RouterLink to="/" class="brand" aria-label="万事屋委托站首页">
-        <span class="brand-mark">万</span>
+        <img class="brand-logo" src="/brand/logo-square-512.png" alt="" width="40" height="40" />
         <span><strong>万事屋</strong><small>YOROZUYA BOARD</small></span>
       </RouterLink>
 
