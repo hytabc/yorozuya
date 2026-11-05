@@ -57,8 +57,8 @@ function isUnlocked(rule, state) {
     return state.seenEndings.some((e) => e.type === type)
   }
   if (parts[0] === 'butterfly' && parts.length === 3) {
-    const [, , id] = parts
-    return state.triggeredButterflies.includes(id)
+    const [, levelId, letter] = parts
+    return state.triggeredButterflies.includes(`${levelId}:${letter}`)
   }
   return false
 }
