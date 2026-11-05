@@ -64,6 +64,22 @@ class Settings(BaseSettings):
     mascot_max_tokens: int = 1500
     mascot_timeout_seconds: int = 120
 
+    # ── VRChat 身份验证 ──
+    # 站点机器人账号的 auth cookie：只放 .env，不入库、不进日志。
+    # 支持 ``authcookie_...`` 或 ``auth=...; twoFactorAuth=...`` 两种写法。
+    vrchat_bot_auth_cookie: str = ""
+    # 也可以改用机器人账号密码 + TOTP（二选一；密码/TOTP 同样只放 .env）。
+    vrchat_bot_username: str = ""
+    vrchat_bot_password: str = ""
+    vrchat_bot_totp_secret: str = ""
+    vrchat_api_base: str = "https://api.vrchat.cloud/api/1"
+    # VRChat 要求可识别的 User-Agent；生产请改成带联系方式的描述值。
+    vrchat_user_agent: str = "yorozuya/1.0"
+    # 简介验证码有效期与资料快照新鲜度。
+    vrchat_challenge_ttl_seconds: int = 600
+    vrchat_snapshot_ttl_days: int = 7
+    vrchat_http_timeout_seconds: int = 15
+
     # 登录/注册人机验证：turnstile=Cloudflare Turnstile；builtin=站内字符图形验证码；
     # click=站内点击图形验证码（按题面颜色/形状/大小依次点击）；vaptcha=VAPTCHA V4。
     # 四者互斥，由本项切换。关闭 CAPTCHA_ENABLED 则登录/注册不再要求验证码（不推荐生产环境关闭）。

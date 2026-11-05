@@ -34,14 +34,14 @@ test('登录用户看到全部六个大厅及其条目', () => {
   assert.deepEqual(pathsOf('social', member), ['/friends', '/sugar'])
 })
 
-test('「更多」公开房屋与排行榜，每日任务需登录，管理入口按角色显隐', () => {
+test('「更多」公开房屋与排行榜，登录后出现每日任务/成就/足迹，管理入口按角色显隐', () => {
   assert.deepEqual(moreLinks(guest).map((link) => link.to), ['/house', '/rankings'])
-  assert.deepEqual(moreLinks(member).map((link) => link.to), ['/house', '/rankings', '/daily'])
-  assert.deepEqual(moreLinks({ ...member, canModerate: true, canOperate: true }).map((link) => link.to), ['/house', '/rankings', '/daily', '/admin', '/operations'])
+  assert.deepEqual(moreLinks(member).map((link) => link.to), ['/house', '/rankings', '/daily', '/achievements', '/footprints'])
+  assert.deepEqual(moreLinks({ ...member, canModerate: true, canOperate: true }).map((link) => link.to), ['/house', '/rankings', '/daily', '/achievements', '/footprints', '/admin', '/operations'])
   // 风纪委员只能进审核台，看板娘只能进运营台。
-  assert.deepEqual(moreLinks({ ...member, canModerate: true, canOperate: false }).map((link) => link.to), ['/house', '/rankings', '/daily', '/admin'])
-  assert.deepEqual(moreLinks({ ...member, canModerate: false, canOperate: true }).map((link) => link.to), ['/house', '/rankings', '/daily', '/operations'])
-  assert.equal(MORE_LINKS.length, 5)
+  assert.deepEqual(moreLinks({ ...member, canModerate: true, canOperate: false }).map((link) => link.to), ['/house', '/rankings', '/daily', '/achievements', '/footprints', '/admin'])
+  assert.deepEqual(moreLinks({ ...member, canModerate: false, canOperate: true }).map((link) => link.to), ['/house', '/rankings', '/daily', '/achievements', '/footprints', '/operations'])
+  assert.equal(MORE_LINKS.length, 7)
 })
 
 test('大厅高亮按当前路由命中任一子项', () => {

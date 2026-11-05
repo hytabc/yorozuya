@@ -87,7 +87,7 @@ onMounted(load)
     </div>
 
     <section class="stories-toolbar">
-      <span class="muted"><PenLine :size="15" /> 一人可以写多篇，配图通过审核后公开展示</span>
+      <span class="muted"><PenLine :size="15" /> 一人可以写多篇，配图上传即公开，违规会被下架</span>
       <button class="button" type="button" @click="create"><Plus :size="17" />写故事</button>
     </section>
 
@@ -124,7 +124,7 @@ onMounted(load)
             <small class="field-hint">匿名故事在故事会里只显示“匿名作者”，不会公开你的昵称与个人资料。</small>
           </div>
           <div class="story-photo-field">
-            <span>故事配图（可选，需审核）</span>
+            <span>故事配图（可选，上传即公开）</span>
             <ImageDropzone v-model="createPhotos" :max-files="3" :max-bytes="MAX_PHOTO_BYTES" :max-total-bytes="30 * 1024 * 1024" :disabled="creating" @error="toast.error" />
           </div>
           <div class="dialog-footer"><button type="button" class="button secondary" :disabled="creating" @click="showCreate = false">取消</button><button class="button" :disabled="creating"><BookOpen :size="16" />{{ creating ? '发布中…' : '发布故事' }}</button></div>

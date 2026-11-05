@@ -10,6 +10,7 @@ import UserTitleTag from '../components/UserTitleTag.vue'
 import CredentialCard from '../components/CredentialCard.vue'
 import AchievementWall from '../components/AchievementWall.vue'
 import LifeRecords from '../components/LifeRecords.vue'
+import VrTrustBadge from '../components/VrTrustBadge.vue'
 
 const route = useRoute()
 const toast = useToast()
@@ -20,6 +21,7 @@ const wall = ref({ total: 0, page: 1, page_size: 12, items: [] })
 const page = ref(1)
 const PAGE_SIZE = 12
 const ratings = ref(null)
+const trust = ref(null)
 
 const userId = computed(() => Number(route.params.userId))
 const totalPages = computed(() => Math.max(1, Math.ceil((wall.value.total || 0) / PAGE_SIZE)))
@@ -50,11 +52,19 @@ async function loadRatings() {
   }
 }
 
+async function loadTrust() {
+  try {
+    trust.value = (await api.get(`/users/${userId.value}/trust`)).data
+  } catch {
+    trust.value = null
+  }
+}
+
 async function load() {
   loading.value = true
   error.value = ''
   await loadProfile()
-  await Promise.all([loadWall(), loadRatings()])
+  await Promise.all([loadWall(), loadRatings(), loadTrust()])
   loading.value = false
 }
 
@@ -85,6 +95,7 @@ onMounted(load)
         <UserAvatar :user="profile.user" :size="72" />
         <div class="creator-identity">
           <h1>{{ profile.user.nickname }}<UserTitleTag :title="profile.user.title" /></h1>
+          <VrTrustBadge :trust="trust" show-empty />
           <p class="muted">{{ profile.user.bio || '这个人还没有填写简介。' }}</p>
           <div class="creator-tags">
             <span class="role-tag"><Award :size="13" />已完成 {{ profile.credential_count }} 份公开委托</span>

@@ -128,12 +128,18 @@ def test_sugar_endpoints_do_not_leak_unapproved_media(tmp_path, monkeypatch):
         bob = auth(client, "leak_bob")
         alice_id = me_id(client, alice)
 
-        # 未过审头像 + 一条被屏蔽的介绍图片
+        # 上传即公开的头像被管理员下架；另有一条被下架的介绍图片
         assert client.post(
             "/api/users/me/avatar", headers=alice, files={"avatar": ("a.png", make_png(), "image/png")}
         ).status_code == 201
+        admin = admin_headers(client)
+        assert client.patch(
+            f"/api/admin/users/{alice_id}/avatar",
+            headers=admin,
+            json={"is_visible": False, "admin_note": "头像违规"},
+        ).status_code == 200
         with TestingSession() as db:
-            db.add(UserPhoto(user_id=alice_id, file_path=f"users/{alice_id}/hidden.png", is_visible=False))
+            db.add(UserPhoto(user_id=alice_id, file_path=f"users/{alice_id}/hidden.png", is_visible=False, admin_note="图片违规"))
             db.commit()
             hidden_file = tmp_path / "private_media" / f"users/{alice_id}/hidden.png"
             hidden_file.parent.mkdir(parents=True, exist_ok=True)
@@ -151,7 +157,7 @@ def test_sugar_endpoints_do_not_leak_unapproved_media(tmp_path, monkeypatch):
             assert payload.status_code == 200, payload.text
             body = payload.json()
             entry = body if url.endswith(str(alice_id)) else next(p for p in body if p["user"]["id"] == alice_id)
-            # 未过审头像对外不可见
+            # 被下架头像对外不可见
             assert entry["user"]["avatar_url"] is None
             # 被屏蔽的介绍图片不出现在其他人的响应里
             assert all("/hidden.png" not in (photo["image_url"] or "") for photo in entry["user"]["photos"])
@@ -175,9 +181,16 @@ def test_admin_feedback_does_not_leak_unapproved_avatar(tmp_path, monkeypatch):
         assert client.post(
             "/api/users/me/avatar", headers=user, files={"avatar": ("a.png", make_png(), "image/png")}
         ).status_code == 201
+        admin = admin_headers(client)
+        uid = me_id(client, user)
+        assert client.patch(
+            f"/api/admin/users/{uid}/avatar",
+            headers=admin,
+            json={"is_visible": False, "admin_note": "头像违规"},
+        ).status_code == 200
         assert client.post("/api/feedback", headers=user, json={"content": "建议加暗色模式"}).status_code == 201
 
-        listed = client.get("/api/admin/feedback", headers=admin_headers(client))
+        listed = client.get("/api/admin/feedback", headers=admin)
         assert listed.status_code == 200, listed.text
         assert "avatars/" not in listed.text
 
@@ -196,24 +209,28 @@ def test_pending_media_is_private_and_moves_zones_on_moderation(tmp_path, monkey
             "/api/users/me/avatar", headers=alice, files={"avatar": ("a.png", make_png(), "image/png")}
         )
         assert uploaded.status_code == 201, uploaded.text
-        pending_url = uploaded.json()["avatar_url"]
-        # 待审 → 私有区签名地址，且文件确实不在公开目录里
-        assert pending_url.startswith("/api/media/")
-        assert media_path(tmp_path, pending_url).is_file()
-        assert not list((tmp_path / "uploads" / "avatars").rglob("*.png"))
+        public_url = uploaded.json()["avatar_url"]
+        # 上传即公开 → 公开区地址，文件确实在公开目录里
+        assert public_url.startswith("/uploads/avatars/")
+        assert media_path(tmp_path, public_url).is_file()
+        assert list((tmp_path / "uploads" / "avatars").rglob("*.png"))
 
-        # 审核通过 → 搬进公开区，地址变成 /uploads/
+        # 下架 → 搬进私有区，地址变成签名 /api/media/
+        client.patch(
+            f"/api/admin/users/{alice_id}/avatar",
+            headers=admin,
+            json={"is_visible": False, "admin_note": "头像违规"},
+        )
+        hidden_url = client.get("/api/auth/me", headers=alice).json()["avatar_url"]
+        assert hidden_url.startswith("/api/media/")
+        assert media_path(tmp_path, hidden_url).is_file()
+        assert not media_path(tmp_path, public_url).exists()
+
+        # 恢复 → 回到公开区
         client.patch(f"/api/admin/users/{alice_id}/avatar", headers=admin, json={"is_visible": True})
         approved = client.get("/api/auth/me", headers=alice).json()["avatar_url"]
         assert approved.startswith("/uploads/avatars/")
         assert media_path(tmp_path, approved).is_file()
-
-        # 再次屏蔽 → 撤回立即生效：旧公开地址对应的文件已不在公开目录
-        client.patch(f"/api/admin/users/{alice_id}/avatar", headers=admin, json={"is_visible": False})
-        assert not media_path(tmp_path, approved).exists()
-        hidden_url = client.get("/api/auth/me", headers=alice).json()["avatar_url"]
-        assert hidden_url.startswith("/api/media/")
-        assert media_path(tmp_path, hidden_url).is_file()
 
 
 def test_gated_media_requires_valid_signature(tmp_path, monkeypatch):
@@ -223,7 +240,17 @@ def test_gated_media_requires_valid_signature(tmp_path, monkeypatch):
         uploaded = client.post(
             "/api/users/me/avatar", headers=alice, files={"avatar": ("a.png", make_png(), "image/png")}
         )
-        signed_url = uploaded.json()["avatar_url"]
+        assert uploaded.json()["avatar_url"].startswith("/uploads/avatars/")
+        # 下架后才走签名地址，用它验证签名访问控制
+        alice_id = me_id(client, alice)
+        admin = admin_headers(client)
+        client.patch(
+            f"/api/admin/users/{alice_id}/avatar",
+            headers=admin,
+            json={"is_visible": False, "admin_note": "头像违规"},
+        )
+        signed_url = client.get("/api/auth/me", headers=alice).json()["avatar_url"]
+        assert signed_url.startswith("/api/media/avatars/")
         bare = signed_url.split("?", 1)[0]
 
         assert client.get(signed_url).status_code == 200

@@ -87,6 +87,7 @@ def pair_completed_count(db: Session, publisher_id: int, taker_id: int, exclude_
             Task.publisher_id == publisher_id,
             TaskMember.user_id == taker_id,
             Task.status == TaskStatus.COMPLETED,
+            Task.is_official.is_(False),
             Task.id != exclude_task_id,
         )
     ) or 0

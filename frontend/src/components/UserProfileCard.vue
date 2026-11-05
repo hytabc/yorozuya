@@ -8,6 +8,7 @@ import UserTitleTag from './UserTitleTag.vue'
 import LazyImage from './LazyImage.vue'
 import ImageLightbox from './ImageLightbox.vue'
 import VrTrustBadge from './VrTrustBadge.vue'
+import VrTrustFacts from './VrTrustFacts.vue'
 
 const props = defineProps({
   userId: { type: Number, default: null },
@@ -21,7 +22,7 @@ const error = ref('')
 const user = ref(props.initialUser)
 const viewerSrc = ref('')
 const viewerAlt = ref('')
-// 信任摘要需登录；游客或接口不可用时静默不展示，不影响资料卡片。
+// 公开信任摘要；接口不可用时静默不展示，不影响资料卡片。
 const trust = ref(null)
 
 async function loadTrust(userId) {
@@ -77,12 +78,13 @@ onMounted(async () => {
         </div>
       </div>
       <VrTrustBadge :trust="trust" show-empty class="user-card-trust" />
+      <VrTrustFacts :trust="trust" />
       <p v-if="user.bio" class="user-card-bio">{{ user.bio }}</p>
       <p v-else class="user-card-bio muted">这个人还没有填写简介。</p>
       <div v-if="user.photos?.length" class="user-profile-photos">
         <figure v-for="photo in user.photos" :key="photo.id" :class="{ blocked: !photo.is_visible }">
           <LazyImage class="zoomable" :src="photo.image_url" :alt="`${user.nickname} 的介绍图片`" @click="openViewer(photo)" />
-          <span v-if="!photo.is_visible"><EyeOff :size="13" />已屏蔽</span>
+          <span v-if="!photo.is_visible"><EyeOff :size="13" />已下架{{ photo.admin_note ? `：${photo.admin_note}` : '' }}</span>
         </figure>
       </div>
       <RouterLink class="text-link user-card-portfolio" :to="`/creators/${user.id}`">查看作品集与凭证</RouterLink>

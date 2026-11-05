@@ -1,7 +1,8 @@
-"""官方活跃委托：以真实 Task 的形式出现在大厅，全局共享、最多 3 个、定时随机刷新。
+"""官方活跃委托：以真实 Task 的形式出现在大厅，全局共享、最多 3 个。
 
 - 由隐藏的系统账号 ``__official__`` 发布，外观与普通委托一致（只是带「官方」标记）；
-- 池子里最多 3 个「未结束」的官方委托；被接取后其他人不能再接，等过期自动刷新；
+- 首次播种 3 个，之后每隔 4~8 小时只刷新 1 个（替换最早发布的那个，或在空位补 1 个）；
+- 被接取后其他人不能再接，等过期自动轮换；
 - 完成时由系统核对对应站内动作（留言、发帖、点赞……），核对通过后一次性发放积分。
 """
 from __future__ import annotations
@@ -15,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from .house import HouseRoom
 from .models import (
+    AppSetting,
     BoardMessage,
     FriendProfile,
     Story,
@@ -36,8 +38,9 @@ from .sugar_frost import SugarFrostSave
 SYSTEM_USERNAME = "__official__"
 SYSTEM_NICKNAME = "万事屋官方"
 OFFICIAL_POOL_LIMIT = 3
-# 每个官方委托存活 2~6 小时，到期由 expire_due_tasks 清理，下次进入大厅时随机补位。
-OFFICIAL_TTL_MINUTES = (120, 360)
+# 每隔 4~8 小时只刷新 1 个；首次播种时给 3 个任务分配连续的时间槽。
+OFFICIAL_REFRESH_MINUTES = (240, 480)
+OFFICIAL_NEXT_REFRESH_KEY = "official_next_refresh_at"
 CATEGORY = "其他委托"
 
 OFFICIAL_POOL = (
@@ -154,50 +157,147 @@ def quest_progress_today(db: Session, user_id: int, key: str) -> int:
     }.get(key, lambda: 0)()
 
 
+def _next_refresh_at(base: datetime | None = None) -> datetime:
+    base = base or datetime.utcnow()
+    return base + timedelta(minutes=random.randint(*OFFICIAL_REFRESH_MINUTES))
+
+
+def _load_next_refresh(db: Session) -> datetime | None:
+    row = db.get(AppSetting, OFFICIAL_NEXT_REFRESH_KEY)
+    if row is None:
+        return None
+    try:
+        return datetime.fromisoformat(row.value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _save_next_refresh(db: Session, value: datetime) -> None:
+    row = db.get(AppSetting, OFFICIAL_NEXT_REFRESH_KEY)
+    if row is None:
+        db.add(AppSetting(key=OFFICIAL_NEXT_REFRESH_KEY, value=value.isoformat()))
+    else:
+        row.value = value.isoformat()
+
+
+def _active_official_tasks(db: Session) -> list[Task]:
+    return list(
+        db.scalars(
+            select(Task)
+            .where(Task.is_official.is_(True), Task.status.in_(ACTIVE_STATUSES))
+            .order_by(Task.expires_at.asc(), Task.id.asc())
+        ).all()
+    )
+
+
+def _next_expiry_base(active: list[Task], now: datetime) -> datetime:
+    expiries = [task.expires_at for task in active if task.expires_at is not None]
+    return max(expiries + [now])
+
+
+def _schedule_from_active(active: list[Task], fallback: datetime, now: datetime) -> datetime:
+    future = [task.expires_at for task in active if task.expires_at and task.expires_at > now]
+    return min(future) if future else fallback
+
+
+def _create_official_task(
+    db: Session, publisher: User, item: dict, expires_at: datetime
+) -> Task:
+    task = Task(
+        title=item["title"],
+        description=item["description"],
+        category=CATEGORY,
+        scale="small",
+        base_points=item["reward"],
+        bounty_points=0,
+        status=TaskStatus.PUBLISHED,
+        expires_at=expires_at,
+        publisher_id=publisher.id,
+        required_takers=1,
+        is_official=True,
+        official_key=item["key"],
+    )
+    db.add(task)
+    return task
+
+
 def ensure_official_tasks(db: Session) -> None:
-    """把大厅里的官方委托补齐到 3 个（已有被接取/进行中的也占位）。"""
+    """按 4~8 小时节奏刷新一个官方委托。
+
+    首次播种 3 个；之后每个时间窗口最多补 1 个。池子满 3 个时替换最早发布的
+    一个，有进行中的委托时不强行打断，等下一个窗口再试。
+    """
     if not enabled():
         return
-    expire_due = db.scalars(
+    now = datetime.utcnow()
+
+    # 兜底清理：通常 expire_due_tasks 已处理过期任务。
+    expired = db.scalars(
         select(Task).where(
             Task.is_official.is_(True),
             Task.status.in_(ACTIVE_STATUSES),
-            Task.expires_at <= datetime.utcnow(),
+            Task.expires_at <= now,
         )
     ).all()
-    for task in expire_due:
+    for task in expired:
         task.status = TaskStatus.EXPIRED
-        task.updated_at = datetime.utcnow()
+        task.updated_at = now
 
-    active = db.scalars(
-        select(Task).where(Task.is_official.is_(True), Task.status.in_(ACTIVE_STATUSES))
-    ).all()
-    if len(active) >= OFFICIAL_POOL_LIMIT:
-        db.commit() if expire_due else None
+    active = _active_official_tasks(db)
+    next_refresh = _load_next_refresh(db)
+
+    # 首次播种：一次性建立 3 个连续时间槽，后续每个槽只刷新 1 个。
+    if not active and next_refresh is None:
+        publisher = ensure_official_user(db)
+        slot = now
+        first_slot = None
+        for item in random.sample(
+            OFFICIAL_POOL, min(OFFICIAL_POOL_LIMIT, len(OFFICIAL_POOL))
+        ):
+            slot = _next_refresh_at(slot)
+            if first_slot is None:
+                first_slot = slot
+            _create_official_task(db, publisher, item, slot)
+        _save_next_refresh(db, first_slot or _next_refresh_at(now))
+        db.commit()
+        return
+
+    if next_refresh is None:
+        # 兼容旧库：没有调度记录时从最早的未来到期时间开始。
+        next_refresh = _schedule_from_active(active, _next_refresh_at(now), now)
+        _save_next_refresh(db, next_refresh)
+        db.flush()
+
+    if now < next_refresh:
+        if expired:
+            db.commit()
         return
 
     publisher = ensure_official_user(db)
+
+    # 池子满了就替换最早发布的一个；全在进行中就等下一个窗口。
+    if len(active) >= OFFICIAL_POOL_LIMIT:
+        published = [task for task in active if task.status == TaskStatus.PUBLISHED]
+        if not published:
+            _save_next_refresh(db, _schedule_from_active(active, _next_refresh_at(now), now))
+            db.commit()
+            return
+        retire = published[0]
+        retire.status = TaskStatus.EXPIRED
+        retire.updated_at = now
+        active = [task for task in active if task is not retire]
+
     used_keys = {task.official_key for task in active if task.official_key}
     candidates = [item for item in OFFICIAL_POOL if item["key"] not in used_keys]
-    shortfall = OFFICIAL_POOL_LIMIT - len(active)
-    for item in random.sample(candidates, min(shortfall, len(candidates))):
-        minutes = random.randint(*OFFICIAL_TTL_MINUTES)
-        db.add(
-            Task(
-                title=item["title"],
-                description=item["description"],
-                category=CATEGORY,
-                scale="small",
-                base_points=item["reward"],
-                bounty_points=0,
-                status=TaskStatus.PUBLISHED,
-                expires_at=datetime.utcnow() + timedelta(minutes=minutes),
-                publisher_id=publisher.id,
-                required_takers=1,
-                is_official=True,
-                official_key=item["key"],
-            )
-        )
+    if not candidates:
+        _save_next_refresh(db, _schedule_from_active(active, _next_refresh_at(now), now))
+        db.commit()
+        return
+
+    item = random.choice(candidates)
+    new_expiry = _next_refresh_at(_next_expiry_base(active, now))
+    _create_official_task(db, publisher, item, new_expiry)
+    _save_next_refresh(db, _schedule_from_active(active, new_expiry, now))
     db.commit()
 
 

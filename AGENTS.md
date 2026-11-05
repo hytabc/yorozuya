@@ -100,13 +100,13 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 8. **反馈**：游客可提交（需联系方式）；`GET/PATCH /api/admin/feedback` 用 `get_role_manager`（staff 可处理）。
 9. **举报**：有每日上限设置（`/api/admin/settings/report-limit`）；处理动作 close/hide/restore。
 10. **砂糖社**：公开档案（照片存 `sugar_upload_path`）→ 互相 confirm 成 pair → 任一方 end；**砂糖榜只展示进行中（`active`）的关系**，已结束的 pair 仅保留在库中用于历史时长、不再出现在 `GET /api/sugar/pairs/top`，榜上取维持最久前三对。
-10.1 **交友厅**（`/friends`，需登录）：每人一份 `FriendProfile`，登记**必填**「VRChat 中的昵称」（`vrc_nickname`，1-64 字，新增列已在 `migrate_schema()` 追加）与介绍，可传最多 5 张照片（审核后公开）；好友申请 `pending→accepted/rejected`，`accepted` 即互为好友。接口在 `/api/friends*`，照片审核在监管台「图片管理 → 交友照片」（`/api/admin/friends/photos*`）。
+10.1 **交友厅**（`/friends`，需登录）：每人一份 `FriendProfile`，登记**必填**「VRChat 中的昵称」（`vrc_nickname`，1-64 字，新增列已在 `migrate_schema()` 追加）与介绍，可传最多 5 张照片（上传即公开，审核人员可下架）；好友申请 `pending→accepted/rejected`，`accepted` 即互为好友。接口在 `/api/friends*`，照片下架在监管台「图片管理 → 交友照片」（`/api/admin/friends/photos*`）。
 10.2 **大图放大**：砂糖社/交友厅/地图详情的照片、个人资料弹窗与「个人设置」的介绍图片，点击后用 `frontend/src/components/ImageLightbox.vue` 全屏放大（带缩放动效，支持滚轮/按钮/双击/双指缩放与拖动平移）；卡片封面点击行为不变。
 11. **看板娘**：站内 AI 助手，走 Moonshot API（`mascot_*` 配置，未配 key 优雅降级）。
 12. **首页公告弹窗**：游客每次进入首页都需确认当前公告；登录用户按账号在浏览器记录各公告的 `updated_at`，仅首次看到或公告更新后再次确认。
-13. **地图实拍**：推荐地图时可附 3 张图片；此后每位用户可为同一地图上传最多 5 张实拍，单张最大 10 MB，审核通过后公开展示。
+13. **地图实拍**：推荐地图时可附 3 张图片；此后每位用户可为同一地图上传最多 5 张实拍，单张最大 10 MB，上传即公开，审核人员可下架。
 14. **糖霜世界**（`/frost`，任意登录用户可玩）：纯前端因果解谜游戏，12 关 / 45 设计结局 + 5 全局结局；进度按用户存于 `sugar_frost_saves`（`GET/PUT /api/sugar-frost/save`，revision CAS，409 表示其他页面已更新）。关卡数据/文案在 `frontend/src/frost/data/`，判定逻辑在 `frontend/src/frost/engine/`；改数据后跑 `node frontend/scripts/verify-frost.mjs` 校验可达性。
-15. **故事会**（`/stories`，需登录）：用户可发布匿名或公开的故事（`Story.is_anonymous`，同一人可发多篇），可附最多 3 张配图（单张 ≤10 MB，需审核后才公开）；其他登录用户可评论（评论不匿名），评论可由评论作者、故事作者或管理员组（超管/`staff`）删除；故事可由作者本人或管理员组删除，删除时级联清理评论与磁盘图片。接口在 `/api/stories*`，配图审核在监管台「图片管理 → 故事配图」（`/api/admin/story-photos*`）。
+15. **故事会**（`/stories`，需登录）：用户可发布匿名或公开的故事（`Story.is_anonymous`，同一人可发多篇），可附最多 3 张配图（单张 ≤10 MB，上传即公开，审核人员可下架）；其他登录用户可评论（评论不匿名），评论可由评论作者、故事作者或管理员组（超管/`staff`）删除；故事可由作者本人或管理员组删除，删除时级联清理评论与磁盘图片。接口在 `/api/stories*`，配图下架在监管台「图片管理 → 故事配图」（`/api/admin/story-photos*`）。
 16. **备案信息**（`/api/site-config`）：页脚展示 `.env` 里的 `SITE_ICP`，点击新窗口跳转 `SITE_ICP_URL`（默认工信部备案查询系统 `https://beian.miit.gov.cn/`），满足国内备案对"可点击跳转官方系统"的要求。留空则整行不展示。**备案号是私有信息，只从 `.env` 读，不得写进任何入库文件**（详见「约定与坑」）。`/life`、`/life-admin` 全屏游戏页不显示页脚。
 17. **加载性能约定**（图片懒加载 + 骨架屏 + 按需请求）：
    - **图片**：所有展示后台内容图的 `<img>` 必须用 `frontend/src/components/LazyImage.vue`（IntersectionObserver 进入视口才请求 + shimmer 占位 + 淡入，单根 `<img>` 渲染以便 `.card > img` 等选择器继续生效）。**例外**（保持原生 `<img>`）：验证码、`ImageLightbox` 单张大图、`URL.createObjectURL` 的本地待上传预览、`life/**` 与 `vrclife/**` 游戏素材。
@@ -188,7 +188,7 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 
 ## 房屋模块（2026-10）
 
-- 导航“更多”现在包含所有人可见的 `/house`，监管台/运营台仍按权限过滤；分享与创作者页面为 `/house/visit/:shareId`、`/house/users/:userId`。
+- 导航“更多”现在包含所有人可见的 `/house`、`/rankings`，登录后出现 `/daily`、`/achievements`、`/footprints`；监管台/运营台仍按权限过滤。分享与创作者页面为 `/house/visit/:shareId`、`/house/users/:userId`。
 - `backend/app/house.py` 独立路由和六张表：房屋、家具、不可变版本、纹理、点赞、留言（家具与版本分表）；一人一套，revision CAS，写接口沿用邮箱闸门。
 - 原创预置家具24类×5款、30款纹理、六套色板、五个示例场景：`backend/app/house_catalog.json`；生成器 `backend/scripts/build_house_assets.py`，素材与来源说明 `docs/done/house-assets.md`。
 - 房间坐标 x/y为地面、z为高度；实例保存 versionId 和 paletteOverrides，改色不改模板。修改官方几何需新增不可变版本，不能覆盖旧版本。
@@ -208,15 +208,15 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - 新模块均照 `house.py` 的方式：模型 + `APIRouter(prefix=...)` + 字典序列化，在 `main.py` 顶部 import、`include_router` 区挂载，不往 `main.py` 堆业务。
   - `backend/app/facets.py`：`task_facets`（技能/平台/World/氛围）、`/api/tasks/facets`、`PATCH /api/tasks/{id}/facets`。词表与 `frontend/src/constants.js` 的 `TASK_SKILLS` / `TASK_PLATFORMS` / `ATMOSPHERE_GROUPS` / `FACET_LIMITS` **必须同步**。
   - `backend/app/atmosphere.py`：`atmosphere_acks`、`/api/atmosphere/status|ack`；`enforce_ack()` 挂在发布与接取，超管豁免，`ATMOSPHERE_GATE_ENABLED=false` 可放行；pytest 下跳过。
-  - `backend/app/trust.py`：`vrchat_identities`、`/api/vrchat/*`、`/api/users/{id}/trust`、`/api/tasks/{id}/trust`、`/api/admin/vrchat/*`。**软绑定**：只存显示名与主页链接，`verified` 恒为 false；不存密码/令牌，不调外部 API；披露在接口层裁剪；匿名委托直接返回 `publisher=null`。
+  - `backend/app/trust.py`：`vrchat_identities` / `vrchat_bans`、`/api/vrchat/*`、`/api/users/{id}/trust`、`/api/tasks/{id}/trust`、`/api/admin/vrchat/*`。**简介验证码**：`POST /link/start` 用站点机器人账号读取公开资料并签发 10 分钟一次性码，用户在 VRChat 简介写入后 `POST /link/check` 核对；通过后 `verified=true` 并记录 Trust Rank / 账号年龄 / 平台，7 天快照，`POST /refresh` 复核。机器人认证二选一：`.env` 的 `VRCHAT_BOT_AUTH_COOKIE`，或 `VRCHAT_BOT_USERNAME` + `VRCHAT_BOT_PASSWORD` +（2FA）`VRCHAT_BOT_TOTP_SECRET`；不存**用户**密码，机器人的账号密码/TOTP 也只在 `.env`。披露在接口层裁剪；匿名委托直接返回 `publisher=null`。后台可查询/解绑/拉黑 `usr_` ID。
   - `backend/app/credentials.py`：`task_credentials`、`/api/credentials/*`、`/api/admin/credentials/{id}`、`/api/creators/*`。凭证在 `confirm_task` 完成判断的**同一事务**内签发（`issue_for_task`），`(task_id,taker_id)` 唯一保证幂等，快照不可篡改；编号 `WS-{年}-{id 补 6 位}`。
   - `backend/app/events.py`：`task_events`、`/api/events`、`/api/events/summary`、`/api/events/read`。只记当事人自己的委托动态，不做全站新委托流；事件与状态变更同事务写入。
 - 前端对应：`facets.js` + `TaskFacetChips.vue`、`atmosphereRules.js` + `composables/useAtmosphere.js` + `AtmosphereGate.vue` + `TermsView.vue`（`/terms`）、`trust.js` + `VrTrustBadge.vue` + `TrustDisclosureDialog.vue` + `VrchatIdentitySection.vue`、`credential.js` + `CredentialCard.vue` + `CredentialView.vue` + `CreatorPortfolio.vue` + `MyCredentialsSection.vue`、`hall/space/*`、`events.js` + `NotificationCenter.vue`。
 - 大厅默认视图仍是列表；星图（Three.js 正交场景 + HTML 标签覆盖层）按需加载，`HALL_SPACE_VIEW_ENABLED=false` 可整体关闭，WebGL 失败自动回退列表。布局在 `hall/space/layout.js`，纯函数、确定性、上限 60 条。
-- 新增页面路由：`/terms`、`/credential/:serial`、`/creators/:userId`，全部 `() => import()`；`PageKeyLiteral` 与 `PAGE_LABELS` 已同步加入 `terms` / `creator` / `credential`。
+- 新增页面路由：`/terms`、`/credential/:serial`、`/creators/:userId`、`/achievements`、`/footprints`，全部 `() => import()`；`PageKeyLiteral` 与 `PAGE_LABELS` 已同步加入 `terms` / `creator` / `credential` / `achievements` / `footprints`。
 - 通知中心轮询 30 秒（`document.hidden` 时暂停）；点击事件跳转 `/?task=<id>`，由大厅复用 `TaskDialog`，不新增详情路由。
 - 回归：`backend/tests/test_task_facets.py`、`test_atmosphere.py`、`test_vrchat.py`、`test_credentials.py`、`test_events.py`；前端 `facets` / `atmosphere` / `trust` / `credential` / `hallSpace` / `events` 六个 `.test.mjs`。后端基线已到 251 个用例。
-- ⚠️ 不要删除或弱化 `/terms` 的完整条款；礼仪确认只改变呈现顺序。不要把 `verified` 写成 true，也不要展示未接入的 Trust Rank。
+- ⚠️ 不要删除或弱化 `/terms` 的完整条款；礼仪确认只改变呈现顺序。只有简介验证码通过、且资料来自服务端快照时才能写 `verified=true`；不得伪造 Trust Rank / 账号年龄 / 平台。共同社群用双方公开社群交集；共同好友只能拿到“与站点机器人”的数量并必须标注范围；常驻 World 自动读主页 World + 手动补充，不能伪造。
 
 ## 积分 / 评分 / 每日任务 / 成就 / 等级（2026-11）
 
@@ -232,15 +232,15 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - **评价**（`backend/app/ratings.py`，`task_ratings`）：0~5 半星 11 档、双向、7 天窗口、双盲（双方提交即互见）、24h 内可改一次、逾期自动 3 星；0 星必选原因，≤2 星必填 ≥15 字。
   - 聚合与榜单用贝叶斯平滑 `(10×4.0+Σ)/(10+n)`，评分榜要求 ≥5 条；`rating_appeals` 支持 14 天内申诉，撤销/改星会重算积分。
 - **每日任务**（`daily.py`）：固定 5 项（发布≥30 字 +2、完成 +4、评价 +1、分享 +1、全清 +2），按 Asia/Shanghai 0 点刷新，需手动领取。
-- **官方活跃委托**（`official.py`）：以真实 Task 出现在大厅（`is_official` / `official_key`，系统账号 `__official__` 发布），全局共享最多 3 个、随机存活 2~6 小时后轮换；被接取即占位，接单人确认时由 `quest_progress_today()` 核对当天站内动作，通过后一次性发积分；不参与评价。
+- **官方活跃委托**（`official.py`）：以真实 Task 出现在大厅（`is_official` / `official_key`，系统账号 `__official__` 发布），全局共享最多 3 个；首次播种 3 个，之后每隔 4~8 小时只刷新 1 个（`app_settings.official_next_refresh_at` 记录下一窗口，满池时替换最早发布的一个）。被接取即占位，接单人确认时由 `quest_progress_today()` 核对当天站内动作，通过后一次性发积分；不参与评价。
 - **成就**（`achievements.py`，26 个）：条件由业务表实时计算，打开成就页自动补发；成就只加终身积分。
 - **等级**（`levels.py`）：Lv1~10 由 lifetime 推导（0/50/150/350/700/1200/2000/3200/5000/8000）；接单上限 `max(管理员设置, 2+Lv//3)`、悬赏上限 `Lv×20`、Lv3 起可发悬赏；委托人评分（≥5 条）<3.0 悬赏减半、<2.5 禁悬赏/多人、<2.0 每日发布上限 1。
-- **排行榜**（`rankings.py`）：积分/接单人评分/委托人评分/完成数四榜，`users.rank_opt_out` 可退出。
+- **排行榜**（`rankings.py`）：积分/接单人评分/委托人评分/真实委托四榜，官方委托与 `__official__` 不计入；`users.rank_opt_out` 可退出，开关已移到 `/rankings` 页。
 - **邀请**（`invites.py`）：每人 8 位永久码，注册或 7 天内绑定；被邀请人首单完成后邀请人 +20 / 被邀请人 +10，邀请人每月最多 5 个有效邀请。
-- **分享**（`shares.py` + `GET /share/task/{id}`）：`task_shares` 记渠道；OG 落地页只输出转义后的 meta 并跳回 SPA，分享链接可带 `?ref=<邀请码>`。
-- **人生记录**（`records.py`）：`GET /api/users/{id}/records` 汇总等级/完成数/评分/成就/常做分类；个人设置展示同一份数据与积分流水。
-- 前端：`/daily`、`/rankings`（「更多」入口）、`RatingSection`、`AchievementWall`、`LifeRecords`、`ShareDialog`；官方委托在大厅卡片上带「官方」标记；条款见 `/terms` 七~九节。
-- 回归：`backend/tests/test_points.py`、`test_ratings.py`、`test_daily.py`、`test_official.py`、`test_achievements.py`、`test_levels.py`、`test_rankings.py`、`test_records.py`、`test_invite.py`、`test_share.py`（后端已到 294 个用例）。
+- **分享**（`shares.py` + `GET /share/task/{id}`）：`task_shares` 记渠道（`dialog/copy/qrcode/native/poster`）；`ShareDialog.vue` 用 Canvas 生成 1080×1440（3:4）与 1080×1920（9:16）海报，二维码嵌入、客户端导出 PNG，状态丝带与匿名/官方文案由 `sharePoster.js` 统一；OG 落地页只输出转义后的 meta 并跳回 SPA（统一 OG 图在 `/og-16x9.png`），分享链接可带 `?ref=<邀请码>`。
+- **人生记录**（`records.py`）：`GET /api/users/{id}/records` 汇总等级/完成数/评分/成就/常做分类；个人设置已拆出 `/achievements` 与 `/footprints`，足迹页展示同一份数据与积分流水，个人页只留入口卡片。
+- 前端：`/daily`、`/rankings`、`/achievements`、`/footprints`（「更多」入口）、`RatingSection`、`AchievementWall`、`LifeRecords`、`ShareDialog`；官方委托在大厅卡片上带「官方」标记；条款见 `/terms` 七~九节。
+- 回归：`backend/tests/test_points.py`、`test_ratings.py`、`test_daily.py`、`test_official.py`、`test_achievements.py`、`test_levels.py`、`test_rankings.py`、`test_records.py`、`test_invite.py`、`test_share.py`（后端已到 298 个用例）。
 - 品牌素材由 `scripts/build-brand-assets.py` 生成到 `frontend/public/brand/`，改色/改尺寸后重跑即可。
 
 ## 主题可读性与新手引导（2026-11）

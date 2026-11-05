@@ -35,7 +35,7 @@ function openViewer(photo) {
   viewerAlt.value = `${props.map.name} 实拍照片`
 }
 
-const UPLOAD_PROMPT = '你也来过这里吗？把镜头里的光影、朋友和难忘瞬间留在这里，让每一次到访都成为这张地图共同的回忆。照片审核通过后公开展示。'
+const UPLOAD_PROMPT = '你也来过这里吗？把镜头里的光影、朋友和难忘瞬间留在这里，让每一次到访都成为这张地图共同的回忆。照片上传即公开，违规会被下架。'
 
 const isOwner = computed(() => auth.user?.id === props.map.uploader.id)
 const myPrivatePhotos = computed(() => props.map.photos.filter((photo) => photo.uploaded_by_me && !photo.is_visible))
@@ -198,8 +198,8 @@ function loginToUpload() {
         <template v-if="auth.isLoggedIn">
           <div v-if="myPrivatePhotos.length" class="my-photo">
             <figure v-for="photo in myPrivatePhotos" :key="photo.id" class="blocked">
-              <img :src="photo.image_url" alt="我上传的待审核实拍照片" />
-              <span class="photo-blocked"><EyeOff :size="14" />{{ photo.moderated ? '未通过审核' : '审核中' }}</span>
+              <img :src="photo.image_url" alt="我上传的已下架实拍照片" />
+              <span class="photo-blocked"><EyeOff :size="14" />已下架：{{ photo.admin_note || '未说明理由' }}</span>
               <div class="photo-actions">
                 <label class="icon-button" title="更新图片" aria-label="更新图片" :class="{ disabled: changingPhotoId === photo.id || deletingPhotoId === photo.id }">
                   <Pencil :size="15" /><input type="file" accept="image/png,image/jpeg" :disabled="changingPhotoId === photo.id || deletingPhotoId === photo.id" @change="replacePhoto(photo, $event)" />
