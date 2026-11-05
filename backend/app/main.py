@@ -232,6 +232,7 @@ from .facets import (
 from . import atmosphere as atmosphere_module
 from .atmosphere import router as atmosphere_router
 from .onboarding import router as onboarding_router
+from .version_notes import router as version_notes_router
 from .trust import (
     admin_router as vrchat_admin_router,
     present_public as present_vrchat_public,
@@ -424,6 +425,9 @@ def migrate_schema() -> None:
                 connection.execute(
                     text("ALTER TABLE users ADD COLUMN onboarding_version INTEGER NOT NULL DEFAULT 0")
                 )
+            # 版本更新确认：存量账号为空，上线后会各自看到一次当前版本的说明。
+            if "version_ack" not in user_columns:
+                connection.execute(text("ALTER TABLE users ADD COLUMN version_ack VARCHAR(32)"))
             # 积分账户：新增列时一次性回填历史补偿，避免老用户在新排行榜里从零开始。
             if "lifetime_points" not in user_columns:
                 connection.execute(
@@ -851,6 +855,7 @@ app.include_router(house_admin_router)
 app.include_router(task_facets_router)
 app.include_router(atmosphere_router)
 app.include_router(onboarding_router)
+app.include_router(version_notes_router)
 app.include_router(vrchat_router)
 app.include_router(vrchat_admin_router)
 app.include_router(vrchat_trust_router)
@@ -1019,6 +1024,7 @@ EVENT_LABELS = {
     "profile.email_bind": "绑定/换绑邮箱",
     "staff.apply_volunteer": "申请志愿者",
     "announcement.confirm": "确认首页公告",
+    "version.confirm": "确认版本更新",
     "mascot.open": "打开看板娘",
     "mascot.send": "与看板娘对话",
     "lightbox.open": "放大查看图片",
@@ -1160,6 +1166,7 @@ def present_user_self(user: User) -> UserSelf:
         theme_mode=user.theme_mode or "auto",
         theme_style=user.theme_style,
         onboarding_version=user.onboarding_version or 0,
+        version_ack=user.version_ack,
         email_gate_required=email_gate_required(user),
         is_admin=user.is_admin,
         is_active=user.is_active,

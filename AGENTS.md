@@ -260,6 +260,15 @@ frontend/scripts/verify-frost.mjs # 糖霜世界关卡穷举校验（node fronte
 - 写入口：`backend/app/onboarding.py` 的 `POST /api/onboarding/complete`（`get_current_user`，受邮箱闸门保护；只增不减、幂等）。前端成功后 `auth.patchUser({ onboarding_version })`。
 - 前端：`composables/onboardingSteps.js` 是纯数据步骤表（5 步）；**递增 `ONBOARDING_VERSION` 会让已看过的账号再看一次新版，设为 `0` 等于整体关停**。锚点用 `data-tour="..."`（测试会扫描源码确认存在），每步可给多个候选选择器，`composables/tourGeometry.js` 的 `pickAnchor()` 取第一个"真正可见"的（680px 以下自动落到 `.mobile-menu`）。
 - `components/TourOverlay.vue` 是共用的展示层（遮罩拼洞、卡片避让、Esc/Tab 焦点陷阱、rAF 跟随、`body.modal-open`）；虚拟人生指引 `LifeTutorial.vue` 与全站引导 `OnboardingTour.vue` 都只是薄包装，步骤语义（`prepare`/`action`）留在各自步骤表里。
-- 触发时机：只在委托大厅 `/` 启动（锚点都在那里），条件为已登录 + 邮箱已验证 + 服务端版本未读；首屏三个浮层按**公告 → 礼仪确认 → 新手引导**串行（`TaskHall.vue` 的 `bootPrompts()` / `maybeStartOnboarding()`）。礼仪确认原本与公告同时弹出并盖住公告，现在先 `await loadAnnouncements()` 再决定是否打开 Gate，**不要改回并发**。
+- 触发时机：只在委托大厅 `/` 启动（锚点都在那里），条件为已登录 + 邮箱已验证 + 服务端版本未读；引导是浮层优先级队列的最后一位（见下一节「版本更新公告」），**同一次进入最多只弹一个浮层**（`TaskHall.vue` 的 `bootPrompts()` / `maybeStartOnboarding()`）。礼仪确认原本与公告同时弹出并盖住公告，现在先 `await loadAnnouncements()` 再决定是否打开 Gate，**不要改回并发**。
 - 跳过（Skip/Esc）与完成都算"已读"；只有"落地页不是 `/` 时先不展示"不写标记。重看入口在 `/profile` 的「外观」区，跳 `/?tour=1` 强制重播（不重置服务端记录）。
 - 回归：`backend/tests/test_onboarding.py`、`frontend/tests/onboarding.test.mjs`（步骤完整性、一次性判定、关停开关、锚点存在性、`pickAnchor` 选择顺序）。
+
+### 版本更新公告（2026-11）
+
+- **唯一数据源** `frontend/public/versions/versions.json`（随发布一起构建，产物在 `dist/versions/versions.json`）：`entries` 从新到旧，第一项即当前版本；每项含 `version` / `date` / `tagline` / `summary`（弹窗摘要，3~5 条）/ `sections`（`/versions` 的完整分组）。**`/versions` 页面、页脚版本号、更新弹窗三处都读这一份**，不要再写第二份版本字符串（页脚曾是写死的 `V0.2-Beta`，与页面不一致）。
+- **弹窗判定**：`components/VersionUpdatePrompt.vue` 挂在 `App.vue` 根部（全站生效）；排除 `/life`、`/life-admin`（`lifeOnly`/`lifeManager` meta）、监管台/运营台（`moderator`/`operations`/`roleManager` meta）、`/frost` 与 `/versions` 自身。只有**版本号**变化才弹——同版本号补改说明不会重新打扰。落在被排除的页面时不判定、也不占用本次浮层位置，进入普通页面后再判定。
+- **记录位置**：登录用户存 `users.version_ack`（`migrate_schema()` 补 `ALTER TABLE users ADD COLUMN version_ack VARCHAR(32)`），经 `POST /api/version-ack` 只前进不后退（`backend/app/version_notes.py`，按数字段比较）；未登录用户存浏览器 `wsw_version_ack`（纯版本号字符串）。游客确认后登录，若浏览器标记已覆盖当前版本会自动补记到账号，不重复弹。
+- **同一次进入最多一个浮层**：`composables/versionPrompt.js` 的 `claimPrompt(name)` 是全局唯一坑位，优先级 **版本更新 → 公告 → 礼仪确认 → 新手引导**；没抢到的顺延到下次进入（页面重新加载即重置）。`TaskHall.vue` 的 `bootPrompts()` 先 `await versionDecisionSettled()` 再取公告，否则并发请求会抢位。礼仪确认仍会在发布/接取时按需打开，延后自动弹出不影响功能。
+- 确认交互：只能点「我知道了」关闭，Esc 与点击遮罩都不关闭；确认时同步写本地标记与服务端，并上报 `version.confirm`（`EVENT_LABELS` 白名单）。
+- 回归：`backend/tests/test_version_notes.py`、`frontend/tests/versionNotes.test.mjs`（优先级坑位、只前进不后退、versions.json 结构与排序）。

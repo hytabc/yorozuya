@@ -1,0 +1,256 @@
+{
+  "id": "6-2",
+  "title": "六十人的大群",
+  "chapter": 6,
+  "order": 2,
+  "epigraph": "",
+  "intro": "澪加入了一个六十人的 VRChat 社群，每天都有人在聊天，但没有人真正认识她。",
+  "hasButterfly": true,
+  "anchors": { "first": "frag_6_2_01", "last": "frag_6_2_09" },
+  "initialOrder": [
+    "frag_6_2_01",
+    "frag_6_2_03",
+    "frag_6_2_05",
+    "frag_6_2_02",
+    "frag_6_2_07",
+    "frag_6_2_04",
+    "frag_6_2_06",
+    "frag_6_2_08",
+    "frag_6_2_09"
+  ],
+  "fragments": [
+    {
+      "id": "frag_6_2_01",
+      "levelId": "6-2",
+      "type": "gray",
+      "character": "Mio",
+      "text": "澪加入了一个六十人的 VRChat 社群，欢迎消息是「多发言才能被记住哦」。",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定起点。"
+    },
+    {
+      "id": "frag_6_2_02",
+      "levelId": "6-2",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪每天都在看群消息，但从来没有发过言。",
+      "tags": ["lurking"],
+      "draggable": true,
+      "valence": -1,
+      "note": "潜水。它不是不想说话，只是不知道从哪里开始。"
+    },
+    {
+      "id": "frag_6_2_03",
+      "levelId": "6-2",
+      "type": "white",
+      "character": "Mio",
+      "text": "群里每天有几十条消息，澪认真看完了每一条，记住了几个活跃的名字。",
+      "tags": ["observe"],
+      "draggable": true,
+      "valence": 0,
+      "note": "观察。她在试图融入，但用的是被动的方式。"
+    },
+    {
+      "id": "frag_6_2_04",
+      "levelId": "6-2",
+      "type": "white",
+      "character": "Mio",
+      "text": "有一天群里有人问了一个问题，澪知道答案，但她犹豫了三分钟，最后还是没发。",
+      "tags": ["hesitation"],
+      "draggable": true,
+      "valence": -1,
+      "note": "犹豫。等她准备好的时候，别人已经回答了。"
+    },
+    {
+      "id": "frag_6_2_05",
+      "levelId": "6-2",
+      "type": "white",
+      "character": "Narrator",
+      "text": "群里有人组织活动，澪点开了链接，看了一眼在线名单，然后关掉了。",
+      "tags": ["retreat"],
+      "draggable": true,
+      "valence": -1,
+      "note": "退缩。她不认识名单上的任何人。"
+    },
+    {
+      "id": "frag_6_2_06",
+      "levelId": "6-2",
+      "type": "gold",
+      "character": "Narrator",
+      "text": "【关键】有人在群里 @ 了她：「新人要不要一起来？」",
+      "tags": ["invitation", "key"],
+      "draggable": true,
+      "valence": 2,
+      "note": "金色碎片。被主动邀请。它的时机决定了澪是「被看见」还是「为时已晚」。"
+    },
+    {
+      "id": "frag_6_2_07",
+      "levelId": "6-2",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪打了一句「好啊」，删了，又打了「谢谢邀请」，删了，最后只发了一个表情。",
+      "tags": ["overthink"],
+      "draggable": true,
+      "valence": -1,
+      "note": "过度思考。她想回应，但不知道用什么语气。"
+    },
+    {
+      "id": "frag_6_2_08",
+      "levelId": "6-2",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪退出了那个群，没有人注意到她的头像从列表里消失了。",
+      "tags": ["quit"],
+      "draggable": true,
+      "valence": -2,
+      "note": "退群。它如果排在被邀请之前，就是「主动放弃」；排在之后，就是「错过机会后放弃」。"
+    },
+    {
+      "id": "frag_6_2_09",
+      "levelId": "6-2",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "那天澪学会了一件事：人很多的地方，不一定不孤独。",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": -1,
+      "note": "固定终点。中性偏负：领悟，但带着遗憾。"
+    },
+    {
+      "id": "frag_6_2_10",
+      "levelId": "6-2",
+      "type": "blue",
+      "character": "Mio",
+      "text": "【澪的独白】我以为大群更容易融入，因为人多，说错话也不会被记住。原来不是。人越多，你越透明。",
+      "tags": ["insight"],
+      "draggable": false,
+      "valence": 0,
+      "hidden": true,
+      "unlockedBy": "endingType:bad",
+      "note": "达成 bad 结局后解锁。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "6_2_good",
+      "levelId": "6-2",
+      "type": "good",
+      "title": "被看见",
+      "threshold": 70,
+      "valence": 1,
+      "constraints": [
+        { "kind": "before", "a": "frag_6_2_03", "b": "frag_6_2_04", "weight": 20 },
+        { "kind": "before", "a": "frag_6_2_04", "b": "frag_6_2_06", "weight": 25 },
+        { "kind": "before", "a": "frag_6_2_06", "b": "frag_6_2_07", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_6_2_06", "b": "frag_6_2_07", "weight": 30 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_6_2_08", "b": "frag_6_2_06", "weight": 50 }
+      ],
+      "text": "澪每天都在看群消息，认真记住了几个活跃的名字。有一天群里有人问了一个问题，她知道答案，但犹豫了三分钟，最后还是没发。\n\n就在她准备关掉群的时候，有人 @ 了她：「新人要不要一起来？」\n\n澪打了一句「好啊」，删了，又打了「谢谢邀请」，删了，最后只发了一个表情。\n\n但对方回：「没事，来就行，不用紧张。」\n\n那天晚上，澪第一次在那个六十人的群里，感觉到自己不是透明的。",
+      "excerpt": "有人主动看见她，她终于不再透明。",
+      "bondEffect": { "Mio": 12 }
+    },
+    {
+      "id": "6_2_bittersweet",
+      "levelId": "6-2",
+      "type": "bittersweet",
+      "title": "错过",
+      "threshold": 60,
+      "valence": -1,
+      "constraints": [
+        { "kind": "before", "a": "frag_6_2_02", "b": "frag_6_2_03", "weight": 25 },
+        { "kind": "before", "a": "frag_6_2_04", "b": "frag_6_2_05", "weight": 20 },
+        { "kind": "before", "a": "frag_6_2_05", "b": "frag_6_2_06", "weight": 20 },
+        { "kind": "before", "a": "frag_6_2_06", "b": "frag_6_2_08", "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_6_2_06", "b": "frag_6_2_07", "weight": 30 }
+      ],
+      "text": "澪每天潜水，认真看完每一条消息，记住了几个活跃的名字。有一天她犹豫了三分钟，最后还是没回答那个问题。\n\n后来有人 @ 了她：「新人要不要一起来？」但那时她已经把群设成了免打扰，等她看到的时候，活动已经结束了。\n\n她退出了那个群。没有人注意到她的头像从列表里消失了。\n\n那天澪确认了一件事：人很多的地方，不一定不孤独。",
+      "excerpt": "邀请来了，但她错过了时机。",
+      "bondEffect": { "Mio": -8 }
+    },
+    {
+      "id": "6_2_bad",
+      "levelId": "6-2",
+      "type": "bad",
+      "title": "透明人",
+      "threshold": 55,
+      "valence": -2,
+      "constraints": [
+        { "kind": "before", "a": "frag_6_2_02", "b": "frag_6_2_04", "weight": 25 },
+        { "kind": "before", "a": "frag_6_2_04", "b": "frag_6_2_05", "weight": 25 },
+        { "kind": "before", "a": "frag_6_2_05", "b": "frag_6_2_08", "weight": 25 },
+        { "kind": "position", "frag": "frag_6_2_08", "index": 6, "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_6_2_06", "b": "frag_6_2_08", "weight": 40 }
+      ],
+      "text": "澪每天潜水，从来没有发过言。她犹豫了三分钟，最后还是没回答那个问题。她点开了活动链接，又关掉了。\n\n她退出了那个群，没有人注意到她的头像从列表里消失了。\n\n后来有人在另一个群里提到那个社群，说「氛围很好，很热闹」。澪没有接话。\n\n她确认了一件事：人越多，她越透明。",
+      "excerpt": "她从未发言，也从未被看见。",
+      "bondEffect": { "Mio": -15 }
+    },
+    {
+      "id": "6_2_true",
+      "levelId": "6-2",
+      "type": "true",
+      "title": "第一句话",
+      "threshold": 75,
+      "valence": 1,
+      "hidden": true,
+      "constraints": [
+        { "kind": "before", "a": "frag_6_2_03", "b": "frag_6_2_04", "weight": 25 },
+        { "kind": "before", "a": "frag_6_2_04", "b": "frag_6_2_07", "weight": 25 },
+        { "kind": "before", "a": "frag_6_2_07", "b": "frag_6_2_06", "weight": 25 },
+        { "kind": "before", "a": "frag_6_2_02", "b": "frag_6_2_03", "weight": 25 }
+      ],
+      "anti": [],
+      "text": "澪每天潜水，认真看完每一条消息，记住了几个活跃的名字。有一天群里有人问了一个问题，她犹豫了三分钟。\n\n她打了一句「好啊」，删了，又打了「我知道答案」，删了，最后深吸一口气，发出了第一句话：「我试过，可以这样……」\n\n群里有人回：「哦对！谢谢！」然后有人 @ 了她：「新人要不要一起来活动？」\n\n那天澪学会了一件事：大群里的第一句话，不需要完美。你只需要说出来。",
+      "excerpt": "她没有等别人看见她，而是主动说了第一句话。",
+      "bondEffect": { "Mio": 18 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "6_2_chaos",
+    "levelId": "6-2",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……这段经历还没有找到它的顺序。\n\n想想看：是先被邀请，还是先主动发言？这个顺序，决定了澪是「被看见」还是「让自己被看见」。",
+    "excerpt": "被看见与主动的顺序，决定了结局。"
+  },
+  "butterflies": [
+    {
+      "id": "6-2:A",
+      "requires": [
+        { "kind": "before", "a": "frag_6_2_07", "b": "frag_6_2_06", "weight": 1 },
+        { "kind": "before", "a": "frag_6_2_04", "b": "frag_6_2_07", "weight": 1 }
+      ],
+      "unlocks": ["frag_6_2_10"],
+      "revealText": "在发出第一句话之前，澪想了很久：\n\n「如果说错了怎么办？如果没人理我怎么办？」\n\n但最后她按下了发送键。因为她意识到——如果不说，她永远是透明的。\n\n——有些时候，完美的沉默，不如不完美的开口。"
+    }
+  ],
+  "hints": [
+    {
+      "tier": 1,
+      "text": "本关有两个正向结局：good 是被主动邀请，true 是主动开口。关键在于「过度思考」和「被邀请」的顺序。"
+    },
+    {
+      "tier": 2,
+      "text": "如果想达成 good，让邀请先于过度思考；如果想达成 true，让过度思考转化为实际的发言。",
+      "highlight": ["frag_6_2_06", "frag_6_2_07"]
+    },
+    {
+      "tier": 3,
+      "text": "good 推荐顺序：观察 → 犹豫 → 被邀请 → 过度思考。true 推荐顺序：观察 → 犹豫 → 过度思考（转化为发言）→ 被邀请。",
+      "highlight": ["frag_6_2_03", "frag_6_2_04", "frag_6_2_07", "frag_6_2_06"]
+    }
+  ],
+  "behindTheScenes": "6-2 探讨的是「大群里的孤独」。\n\n设计意图：很多人以为大群更容易融入，因为人多、说错话也不会被记住。但恰恰相反——人越多，你越容易变成透明的潜水者。\n\n本关的两个 positive 结局代表两种路径：good 是「被看见」（有人主动邀请），true 是「让自己被看见」（主动发出第一句话）。都是正向的，但 true 更强调主动性。\n\nbad 结局「透明人」是最常见的情况：从加群到退群，从未发过言，也从未被看见。\n\n金色碎片的位置很关键：如果它排在「过度思考」之前，澪是被动接受邀请；如果排在之后，澪要么错过机会，要么已经主动开口了。"
+}

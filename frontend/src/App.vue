@@ -10,18 +10,23 @@ import ToastHost from './components/ToastHost.vue'
 import KanbanNiang from './components/KanbanNiang.vue'
 import EmailVerificationGate from './components/EmailVerificationGate.vue'
 import AtmosphereGate from './components/AtmosphereGate.vue'
+import VersionUpdatePrompt from './components/VersionUpdatePrompt.vue'
+import { currentVersion, loadVersionNotes } from './versionNotes'
 
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 // 备案号等私有信息保存在服务端 .env，前端运行时获取，不写进源码/构建产物。
 const siteConfig = ref({ icp: '', icp_url: '' })
+// 页脚版本号与 /versions 页面、版本更新弹窗读同一份 versions.json，避免三处各写一个版本。
+const footerVersion = ref('')
 
 onMounted(async () => {
   auth.restore()
   try {
     siteConfig.value = (await api.get('/site-config')).data
   } catch { /* 未配置备案号或接口不可用时，页脚不展示该行 */ }
+  footerVersion.value = currentVersion(await loadVersionNotes())
 })
 
 watch(
@@ -61,7 +66,7 @@ function switchMode() {
       <RouterView v-if="(!route.meta.lifeOnly || (auth.isLoggedIn && auth.canPlayLife)) && (!route.meta.lifeManager || (auth.isLoggedIn && auth.canManageRoles))" />
     </main>
     <footer v-if="!route.meta.lifeOnly && !route.meta.lifeManager" class="app-version">
-      <RouterLink to="/versions">V0.2-Beta</RouterLink>
+      <RouterLink to="/versions">{{ footerVersion || '版本更新' }}</RouterLink>
       <span class="footer-sep" aria-hidden="true">·</span>
       <RouterLink to="/terms">使用条款</RouterLink>
       <template v-if="siteConfig.icp">
@@ -96,6 +101,8 @@ function switchMode() {
     </button>
     <!-- 未完成邮箱验证时的强制绑定浮层：/life、/life-admin 这类全屏页也要挡，故挂在根部 -->
     <EmailVerificationGate />
+    <!-- 版本更新公告：每次进入全站判定一次，未确认当前版本时展示；同一次进入只弹这一个 -->
+    <VersionUpdatePrompt />
     <!-- 委托礼仪确认：首次进入大厅、发布或接取前展示，版本更新后重新触发 -->
     <AtmosphereGate />
     <!-- 看板娘走付费大模型，后端要求登录；未登录时直接不渲染入口。 -->

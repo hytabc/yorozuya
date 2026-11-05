@@ -1,0 +1,258 @@
+{
+  "id": "7-2",
+  "title": "声音之外的距离",
+  "chapter": 7,
+  "order": 2,
+  "epigraph": "",
+  "intro": "悠认识了一个新朋友，声音很好听，Avatar 也很可爱。直到有一天，对方说：「其实我……」",
+  "hasButterfly": true,
+  "anchors": { "first": "frag_7_2_01", "last": "frag_7_2_09" },
+  "initialOrder": [
+    "frag_7_2_01",
+    "frag_7_2_03",
+    "frag_7_2_05",
+    "frag_7_2_02",
+    "frag_7_2_07",
+    "frag_7_2_04",
+    "frag_7_2_06",
+    "frag_7_2_08",
+    "frag_7_2_09"
+  ],
+  "fragments": [
+    {
+      "id": "frag_7_2_01",
+      "levelId": "7-2",
+      "type": "gray",
+      "character": "Yu",
+      "text": "悠在一个公共 World 里认识了一个新朋友，对方的名字叫「小桃」，声音温柔，Avatar 是个粉色的女孩子。",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定起点。"
+    },
+    {
+      "id": "frag_7_2_02",
+      "levelId": "7-2",
+      "type": "white",
+      "character": "Narrator",
+      "text": "她们聊得很好，从 World 推荐聊到现实生活，从下午聊到凌晨。",
+      "tags": ["connection"],
+      "draggable": true,
+      "valence": 2,
+      "note": "连接。很自然的友谊。"
+    },
+    {
+      "id": "frag_7_2_03",
+      "levelId": "7-2",
+      "type": "white",
+      "character": "Tao",
+      "text": "有一天小桃说：「其实……我在现实里是男生。这个声音是变声器。」",
+      "tags": ["reveal"],
+      "draggable": true,
+      "valence": 0,
+      "note": "坦白。中性——它本身不是问题，问题是悠如何回应。"
+    },
+    {
+      "id": "frag_7_2_04",
+      "levelId": "7-2",
+      "type": "white",
+      "character": "Yu",
+      "text": "悠愣了一下，打字的手停在半空中。",
+      "tags": ["pause"],
+      "draggable": true,
+      "valence": 0,
+      "note": "停顿。这个停顿的长度，决定了对方感受到的压力。"
+    },
+    {
+      "id": "frag_7_2_05",
+      "levelId": "7-2",
+      "type": "white",
+      "character": "Yu",
+      "text": "悠想起了她们之前的对话，那些「女孩子之间的话题」，那些「我懂你」。",
+      "tags": ["doubt"],
+      "draggable": true,
+      "valence": -1,
+      "note": "怀疑。她开始重新审视之前的一切。"
+    },
+    {
+      "id": "frag_7_2_06",
+      "levelId": "7-2",
+      "type": "gold",
+      "character": "Yu",
+      "text": "【关键】悠说：「谢谢你告诉我。」",
+      "tags": ["acceptance", "key"],
+      "draggable": true,
+      "valence": 2,
+      "note": "金色碎片。接纳。它的位置决定了这是「真诚的接纳」还是「礼貌的敷衍」。"
+    },
+    {
+      "id": "frag_7_2_07",
+      "levelId": "7-2",
+      "type": "white",
+      "character": "Tao",
+      "text": "小桃说：「对不起，我骗了你那么久。如果你觉得不舒服，我可以……」",
+      "tags": ["apology"],
+      "draggable": true,
+      "valence": -1,
+      "note": "道歉。带着预设的「你会不舒服」。"
+    },
+    {
+      "id": "frag_7_2_08",
+      "levelId": "7-2",
+      "type": "white",
+      "character": "Yu",
+      "text": "悠打断她：「你没有骗我。你只是在这里，做你想做的自己。」",
+      "tags": ["reframe"],
+      "draggable": true,
+      "valence": 2,
+      "note": "重新定义。把「欺骗」转化为「选择」。"
+    },
+    {
+      "id": "frag_7_2_09",
+      "levelId": "7-2",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "那天悠学会了一件事：VRChat 里的距离，从来不是声音或 Avatar，而是你愿不愿意理解对方选择成为谁。",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": 1,
+      "note": "固定终点。正向领悟。"
+    },
+    {
+      "id": "frag_7_2_10",
+      "levelId": "7-2",
+      "type": "blue",
+      "character": "Tao",
+      "text": "【小桃的独白】我说出来的时候，其实已经做好了被拉黑的准备。我见过太多次「原来你是男的？那算了」。但她说「谢谢你告诉我」的时候，我才明白——有些人，真的不在意。",
+      "tags": ["insight"],
+      "draggable": false,
+      "valence": 0,
+      "hidden": true,
+      "unlockedBy": "endingType:true",
+      "note": "达成 true 结局后解锁。小桃的视角。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "7_2_good",
+      "levelId": "7-2",
+      "type": "good",
+      "title": "没有变",
+      "threshold": 70,
+      "valence": 1,
+      "constraints": [
+        { "kind": "before", "a": "frag_7_2_03", "b": "frag_7_2_04", "weight": 20 },
+        { "kind": "before", "a": "frag_7_2_04", "b": "frag_7_2_06", "weight": 25 },
+        { "kind": "before", "a": "frag_7_2_06", "b": "frag_7_2_08", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_7_2_06", "b": "frag_7_2_08", "weight": 30 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_7_2_05", "b": "frag_7_2_06", "weight": 30 }
+      ],
+      "text": "小桃说：「其实……我在现实里是男生。这个声音是变声器。」\n\n悠愣了一下，然后说：「谢谢你告诉我。」\n\n小桃说：「对不起，我骗了你那么久……」\n\n悠打断她：「你没有骗我。你只是在这里，做你想做的自己。我喜欢的是跟我聊天的那个小桃，这一点没有变。」\n\n从那天起，她们还是像以前一样聊天，从下午聊到凌晨。没有什么变了，因为重要的东西从一开始就在那里。",
+      "excerpt": "重要的东西从一开始就在那里。",
+      "bondEffect": { "Yu": 12, "Tao": 15 }
+    },
+    {
+      "id": "7_2_bittersweet",
+      "levelId": "7-2",
+      "type": "bittersweet",
+      "title": "礼貌的距离",
+      "threshold": 60,
+      "valence": -1,
+      "constraints": [
+        { "kind": "before", "a": "frag_7_2_03", "b": "frag_7_2_05", "weight": 25 },
+        { "kind": "before", "a": "frag_7_2_05", "b": "frag_7_2_04", "weight": 20 },
+        { "kind": "before", "a": "frag_7_2_04", "b": "frag_7_2_06", "weight": 20 },
+        { "kind": "position", "frag": "frag_7_2_08", "index": 7, "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "adjacent", "a": "frag_7_2_06", "b": "frag_7_2_08", "weight": 30 }
+      ],
+      "text": "小桃说：「其实……我在现实里是男生。」\n\n悠想起了她们之前的对话，那些「女孩子之间的话题」，那些「我懂你」。她愣了一下，然后说：「谢谢你告诉我。」\n\n小桃道歉了，悠说「没关系」。但从那天起，她们的对话变得礼貌了很多。\n\n不是谁做错了什么，只是那种「什么都能聊」的感觉，再也回不去了。",
+      "excerpt": "不是谁做错了，只是回不去了。",
+      "bondEffect": { "Yu": -5, "Tao": -8 }
+    },
+    {
+      "id": "7_2_bad",
+      "levelId": "7-2",
+      "type": "bad",
+      "title": "欺骗",
+      "threshold": 55,
+      "valence": -2,
+      "constraints": [
+        { "kind": "before", "a": "frag_7_2_03", "b": "frag_7_2_05", "weight": 25 },
+        { "kind": "before", "a": "frag_7_2_05", "b": "frag_7_2_04", "weight": 25 },
+        { "kind": "position", "frag": "frag_7_2_04", "index": 4, "weight": 25 },
+        { "kind": "before", "a": "frag_7_2_04", "b": "frag_7_2_07", "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_7_2_06", "b": "frag_7_2_05", "weight": 40 }
+      ],
+      "text": "小桃说：「其实……我在现实里是男生。」\n\n悠想起了她们之前的对话，那些「女孩子之间的话题」。她愣了很久，打字的手停在半空中。\n\n小桃说：「对不起，我骗了你那么久……」\n\n悠回：「我需要时间想想。」然后下线了。\n\n后来她把小桃的好友删了。不是因为对方做错了什么，只是她觉得，那些对话现在看起来都像是谎言。",
+      "excerpt": "她把那些对话都看成了谎言。",
+      "bondEffect": { "Yu": -15, "Tao": -18 }
+    },
+    {
+      "id": "7_2_true",
+      "levelId": "7-2",
+      "type": "true",
+      "title": "我也有秘密",
+      "threshold": 75,
+      "valence": 1,
+      "hidden": true,
+      "constraints": [
+        { "kind": "before", "a": "frag_7_2_04", "b": "frag_7_2_06", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_7_2_06", "b": "frag_7_2_08", "weight": 30 },
+        { "kind": "before", "a": "frag_7_2_03", "b": "frag_7_2_04", "weight": 20 },
+        { "kind": "before", "a": "frag_7_2_02", "b": "frag_7_2_03", "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_7_2_05", "b": "frag_7_2_06", "weight": 40 }
+      ],
+      "text": "她们聊得很好，从 World 推荐聊到现实生活。有一天小桃说：「其实……我在现实里是男生。这个声音是变声器。」\n\n悠愣了一下，然后说：「谢谢你告诉我。」\n\n小桃开始道歉，悠打断她：「你没有骗我。而且……我其实也有秘密。我的 Avatar 看起来很开朗，但现实里我社恐得要命，连便利店结账都会紧张。」\n\n小桃愣了一下，然后笑了：「所以我们都在这里，做着想做的自己？」\n\n悠说：「对。这有什么不好吗？」\n\n那天她们聊到凌晨四点，聊了很多从未对别人说过的事。",
+      "excerpt": "我们都在这里，做着想做的自己。",
+      "bondEffect": { "Yu": 18, "Tao": 20 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "7_2_chaos",
+    "levelId": "7-2",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……这段坦白还没有找到它的回应。\n\n想想看：是先怀疑，还是先接纳？这个顺序，决定了悠是真诚地理解，还是礼貌地疏远。",
+    "excerpt": "怀疑与接纳的顺序，决定了结局。"
+  },
+  "butterflies": [
+    {
+      "id": "7-2:A",
+      "requires": [
+        { "kind": "adjacent", "a": "frag_7_2_06", "b": "frag_7_2_08", "weight": 1 },
+        { "kind": "before", "a": "frag_7_2_02", "b": "frag_7_2_03", "weight": 1 }
+      ],
+      "unlocks": ["frag_7_2_10"],
+      "revealText": "小桃说出来的时候，其实已经做好了被拉黑的准备。\n\n她见过太多次「原来你是男的？那算了」，见过太多次对话框里突然没了声音。\n\n但悠说「谢谢你告诉我」的时候，她才明白——有些人，真的不在意。\n\n不是「我接受你是男的」，而是「这根本不重要」。"
+    }
+  ],
+  "hints": [
+    {
+      "tier": 1,
+      "text": "本关的关键是「谢谢你告诉我」的时机。如果它排在「怀疑」之前，就是真诚的接纳；如果排在之后，就是礼貌的回应。"
+    },
+    {
+      "tier": 2,
+      "text": "如果想达成 good 或 true，让接纳先于怀疑；如果怀疑先出现，就会滑向 bittersweet 或 bad。",
+      "highlight": ["frag_7_2_06", "frag_7_2_05"]
+    },
+    {
+      "tier": 3,
+      "text": "true 的关键在于悠也分享了自己的秘密——把单向的坦白变成了双向的理解。",
+      "highlight": ["frag_7_2_06", "frag_7_2_08"]
+    }
+  ],
+  "behindTheScenes": "7-2 探讨的是「身份、Avatar 与真实的距离」。\n\n设计意图：VRChat 里确实有很多人用与现实性别不同的 Avatar，有些是变装爱好者，有些是跨性别者，有些只是想体验不同的身份。这不是欺骗——这是 VR 的意义之一。\n\n但当对方选择坦白的时候，你如何回应？\n\ngood 结局：接纳，重要的东西没有变。\ntrue 结局：不只是接纳，而是分享自己的秘密，建立更深的信任。\nbad 结局：把之前的一切都看成了谎言。\n\n本关想说的是：VRChat 里的「真实」，不是现实信息的对等披露，而是你在这里展现的那个自己，是不是你真正想成为的样子。\n\n小桃（Tao）是新增角色，代表那些在 VRC 里寻找身份认同的人。悠作为回应者，她的选择决定了这段友谊的走向。"
+}

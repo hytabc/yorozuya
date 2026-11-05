@@ -334,6 +334,8 @@ class UserSelf(UserPublic):
     theme_style: Literal["classic", "pixel"] | None = None
     # 新手引导：已看过的引导版本号（0 = 从未看过）；前端据此决定是否展示一次。
     onboarding_version: int = 0
+    # 版本更新：已确认过的版本号（如 "V1.0"）；与当前版本不同才弹窗。
+    version_ack: str | None = None
     # 服务端算好的「需要先完成邮箱验证」标记：前端据此弹强制绑定框，
     # 避免把 require_email_verification 这类策略在前端重写一遍。
     email_gate_required: bool = False
@@ -858,6 +860,16 @@ class OnboardingAckRequest(RequestModel):
 
 class OnboardingStatusOut(BaseModel):
     onboarding_version: int = 0
+
+
+class VersionAckRequest(RequestModel):
+    """版本更新确认：携带前端当前展示的版本号。"""
+
+    version: str = Field(min_length=1, max_length=32)
+
+
+class VersionAckOut(BaseModel):
+    version_ack: str | None = None
 
 
 class AnnouncementWrite(RequestModel):

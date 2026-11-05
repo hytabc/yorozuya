@@ -1,0 +1,201 @@
+{
+  "id": "5-3",
+  "title": "重新开放的同行",
+  "chapter": 5,
+  "order": 3,
+  "epigraph": "修复不一定是回到从前。有时候，只是两个人终于可以各自站好。",
+  "intro": "一次误会过去之后，她们还要决定，要不要再一起进那个 World。",
+  "hasButterfly": false,
+  "anchors": { "first": "frag_5_3_01", "last": "frag_5_3_08" },
+  "initialOrder": [
+    "frag_5_3_01",
+    "frag_5_3_04",
+    "frag_5_3_06",
+    "frag_5_3_02",
+    "frag_5_3_05",
+    "frag_5_3_03",
+    "frag_5_3_07",
+    "frag_5_3_08"
+  ],
+  "fragments": [
+    {
+      "id": "frag_5_3_01",
+      "levelId": "5-3",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "那段时间过去之后，两人的好友关系只剩下一个「已解除屏蔽」的标记。",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定起点。"
+    },
+    {
+      "id": "frag_5_3_02",
+      "levelId": "5-3",
+      "type": "white",
+      "character": "Shiori",
+      "text": "栞发来一条私聊：「那天的事，我很抱歉。」",
+      "tags": ["apology"],
+      "draggable": true,
+      "valence": 2,
+      "note": "道歉。它是修复的起点。"
+    },
+    {
+      "id": "frag_5_3_03",
+      "levelId": "5-3",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪看着那句话，想了很久，还是没有回。",
+      "tags": ["hesitation"],
+      "draggable": true,
+      "valence": -1,
+      "note": "犹豫。它排在道歉之前，就是还没准备好；之后，就是还在想。"
+    },
+    {
+      "id": "frag_5_3_04",
+      "levelId": "5-3",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪说：「那天我也有我的问题。」",
+      "tags": ["own_part"],
+      "draggable": true,
+      "valence": 2,
+      "note": "承认自己的部分。它是对等的修复。"
+    },
+    {
+      "id": "frag_5_3_05",
+      "levelId": "5-3",
+      "type": "white",
+      "character": "Shiori",
+      "text": "栞说：「我那时候太累了，没有好好解释。」",
+      "tags": ["own_part_shiori"],
+      "draggable": true,
+      "valence": 1,
+      "note": "栞承认自己的部分。它与澪的承认相互呼应。"
+    },
+    {
+      "id": "frag_5_3_06",
+      "levelId": "5-3",
+      "type": "white",
+      "character": "Narrator",
+      "text": "两人在私聊里聊了很久，谁都没有提起截图和屏蔽。",
+      "tags": ["talk"],
+      "draggable": true,
+      "valence": 1,
+      "note": "坦然的对话。它把误会从'谁对谁错'拉到'我们怎么办'。"
+    },
+    {
+      "id": "frag_5_3_07",
+      "levelId": "5-3",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪回：「下次周三，要一起去吗？」",
+      "tags": ["invite_back"],
+      "draggable": true,
+      "valence": 2,
+      "note": "邀请回去。它必须紧跟在对等的承认之后。"
+    },
+    {
+      "id": "frag_5_3_08",
+      "levelId": "5-3",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "那个周三的晚上，两个名字又一次出现在了同一个 World 里。",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": 1,
+      "note": "固定终点。中性：同一个 World，可以是重逢，也可以是礼貌的同行。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "5_3_good",
+      "levelId": "5-3",
+      "type": "good",
+      "title": "重新开放的同行",
+      "threshold": 70,
+      "valence": 1,
+      "constraints": [
+        { "kind": "before", "a": "frag_5_3_02", "b": "frag_5_3_04", "weight": 20 },
+        { "kind": "before", "a": "frag_5_3_04", "b": "frag_5_3_05", "weight": 20 },
+        { "kind": "before", "a": "frag_5_3_05", "b": "frag_5_3_07", "weight": 20 },
+        { "kind": "adjacent", "a": "frag_5_3_07", "b": "frag_5_3_08", "weight": 40 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_5_3_03", "b": "frag_5_3_02", "weight": 40 }
+      ],
+      "text": "栞发来一条私聊：「那天的事，我很抱歉。」\n\n澪看着那句话，心里很乱。但她没有让它沉下去，而是先说了：「那天我也有我的问题。」\n\n栞回：「我那时候太累了，没有好好解释。」两人在私聊里聊了很久，谁都没有提起截图和屏蔽。\n\n最后，澪发来一句：「下次周三，要一起去吗？」\n\n那个周三的晚上，两个名字又一次出现在了同一个 World 里。",
+      "excerpt": "两个名字，又一次出现在同一个 World 里。",
+      "bondEffect": { "Mio": 12, "Shiori": 12 }
+    },
+    {
+      "id": "5_3_bittersweet",
+      "levelId": "5-3",
+      "type": "bittersweet",
+      "title": "礼貌的同行",
+      "threshold": 60,
+      "valence": 0,
+      "constraints": [
+        { "kind": "before", "a": "frag_5_3_02", "b": "frag_5_3_03", "weight": 25 },
+        { "kind": "before", "a": "frag_5_3_03", "b": "frag_5_3_04", "weight": 25 },
+        { "kind": "before", "a": "frag_5_3_06", "b": "frag_5_3_07", "weight": 25 },
+        { "kind": "position", "frag": "frag_5_3_06", "index": 5, "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_5_3_07", "b": "frag_5_3_02", "weight": 40 }
+      ],
+      "text": "栞发来道歉，澪犹豫了很久，才慢慢回了一句：「那天我也有我的问题。」\n\n两个人的对话很客气，谁都没有提起那些截图。\n\n澪本来想说「下次周三，要一起去吗？」，话到嘴边，还是咽了回去。\n\n那个周三，她们又在同一个 World 里。只是各自站在了不远不近的地方，像一对礼貌的陌生人。\n\n这样也好。至少，不用再害怕谁会先说错话。",
+      "excerpt": "礼貌地站着，没有人再说错话。",
+      "bondEffect": { "Mio": 2, "Shiori": 2 }
+    },
+    {
+      "id": "5_3_bad",
+      "levelId": "5-3",
+      "type": "bad",
+      "title": "没有再回",
+      "threshold": 55,
+      "valence": -1,
+      "constraints": [
+        { "kind": "before", "a": "frag_5_3_03", "b": "frag_5_3_02", "weight": 25 },
+        { "kind": "before", "a": "frag_5_3_02", "b": "frag_5_3_06", "weight": 25 },
+        { "kind": "before", "a": "frag_5_3_06", "b": "frag_5_3_07", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_5_3_07", "b": "frag_5_3_08", "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_5_3_02", "b": "frag_5_3_03", "weight": 40 }
+      ],
+      "text": "澪看着那句「那天的事，我很抱歉」，想了很久，却一直没有回复。\n\n栞又发了两条，澪都没有回。等她终于开口的时候，话题已经被拖到了别的地方。\n\n那个周三，她没有去。那个 World 里的位置，又空了下来。",
+      "excerpt": "这一次，她没有回。",
+      "bondEffect": { "Mio": -8, "Shiori": -10 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "5_3_chaos",
+    "levelId": "5-3",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……这场修复还没有找到开口的顺序。\n\n想想看：是先有人道歉，还是先有人承认自己的部分？",
+    "excerpt": "修复还没有找到开口的顺序。"
+  },
+  "hints": [
+    {
+      "tier": 1,
+      "text": "修复需要对等。只有一方道歉，另一方的回复就很难成立。"
+    },
+    {
+      "tier": 2,
+      "text": "让双方的承认彼此呼应，再让澪的邀请紧挨着收尾。",
+      "highlight": ["frag_5_3_04", "frag_5_3_05", "frag_5_3_07"]
+    },
+    {
+      "tier": 3,
+      "text": "推荐顺序：栞道歉 → 澪承认自己的部分 → 栞承认自己的部分 → 两人的私聊 → 澪的邀请 → 同一个 World。",
+      "highlight": ["frag_5_3_02", "frag_5_3_04", "frag_5_3_05", "frag_5_3_06", "frag_5_3_07"]
+    }
+  ],
+  "behindTheScenes": "5-3 写的是「事后修复」。误会过去之后，最难的往往不是道歉，而是两个人都愿意承认自己的部分。\n\n这一关的 good 结局是「重新开放的同行」：不是回到从前，而是在新的位置上重新一起进入同一个 World。礼貌的同行 也是合理的结局——有些关系，只需要礼貌地站在一起。\n\n蝴蝶碎片 09 暂不接入任何蝴蝶效应，留给未来的扩充。"
+}

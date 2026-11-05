@@ -13,6 +13,7 @@ import FeedbackDialog from '../components/FeedbackDialog.vue'
 import AnnouncementPrompt from '../components/AnnouncementPrompt.vue'
 import OnboardingTour from '../components/OnboardingTour.vue'
 import { markAnnouncementsSeen, unseenAnnouncements } from '../composables/announcementPrompt'
+import { claimPrompt, promptOwner, versionDecisionSettled } from '../composables/versionPrompt'
 import { needsOnboarding } from '../composables/onboardingSteps'
 import {
   atmosphere,
@@ -76,8 +77,10 @@ async function loadAnnouncements() {
     const { data } = await api.get('/announcements')
     activeAnnouncements.value = data
     const userId = auth.isLoggedIn ? auth.user?.id : null
-    promptAnnouncements.value = unseenAnnouncements(data, userId)
-    showAnnouncementPrompt.value = promptAnnouncements.value.length > 0
+    const unseen = unseenAnnouncements(data, userId)
+    promptAnnouncements.value = unseen
+    // 每次进入只展示一个浮层：版本更新优先，公告让位到下次进入。
+    showAnnouncementPrompt.value = unseen.length > 0 && claimPrompt('announcement')
   } catch { /* 公告加载失败不影响委托大厅 */ }
 }
 
@@ -85,7 +88,6 @@ function confirmAnnouncements() {
   if (auth.isLoggedIn) markAnnouncementsSeen(activeAnnouncements.value, auth.user?.id)
   showAnnouncementPrompt.value = false
   track('announcement.confirm')
-  openPendingAtmosphere()
 }
 
 let timer
@@ -158,22 +160,18 @@ async function action(key, payload = {}) {
     loadStats()
   } catch (error) { toast.error(errorMessage(error)) } finally { busy.value = false }
 }
-// 首次进入委托大厅时展示礼仪确认；已确认过的用户不会再看到。
-// 公告弹窗（z-index 140）与礼仪确认（z-index 1200）同时弹出时后者会盖住前者，
-// 因此先记下"待确认"，等公告关闭后再弹，首屏浮层才能真正串行。
-const atmospherePending = ref(false)
-function openPendingAtmosphere() {
-  if (!atmospherePending.value || showAnnouncementPrompt.value) return
-  atmospherePending.value = false
-  openAtmosphereGate()
-}
+// 每次进入（= 一次页面加载）最多展示一个浮层，优先级：
+// 版本更新 → 公告 → 礼仪确认 → 新手引导。没轮到的顺延到下次进入，不叠着弹。
+// 礼仪确认仍然会在发布/接取时按需打开，延后自动弹出不影响功能。
 async function checkAtmosphere() {
   await loadAtmosphere({ force: true })
-  atmospherePending.value = needsAtmosphereAck()
-  openPendingAtmosphere()
+  if (!needsAtmosphereAck()) return
+  if (!claimPrompt('atmosphere')) return
+  openAtmosphereGate()
 }
-// 先取公告再决定要不要弹礼仪确认，否则两条并发请求谁先回来都可能让礼仪盖住公告。
+// 版本弹窗要先把"本次弹不弹"决定完，否则公告可能抢走位置。
 async function bootPrompts() {
+  await versionDecisionSettled()
   await loadAnnouncements()
   await checkAtmosphere()
 }
@@ -217,8 +215,9 @@ function maybeStartOnboarding() {
   }
   if (!auth.emailVerified || auth.emailGateRequired) return
   if (!needsOnboarding(auth.user?.onboarding_version)) return
-  if (loading.value || showAnnouncementPrompt.value || atmosphere.open) return
+  if (loading.value || atmosphere.open || promptOwner()) return
   tourRef.value.start()
+  claimPrompt('onboarding')
 }
 
 watch(

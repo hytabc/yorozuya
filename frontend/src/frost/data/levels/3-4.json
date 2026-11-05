@@ -1,0 +1,244 @@
+{
+  "id": "3-4",
+  "title": "我是不是多余的",
+  "chapter": 3,
+  "order": 4,
+  "epigraph": "",
+  "intro": "悠第一次感觉到，房间里有一种她看不见的氛围。",
+  "hasButterfly": true,
+  "anchors": { "first": "frag_3_4_01", "last": "frag_3_4_08" },
+  "initialOrder": [
+    "frag_3_4_01",
+    "frag_3_4_03",
+    "frag_3_4_05",
+    "frag_3_4_02",
+    "frag_3_4_06",
+    "frag_3_4_04",
+    "frag_3_4_07",
+    "frag_3_4_08"
+  ],
+  "fragments": [
+    {
+      "id": "frag_3_4_01",
+      "levelId": "3-4",
+      "type": "gray",
+      "character": "Yu",
+      "text": "悠跟着栞进了一个私人 World，里面已经有几个人在聊天。",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定起点。悠的视角。"
+    },
+    {
+      "id": "frag_3_4_02",
+      "levelId": "3-4",
+      "type": "white",
+      "character": "Yu",
+      "text": "悠看见一个蓝色 Avatar 的人坐在角落，没怎么说话。",
+      "tags": ["observe_mio"],
+      "draggable": true,
+      "valence": 0,
+      "note": "观察到澪。悠还不知道她和栞的关系。"
+    },
+    {
+      "id": "frag_3_4_03",
+      "levelId": "3-4",
+      "type": "white",
+      "character": "Yu",
+      "text": "悠主动问那个蓝色的人：「你的 Avatar 好可爱，在哪买的？」",
+      "tags": ["reach_out"],
+      "draggable": true,
+      "valence": 2,
+      "note": "主动示好。呼应 1-1 的那句话，但这次是从施予者的视角。"
+    },
+    {
+      "id": "frag_3_4_04",
+      "levelId": "3-4",
+      "type": "white",
+      "character": "Mio",
+      "text": "对方只回了一句「好久以前了」，就没再接话。",
+      "tags": ["rejected"],
+      "draggable": true,
+      "valence": -1,
+      "note": "被拒绝。悠第一次体验到「示好被忽视」的感觉。"
+    },
+    {
+      "id": "frag_3_4_05",
+      "levelId": "3-4",
+      "type": "white",
+      "character": "Yu",
+      "text": "悠察觉到，栞和那个蓝色的人之间，有一种她读不懂的距离感。",
+      "tags": ["察觉"],
+      "draggable": true,
+      "valence": 0,
+      "note": "关键观察。它排在示好之前，悠会更小心；排在被拒之后，悠会更困惑。"
+    },
+    {
+      "id": "frag_3_4_06",
+      "levelId": "3-4",
+      "type": "gold",
+      "character": "Yu",
+      "text": "【关键】悠问栞：「我是不是不该来？」",
+      "tags": ["self_doubt", "key"],
+      "draggable": true,
+      "valence": -1,
+      "note": "金色碎片。这个问题的时机，决定了悠是「学会察言观色」还是「过度自责」。"
+    },
+    {
+      "id": "frag_3_4_07",
+      "levelId": "3-4",
+      "type": "white",
+      "character": "Shiori",
+      "text": "栞说：「不是你的问题。我们之间有点复杂，但跟你没关系。」",
+      "tags": ["clarify"],
+      "draggable": true,
+      "valence": 2,
+      "note": "栞的澄清。它必须紧跟在悠的疑问之后，才能真正安抚她。"
+    },
+    {
+      "id": "frag_3_4_08",
+      "levelId": "3-4",
+      "type": "gray",
+      "character": "Yu",
+      "text": "那天之后，悠学会了一件事：有些沉默，不是你的错。",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": 1,
+      "note": "固定终点。中性偏正：成长的领悟。"
+    },
+    {
+      "id": "frag_3_4_09",
+      "levelId": "3-4",
+      "type": "blue",
+      "character": "Yu",
+      "text": "【悠的独白】我以为只要主动一点，就能交到朋友。原来有些关系，不是努力就能挤进去的。",
+      "tags": ["insight"],
+      "draggable": false,
+      "valence": 0,
+      "hidden": true,
+      "unlockedBy": "endingType:bittersweet",
+      "note": "达成任意 bittersweet 结局后解锁。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "3_4_good",
+      "levelId": "3-4",
+      "type": "good",
+      "title": "不是你的错",
+      "threshold": 70,
+      "valence": 1,
+      "constraints": [
+        { "kind": "before", "a": "frag_3_4_05", "b": "frag_3_4_03", "weight": 25 },
+        { "kind": "before", "a": "frag_3_4_03", "b": "frag_3_4_04", "weight": 20 },
+        { "kind": "before", "a": "frag_3_4_04", "b": "frag_3_4_06", "weight": 20 },
+        { "kind": "adjacent", "a": "frag_3_4_06", "b": "frag_3_4_07", "weight": 35 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_3_4_03", "b": "frag_3_4_05", "weight": 30 }
+      ],
+      "text": "悠跟着栞进了房间，第一时间就察觉到，栞和角落里那个蓝色的人之间，有一种她读不懂的距离感。\n\n她还是主动问了那个人：「你的 Avatar 好可爱，在哪买的？」对方只回了一句「好久以前了」，就没再接话。\n\n悠犹豫了一下，还是问栞：「我是不是不该来？」\n\n栞马上说：「不是你的问题。我们之间有点复杂，但跟你没关系。」\n\n那天之后，悠学会了一件事：有些沉默，不是你的错。",
+      "excerpt": "她先察觉，再行动，最后问出口。",
+      "bondEffect": { "Yu": 10, "Shiori": 5, "Mio": 2 }
+    },
+    {
+      "id": "3_4_bittersweet",
+      "levelId": "3-4",
+      "type": "bittersweet",
+      "title": "挤不进去",
+      "threshold": 60,
+      "valence": -1,
+      "constraints": [
+        { "kind": "before", "a": "frag_3_4_03", "b": "frag_3_4_05", "weight": 25 },
+        { "kind": "before", "a": "frag_3_4_04", "b": "frag_3_4_05", "weight": 25 },
+        { "kind": "before", "a": "frag_3_4_05", "b": "frag_3_4_06", "weight": 25 },
+        { "kind": "position", "frag": "frag_3_4_07", "index": 6, "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "adjacent", "a": "frag_3_4_06", "b": "frag_3_4_07", "weight": 30 }
+      ],
+      "text": "悠跟着栞进了房间，主动问角落里的那个人：「你的 Avatar 好可爱，在哪买的？」对方只回了一句「好久以前了」，就没再接话。\n\n悠后知后觉地察觉到，栞和那个人之间有种她读不懂的距离感。她问栞：「我是不是不该来？」\n\n栞说「不是你的问题」，但这句话来得太晚了。悠已经在心里确认了一件事：有些圈子，不是努力就能挤进去的。\n\n从那以后，她再也没有主动问过别人 Avatar 是哪买的。",
+      "excerpt": "她学会了，但代价是一份小心翼翼。",
+      "bondEffect": { "Yu": -5, "Shiori": 0, "Mio": -3 }
+    },
+    {
+      "id": "3_4_bad",
+      "levelId": "3-4",
+      "type": "bad",
+      "title": "一定是我的问题",
+      "threshold": 55,
+      "valence": -2,
+      "constraints": [
+        { "kind": "before", "a": "frag_3_4_03", "b": "frag_3_4_04", "weight": 25 },
+        { "kind": "before", "a": "frag_3_4_04", "b": "frag_3_4_06", "weight": 25 },
+        { "kind": "position", "frag": "frag_3_4_06", "index": 4, "weight": 25 },
+        { "kind": "before", "a": "frag_3_4_06", "b": "frag_3_4_05", "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_3_4_05", "b": "frag_3_4_06", "weight": 30 }
+      ],
+      "text": "悠跟着栞进了房间，主动问角落里的那个人：「你的 Avatar 好可爱，在哪买的？」对方只回了一句「好久以前了」，就没再接话。\n\n悠立刻问栞：「我是不是不该来？一定是我说错话了。」\n\n她没有给自己时间去观察，也没有给栞时间去解释。她自己先确认了结论：是我的问题。\n\n那天之后，悠再也没有主动跟陌生人说过话。",
+      "excerpt": "她没有察觉，只是把责任揽到了自己身上。",
+      "bondEffect": { "Yu": -12, "Shiori": -5, "Mio": 0 }
+    },
+    {
+      "id": "3_4_true",
+      "levelId": "3-4",
+      "type": "true",
+      "title": "我可以等",
+      "threshold": 75,
+      "valence": 1,
+      "hidden": true,
+      "constraints": [
+        { "kind": "before", "a": "frag_3_4_05", "b": "frag_3_4_03", "weight": 25 },
+        { "kind": "before", "a": "frag_3_4_04", "b": "frag_3_4_06", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_3_4_06", "b": "frag_3_4_07", "weight": 25 },
+        { "kind": "before", "a": "frag_3_4_07", "b": "frag_3_4_08", "weight": 25 }
+      ],
+      "anti": [],
+      "text": "悠跟着栞进了房间，第一时间就察觉到，栞和角落里那个蓝色的人之间，有一种她读不懂但能感觉到的距离。\n\n她还是主动问了那个人：「你的 Avatar 好可爱，在哪买的？」对方只回了一句「好久以前了」。悠点了点头，没有追问。\n\n后来她问栞：「我是不是不该来？」栞说：「不是你的问题，我们之间有点复杂。」\n\n悠说：「那我可以等。等你们准备好的时候，再一起聊。」\n\n那天之后，悠学会了一件比「主动」更重要的事：给别人空间，也是一种温柔。",
+      "excerpt": "她察觉到了，但选择等待而不是退出。",
+      "bondEffect": { "Yu": 15, "Shiori": 10, "Mio": 8 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "3_4_chaos",
+    "levelId": "3-4",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……悠的这段经历还没有找到它的顺序。\n\n想想看：是先察觉到氛围，还是先主动示好？这个顺序，决定了她的那句「我是不是不该来」是成长，还是自责。",
+    "excerpt": "察觉与行动的顺序，决定了她的成长方向。"
+  },
+  "butterflies": [
+    {
+      "id": "3-4:A",
+      "requires": [
+        { "kind": "before", "a": "frag_3_4_05", "b": "frag_3_4_03", "weight": 1 },
+        { "kind": "adjacent", "a": "frag_3_4_06", "b": "frag_3_4_07", "weight": 1 }
+      ],
+      "unlocks": ["frag_3_4_09"],
+      "revealText": "在问出「我是不是不该来」的那一刻，悠的心里其实已经有了答案。\n\n但她还是问了。因为她需要听到「不是你的问题」这句话。\n\n——原来有些话，不是为了得到答案，而是为了确认自己不是一个人。"
+    }
+  ],
+  "hints": [
+    {
+      "tier": 1,
+      "text": "悠的那句「我是不是不该来」是金色碎片。它的时机，决定了她是学会察言观色，还是过度自责。"
+    },
+    {
+      "tier": 2,
+      "text": "让悠先察觉到氛围，再主动示好，最后在被拒绝后问出那句话——这样栞的澄清才能真正安抚她。",
+      "highlight": ["frag_3_4_05", "frag_3_4_03", "frag_3_4_04", "frag_3_4_06"]
+    },
+    {
+      "tier": 3,
+      "text": "推荐顺序：察觉氛围 → 主动示好 → 被拒绝 → 金色碎片（我是不是不该来）→ 栞的澄清。",
+      "highlight": ["frag_3_4_05", "frag_3_4_03", "frag_3_4_04", "frag_3_4_06", "frag_3_4_07"]
+    }
+  ],
+  "behindTheScenes": "3-4 是悠的独立视角关卡，呼应 3-1。\n\n在 3-1 里，玩家看到的是澪如何面对「第三人」的出现；在 3-4 里，玩家看到的是那个「第三人」自己的困惑。\n\n设计意图：悠不是敌人，她只是一个无辜的新人，想交朋友但不知道自己踩进了别人的故事。本关想表达的是：成长不是「学会不主动」，而是「学会察觉」——察觉之后依然可以主动，但方式会更温柔。\n\ntrue 结局「我可以等」是本关的核心：给别人空间，也是一种温柔。"
+}

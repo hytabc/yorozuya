@@ -1,0 +1,234 @@
+{
+  "id": "7-3",
+  "title": "最后在线 217 天前",
+  "chapter": 7,
+  "order": 3,
+  "epigraph": "有些人的名字，会永远停在那个时间。",
+  "intro": "栞的好友列表里，有个人的状态一直是「最后在线 217 天前」。",
+  "hasButterfly": false,
+  "anchors": { "first": "frag_7_3_01", "last": "frag_7_3_09" },
+  "initialOrder": [
+    "frag_7_3_01",
+    "frag_7_3_03",
+    "frag_7_3_05",
+    "frag_7_3_02",
+    "frag_7_3_07",
+    "frag_7_3_04",
+    "frag_7_3_06",
+    "frag_7_3_08",
+    "frag_7_3_09"
+  ],
+  "fragments": [
+    {
+      "id": "frag_7_3_01",
+      "levelId": "7-3",
+      "type": "gray",
+      "character": "Shiori",
+      "text": "栞的好友列表里，有个人的名字已经灰了 217 天。",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": -1,
+      "note": "固定起点。"
+    },
+    {
+      "id": "frag_7_3_02",
+      "levelId": "7-3",
+      "type": "white",
+      "character": "Shiori",
+      "text": "那个人叫「星」，是栞第一年在 VRChat 认识的朋友，一起通过很多次宵，聊过很多事。",
+      "tags": ["memory"],
+      "draggable": true,
+      "valence": 1,
+      "note": "回忆。美好的过去。"
+    },
+    {
+      "id": "frag_7_3_03",
+      "levelId": "7-3",
+      "type": "white",
+      "character": "Shiori",
+      "text": "星最后一次上线是 217 天前，那天他们聊到凌晨，星说「有点累了，先下了」。",
+      "tags": ["last_words"],
+      "draggable": true,
+      "valence": -1,
+      "note": "最后的话。平常得像任何一次告别。"
+    },
+    {
+      "id": "frag_7_3_04",
+      "levelId": "7-3",
+      "type": "white",
+      "character": "Shiori",
+      "text": "栞给星发过很多条私聊：「还好吗？」「好久不见。」「如果看到了回我一下。」",
+      "tags": ["unanswered"],
+      "draggable": true,
+      "valence": -2,
+      "note": "未读的消息。"
+    },
+    {
+      "id": "frag_7_3_05",
+      "levelId": "7-3",
+      "type": "white",
+      "character": "Narrator",
+      "text": "栞在现实社交平台上搜过星的名字，但什么都没找到。",
+      "tags": ["search"],
+      "draggable": true,
+      "valence": -1,
+      "note": "搜索。试图确认对方的存在。"
+    },
+    {
+      "id": "frag_7_3_06",
+      "levelId": "7-3",
+      "type": "white",
+      "character": "Shiori",
+      "text": "栞每次整理好友列表的时候，都会把鼠标停在星的名字上，然后移开。",
+      "tags": ["hesitation"],
+      "draggable": true,
+      "valence": -1,
+      "note": "犹豫。不敢删，也不知道该怎么办。"
+    },
+    {
+      "id": "frag_7_3_07",
+      "levelId": "7-3",
+      "type": "gold",
+      "character": "Shiori",
+      "text": "【关键】栞决定保留那个名字。不删除，不追问，就让它停在那里。",
+      "tags": ["let_go", "key"],
+      "draggable": true,
+      "valence": 0,
+      "note": "金色碎片。选择保留。它的位置决定了这是「接受」还是「执念」。"
+    },
+    {
+      "id": "frag_7_3_08",
+      "levelId": "7-3",
+      "type": "white",
+      "character": "Shiori",
+      "text": "栞在糖霜世界的留言板上写了一句：「星，如果你还会回来，灯一直开着。」",
+      "tags": ["message"],
+      "draggable": true,
+      "valence": 1,
+      "note": "留言。一个可能永远不会被看到的承诺。"
+    },
+    {
+      "id": "frag_7_3_09",
+      "levelId": "7-3",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "那天栞学会了一件事：有些告别，没有告别。但你依然可以选择记得。",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定终点。中性：哀而不伤的领悟。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "7_3_good",
+      "levelId": "7-3",
+      "type": "good",
+      "title": "灯一直开着",
+      "threshold": 70,
+      "valence": 0,
+      "constraints": [
+        { "kind": "before", "a": "frag_7_3_02", "b": "frag_7_3_03", "weight": 20 },
+        { "kind": "before", "a": "frag_7_3_04", "b": "frag_7_3_07", "weight": 25 },
+        { "kind": "before", "a": "frag_7_3_07", "b": "frag_7_3_08", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_7_3_07", "b": "frag_7_3_08", "weight": 30 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_7_3_06", "b": "frag_7_3_04", "weight": 30 }
+      ],
+      "text": "星是栞第一年在 VRChat 认识的朋友。217 天前，星说「有点累了，先下了」，然后再也没有上线。\n\n栞发过很多条私聊，都没有回音。她搜过星的名字，什么都没找到。\n\n后来栞决定，保留那个名字。不删除，不追问，就让它停在那里。\n\n她在糖霜世界的留言板上写了一句：「星，如果你还会回来，灯一直开着。」\n\n那盏灯她从未关过。不是在等，只是在记得。",
+      "excerpt": "不是在等，只是在记得。",
+      "bondEffect": { "Shiori": 10 }
+    },
+    {
+      "id": "7_3_bittersweet",
+      "levelId": "7-3",
+      "type": "bittersweet",
+      "title": "没说再见",
+      "threshold": 60,
+      "valence": -1,
+      "constraints": [
+        { "kind": "before", "a": "frag_7_3_03", "b": "frag_7_3_04", "weight": 25 },
+        { "kind": "before", "a": "frag_7_3_04", "b": "frag_7_3_06", "weight": 20 },
+        { "kind": "before", "a": "frag_7_3_06", "b": "frag_7_3_07", "weight": 20 },
+        { "kind": "position", "frag": "frag_7_3_08", "index": 7, "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "adjacent", "a": "frag_7_3_07", "b": "frag_7_3_08", "weight": 30 }
+      ],
+      "text": "星说「有点累了，先下了」，然后再也没有上线。栞发过很多条私聊，都没有回音。\n\n她每次整理好友列表的时候，都会把鼠标停在星的名字上，然后移开。她不知道该删还是该留。\n\n最后她选择了保留，但那个名字就像一根刺，每次看到都会想起——我们甚至没有好好说再见。\n\n217 天变成了 365 天，又变成了 500 天。那个名字还在，但栞已经不敢再点开它了。",
+      "excerpt": "那个名字像一根刺，提醒她没有好好说再见。",
+      "bondEffect": { "Shiori": -8 }
+    },
+    {
+      "id": "7_3_bad",
+      "levelId": "7-3",
+      "type": "bad",
+      "title": "删除",
+      "threshold": 55,
+      "valence": -2,
+      "constraints": [
+        { "kind": "before", "a": "frag_7_3_04", "b": "frag_7_3_05", "weight": 25 },
+        { "kind": "before", "a": "frag_7_3_05", "b": "frag_7_3_06", "weight": 25 },
+        { "kind": "before", "a": "frag_7_3_06", "b": "frag_7_3_07", "weight": 25 },
+        { "kind": "position", "frag": "frag_7_3_07", "index": 6, "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_7_3_07", "b": "frag_7_3_08", "weight": 50 }
+      ],
+      "text": "星已经 217 天没有上线了。栞发过很多条私聊，都没有回音。她搜过星的名字，什么都没找到。\n\n她每次整理好友列表的时候，都会把鼠标停在星的名字上。终于有一天，她按下了删除键。\n\n删除之后，她盯着那个空出来的位置看了很久。然后她意识到——连最后的连接，也被她亲手切断了。\n\n如果星有一天回来，会不会发现自己的好友列表里，栞的名字也不见了？",
+      "excerpt": "连最后的连接，也被她亲手切断了。",
+      "bondEffect": { "Shiori": -15 }
+    },
+    {
+      "id": "7_3_true",
+      "levelId": "7-3",
+      "type": "true",
+      "title": "谢谢你来过",
+      "threshold": 75,
+      "valence": 1,
+      "hidden": true,
+      "constraints": [
+        { "kind": "before", "a": "frag_7_3_02", "b": "frag_7_3_03", "weight": 25 },
+        { "kind": "before", "a": "frag_7_3_03", "b": "frag_7_3_07", "weight": 25 },
+        { "kind": "before", "a": "frag_7_3_07", "b": "frag_7_3_08", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_7_3_08", "b": "frag_7_3_09", "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_7_3_04", "b": "frag_7_3_07", "weight": 30 }
+      ],
+      "text": "星是栞第一年在 VRChat 认识的朋友，一起通过很多次宵。217 天前，星说「有点累了，先下了」，然后再也没有上线。\n\n栞没有发很多条追问的私聊。她只发了最后一条：「谢谢你来过。如果累了，好好休息。如果想回来，我在。」\n\n然后她选择保留那个名字，在糖霜世界的留言板上写了一句：「灯一直开着。」\n\n那天栞学会了一件事：有些告别，没有告别。但你可以选择，把最后一次对话，变成一句温柔的祝福，而不是一串没有回音的追问。\n\n——因为你不知道对方经历了什么。你能做的，只是让他知道：这里曾经有人记得他，并且希望他好。",
+      "excerpt": "把最后一次对话，变成温柔的祝福。",
+      "bondEffect": { "Shiori": 18 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "7_3_chaos",
+    "levelId": "7-3",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……这段告别还没有找到它的顺序。\n\n想想看：是先发很多条追问的消息，还是先接受对方可能不会回来？这个顺序，决定了栞是在记得，还是在执念。",
+    "excerpt": "追问与接受的顺序，决定了结局。"
+  },
+  "hints": [
+    {
+      "tier": 1,
+      "text": "本关的关键是「保留那个名字」的时机，以及它之前是否有过度的追问。"
+    },
+    {
+      "tier": 2,
+      "text": "如果想达成 good 或 true，让栞在适度追问之后选择接受并留言；如果追问太多，就会变成执念。",
+      "highlight": ["frag_7_3_04", "frag_7_3_07", "frag_7_3_08"]
+    },
+    {
+      "tier": 3,
+      "text": "true 的关键在于，栞没有发很多条追问，而是直接发了一句温柔的祝福——把告别的主动权留给了对方。",
+      "highlight": ["frag_7_3_03", "frag_7_3_07", "frag_7_3_08"]
+    }
+  ],
+  "behindTheScenes": "7-3 是第7章「边缘」的收尾，也是全作情感最沉重的一关。主题是「真实的消失」。\n\n设计意图：VRChat 里确实会有人突然消失——可能是现实出了事，可能是抑郁症复发，可能是意外，可能只是累了不想玩了。你永远不会知道真相。\n\n本关想探讨的是：当一个人的名字永远停在「最后在线 XXX 天前」，你如何面对这个没有答案的告别？\n\ngood 结局：保留名字，留盏灯，但不执着于等待。\ntrue 结局：不过度追问，把最后一条消息变成祝福而不是追问。\nbad 结局：删除了，切断了最后的连接。\n\n这一关没有 happy ending，因为现实就是这样——有些人就是会消失，你无法挽回，只能选择如何记得。\n\n星（Xing/Hoshi）是一个永远不会出现的角色，只存在于栞的回忆和好友列表里。\n\n217 天这个数字呼应 4-3 的「你已经 217 天没有上线」——那是澪离开的时间。这里是另一个人离开的时间。\n\n注意：本关不明确星的消失原因，玩家可以有自己的理解。这是刻意的留白。"
+}

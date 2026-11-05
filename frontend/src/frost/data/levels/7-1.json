@@ -1,0 +1,256 @@
+{
+  "id": "7-1",
+  "title": "唯一在线的人",
+  "chapter": 7,
+  "order": 1,
+  "epigraph": "有些人把这里当作避难所。但避难所也需要门。",
+  "intro": "凛发现，有个新朋友每天都在线，从下午到凌晨，从未离开过。",
+  "hasButterfly": true,
+  "anchors": { "first": "frag_7_1_01", "last": "frag_7_1_09" },
+  "initialOrder": [
+    "frag_7_1_01",
+    "frag_7_1_03",
+    "frag_7_1_05",
+    "frag_7_1_02",
+    "frag_7_1_07",
+    "frag_7_1_04",
+    "frag_7_1_06",
+    "frag_7_1_08",
+    "frag_7_1_09"
+  ],
+  "fragments": [
+    {
+      "id": "frag_7_1_01",
+      "levelId": "7-1",
+      "type": "gray",
+      "character": "Rin",
+      "text": "凛注意到，好友列表里有个人的状态，已经连续在线 72 小时了。",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定起点。"
+    },
+    {
+      "id": "frag_7_1_02",
+      "levelId": "7-1",
+      "type": "white",
+      "character": "Kai",
+      "text": "那个人叫凯，每次凛上线，他都在。每次凛下线前跟他说晚安，他都说「你先睡吧，我再待一会」。",
+      "tags": ["always_online"],
+      "draggable": true,
+      "valence": -1,
+      "note": "总是在线。不是热爱，是逃避。"
+    },
+    {
+      "id": "frag_7_1_03",
+      "levelId": "7-1",
+      "type": "white",
+      "character": "Kai",
+      "text": "凯说：「现实里没什么好回去的。这里至少还有人跟我说话。」",
+      "tags": ["escape"],
+      "draggable": true,
+      "valence": -2,
+      "note": "逃避现实。他把 VRChat 当作唯一的避难所。"
+    },
+    {
+      "id": "frag_7_1_04",
+      "levelId": "7-1",
+      "type": "white",
+      "character": "Rin",
+      "text": "凛试着劝他：「你要不要休息一下？一直在线对身体不好。」",
+      "tags": ["concern"],
+      "draggable": true,
+      "valence": 1,
+      "note": "关心。但这份关心如果来得太晚，就会变成压力。"
+    },
+    {
+      "id": "frag_7_1_05",
+      "levelId": "7-1",
+      "type": "white",
+      "character": "Kai",
+      "text": "凯回：「没事的，我习惯了。而且……摘下头显之后的房间，太安静了。」",
+      "tags": ["fear_of_silence"],
+      "draggable": true,
+      "valence": -2,
+      "note": "害怕安静。他不是不知道要休息，而是不敢面对下线后的寂静。"
+    },
+    {
+      "id": "frag_7_1_06",
+      "levelId": "7-1",
+      "type": "gold",
+      "character": "Rin",
+      "text": "【关键】凛说：「那我陪你。但我们说好，今晚十二点一起下线，好吗？」",
+      "tags": ["boundary", "key"],
+      "draggable": true,
+      "valence": 2,
+      "note": "金色碎片。设立边界。它的位置决定了这是「陪伴」还是「共同沉溺」。"
+    },
+    {
+      "id": "frag_7_1_07",
+      "levelId": "7-1",
+      "type": "white",
+      "character": "Rin",
+      "text": "凛每天都陪凯待到十二点，然后主动说「我要下了，明天见」。",
+      "tags": ["routine"],
+      "draggable": true,
+      "valence": 1,
+      "note": "规律。陪伴不是无限制地在线，而是建立一个可持续的节奏。"
+    },
+    {
+      "id": "frag_7_1_08",
+      "levelId": "7-1",
+      "type": "white",
+      "character": "Kai",
+      "text": "一个月后，凯的在线时长从 72 小时变成了每天 8 小时。他说：「我开始试着在现实里做点事了。」",
+      "tags": ["improvement"],
+      "draggable": true,
+      "valence": 2,
+      "note": "改善。不是一夜之间的转变，而是慢慢的调整。"
+    },
+    {
+      "id": "frag_7_1_09",
+      "levelId": "7-1",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "那天凛学会了一件事：陪伴不是一直在，而是陪他慢慢学会离开。",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": 1,
+      "note": "固定终点。正向领悟。"
+    },
+    {
+      "id": "frag_7_1_10",
+      "levelId": "7-1",
+      "type": "blue",
+      "character": "Rin",
+      "text": "【凛的独白】我曾经也是那个「总是在线」的人。我懂那种害怕——摘下头显之后，你就又是一个人了。但如果一直不摘，你永远走不出那个房间。",
+      "tags": ["insight"],
+      "draggable": false,
+      "valence": 0,
+      "hidden": true,
+      "unlockedBy": "endingType:true",
+      "note": "达成 true 结局后解锁。凛的自我投射。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "7_1_good",
+      "levelId": "7-1",
+      "type": "good",
+      "title": "十二点的约定",
+      "threshold": 70,
+      "valence": 1,
+      "constraints": [
+        { "kind": "before", "a": "frag_7_1_03", "b": "frag_7_1_05", "weight": 20 },
+        { "kind": "before", "a": "frag_7_1_05", "b": "frag_7_1_06", "weight": 25 },
+        { "kind": "before", "a": "frag_7_1_06", "b": "frag_7_1_07", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_7_1_07", "b": "frag_7_1_08", "weight": 30 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_7_1_04", "b": "frag_7_1_03", "weight": 30 }
+      ],
+      "text": "凯总是在线。他说现实里没什么好回去的，摘下头显之后的房间太安静了。\n\n凛说：「那我陪你。但我们说好，今晚十二点一起下线，好吗？」\n\n从那天起，凛每天都陪凯待到十二点，然后主动说「我要下了，明天见」。一开始凯还会说「你先下吧」，后来慢慢地，他也开始说「好，明天见」。\n\n一个月后，凯的在线时长从 72 小时变成了每天 8 小时。他说：「我开始试着在现实里做点事了。谢谢你一直陪着。」\n\n凛回：「不客气。我只是陪你学会了按下那个退出键。」",
+      "excerpt": "陪伴不是一直在，而是陪他学会离开。",
+      "bondEffect": { "Rin": 15, "Kai": 12 }
+    },
+    {
+      "id": "7_1_bittersweet",
+      "levelId": "7-1",
+      "type": "bittersweet",
+      "title": "无能为力",
+      "threshold": 60,
+      "valence": -1,
+      "constraints": [
+        { "kind": "before", "a": "frag_7_1_04", "b": "frag_7_1_05", "weight": 25 },
+        { "kind": "before", "a": "frag_7_1_05", "b": "frag_7_1_06", "weight": 20 },
+        { "kind": "before", "a": "frag_7_1_02", "b": "frag_7_1_04", "weight": 20 },
+        { "kind": "position", "frag": "frag_7_1_08", "index": 7, "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "adjacent", "a": "frag_7_1_07", "b": "frag_7_1_08", "weight": 30 }
+      ],
+      "text": "凯总是在线。凛劝他休息一下，他说「没事的，我习惯了」，然后说摘下头显之后的房间太安静了。\n\n凛说：「那我陪你。但我们说好，今晚十二点一起下线，好吗？」凯答应了。\n\n但第二天凛上线的时候，凯已经在线 15 小时了。凛问他：「你昨晚下了吗？」凯说「下了一会，又上来了」。\n\n凛意识到，她帮不了他。不是她不够努力，而是有些门，只能他自己推开。",
+      "excerpt": "有些门，只能他自己推开。",
+      "bondEffect": { "Rin": -5, "Kai": -3 }
+    },
+    {
+      "id": "7_1_bad",
+      "levelId": "7-1",
+      "type": "bad",
+      "title": "一起沉下去",
+      "threshold": 55,
+      "valence": -2,
+      "constraints": [
+        { "kind": "before", "a": "frag_7_1_02", "b": "frag_7_1_03", "weight": 25 },
+        { "kind": "before", "a": "frag_7_1_03", "b": "frag_7_1_04", "weight": 25 },
+        { "kind": "position", "frag": "frag_7_1_04", "index": 4, "weight": 25 },
+        { "kind": "before", "a": "frag_7_1_05", "b": "frag_7_1_02", "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_7_1_06", "b": "frag_7_1_04", "weight": 40 }
+      ],
+      "text": "凯总是在线。凛劝他：「你要不要休息一下？」凯说：「没事的，我习惯了。而且这里至少还有人跟我说话。」\n\n凛没有再劝。她开始陪凯一起待到凌晨，然后是通宵。\n\n两个月后，凛的在线时长也变成了每天 16 小时。栞发来私聊：「你还好吗？」凛回：「挺好的，这里有人需要我。」\n\n但她摘下头显的时候，发现自己的房间也变得太安静了。",
+      "excerpt": "她以为是在陪伴，其实是一起沉下去。",
+      "bondEffect": { "Rin": -18, "Kai": -15 }
+    },
+    {
+      "id": "7_1_true",
+      "levelId": "7-1",
+      "type": "true",
+      "title": "我也需要下线",
+      "threshold": 75,
+      "valence": 1,
+      "hidden": true,
+      "constraints": [
+        { "kind": "before", "a": "frag_7_1_05", "b": "frag_7_1_06", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_7_1_06", "b": "frag_7_1_07", "weight": 30 },
+        { "kind": "before", "a": "frag_7_1_03", "b": "frag_7_1_05", "weight": 20 },
+        { "kind": "before", "a": "frag_7_1_07", "b": "frag_7_1_08", "weight": 25 }
+      ],
+      "anti": [],
+      "text": "凯说现实里没什么好回去的，摘下头显之后的房间太安静了。\n\n凛说：「那我陪你。但我们说好，今晚十二点一起下线，好吗？不是因为你需要休息——是因为我也需要。」\n\n凯愣了一下，说：「……好。」\n\n从那天起，凛每天都陪凯待到十二点，然后主动说「我要下了，明天见」。一个月后，凯的在线时长慢慢降了下来。\n\n后来凯问凛：「你那天为什么说'我也需要'？」\n\n凛说：「因为如果我说'你需要休息'，你会觉得是我在劝你。但如果我说'我也需要'，你就知道——这不是你一个人的事。我们都需要学会按下那个退出键。」",
+      "excerpt": "不是'你需要'，而是'我们都需要'。",
+      "bondEffect": { "Rin": 20, "Kai": 18 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "7_1_chaos",
+    "levelId": "7-1",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……这段陪伴还没有找到它的边界。\n\n想想看：是先设立边界，还是先无限陪伴？这个顺序，决定了凛是在帮他，还是在和他一起沉下去。",
+    "excerpt": "陪伴与边界的顺序，决定了结局。"
+  },
+  "butterflies": [
+    {
+      "id": "7-1:A",
+      "requires": [
+        { "kind": "adjacent", "a": "frag_7_1_06", "b": "frag_7_1_07", "weight": 1 },
+        { "kind": "before", "a": "frag_7_1_05", "b": "frag_7_1_06", "weight": 1 }
+      ],
+      "unlocks": ["frag_7_1_10"],
+      "revealText": "凛说「我也需要下线」的时候，其实是在对自己说。\n\n她曾经也是那个「总是在线」的人。她懂那种害怕——摘下头显之后，你就又是一个人了。\n\n但她也知道：如果一直不摘，你永远走不出那个房间。\n\n——所以她陪凯的同时，也在提醒自己。"
+    }
+  ],
+  "hints": [
+    {
+      "tier": 1,
+      "text": "本关的关键是「十二点一起下线」这个边界的设立时机。它排在越前面，陪伴越健康。"
+    },
+    {
+      "tier": 2,
+      "text": "如果想达成 good 或 true，让凛在听到凯的恐惧之后立刻设立边界；如果设立得太晚或没有设立，就会滑向 bittersweet 或 bad。",
+      "highlight": ["frag_7_1_05", "frag_7_1_06"]
+    },
+    {
+      "tier": 3,
+      "text": "true 的关键在于那句「我也需要」——不是单方面劝说，而是把它变成共同的需要。",
+      "highlight": ["frag_7_1_06", "frag_7_1_07"]
+    }
+  ],
+  "behindTheScenes": "7-1 是第7章「边缘」的开篇，主题是「抑郁与陪伴的边界」。\n\n设计意图：VRChat 里确实有很多人把它当作现实的避难所，有些人每天在线十几个小时。这不是游戏成瘾那么简单——很多时候，是现实太痛苦了，而这里至少还有人说话。\n\n本关想探讨的是：如何陪伴这样的人？\n\ngood 结局：设立边界，陪他慢慢学会下线。\ntrue 结局：把边界从「你需要」变成「我们都需要」，去掉说教感。\nbad 结局：没有边界，一起沉下去。\n\n这不是一个「治愈抑郁」的故事——那不是一个游戏能做到的。这是一个「如何陪伴而不失去自己」的故事。\n\n凯的角色是新增的，代表那些把 VRC 当作唯一寄托的人。"
+}
