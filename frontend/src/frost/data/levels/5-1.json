@@ -1,0 +1,201 @@
+{
+  "id": "5-1",
+  "title": "被屏蔽的人",
+  "chapter": 5,
+  "order": 1,
+  "epigraph": "有些话说出口就收不回来，有些人却愿意等你把它说完。",
+  "intro": "一句随口的话，被截图转进了好几个群。",
+  "hasButterfly": false,
+  "anchors": { "first": "frag_5_1_01", "last": "frag_5_1_08" },
+  "initialOrder": [
+    "frag_5_1_01",
+    "frag_5_1_06",
+    "frag_5_1_02",
+    "frag_5_1_05",
+    "frag_5_1_04",
+    "frag_5_1_07",
+    "frag_5_1_03",
+    "frag_5_1_08"
+  ],
+  "fragments": [
+    {
+      "id": "frag_5_1_01",
+      "levelId": "5-1",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "组队频道里，两人聊到一半，周围的人还在说笑。",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定起点。"
+    },
+    {
+      "id": "frag_5_1_02",
+      "levelId": "5-1",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪在频道里随口吐槽了一句：「这个 Avatar 看着有点怪。」",
+      "tags": ["remark"],
+      "draggable": true,
+      "valence": -1,
+      "note": "随口的一句。它本身不是恶意，但会被别人放大。"
+    },
+    {
+      "id": "frag_5_1_03",
+      "levelId": "5-1",
+      "type": "white",
+      "character": "Narrator",
+      "text": "有人截了图，配上一句「这种话很过分」，转进了好几个群。",
+      "tags": ["pile_on"],
+      "draggable": true,
+      "valence": -2,
+      "note": "截图转述。它把一句话从语境里抽了出来。"
+    },
+    {
+      "id": "frag_5_1_04",
+      "levelId": "5-1",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪想解释，却发现对方已经把她屏蔽了，连私聊都发不出去。",
+      "tags": ["blocked"],
+      "draggable": true,
+      "valence": -1,
+      "note": "屏蔽。解释的窗口被关上了。"
+    },
+    {
+      "id": "frag_5_1_05",
+      "levelId": "5-1",
+      "type": "white",
+      "character": "Shiori",
+      "text": "栞看完截图，私聊澪：「你是不是没想到会被这样理解？」",
+      "tags": ["understanding"],
+      "draggable": true,
+      "valence": 1,
+      "note": "理解。它先于澪的解释，才能把她从自责里拉出来。"
+    },
+    {
+      "id": "frag_5_1_06",
+      "levelId": "5-1",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪把这几天的聊天记录翻了一遍，越看越觉得自己真的很糟。",
+      "tags": ["self_doubt"],
+      "draggable": true,
+      "valence": -1,
+      "note": "自我怀疑。它在理解之前出现，才会让理解显得珍贵。"
+    },
+    {
+      "id": "frag_5_1_07",
+      "levelId": "5-1",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪写了一封很长的解释，没有辩解，只说了当时真正的意思，托栞转了过去。",
+      "tags": ["clarify"],
+      "draggable": true,
+      "valence": 2,
+      "note": "澄清。它必须在屏蔽之后、紧挨终点时才是'说清楚了'。"
+    },
+    {
+      "id": "frag_5_1_08",
+      "levelId": "5-1",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "过了几天，好友列表里那个名字的状态，终于有了新的变化。",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": 1,
+      "note": "固定终点。中性：它可以是解除屏蔽，也可以只是状态变了。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "5_1_good",
+      "levelId": "5-1",
+      "type": "good",
+      "title": "说清楚了",
+      "threshold": 70,
+      "valence": 1,
+      "constraints": [
+        { "kind": "before", "a": "frag_5_1_06", "b": "frag_5_1_05", "weight": 25 },
+        { "kind": "before", "a": "frag_5_1_05", "b": "frag_5_1_07", "weight": 25 },
+        { "kind": "before", "a": "frag_5_1_04", "b": "frag_5_1_07", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_5_1_07", "b": "frag_5_1_08", "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_5_1_05", "b": "frag_5_1_06", "weight": 30 }
+      ],
+      "text": "澪在频道里说了一句随口的话，很快就被截了图，转进了好几个群。她想解释，却发现自己已经被屏蔽了。\n\n她一个人翻了很久聊天记录，越看越觉得自己很糟。\n\n直到栞私聊她：「你是不是没想到会被这样理解？」那一刻，澪才意识到，有人愿意先理解她。\n\n她写了一封很长的解释，没有辩解，只说了当时真正的意思，托栞转了过去。过了几天，那个名字的状态，终于有了新的变化。",
+      "excerpt": "先被理解，才有了解释的余地。",
+      "bondEffect": { "Mio": 10, "Shiori": 8 }
+    },
+    {
+      "id": "5_1_bittersweet",
+      "levelId": "5-1",
+      "type": "bittersweet",
+      "title": "放下",
+      "threshold": 60,
+      "valence": 0,
+      "constraints": [
+        { "kind": "before", "a": "frag_5_1_02", "b": "frag_5_1_03", "weight": 25 },
+        { "kind": "before", "a": "frag_5_1_03", "b": "frag_5_1_04", "weight": 25 },
+        { "kind": "before", "a": "frag_5_1_04", "b": "frag_5_1_06", "weight": 25 },
+        { "kind": "position", "frag": "frag_5_1_05", "index": 6, "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "adjacent", "a": "frag_5_1_06", "b": "frag_5_1_08", "weight": 50 }
+      ],
+      "text": "澪的那句吐槽被截了图，传进了好几个群。她想解释，却已经被屏蔽了。\n\n她一个人翻了很久聊天记录，觉得自己大概真的做错了。她放下了解释的念头，不再去找那个名字。\n\n栞的理解，是在这之后才来的。\n\n澪看了一眼那条消息，没有回复。她已经学会了，有些误会只能让它自己过去。",
+      "excerpt": "理解来得太晚，她已经放下了。",
+      "bondEffect": { "Mio": -4, "Shiori": -2 }
+    },
+    {
+      "id": "5_1_bad",
+      "levelId": "5-1",
+      "type": "bad",
+      "title": "坐实",
+      "threshold": 55,
+      "valence": -1,
+      "constraints": [
+        { "kind": "before", "a": "frag_5_1_02", "b": "frag_5_1_06", "weight": 25 },
+        { "kind": "before", "a": "frag_5_1_04", "b": "frag_5_1_06", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_5_1_06", "b": "frag_5_1_08", "weight": 25 },
+        { "kind": "before", "a": "frag_5_1_02", "b": "frag_5_1_03", "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_5_1_05", "b": "frag_5_1_06", "weight": 40 }
+      ],
+      "text": "澪随口吐槽了一句，然后被截了图，传进了好几个群。她想解释，却发现已经被屏蔽了。\n\n她把这几天的聊天记录翻了一遍，又翻了一遍，越看越觉得是自己的错。\n\n她没有等来栞的理解，因为她自己先认定了结论。那晚的灯，她一直没有关。",
+      "excerpt": "她先认定了结论，别人的话都进不去。",
+      "bondEffect": { "Mio": -12, "Shiori": -4 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "5_1_chaos",
+    "levelId": "5-1",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……这段误会还没有找到它的顺序。\n\n想想看：是先有人替她说话，还是先有人把她关在门外？",
+    "excerpt": "误会的顺序还没有被决定。"
+  },
+  "hints": [
+    {
+      "tier": 1,
+      "text": "截图和屏蔽都是结果。真正能改变结局的，是「谁先开口理解」。"
+    },
+    {
+      "tier": 2,
+      "text": "让栞的理解先于澪的解释，而澪的解释必须发生在被屏蔽之后。",
+      "highlight": ["frag_5_1_05", "frag_5_1_07", "frag_5_1_04"]
+    },
+    {
+      "tier": 3,
+      "text": "推荐顺序：随口吐槽 → 截图转传 → 想解释却被屏蔽 → 自我怀疑 → 栞的理解 → 写下解释。",
+      "highlight": ["frag_5_1_02", "frag_5_1_03", "frag_5_1_04", "frag_5_1_06", "frag_5_1_05", "frag_5_1_07"]
+    }
+  ],
+  "behindTheScenes": "5-1 写的是「被误会之后」。VRChat 里一句随口的话，经过截图和转述，可能变成别人眼中完全不同的意思。当事人最容易陷入的不是愤怒，而是怀疑自己。\n\n所以本关的 good 不是「证明自己没错」，而是「先被理解，再去解释」。这也是 坐实 结局想说的：当你先认定了结论，别人的话就进不去了。"
+}

@@ -1,0 +1,233 @@
+{
+  "id": "5-2",
+  "title": "空着的位置",
+  "chapter": 5,
+  "order": 2,
+  "epigraph": "有些人不是突然消失的，只是一天天地，不再出现在你常去的那个 World 里。",
+  "intro": "每周三晚上的同行，有一个位置空了很久。",
+  "hasButterfly": false,
+  "anchors": { "first": "frag_5_2_01", "last": "frag_5_2_08" },
+  "initialOrder": [
+    "frag_5_2_01",
+    "frag_5_2_03",
+    "frag_5_2_05",
+    "frag_5_2_02",
+    "frag_5_2_06",
+    "frag_5_2_04",
+    "frag_5_2_07",
+    "frag_5_2_08"
+  ],
+  "fragments": [
+    {
+      "id": "frag_5_2_01",
+      "levelId": "5-2",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "每周三的晚上，澪和栞会约在同一个常驻 World 里，已经持续了一年。",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定起点。习惯本身是温暖的。"
+    },
+    {
+      "id": "frag_5_2_02",
+      "levelId": "5-2",
+      "type": "white",
+      "character": "Shiori",
+      "text": "这周三，栞没有上线。",
+      "tags": ["absence"],
+      "draggable": true,
+      "valence": -1,
+      "note": "缺席。它本身很轻，但会因为前后的排列变重。"
+    },
+    {
+      "id": "frag_5_2_03",
+      "levelId": "5-2",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪在 World 里站了很久，没有人来打招呼。",
+      "tags": ["waiting"],
+      "draggable": true,
+      "valence": -1,
+      "note": "等待。它出现得越早，澪越像是在一直等。"
+    },
+    {
+      "id": "frag_5_2_04",
+      "levelId": "5-2",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪发了一条：「你今晚还来吗？」然后盯着输入框，等了很久。",
+      "tags": ["reach_out"],
+      "draggable": true,
+      "valence": 1,
+      "note": "澪的主动。它是这一关的核心动作。"
+    },
+    {
+      "id": "frag_5_2_05",
+      "levelId": "5-2",
+      "type": "white",
+      "character": "Narrator",
+      "text": "好友列表里，栞的名字还是亮的，只是一直没有回复。",
+      "tags": ["silence"],
+      "draggable": true,
+      "valence": -1,
+      "note": "沉默。它只是事实，没有解释。"
+    },
+    {
+      "id": "frag_5_2_06",
+      "levelId": "5-2",
+      "type": "white",
+      "character": "Shiori",
+      "text": "栞在别人的私聊里留了一句：「最近很累，先不去了。」但没有对澪说。",
+      "tags": ["hidden_reason"],
+      "draggable": true,
+      "valence": 0,
+      "note": "栞的真实原因。它被别人看见，却没有到达澪。"
+    },
+    {
+      "id": "frag_5_2_07",
+      "levelId": "5-2",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪想了很久，最后只写了一句：「没关系，你忙你的。」",
+      "tags": ["self_erasure"],
+      "draggable": true,
+      "valence": -1,
+      "note": "体谅，也是退让。它的意义由前面有没有人说过原因决定。"
+    },
+    {
+      "id": "frag_5_2_08",
+      "levelId": "5-2",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "那个周三的时段，World 里的同行位置，再也没有被填满。",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定终点。中性：空位可以是'等待'，也可以是'告别'。"
+    },
+    {
+      "id": "frag_5_2_09",
+      "levelId": "5-2",
+      "type": "blue",
+      "character": "Mio",
+      "text": "【澪的独白】我不敢问她为什么。问了，就只能接受那个答案。",
+      "tags": ["insight"],
+      "draggable": false,
+      "valence": 0,
+      "hidden": true,
+      "unlockedBy": "ending:5-2:good",
+      "note": "通关 5-2 的 good 结局后解锁的氛围碎片。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "5_2_good",
+      "levelId": "5-2",
+      "type": "good",
+      "title": "说出原因",
+      "threshold": 70,
+      "valence": 1,
+      "constraints": [
+        { "kind": "before", "a": "frag_5_2_02", "b": "frag_5_2_06", "weight": 25 },
+        { "kind": "before", "a": "frag_5_2_06", "b": "frag_5_2_07", "weight": 25 },
+        { "kind": "before", "a": "frag_5_2_04", "b": "frag_5_2_06", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_5_2_06", "b": "frag_5_2_07", "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_5_2_07", "b": "frag_5_2_06", "weight": 30 }
+      ],
+      "text": "这周三，栞没有上线。澪在 World 里站了很久，发了一条「你今晚还来吗？」，然后盯着输入框，等了很久。\n\n好友列表里，栞的名字还是亮的，只是没有回复。\n\n后来澪才从别人那里听说：栞在私聊里留了一句「最近很累，先不去了」，却没有对她说。\n\n澪想了很久，回了一句：「没关系，你忙你的。」但这一次，她知道了原因——不是不在乎，只是累了。",
+      "excerpt": "不是不在乎，只是累了。",
+      "bondEffect": { "Mio": 8, "Shiori": 10 }
+    },
+    {
+      "id": "5_2_bittersweet",
+      "levelId": "5-2",
+      "type": "bittersweet",
+      "title": "等待",
+      "threshold": 60,
+      "valence": 0,
+      "constraints": [
+        { "kind": "before", "a": "frag_5_2_03", "b": "frag_5_2_04", "weight": 25 },
+        { "kind": "before", "a": "frag_5_2_04", "b": "frag_5_2_05", "weight": 25 },
+        { "kind": "before", "a": "frag_5_2_05", "b": "frag_5_2_02", "weight": 25 },
+        { "kind": "position", "frag": "frag_5_2_07", "index": 6, "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_5_2_07", "b": "frag_5_2_06", "weight": 40 }
+      ],
+      "text": "澪在 World 里站了很久，发了一条消息，然后看着好友列表，等栞的名字亮起来。\n\n那个周三，栞没有上线。澪没有放弃，每周三都会去那个 World，站在那个熟悉的位置。\n\n她终于说出了那句「没关系」，却始终没有收到原因。\n\n空着的位置，就这样一直留着。",
+      "excerpt": "空着的位置，一直留着。",
+      "bondEffect": { "Mio": -3, "Shiori": -2 }
+    },
+    {
+      "id": "5_2_bad",
+      "levelId": "5-2",
+      "type": "bad",
+      "title": "没有回音",
+      "threshold": 55,
+      "valence": -2,
+      "constraints": [
+        { "kind": "before", "a": "frag_5_2_07", "b": "frag_5_2_02", "weight": 25 },
+        { "kind": "before", "a": "frag_5_2_07", "b": "frag_5_2_05", "weight": 25 },
+        { "kind": "position", "frag": "frag_5_2_03", "index": 1, "weight": 25 },
+        { "kind": "before", "a": "frag_5_2_03", "b": "frag_5_2_07", "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_5_2_06", "b": "frag_5_2_07", "weight": 40 }
+      ],
+      "text": "澪在 World 里站了很久，没有人来打招呼。她还没有等到消息，就先写下了那句「没关系，你忙你的」。\n\n那个周三，栞还是没有上线。\n\n那之后，每个周三她都还在同一个 World 里，只是不再发消息。栞的名字一直亮着，但澪已经不再去看。\n\n那个周三的位置，就这样空了下来。",
+      "excerpt": "那个位置，就这样空了下来。",
+      "bondEffect": { "Mio": -12, "Shiori": -8 }
+    },
+    {
+      "id": "5_2_true",
+      "levelId": "5-2",
+      "type": "true",
+      "title": "各自的那一晚",
+      "threshold": 75,
+      "valence": 1,
+      "hidden": true,
+      "constraints": [
+        { "kind": "before", "a": "frag_5_2_06", "b": "frag_5_2_07", "weight": 25 },
+        { "kind": "before", "a": "frag_5_2_04", "b": "frag_5_2_06", "weight": 20 },
+        { "kind": "adjacent", "a": "frag_5_2_07", "b": "frag_5_2_08", "weight": 30 },
+        { "kind": "before", "a": "frag_5_2_02", "b": "frag_5_2_06", "weight": 25 }
+      ],
+      "anti": [],
+      "text": "这周三，栞没有上线。澪发了一条消息，然后等了很久。\n\n原来栞也在那一晚想过，要不要回一句。她在私聊里写下了「最近很累，先不去了」，却没有发给澪。\n\n澪终于明白，那个没有回复的晚上，是两个人各自的沉默。\n\n她回了一句：「没关系，你忙你的。」那一晚，她们都安静地休息了。\n\n——有些距离，不是谁离开了，而是两个人都需要一点时间。",
+      "excerpt": "两个人各自的沉默，都是真的。",
+      "bondEffect": { "Mio": 12, "Shiori": 12 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "5_2_chaos",
+    "levelId": "5-2",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……这一周的空位，还没有被解释。\n\n想想看：栞的那句「最近很累」，是在澪的体谅之前说出口，还是之后？",
+    "excerpt": "那句「最近很累」，还没有被说出口。"
+  },
+  "hints": [
+    {
+      "tier": 1,
+      "text": "空位本身没有答案。真正改变结局的，是「原因」有没有被说出口。"
+    },
+    {
+      "tier": 2,
+      "text": "让栞的隐藏原因排在澪的体谅之前——那是一句迟到的解释。",
+      "highlight": ["frag_5_2_06", "frag_5_2_07"]
+    },
+    {
+      "tier": 3,
+      "text": "推荐顺序：栞没有上线 → 澪发消息 → 栞的原因 → 澪的「没关系」→ 收尾。",
+      "highlight": ["frag_5_2_02", "frag_5_2_04", "frag_5_2_06", "frag_5_2_07", "frag_5_2_08"]
+    }
+  ],
+  "behindTheScenes": "5-2 写的是「没有解释的离开」。VRChat 里很多关系不是突然断掉，而是一周一周地少了一个人。当事人最难受的，往往不是对方走了，而是不知道原因。\n\n好的结局不一定是把人留住，而是让原因被说出口：说了，哪怕仍然要分开，也不会有那么多的猜测。bad 结局「没有回音」，则是把体谅当成了放弃。"
+}
