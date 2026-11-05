@@ -1,0 +1,220 @@
+{
+  "id": "6-3",
+  "title": "社群崩溃的那天",
+  "chapter": 6,
+  "order": 3,
+  "epigraph": "",
+  "intro": "管理员发了一条公告：「由于个人原因，本群即日起解散。」",
+  "hasButterfly": false,
+  "anchors": { "first": "frag_6_3_01", "last": "frag_6_3_08" },
+  "initialOrder": [
+    "frag_6_3_01",
+    "frag_6_3_04",
+    "frag_6_3_02",
+    "frag_6_3_06",
+    "frag_6_3_03",
+    "frag_6_3_05",
+    "frag_6_3_07",
+    "frag_6_3_08"
+  ],
+  "fragments": [
+    {
+      "id": "frag_6_3_01",
+      "levelId": "6-3",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "群公告更新了：「由于个人原因,本群即日起解散。谢谢大家这一年的陪伴。」",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": -1,
+      "note": "固定起点。"
+    },
+    {
+      "id": "frag_6_3_02",
+      "levelId": "6-3",
+      "type": "white",
+      "character": "Narrator",
+      "text": "群里炸开了。有人问「为什么」，有人说「能不能留下」，有人开始互相加好友。",
+      "tags": ["chaos"],
+      "draggable": true,
+      "valence": -1,
+      "note": "混乱。"
+    },
+    {
+      "id": "frag_6_3_03",
+      "levelId": "6-3",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪把聊天记录往上翻了很久，想找到一些值得保存的对话，但发现大部分都是表情包。",
+      "tags": ["emptiness"],
+      "draggable": true,
+      "valence": -1,
+      "note": "空虚感。热闹过后，能留下的东西很少。"
+    },
+    {
+      "id": "frag_6_3_04",
+      "levelId": "6-3",
+      "type": "white",
+      "character": "Shiori",
+      "text": "栞在群里发了一条：「我建了个新群，想继续玩的可以来。」",
+      "tags": ["rebuild"],
+      "draggable": true,
+      "valence": 1,
+      "note": "重建。有人试图接住这个崩溃的社群。"
+    },
+    {
+      "id": "frag_6_3_05",
+      "levelId": "6-3",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪点开了那个新群的链接，看了一眼成员列表，只有五个人。",
+      "tags": ["contrast"],
+      "draggable": true,
+      "valence": 0,
+      "note": "对比。原本六十人的群，真正愿意留下的只有五个。"
+    },
+    {
+      "id": "frag_6_3_06",
+      "levelId": "6-3",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪试着给几个常聊天的人发私聊，但只有一半回了她。",
+      "tags": ["disconnect"],
+      "draggable": true,
+      "valence": -1,
+      "note": "断联。平时看起来很熟的人，离开了那个群就不再联系。"
+    },
+    {
+      "id": "frag_6_3_07",
+      "levelId": "6-3",
+      "type": "gold",
+      "character": "Mio",
+      "text": "【关键】澪加入了那个新群,发了一句：「我们重新开始吧。」",
+      "tags": ["commit", "key"],
+      "draggable": true,
+      "valence": 2,
+      "note": "金色碎片。承诺留下来。它的位置决定了这是「主动重建」还是「无奈接受」。"
+    },
+    {
+      "id": "frag_6_3_08",
+      "levelId": "6-3",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "那天澪学会了一件事：社群会散,但真正的连接不会因为一个群的解散而消失。",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": 1,
+      "note": "固定终点。中性偏正：领悟。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "6_3_good",
+      "levelId": "6-3",
+      "type": "good",
+      "title": "五个人的开始",
+      "threshold": 70,
+      "valence": 1,
+      "constraints": [
+        { "kind": "before", "a": "frag_6_3_03", "b": "frag_6_3_04", "weight": 25 },
+        { "kind": "before", "a": "frag_6_3_04", "b": "frag_6_3_05", "weight": 20 },
+        { "kind": "before", "a": "frag_6_3_05", "b": "frag_6_3_07", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_6_3_07", "b": "frag_6_3_08", "weight": 30 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_6_3_06", "b": "frag_6_3_04", "weight": 30 }
+      ],
+      "text": "群炸开了。澪把聊天记录往上翻了很久，想找点值得保存的东西，但发现大部分都是表情包。\n\n栞发了一条：「我建了个新群，想继续玩的可以来。」澪点开链接，成员列表里只有五个人。\n\n她犹豫了一下，加入了那个新群，发了一句：「我们重新开始吧。」\n\n那个五个人的小群，后来变成了她待得最久的地方。\n\n那天澪学会了一件事：六十人的热闹会散，但五个人的真心可以留很久。",
+      "excerpt": "六十人的热闹会散，五个人的真心可以留很久。",
+      "bondEffect": { "Mio": 12, "Shiori": 10 }
+    },
+    {
+      "id": "6_3_bittersweet",
+      "levelId": "6-3",
+      "type": "bittersweet",
+      "title": "各自散去",
+      "threshold": 60,
+      "valence": -1,
+      "constraints": [
+        { "kind": "before", "a": "frag_6_3_02", "b": "frag_6_3_06", "weight": 25 },
+        { "kind": "before", "a": "frag_6_3_06", "b": "frag_6_3_04", "weight": 25 },
+        { "kind": "before", "a": "frag_6_3_04", "b": "frag_6_3_05", "weight": 20 },
+        { "kind": "position", "frag": "frag_6_3_07", "index": 6, "weight": 20 }
+      ],
+      "anti": [
+        { "kind": "adjacent", "a": "frag_6_3_07", "b": "frag_6_3_08", "weight": 30 }
+      ],
+      "text": "群炸开了。澪试着给几个常聊天的人发私聊，但只有一半回了她。\n\n栞后来建了个新群，澪点开链接，成员列表里只有五个人。她加入了，但那个群很快也安静了下来。\n\n一个月后，连那五个人也开始慢慢不说话了。\n\n她明白了：有些连接，只能存在于那个特定的时空。离开了那个群，就再也回不去了。",
+      "excerpt": "有些连接，只能存在于那个特定的时空。",
+      "bondEffect": { "Mio": -5, "Shiori": -3 }
+    },
+    {
+      "id": "6_3_bad",
+      "levelId": "6-3",
+      "type": "bad",
+      "title": "什么都没留下",
+      "threshold": 55,
+      "valence": -2,
+      "constraints": [
+        { "kind": "before", "a": "frag_6_3_02", "b": "frag_6_3_03", "weight": 25 },
+        { "kind": "before", "a": "frag_6_3_03", "b": "frag_6_3_06", "weight": 25 },
+        { "kind": "before", "a": "frag_6_3_06", "b": "frag_6_3_05", "weight": 25 },
+        { "kind": "position", "frag": "frag_6_3_05", "index": 6, "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_6_3_04", "b": "frag_6_3_06", "weight": 40 }
+      ],
+      "text": "群炸开了。澪翻了很久聊天记录，发现能留下的东西很少。她试着给几个常聊天的人发私聊，只有一半回了她。\n\n栞建了个新群，澪点开链接看了一眼，五个人。她关掉了链接，没有加入。\n\n一年的热闹，最后什么都没留下。她退出了那个即将解散的群，删掉了好几个不再回复的好友。\n\n那天她确认了一件事：社群散了，连接也就没了。",
+      "excerpt": "一年的热闹，最后什么都没留下。",
+      "bondEffect": { "Mio": -15, "Shiori": -8 }
+    },
+    {
+      "id": "6_3_true",
+      "levelId": "6-3",
+      "type": "true",
+      "title": "我来接住它",
+      "threshold": 75,
+      "valence": 1,
+      "hidden": true,
+      "constraints": [
+        { "kind": "before", "a": "frag_6_3_02", "b": "frag_6_3_07", "weight": 30 },
+        { "kind": "before", "a": "frag_6_3_07", "b": "frag_6_3_04", "weight": 25 },
+        { "kind": "before", "a": "frag_6_3_03", "b": "frag_6_3_07", "weight": 20 },
+        { "kind": "adjacent", "a": "frag_6_3_07", "b": "frag_6_3_08", "weight": 25 }
+      ],
+      "anti": [],
+      "text": "群炸开了，有人问为什么，有人开始互相加好友。澪翻了很久聊天记录，发现能留下的东西很少。\n\n但她没有等别人建群——她自己建了一个，发到了原群里：「我们重新开始吧。想继续玩的来这里。」\n\n后来栞也建了一个，两个小群并存了一段时间，最后自然地合并成了一个十个人的地方。\n\n那天澪学会了一件事：社群会散，但你可以选择接住它。不是因为你有义务，而是因为你想留住那些真正的连接。",
+      "excerpt": "她没有等别人建群，而是主动接住了它。",
+      "bondEffect": { "Mio": 18, "Shiori": 12 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "6_3_chaos",
+    "levelId": "6-3",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……这段崩溃还没有找到它的顺序。\n\n想想看：是先有人重建，还是先确认没什么可留？这个顺序，决定了澪是主动接住，还是被动加入。",
+    "excerpt": "重建与确认的顺序，决定了结局。"
+  },
+  "hints": [
+    {
+      "tier": 1,
+      "text": "本关的关键是「我们重新开始吧」这句话的时机。它排在越前面，澪越主动。"
+    },
+    {
+      "tier": 2,
+      "text": "如果想达成 good，让澪在看到新群后加入；如果想达成 true，让澪在栞建群之前就主动重建。",
+      "highlight": ["frag_6_3_07", "frag_6_3_04"]
+    },
+    {
+      "tier": 3,
+      "text": "good 推荐顺序：翻聊天记录 → 栞建新群 → 只有五个人 → 澪加入并承诺。true 推荐顺序：群炸开 → 澪主动承诺 → 栞也建群。",
+      "highlight": ["frag_6_3_03", "frag_6_3_04", "frag_6_3_05", "frag_6_3_07"]
+    }
+  ],
+  "behindTheScenes": "6-3 是第6章的收尾，主题是「社群崩溃」。\n\n设计意图：VRChat 里的社群很脆弱——核心成员离开、管理员弃坑、大家各自忙碌，一个曾经热闹的群可以在一夜之间变成死群。\n\n本关探讨的不是「如何防止社群崩溃」（这不可能），而是「当崩溃发生时，你选择接住它还是放手」。\n\ngood 结局「五个人的开始」：被动接住，有人重建了，你加入了。\ntrue 结局「我来接住它」：主动接住，没有等别人，你自己建了。\nbad 结局「什么都没留下」：放手了，确认了热闹只是热闹。\n\n三个结局都是合理的选择，但 true 更强调「不等别人先动」的主动性。"
+}

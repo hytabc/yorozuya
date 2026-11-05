@@ -1,0 +1,256 @@
+{
+  "id": "8-2",
+  "title": "把世界交给你",
+  "chapter": 8,
+  "order": 2,
+  "epigraph": "",
+  "intro": "凛在糖霜世界的管理面板里，看着那个「转让所有权」的按钮。",
+  "hasButterfly": true,
+  "anchors": { "first": "frag_8_2_01", "last": "frag_8_2_09" },
+  "initialOrder": [
+    "frag_8_2_01",
+    "frag_8_2_03",
+    "frag_8_2_05",
+    "frag_8_2_02",
+    "frag_8_2_07",
+    "frag_8_2_04",
+    "frag_8_2_06",
+    "frag_8_2_08",
+    "frag_8_2_09"
+  ],
+  "fragments": [
+    {
+      "id": "frag_8_2_01",
+      "levelId": "8-2",
+      "type": "gray",
+      "character": "Rin",
+      "text": "凛在糖霜世界的管理面板里，看着那个「转让所有权」的按钮。",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定起点。"
+    },
+    {
+      "id": "frag_8_2_02",
+      "levelId": "8-2",
+      "type": "white",
+      "character": "Rin",
+      "text": "凛想起当初建这个世界的时候，是为了留住一个人。",
+      "tags": ["original_purpose"],
+      "draggable": true,
+      "valence": -1,
+      "note": "最初的目的。为了留住。"
+    },
+    {
+      "id": "frag_8_2_03",
+      "levelId": "8-2",
+      "type": "white",
+      "character": "Rin",
+      "text": "但那个人从未来过。灯一直开着，雪一直下着，房子里一直是空的。",
+      "tags": ["failure"],
+      "draggable": true,
+      "valence": -2,
+      "note": "失败。世界没有留住任何人。"
+    },
+    {
+      "id": "frag_8_2_04",
+      "levelId": "8-2",
+      "type": "white",
+      "character": "Rin",
+      "text": "后来澪来了，栞来了，还有一些陌生人路过，站在雪原上说「这里很美」。",
+      "tags": ["others"],
+      "draggable": true,
+      "valence": 2,
+      "note": "其他人。世界被其他人看见了。"
+    },
+    {
+      "id": "frag_8_2_05",
+      "levelId": "8-2",
+      "type": "white",
+      "character": "Rin",
+      "text": "凛意识到，糖霜世界已经不只是她一个人的地方了。",
+      "tags": ["realization"],
+      "draggable": true,
+      "valence": 1,
+      "note": "领悟。它属于来过这里的所有人。"
+    },
+    {
+      "id": "frag_8_2_06",
+      "levelId": "8-2",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪说：「你是要把糖霜世界关掉吗？」凛摇头：「不是关掉。是交出去。」",
+      "tags": ["dialogue"],
+      "draggable": true,
+      "valence": 0,
+      "note": "对话。交出去，不是关掉。"
+    },
+    {
+      "id": "frag_8_2_07",
+      "levelId": "8-2",
+      "type": "gold",
+      "character": "Rin",
+      "text": "【关键】凛按下了「转让所有权」，把糖霜世界的钥匙交给了澪。",
+      "tags": ["transfer", "key"],
+      "draggable": true,
+      "valence": 2,
+      "note": "金色碎片。交出去。它的位置决定了这是「放手」还是「放弃」。"
+    },
+    {
+      "id": "frag_8_2_08",
+      "levelId": "8-2",
+      "type": "white",
+      "character": "Rin",
+      "text": "凛说：「这个世界，我是为了留住人才建的。但我现在明白了——世界不是用来留住人的，是用来让人相遇的。」",
+      "tags": ["wisdom"],
+      "draggable": true,
+      "valence": 2,
+      "note": "智慧。领悟的表达。"
+    },
+    {
+      "id": "frag_8_2_09",
+      "levelId": "8-2",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "那天凛学会了一件事：有些东西，你握得越紧，它越会从指缝里溜走。只有放手，它才能真正属于更多人。",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": 2,
+      "note": "固定终点。正向领悟。"
+    },
+    {
+      "id": "frag_8_2_10",
+      "levelId": "8-2",
+      "type": "blue",
+      "character": "Rin",
+      "text": "【凛的独白】我以为建一个世界，就能把重要的人留在那里。但我错了。人不会因为一个世界留下来。他们只会因为另一个人，选择回来。",
+      "tags": ["insight"],
+      "draggable": false,
+      "valence": 0,
+      "hidden": true,
+      "unlockedBy": "endingType:true",
+      "note": "达成 true 结局后解锁。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "8_2_good",
+      "levelId": "8-2",
+      "type": "good",
+      "title": "传递下去",
+      "threshold": 70,
+      "valence": 2,
+      "constraints": [
+        { "kind": "before", "a": "frag_8_2_04", "b": "frag_8_2_05", "weight": 20 },
+        { "kind": "before", "a": "frag_8_2_05", "b": "frag_8_2_07", "weight": 25 },
+        { "kind": "before", "a": "frag_8_2_07", "b": "frag_8_2_08", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_8_2_07", "b": "frag_8_2_08", "weight": 30 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_8_2_03", "b": "frag_8_2_04", "weight": 30 }
+      ],
+      "text": "凛看着管理面板的「转让所有权」按钮。\n\n她想起，后来澪来了，栞来了，还有一些陌生人路过，站在雪原上说「这里很美」。她意识到，糖霜世界已经不只是她一个人的地方了。\n\n澪问：「你是要把糖霜世界关掉吗？」凛摇头：「不是关掉。是交出去。」\n\n她按下了「转让所有权」，把钥匙交给了澪。\n\n凛说：「这个世界，我是为了留住人才建的。但我现在明白了——世界不是用来留住人的，是用来让人相遇的。现在，它是你的了。」\n\n澪接过钥匙，说：「那我也会把它传递下去。」",
+      "excerpt": "世界不是用来留住人的，是用来让人相遇的。",
+      "bondEffect": { "Rin": 18, "Mio": 15 }
+    },
+    {
+      "id": "8_2_bittersweet",
+      "levelId": "8-2",
+      "type": "bittersweet",
+      "title": "空荡荡的所有权",
+      "threshold": 60,
+      "valence": -1,
+      "constraints": [
+        { "kind": "before", "a": "frag_8_2_03", "b": "frag_8_2_04", "weight": 25 },
+        { "kind": "before", "a": "frag_8_2_04", "b": "frag_8_2_05", "weight": 20 },
+        { "kind": "before", "a": "frag_8_2_05", "b": "frag_8_2_07", "weight": 20 },
+        { "kind": "position", "frag": "frag_8_2_08", "index": 7, "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "adjacent", "a": "frag_8_2_07", "b": "frag_8_2_08", "weight": 30 }
+      ],
+      "text": "凛想起，那个人从未来过。灯一直开着，房子里一直是空的。后来澪来了，栞来了，但那不是凛最初想留住的人。\n\n她意识到，糖霜世界已经不只是她一个人的地方了。于是她按下了「转让所有权」，把钥匙交给了澪。\n\n但交出去的那一刻，她突然觉得——这个世界空荡荡的。\n\n不是因为没人来，而是因为她想留住的那个人，永远不会来了。",
+      "excerpt": "她想留住的那个人，永远不会来了。",
+      "bondEffect": { "Rin": -5, "Mio": -3 }
+    },
+    {
+      "id": "8_2_bad",
+      "levelId": "8-2",
+      "type": "bad",
+      "title": "关闭",
+      "threshold": 55,
+      "valence": -2,
+      "constraints": [
+        { "kind": "before", "a": "frag_8_2_02", "b": "frag_8_2_03", "weight": 25 },
+        { "kind": "before", "a": "frag_8_2_03", "b": "frag_8_2_05", "weight": 25 },
+        { "kind": "position", "frag": "frag_8_2_05", "index": 5, "weight": 25 },
+        { "kind": "before", "a": "frag_8_2_06", "b": "frag_8_2_07", "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_8_2_04", "b": "frag_8_2_05", "weight": 40 }
+      ],
+      "text": "凛想起当初建这个世界，是为了留住一个人。但那个人从未来过。\n\n她意识到，这个世界已经失去了它的意义。\n\n澪问：「你是要把糖霜世界关掉吗？」凛点头：「对。它本来就不应该存在。」\n\n她按下了「永久关闭」，糖霜世界的链接变成了 404。\n\n那些在雪原上站过的人，再也找不到回去的路了。",
+      "excerpt": "那些站过的人，再也找不到回去的路了。",
+      "bondEffect": { "Rin": -18, "Mio": -12, "Shiori": -10 }
+    },
+    {
+      "id": "8_2_true",
+      "levelId": "8-2",
+      "type": "true",
+      "title": "随便逛逛",
+      "threshold": 75,
+      "valence": 2,
+      "hidden": true,
+      "constraints": [
+        { "kind": "before", "a": "frag_8_2_04", "b": "frag_8_2_05", "weight": 25 },
+        { "kind": "before", "a": "frag_8_2_05", "b": "frag_8_2_07", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_8_2_07", "b": "frag_8_2_08", "weight": 30 },
+        { "kind": "before", "a": "frag_8_2_02", "b": "frag_8_2_04", "weight": 20 }
+      ],
+      "anti": [],
+      "text": "凛想起当初建这个世界，是为了留住一个人。但那个人从未来过。\n\n后来澪来了，栞来了，还有一些陌生人路过。她意识到，糖霜世界已经不只是她一个人的地方了。\n\n她按下了「转让所有权」，把钥匙交给了澪。然后她做了另一件事——她把糖霜世界的链接，发给了一个陌生人。\n\n附言只有四个字：「随便逛逛。」\n\n凛说：「我终于明白了。世界不是用来留住人的，是用来让人相遇的。我建它的时候想错了——不是'让你留下来'，而是'欢迎你来过'。」\n\n澪问：「那你现在还会建世界吗？」\n\n凛笑了：「会。但下一次，我不会为了留住谁而建。我只会建一个，让路过的人能停下来歇歇脚的地方。」",
+      "excerpt": "不是'让你留下来'，而是'欢迎你来过'。",
+      "bondEffect": { "Rin": 20, "Mio": 18, "Shiori": 15 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "8_2_chaos",
+    "levelId": "8-2",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……这个决定还没有找到它的顺序。\n\n想想看：是先看到「其他人来过」，还是先看到「那个人从未来过」？这个顺序，决定了凛是在放手，还是在放弃。",
+    "excerpt": "看到其他人与看到空缺的顺序，决定了结局。"
+  },
+  "butterflies": [
+    {
+      "id": "8-2:A",
+      "requires": [
+        { "kind": "before", "a": "frag_8_2_04", "b": "frag_8_2_05", "weight": 1 },
+        { "kind": "adjacent", "a": "frag_8_2_07", "b": "frag_8_2_08", "weight": 1 }
+      ],
+      "unlocks": ["frag_8_2_10"],
+      "revealText": "凛按下「转让所有权」的时候，心里闪过一个念头：\n\n我以为建一个世界，就能把重要的人留在那里。但我错了。\n\n人不会因为一个世界留下来。他们只会因为另一个人，选择回来。\n\n——所以世界要做的，不是留住谁，而是成为一个'可以回来的地方'。"
+    }
+  ],
+  "hints": [
+    {
+      "tier": 1,
+      "text": "本关的关键是「看到其他人来过」和「领悟世界的意义」的顺序。如果先看到其他人，就是放手；如果只看到失败，就是放弃。"
+    },
+    {
+      "tier": 2,
+      "text": "如果想达成 good 或 true，让凛在看到「其他人来过」之后领悟，再交出钥匙。",
+      "highlight": ["frag_8_2_04", "frag_8_2_05", "frag_8_2_07"]
+    },
+    {
+      "tier": 3,
+      "text": "true 的关键在于凛不只是交出钥匙，还主动把链接发给陌生人——从「我的世界」升华为「大家的世界」。",
+      "highlight": ["frag_8_2_07", "frag_8_2_08"]
+    }
+  ],
+  "behindTheScenes": "8-2 探讨的是「放手」。\n\n设计意图：凛的角色弧线从 4-2「融化的糖霜」开始——她建这个世界是为了留住一个人，但那个人从未来过。在 8-2，她终于领悟：世界不是用来留住人的，是用来让人相遇的。\n\n本关呼应了 global-endings.json 里的隐藏结局「把世界交给你」。\n\ngood 结局：交出钥匙，传递下去。\ntrue 结局：不只是交出钥匙，还主动把世界分享给陌生人——完全放下了「为某个人而建」的执念。\nbad 结局：关闭世界，因为失去了意义。\n\n这一关的主题曲应该是：不是所有的建造都是为了永恒，有些是为了让路过的人能停下来歇歇脚。"
+}

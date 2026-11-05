@@ -1,0 +1,256 @@
+{
+  "id": "8-1",
+  "title": "接替",
+  "chapter": 8,
+  "order": 1,
+  "epigraph": "有些位置空出来的时候，总需要有人接住它。",
+  "intro": "澪发现，自己开始做一些栞曾经做过的事——在新人迷路的时候，主动说一句「跟着我」。",
+  "hasButterfly": true,
+  "anchors": { "first": "frag_8_1_01", "last": "frag_8_1_09" },
+  "initialOrder": [
+    "frag_8_1_01",
+    "frag_8_1_03",
+    "frag_8_1_05",
+    "frag_8_1_02",
+    "frag_8_1_07",
+    "frag_8_1_04",
+    "frag_8_1_06",
+    "frag_8_1_08",
+    "frag_8_1_09"
+  ],
+  "fragments": [
+    {
+      "id": "frag_8_1_01",
+      "levelId": "8-1",
+      "type": "gray",
+      "character": "Mio",
+      "text": "澪在一个公共 World 里，看见一个新人站在角落，迟迟没有动。",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定起点。呼应 1-1。"
+    },
+    {
+      "id": "frag_8_1_02",
+      "levelId": "8-1",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪想起了自己第一次登入的时候，也是这样站着，不知道该往哪里走。",
+      "tags": ["memory"],
+      "draggable": true,
+      "valence": 0,
+      "note": "回忆。她看见了曾经的自己。"
+    },
+    {
+      "id": "frag_8_1_03",
+      "levelId": "8-1",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪走过去，朝那个新人挥了挥手：「新手？跟着我，别走丢啦。」",
+      "tags": ["reach_out"],
+      "draggable": true,
+      "valence": 2,
+      "note": "主动伸手。呼应 1-1 里栞的那句话。"
+    },
+    {
+      "id": "frag_8_1_04",
+      "levelId": "8-1",
+      "type": "white",
+      "character": "Newcomer",
+      "text": "那个新人犹豫了三秒，也抬起手，和澪的手掌轻轻碰了一下。",
+      "tags": ["response"],
+      "draggable": true,
+      "valence": 2,
+      "note": "回应。完全复刻 1-1 的那个动作。"
+    },
+    {
+      "id": "frag_8_1_05",
+      "levelId": "8-1",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪带着那个新人逛了几个 World，介绍了一些常用的功能，聊了一会天。",
+      "tags": ["guide"],
+      "draggable": true,
+      "valence": 1,
+      "note": "引导。她在做栞曾经为她做的事。"
+    },
+    {
+      "id": "frag_8_1_06",
+      "levelId": "8-1",
+      "type": "white",
+      "character": "Mio",
+      "text": "下线前，那个新人说：「谢谢你。这是我第一次觉得，这里不是一个人的地方。」",
+      "tags": ["gratitude"],
+      "draggable": true,
+      "valence": 2,
+      "note": "感谢。和澪当年的感受一模一样。"
+    },
+    {
+      "id": "frag_8_1_07",
+      "levelId": "8-1",
+      "type": "gold",
+      "character": "Mio",
+      "text": "【关键】澪想起了栞。她发了一条私聊：「我今天做了一件你会做的事。」",
+      "tags": ["inheritance", "key"],
+      "draggable": true,
+      "valence": 2,
+      "note": "金色碎片。传承的自觉。它的位置决定了这是「自发的传承」还是「刻意的模仿」。"
+    },
+    {
+      "id": "frag_8_1_08",
+      "levelId": "8-1",
+      "type": "white",
+      "character": "Shiori",
+      "text": "栞回：「是吗？那你做得怎么样？」澪说：「我想……还可以吧。」栞回了一个笑脸：「那就够了。」",
+      "tags": ["approval"],
+      "draggable": true,
+      "valence": 2,
+      "note": "认可。传承被看见、被认可。"
+    },
+    {
+      "id": "frag_8_1_09",
+      "levelId": "8-1",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "那天澪学会了一件事：有些温暖，是被递过来的；而有些时候，你就是那个递出去的人。",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": 2,
+      "note": "固定终点。正向领悟。"
+    },
+    {
+      "id": "frag_8_1_10",
+      "levelId": "8-1",
+      "type": "blue",
+      "character": "Mio",
+      "text": "【澪的独白】我以为「跟着我，别走丢啦」只是栞的一句随口话。直到我自己说出来的时候，才明白——那不是一句话，那是一个位置。当栞不在的时候,总要有人站在那里。",
+      "tags": ["insight"],
+      "draggable": false,
+      "valence": 0,
+      "hidden": true,
+      "unlockedBy": "endingType:true",
+      "note": "达成 true 结局后解锁。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "8_1_good",
+      "levelId": "8-1",
+      "type": "good",
+      "title": "传下去",
+      "threshold": 70,
+      "valence": 2,
+      "constraints": [
+        { "kind": "before", "a": "frag_8_1_02", "b": "frag_8_1_03", "weight": 20 },
+        { "kind": "before", "a": "frag_8_1_03", "b": "frag_8_1_05", "weight": 20 },
+        { "kind": "before", "a": "frag_8_1_06", "b": "frag_8_1_07", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_8_1_07", "b": "frag_8_1_08", "weight": 35 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_8_1_03", "b": "frag_8_1_02", "weight": 30 }
+      ],
+      "text": "澪看见一个新人站在角落。她想起了自己第一次登入的时候，也是这样站着。\n\n她走过去，朝那个新人挥了挥手：「新手？跟着我，别走丢啦。」\n\n那个新人犹豫了三秒，也抬起手,和澪的手掌轻轻碰了一下。澪带着他逛了几个 World，聊了一会天。\n\n下线前，那个新人说：「谢谢你。这是我第一次觉得，这里不是一个人的地方。」\n\n澪给栞发了一条私聊：「我今天做了一件你会做的事。」栞回：「那你做得怎么样？」澪说：「我想……还可以吧。」栞回了一个笑脸：「那就够了。」\n\n那天澪明白了：有些温暖，不是留下来的，是传下去的。",
+      "excerpt": "有些温暖，不是留下来的，是传下去的。",
+      "bondEffect": { "Mio": 15, "Shiori": 12 }
+    },
+    {
+      "id": "8_1_bittersweet",
+      "levelId": "8-1",
+      "type": "bittersweet",
+      "title": "模仿",
+      "threshold": 60,
+      "valence": 0,
+      "constraints": [
+        { "kind": "before", "a": "frag_8_1_03", "b": "frag_8_1_02", "weight": 25 },
+        { "kind": "before", "a": "frag_8_1_05", "b": "frag_8_1_07", "weight": 20 },
+        { "kind": "before", "a": "frag_8_1_07", "b": "frag_8_1_06", "weight": 20 },
+        { "kind": "position", "frag": "frag_8_1_08", "index": 7, "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "adjacent", "a": "frag_8_1_07", "b": "frag_8_1_08", "weight": 30 }
+      ],
+      "text": "澪看见一个新人站在角落。她走过去，朝那个新人挥了挥手：「新手？跟着我，别走丢啦。」——这是栞曾经说过的话。\n\n她带着那个新人逛了几个 World，做着栞曾经为她做的事。然后她给栞发了一条私聊：「我今天做了一件你会做的事。」\n\n栞回：「是吗？那你做得怎么样？」但澪看着那句话，突然不知道该怎么回。\n\n她做的……是栞会做的事，还是她自己想做的事？",
+      "excerpt": "她做的，是栞会做的事，还是她自己想做的事？",
+      "bondEffect": { "Mio": -3, "Shiori": -2 }
+    },
+    {
+      "id": "8_1_bad",
+      "levelId": "8-1",
+      "type": "bad",
+      "title": "走过去",
+      "threshold": 55,
+      "valence": -1,
+      "constraints": [
+        { "kind": "before", "a": "frag_8_1_02", "b": "frag_8_1_05", "weight": 25 },
+        { "kind": "position", "frag": "frag_8_1_05", "index": 4, "weight": 25 },
+        { "kind": "before", "a": "frag_8_1_05", "b": "frag_8_1_03", "weight": 25 },
+        { "kind": "position", "frag": "frag_8_1_03", "index": 6, "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_8_1_03", "b": "frag_8_1_05", "weight": 40 }
+      ],
+      "text": "澪看见一个新人站在角落。她想起了自己第一次登入的时候。\n\n然后她从那个新人身边走过去了。\n\n不是不想帮，只是她突然意识到——她不是栞。她做不到像栞那样，总是第一个注意到角落里的人。\n\n那天她学会了一件事：有些位置，不是你想站就能站的。",
+      "excerpt": "有些位置，不是你想站就能站的。",
+      "bondEffect": { "Mio": -12, "Shiori": -5 }
+    },
+    {
+      "id": "8_1_true",
+      "levelId": "8-1",
+      "type": "true",
+      "title": "我接住了",
+      "threshold": 75,
+      "valence": 2,
+      "hidden": true,
+      "constraints": [
+        { "kind": "before", "a": "frag_8_1_02", "b": "frag_8_1_03", "weight": 25 },
+        { "kind": "before", "a": "frag_8_1_06", "b": "frag_8_1_07", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_8_1_07", "b": "frag_8_1_08", "weight": 30 },
+        { "kind": "before", "a": "frag_8_1_04", "b": "frag_8_1_05", "weight": 20 }
+      ],
+      "anti": [],
+      "text": "澪看见一个新人站在角落。她想起了自己第一次登入的时候，也是这样站着。\n\n她走过去，朝那个新人挥了挥手：「新手？跟着我，别走丢啦。」那个新人犹豫了三秒，也抬起手，和澪的手掌轻轻碰了一下。\n\n澪带着他逛了几个 World。下线前，那个新人说：「谢谢你。这是我第一次觉得，这里不是一个人的地方。」\n\n澪给栞发了一条私聊：「我今天做了一件你会做的事。不——是我想做的事。」\n\n栞回：「那你做得怎么样？」\n\n澪说：「我接住了。就像你当年接住我一样。」\n\n栞回：「那就够了。那个位置，现在是你的了。」",
+      "excerpt": "那个位置，现在是你的了。",
+      "bondEffect": { "Mio": 20, "Shiori": 18 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "8_1_chaos",
+    "levelId": "8-1",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……这段传承还没有找到它的顺序。\n\n想想看：是先想起自己的过去，还是先做出那个动作？这个顺序，决定了这是自发的传承，还是刻意的模仿。",
+    "excerpt": "回忆与行动的顺序，决定了传承的本质。"
+  },
+  "butterflies": [
+    {
+      "id": "8-1:A",
+      "requires": [
+        { "kind": "before", "a": "frag_8_1_02", "b": "frag_8_1_03", "weight": 1 },
+        { "kind": "adjacent", "a": "frag_8_1_07", "b": "frag_8_1_08", "weight": 1 }
+      ],
+      "unlocks": ["frag_8_1_10"],
+      "revealText": "澪说出「跟着我，别走丢啦」的时候，那句话不是从记忆里复制过来的。\n\n是从她心里长出来的。\n\n因为她终于明白——那不是一句话，那是一个位置。当栞不在的时候，总要有人站在那里。\n\n而现在，那个人是她。"
+    }
+  ],
+  "hints": [
+    {
+      "tier": 1,
+      "text": "本关的关键是「想起自己的过去」和「主动伸手」的顺序。如果先回忆再行动，就是自发的传承；如果先行动再回忆，就是刻意模仿。"
+    },
+    {
+      "tier": 2,
+      "text": "如果想达成 good 或 true，让回忆先于行动，并让「我做了一件你会做的事」紧跟在新人的感谢之后。",
+      "highlight": ["frag_8_1_02", "frag_8_1_03", "frag_8_1_06", "frag_8_1_07"]
+    },
+    {
+      "tier": 3,
+      "text": "true 的关键在于那句「不——是我想做的事」，把传承从「模仿栞」转化为「成为自己」。",
+      "highlight": ["frag_8_1_07", "frag_8_1_08"]
+    }
+  ],
+  "behindTheScenes": "8-1 是第8章「回声」的开篇，主题是「接替」。\n\n设计意图：当一个人离开了某个位置，总要有人接住它。但这个「接住」不是简单的模仿——不是「我要做得和她一样好」，而是「我要用我的方式，做这件事」。\n\n本关完整呼应了 1-1：同样的场景，同样的动作，同样的话。但说话的人从栞变成了澪。\n\ngood 结局：传承被完成，被认可。\ntrue 结局：从「做你会做的事」升华为「做我想做的事」——传承不是复制，而是成为更好的自己。\nbad 结局：走过去了，承认自己做不到。\n\n这一关标志着澪从「被帮助的人」变成了「帮助别人的人」。"
+}

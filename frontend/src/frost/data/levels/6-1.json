@@ -1,0 +1,255 @@
+{
+  "id": "6-1",
+  "title": "十五个人的房间",
+  "chapter": 6,
+  "order": 1,
+  "epigraph": "有些圈子，越温暖，边界就越清晰。",
+  "intro": "澪被邀请进了一个「老朋友聚会」的 Instance，但她很快发现，这里的每个人都认识彼此。",
+  "hasButterfly": true,
+  "anchors": { "first": "frag_6_1_01", "last": "frag_6_1_09" },
+  "initialOrder": [
+    "frag_6_1_01",
+    "frag_6_1_04",
+    "frag_6_1_02",
+    "frag_6_1_06",
+    "frag_6_1_03",
+    "frag_6_1_07",
+    "frag_6_1_05",
+    "frag_6_1_08",
+    "frag_6_1_09"
+  ],
+  "fragments": [
+    {
+      "id": "frag_6_1_01",
+      "levelId": "6-1",
+      "type": "gray",
+      "character": "Mio",
+      "text": "澪收到一个 Instance 邀请，备注写着「老朋友聚会」。",
+      "tags": ["anchor", "start"],
+      "draggable": false,
+      "valence": 0,
+      "note": "固定起点。"
+    },
+    {
+      "id": "frag_6_1_02",
+      "levelId": "6-1",
+      "type": "white",
+      "character": "Mio",
+      "text": "房间里有十五个人，他们在聊一个澪完全插不上话的话题。",
+      "tags": ["outsider"],
+      "draggable": true,
+      "valence": -1,
+      "note": "局外人的感觉。"
+    },
+    {
+      "id": "frag_6_1_03",
+      "levelId": "6-1",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪试着加入对话，说了一句相关的事，但没有人接话。",
+      "tags": ["ignored"],
+      "draggable": true,
+      "valence": -2,
+      "note": "被忽视。不是恶意，只是节奏不对。"
+    },
+    {
+      "id": "frag_6_1_04",
+      "levelId": "6-1",
+      "type": "white",
+      "character": "Narrator",
+      "text": "她在角落里站了十五分钟，没有人注意到她在沉默。",
+      "tags": ["invisible"],
+      "draggable": true,
+      "valence": -1,
+      "note": "透明人。"
+    },
+    {
+      "id": "frag_6_1_05",
+      "levelId": "6-1",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪悄悄退出了 Instance，没有人发现。",
+      "tags": ["leave"],
+      "draggable": true,
+      "valence": -1,
+      "note": "离开。它如果排在尝试之前，就是「识趣」；排在尝试之后，就是「受伤后退出」。"
+    },
+    {
+      "id": "frag_6_1_06",
+      "levelId": "6-1",
+      "type": "gold",
+      "character": "Shiori",
+      "text": "【关键】栞注意到澪在角落，走过来说：「抱歉，我们聊嗨了。你还好吗？」",
+      "tags": ["noticed", "key"],
+      "draggable": true,
+      "valence": 2,
+      "note": "金色碎片。被注意到。它的时机决定了澪是「被拉进来」还是「被安慰着离开」。"
+    },
+    {
+      "id": "frag_6_1_07",
+      "levelId": "6-1",
+      "type": "white",
+      "character": "Mio",
+      "text": "澪说：「没事，你们继续。」但她的手已经放在了退出键上。",
+      "tags": ["polite_decline"],
+      "draggable": true,
+      "valence": 0,
+      "note": "礼貌的拒绝。它可以是真的没事，也可以是强颜欢笑。"
+    },
+    {
+      "id": "frag_6_1_08",
+      "levelId": "6-1",
+      "type": "white",
+      "character": "Shiori",
+      "text": "栞拉着澪坐下，主动把话题转到她能参与的地方。",
+      "tags": ["bridge"],
+      "draggable": true,
+      "valence": 2,
+      "note": "桥梁。它必须紧跟在「被注意到」之后，才能真正把澪拉进来。"
+    },
+    {
+      "id": "frag_6_1_09",
+      "levelId": "6-1",
+      "type": "gray",
+      "character": "Narrator",
+      "text": "那天澪学会了一件事：有些圈子的温暖，需要有人主动递过来。",
+      "tags": ["anchor", "end"],
+      "draggable": false,
+      "valence": 1,
+      "note": "固定终点。中性偏正：领悟。"
+    },
+    {
+      "id": "frag_6_1_10",
+      "levelId": "6-1",
+      "type": "blue",
+      "character": "Mio",
+      "text": "【澪的独白】我以为「老朋友聚会」是可以慢慢融入的。原来不是。有些圈子，不是你不够好，只是你来得太晚。",
+      "tags": ["insight"],
+      "draggable": false,
+      "valence": 0,
+      "hidden": true,
+      "unlockedBy": "endingType:bittersweet",
+      "note": "达成任意 bittersweet 结局后解锁。"
+    }
+  ],
+  "endings": [
+    {
+      "id": "6_1_good",
+      "levelId": "6-1",
+      "type": "good",
+      "title": "被拉进来",
+      "threshold": 70,
+      "valence": 1,
+      "constraints": [
+        { "kind": "before", "a": "frag_6_1_04", "b": "frag_6_1_06", "weight": 20 },
+        { "kind": "before", "a": "frag_6_1_06", "b": "frag_6_1_08", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_6_1_06", "b": "frag_6_1_08", "weight": 30 },
+        { "kind": "before", "a": "frag_6_1_03", "b": "frag_6_1_05", "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_6_1_05", "b": "frag_6_1_06", "weight": 40 }
+      ],
+      "text": "澪进了房间，站了十五分钟，试着加入对话但没人接话。她的手已经放在了退出键上。\n\n就在这时，栞注意到她在角落，走过来说：「抱歉，我们聊嗨了。你还好吗？」然后拉着澪坐下，主动把话题转到她能参与的地方。\n\n那一刻澪才明白：有些圈子的温暖，不是自动扩散的，是需要有人主动递过来的。\n\n那天晚上她在那个房间里待到了凌晨三点。",
+      "excerpt": "有人主动把话题递过来，圈子才有了新的位置。",
+      "bondEffect": { "Mio": 12, "Shiori": 10 }
+    },
+    {
+      "id": "6_1_bittersweet",
+      "levelId": "6-1",
+      "type": "bittersweet",
+      "title": "来得太晚",
+      "threshold": 60,
+      "valence": -1,
+      "constraints": [
+        { "kind": "before", "a": "frag_6_1_02", "b": "frag_6_1_03", "weight": 25 },
+        { "kind": "before", "a": "frag_6_1_03", "b": "frag_6_1_04", "weight": 20 },
+        { "kind": "before", "a": "frag_6_1_04", "b": "frag_6_1_05", "weight": 25 },
+        { "kind": "before", "a": "frag_6_1_05", "b": "frag_6_1_06", "weight": 20 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_6_1_06", "b": "frag_6_1_05", "weight": 30 }
+      ],
+      "text": "澪进了房间，插不上话，站了十五分钟没人注意，然后悄悄退出了 Instance。\n\n栞后来发现了，发来私聊：「抱歉，我们聊嗨了。你还好吗？」\n\n澪回：「没事，你们继续。」\n\n这句话是真的。她不怪他们，只是确认了一件事：有些圈子，不是你不够好，只是你来得太晚。",
+      "excerpt": "她不怪他们，只是确认了一个事实。",
+      "bondEffect": { "Mio": -5, "Shiori": -3 }
+    },
+    {
+      "id": "6_1_bad",
+      "levelId": "6-1",
+      "type": "bad",
+      "title": "我不属于这里",
+      "threshold": 55,
+      "valence": -2,
+      "constraints": [
+        { "kind": "before", "a": "frag_6_1_02", "b": "frag_6_1_04", "weight": 25 },
+        { "kind": "before", "a": "frag_6_1_04", "b": "frag_6_1_03", "weight": 25 },
+        { "kind": "position", "frag": "frag_6_1_05", "index": 5, "weight": 25 },
+        { "kind": "before", "a": "frag_6_1_03", "b": "frag_6_1_05", "weight": 25 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_6_1_06", "b": "frag_6_1_05", "weight": 50 }
+      ],
+      "text": "澪进了房间，插不上话，站了十五分钟没人注意到她在沉默。她试着说了一句话，依然没人接话。\n\n她悄悄退出了 Instance。栞后来发消息问她，澪只回了一句「我不属于那里」，然后把那个 Instance 的邀请设置成了「拒绝」。\n\n从那以后，她再也没有接受过「老朋友聚会」的邀请。",
+      "excerpt": "她确认了一个结论：我不属于这里。",
+      "bondEffect": { "Mio": -15, "Shiori": -10 }
+    },
+    {
+      "id": "6_1_true",
+      "levelId": "6-1",
+      "type": "true",
+      "title": "识趣地离开",
+      "threshold": 75,
+      "valence": 1,
+      "hidden": true,
+      "constraints": [
+        { "kind": "before", "a": "frag_6_1_02", "b": "frag_6_1_04", "weight": 25 },
+        { "kind": "before", "a": "frag_6_1_04", "b": "frag_6_1_05", "weight": 25 },
+        { "kind": "before", "a": "frag_6_1_05", "b": "frag_6_1_03", "weight": 25 },
+        { "kind": "adjacent", "a": "frag_6_1_06", "b": "frag_6_1_07", "weight": 25 }
+      ],
+      "anti": [],
+      "text": "澪进了房间，插不上话，站了十五分钟。她没有强行加入对话，而是识趣地悄悄退出了。\n\n栞很快发现了，发来私聊：「抱歉，我们聊嗨了。你还好吗？」\n\n澪说：「没事，你们继续。我本来就是路过看看。」\n\n栞说：「下次我们单独约？」澪回：「好。」\n\n——有时候，识趣地离开，比硬要融入更舒服。知道什么时候该进什么时候该退，也是一种成熟。",
+      "excerpt": "识趣地离开，比硬要融入更舒服。",
+      "bondEffect": { "Mio": 15, "Shiori": 12 }
+    }
+  ],
+  "chaosEnding": {
+    "id": "6_1_chaos",
+    "levelId": "6-1",
+    "type": "chaos",
+    "title": "因果未能稳定",
+    "threshold": 999,
+    "valence": 0,
+    "constraints": [],
+    "anti": [],
+    "text": "因果未能稳定……这段经历还没有找到它的顺序。\n\n想想看：是先被注意到，还是先离开？这个顺序，决定了澪是「被拉进来」还是「学会识趣」。",
+    "excerpt": "被注意到与离开的顺序，决定了结局。"
+  },
+  "butterflies": [
+    {
+      "id": "6-1:A",
+      "requires": [
+        { "kind": "before", "a": "frag_6_1_05", "b": "frag_6_1_06", "weight": 1 }
+      ],
+      "unlocks": ["frag_6_1_10"],
+      "revealText": "在退出 Instance 的那一刻，澪的心里闪过一个念头：\n\n不是他们不好，也不是我不好。只是有些圈子，不是你不够好，只是你来得太晚。\n\n——这个念头，让她没有把这次经历变成「我不属于任何地方」。"
+    }
+  ],
+  "hints": [
+    {
+      "tier": 1,
+      "text": "栞的那句「抱歉，我们聊嗨了」是金色碎片。它的时机，决定了澪是被拉进来，还是被安慰着离开。"
+    },
+    {
+      "tier": 2,
+      "text": "如果想达成 good，让栞在澪离开之前注意到她；如果想达成 true，让澪先识趣地离开。",
+      "highlight": ["frag_6_1_06", "frag_6_1_05"]
+    },
+    {
+      "tier": 3,
+      "text": "good 推荐顺序：插不上话 → 站了十五分钟 → 金色碎片（被注意到）→ 拉着澪坐下。true 推荐顺序：站了十五分钟 → 悄悄退出 → 金色碎片（被注意到）→ 礼貌回应。",
+      "highlight": ["frag_6_1_02", "frag_6_1_04", "frag_6_1_06", "frag_6_1_05"]
+    }
+  ],
+  "behindTheScenes": "6-1 是第6章「社群」的开篇，主题是「小团体的归属感与排他性」。\n\n设计意图：VRChat 里的小团体不一定是恶意排外的，很多时候只是「老朋友聊嗨了」。但对于新人来说，这种无意识的排他性依然会造成伤害。\n\n本关有两个 positive 结局：good 是「被拉进来」，true 是「识趣地离开」——它们都是正向的，因为关键不是「进不进得去」，而是「你有没有因此否定自己」。\n\nbad 结局「我不属于这里」才是真正的坏结局：把一次经历泛化成了「我不属于任何地方」。"
+}

@@ -6,23 +6,24 @@
   "epigraph": "有些话说出口就收不回来，有些人却愿意等你把它说完。",
   "intro": "一句随口的话，被截图转进了好几个群。",
   "hasButterfly": false,
-  "anchors": { "first": "frag_5_1_01", "last": "frag_5_1_08" },
+  "anchors": { "first": "frag_5_1_01", "last": "frag_5_1_09" },
   "initialOrder": [
     "frag_5_1_01",
     "frag_5_1_06",
     "frag_5_1_02",
+    "frag_5_1_08",
     "frag_5_1_05",
     "frag_5_1_04",
     "frag_5_1_07",
     "frag_5_1_03",
-    "frag_5_1_08"
+    "frag_5_1_09"
   ],
   "fragments": [
     {
       "id": "frag_5_1_01",
       "levelId": "5-1",
       "type": "gray",
-      "character": "Narrator",
+      "character": "Mio",
       "text": "组队频道里，两人聊到一半，周围的人还在说笑。",
       "tags": ["anchor", "start"],
       "draggable": false,
@@ -98,6 +99,17 @@
     {
       "id": "frag_5_1_08",
       "levelId": "5-1",
+      "type": "red",
+      "character": "Mio",
+      "text": "澪的第一反应是愤怒：「凭什么？我只是说了实话。」",
+      "tags": ["anger", "defensive", "negative"],
+      "draggable": true,
+      "valence": -2,
+      "note": "红色碎片（新增）。愤怒是正常反应，但它如果排在自我反思之前，就会变成防御墙。它越靠前，修复的可能性越低。"
+    },
+    {
+      "id": "frag_5_1_09",
+      "levelId": "5-1",
       "type": "gray",
       "character": "Narrator",
       "text": "过了几天，好友列表里那个名字的状态，终于有了新的变化。",
@@ -116,17 +128,19 @@
       "threshold": 70,
       "valence": 1,
       "constraints": [
-        { "kind": "before", "a": "frag_5_1_06", "b": "frag_5_1_05", "weight": 25 },
-        { "kind": "before", "a": "frag_5_1_05", "b": "frag_5_1_07", "weight": 25 },
-        { "kind": "before", "a": "frag_5_1_04", "b": "frag_5_1_07", "weight": 25 },
-        { "kind": "adjacent", "a": "frag_5_1_07", "b": "frag_5_1_08", "weight": 25 }
+        { "kind": "before", "a": "frag_5_1_06", "b": "frag_5_1_05", "weight": 20 },
+        { "kind": "before", "a": "frag_5_1_05", "b": "frag_5_1_07", "weight": 20 },
+        { "kind": "before", "a": "frag_5_1_04", "b": "frag_5_1_07", "weight": 20 },
+        { "kind": "adjacent", "a": "frag_5_1_07", "b": "frag_5_1_09", "weight": 20 },
+        { "kind": "before", "a": "frag_5_1_08", "b": "frag_5_1_06", "weight": 20 }
       ],
       "anti": [
-        { "kind": "before", "a": "frag_5_1_05", "b": "frag_5_1_06", "weight": 30 }
+        { "kind": "before", "a": "frag_5_1_05", "b": "frag_5_1_06", "weight": 30 },
+        { "kind": "before", "a": "frag_5_1_08", "b": "frag_5_1_04", "weight": 20 }
       ],
-      "text": "澪在频道里说了一句随口的话，很快就被截了图，转进了好几个群。她想解释，却发现自己已经被屏蔽了。\n\n她一个人翻了很久聊天记录，越看越觉得自己很糟。\n\n直到栞私聊她：「你是不是没想到会被这样理解？」那一刻，澪才意识到，有人愿意先理解她。\n\n她写了一封很长的解释，没有辩解，只说了当时真正的意思，托栞转了过去。过了几天，那个名字的状态，终于有了新的变化。",
-      "excerpt": "先被理解，才有了解释的余地。",
-      "bondEffect": { "Mio": 10, "Shiori": 8 }
+      "text": "澪在频道里说了一句随口的话，很快就被截了图，转进了好几个群。第一瞬间她很生气——「凭什么？我只是说了实话。」\n\n但她没有让这份愤怒停在那里。她开始翻聊天记录，越看越觉得自己确实没考虑到对方的感受。\n\n栞私聊她：「你是不是没想到会被这样理解？」那一刻，澪才意识到，有人愿意先理解她，而不是等她解释。\n\n她写了一封很长的解释，没有辩解，只说了当时真正的意思，托栞转了过去。过了几天，那个名字的状态变了——从「屏蔽中」变成了「已读」。",
+      "excerpt": "愤怒是正常的，但她没有停在那里。",
+      "bondEffect": { "Mio": 12, "Shiori": 10 }
     },
     {
       "id": "5_1_bittersweet",
@@ -136,37 +150,59 @@
       "threshold": 60,
       "valence": 0,
       "constraints": [
-        { "kind": "before", "a": "frag_5_1_02", "b": "frag_5_1_03", "weight": 25 },
-        { "kind": "before", "a": "frag_5_1_03", "b": "frag_5_1_04", "weight": 25 },
-        { "kind": "before", "a": "frag_5_1_04", "b": "frag_5_1_06", "weight": 25 },
-        { "kind": "position", "frag": "frag_5_1_05", "index": 6, "weight": 25 }
+        { "kind": "before", "a": "frag_5_1_02", "b": "frag_5_1_03", "weight": 20 },
+        { "kind": "before", "a": "frag_5_1_03", "b": "frag_5_1_04", "weight": 20 },
+        { "kind": "before", "a": "frag_5_1_04", "b": "frag_5_1_06", "weight": 20 },
+        { "kind": "before", "a": "frag_5_1_08", "b": "frag_5_1_06", "weight": 20 },
+        { "kind": "position", "frag": "frag_5_1_05", "index": 6, "weight": 20 }
       ],
       "anti": [
-        { "kind": "adjacent", "a": "frag_5_1_06", "b": "frag_5_1_08", "weight": 50 }
+        { "kind": "adjacent", "a": "frag_5_1_06", "b": "frag_5_1_09", "weight": 40 }
       ],
-      "text": "澪的那句吐槽被截了图，传进了好几个群。她想解释，却已经被屏蔽了。\n\n她一个人翻了很久聊天记录，觉得自己大概真的做错了。她放下了解释的念头，不再去找那个名字。\n\n栞的理解，是在这之后才来的。\n\n澪看了一眼那条消息，没有回复。她已经学会了，有些误会只能让它自己过去。",
+      "text": "澪的那句吐槽被截了图，传进了好几个群。她第一时间很生气，但很快这份愤怒就变成了怀疑——她翻了很久聊天记录，觉得自己大概真的做错了。\n\n她放下了解释的念头，不再去找那个名字。\n\n栞的理解，是在这之后才来的。澪看了一眼那条消息，回了一个「谢谢」，但她已经不打算再解释了。\n\n有些误会，只能让它自己过去。",
       "excerpt": "理解来得太晚，她已经放下了。",
-      "bondEffect": { "Mio": -4, "Shiori": -2 }
+      "bondEffect": { "Mio": -2, "Shiori": 0 }
     },
     {
       "id": "5_1_bad",
       "levelId": "5-1",
       "type": "bad",
-      "title": "坐实",
+      "title": "防御墙",
       "threshold": 55,
-      "valence": -1,
+      "valence": -2,
       "constraints": [
-        { "kind": "before", "a": "frag_5_1_02", "b": "frag_5_1_06", "weight": 25 },
-        { "kind": "before", "a": "frag_5_1_04", "b": "frag_5_1_06", "weight": 25 },
-        { "kind": "adjacent", "a": "frag_5_1_06", "b": "frag_5_1_08", "weight": 25 },
-        { "kind": "before", "a": "frag_5_1_02", "b": "frag_5_1_03", "weight": 25 }
+        { "kind": "before", "a": "frag_5_1_08", "b": "frag_5_1_04", "weight": 25 },
+        { "kind": "before", "a": "frag_5_1_08", "b": "frag_5_1_06", "weight": 20 },
+        { "kind": "before", "a": "frag_5_1_04", "b": "frag_5_1_03", "weight": 20 },
+        { "kind": "position", "frag": "frag_5_1_08", "index": 2, "weight": 20 }
       ],
       "anti": [
-        { "kind": "before", "a": "frag_5_1_05", "b": "frag_5_1_06", "weight": 40 }
+        { "kind": "before", "a": "frag_5_1_06", "b": "frag_5_1_08", "weight": 30 }
       ],
-      "text": "澪随口吐槽了一句，然后被截了图，传进了好几个群。她想解释，却发现已经被屏蔽了。\n\n她把这几天的聊天记录翻了一遍，又翻了一遍，越看越觉得是自己的错。\n\n她没有等来栞的理解，因为她自己先认定了结论。那晚的灯，她一直没有关。",
-      "excerpt": "她先认定了结论，别人的话都进不去。",
-      "bondEffect": { "Mio": -12, "Shiori": -4 }
+      "text": "澪随口吐槽了一句，然后第一反应就是愤怒：「凭什么？我只是说了实话。」\n\n她想去解释，却发现已经被屏蔽了。这份愤怒从委屈变成了对抗——她把聊天记录发进了另一个群，配上一句「你们评评理」。\n\n截图又被转了一轮。栞的理解来得太晚，因为那堵防御墙已经筑起来了。\n\n一个月后，两人都在同一个 World 里，但谁也没有先说话。",
+      "excerpt": "防御墙一旦筑起来，谁也进不去。",
+      "bondEffect": { "Mio": -15, "Shiori": -8 }
+    },
+    {
+      "id": "5_1_true",
+      "levelId": "5-1",
+      "type": "true",
+      "title": "我确实说错了",
+      "threshold": 75,
+      "valence": 1,
+      "hidden": true,
+      "constraints": [
+        { "kind": "before", "a": "frag_5_1_08", "b": "frag_5_1_06", "weight": 25 },
+        { "kind": "before", "a": "frag_5_1_06", "b": "frag_5_1_07", "weight": 20 },
+        { "kind": "before", "a": "frag_5_1_07", "b": "frag_5_1_05", "weight": 20 },
+        { "kind": "adjacent", "a": "frag_5_1_07", "b": "frag_5_1_09", "weight": 20 }
+      ],
+      "anti": [
+        { "kind": "before", "a": "frag_5_1_04", "b": "frag_5_1_07", "weight": 30 }
+      ],
+      "text": "澪随口吐槽了一句，被截图转了出去。她第一瞬间很生气，但她没有让这份情绪冲出去——她先翻了聊天记录，越看越觉得自己确实没考虑周到。\n\n她没有等别人理解她，而是先写了那封解释。没有辩解，只有承认：「我确实说错了。对不起。」\n\n栞看完后私聊她：「你知道吗？你是我见过第一个不等别人说『没关系』就先道歉的人。」\n\n那个被屏蔽的名字，在三天后主动发来了消息：「谢谢你愿意说清楚。」",
+      "excerpt": "她没有等别人理解，而是先承认了自己的部分。",
+      "bondEffect": { "Mio": 18, "Shiori": 12 }
     }
   ],
   "chaosEnding": {
@@ -178,24 +214,24 @@
     "valence": 0,
     "constraints": [],
     "anti": [],
-    "text": "因果未能稳定……这段误会还没有找到它的顺序。\n\n想想看：是先有人替她说话，还是先有人把她关在门外？",
-    "excerpt": "误会的顺序还没有被决定。"
+    "text": "因果未能稳定……这段误会还没有找到它的顺序。\n\n想想看：愤怒是正常的第一反应，但它应该排在自我反思之前，还是之后？",
+    "excerpt": "愤怒是正常的，但它的位置决定了结局。"
   },
   "hints": [
     {
       "tier": 1,
-      "text": "截图和屏蔽都是结果。真正能改变结局的，是「谁先开口理解」。"
+      "text": "愤怒的红色碎片是本关的关键。它排在越前面，破坏力越大。"
     },
     {
       "tier": 2,
-      "text": "让栞的理解先于澪的解释，而澪的解释必须发生在被屏蔽之后。",
-      "highlight": ["frag_5_1_05", "frag_5_1_07", "frag_5_1_04"]
+      "text": "让愤怒先出现，但在自我怀疑之前消化掉它——这样解释才不会变成辩解。",
+      "highlight": ["frag_5_1_08", "frag_5_1_06", "frag_5_1_07"]
     },
     {
       "tier": 3,
-      "text": "推荐顺序：随口吐槽 → 截图转传 → 想解释却被屏蔽 → 自我怀疑 → 栞的理解 → 写下解释。",
-      "highlight": ["frag_5_1_02", "frag_5_1_03", "frag_5_1_04", "frag_5_1_06", "frag_5_1_05", "frag_5_1_07"]
+      "text": "推荐顺序：随口吐槽 → 愤怒反应 → 自我怀疑 → 被屏蔽 → 栞的理解 → 写下解释。",
+      "highlight": ["frag_5_1_02", "frag_5_1_08", "frag_5_1_06", "frag_5_1_04", "frag_5_1_05", "frag_5_1_07"]
     }
   ],
-  "behindTheScenes": "5-1 写的是「被误会之后」。VRChat 里一句随口的话，经过截图和转述，可能变成别人眼中完全不同的意思。当事人最容易陷入的不是愤怒，而是怀疑自己。\n\n所以本关的 good 不是「证明自己没错」，而是「先被理解，再去解释」。这也是 坐实 结局想说的：当你先认定了结论，别人的话就进不去了。"
+  "behindTheScenes": "5-1 强化版增加了「愤怒」这个红色碎片，它是本关的负面引擎。\n\n设计意图：被误会后的愤怒是正常反应，但它如果排在自我反思之前，就会变成防御墙——「凭什么？我只是说了实话」这句话本身没错，但它会阻止你看见对方的感受。\n\ntrue 结局要求玩家做到最难的事：在愤怒之后、理解之前，先主动承认自己的部分。这不是「认输」，而是成熟。"
 }
